@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Abstract merged portrait">
+  <defs><linearGradient id="b" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#62d9ff"/><stop offset="1" stop-color="#8d68ff"/></linearGradient></defs>
+  <rect width="800" height="600" rx="48" fill="#152f46"/><path d="M202 295Q205 78 400 65Q610 90 595 320Q575 515 400 525Q225 505 202 295Z" fill="url(#b)"/>
+  <path d="M205 250Q250 40 425 65Q560 85 605 225Q505 150 402 195Q300 135 205 250Z" fill="#ffdd71"/>
+  <path d="M280 280Q330 240 370 285M430 280Q475 235 525 275" fill="none" stroke="#16213e" stroke-width="19" stroke-linecap="round"/>
+  <path d="M375 330Q405 360 438 328" fill="none" stroke="#16213e" stroke-width="14" stroke-linecap="round"/>
+  <path d="M315 405Q400 365 495 407" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="210" cy="330" r="38" fill="#ffbd59"/><circle cx="590" cy="330" r="38" fill="#ffbd59"/>
+</svg>

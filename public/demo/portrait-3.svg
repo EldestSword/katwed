@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Abstract merged portrait">
+  <defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffc7a3"/><stop offset="1" stop-color="#df7f6a"/></linearGradient></defs>
+  <rect width="800" height="600" rx="48" fill="#4a214d"/><ellipse cx="400" cy="305" rx="210" ry="235" fill="url(#b)"/>
+  <path d="M190 280Q180 45 400 55Q630 55 610 290Q520 160 400 205Q290 150 190 280Z" fill="#30233f"/>
+  <path d="M265 255Q330 205 380 255M420 252Q480 205 540 255" fill="none" stroke="#30233f" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="330" cy="300" r="17" fill="#fff"/><circle cx="475" cy="300" r="17" fill="#fff"/>
+  <circle cx="330" cy="301" r="8" fill="#30233f"/><circle cx="475" cy="301" r="8" fill="#30233f"/>
+  <path d="M330 420Q400 465 485 410" fill="#fff" stroke="#30233f" stroke-width="13" stroke-linecap="round"/>
+  <path d="M260 535Q400 465 540 535" fill="#ffbd59"/>
+</svg>
