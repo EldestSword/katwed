@@ -30,6 +30,7 @@ class UnconfiguredRepository implements GameRepository {
   getActiveSessionForQuiz(_quizId: string): Promise<GameSession | null> { return this.fail() }
   joinRoom(_roomCode: string, _nickname: string): Promise<JoinResult> { return this.fail() }
   reconnectPlayer(_session: PlayerSession): Promise<JoinResult | null> { return this.fail() }
+  setPlayerPresence(_session: PlayerSession, _connected: boolean): Promise<void> { return this.fail() }
   getSafeGameState(_roomCode: string): Promise<SafeGameState | null> { return this.fail() }
   submitAnswer(_roomCode: string, _playerId: string, _token: string, _ids: readonly string[]): Promise<void> { return this.fail() }
   changePhase(_sessionId: string, _action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void> { return this.fail() }

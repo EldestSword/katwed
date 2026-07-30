@@ -28,6 +28,16 @@ describe('DemoGameRepository game state', () => {
     expect((await repository.getSafeGameState(session.roomCode))?.phase).toBe('finished')
   })
 
+  it('does not expose answer data before reveal', async () => {
+    const repository = new DemoGameRepository()
+    const session = await repository.launchGame('quiz-demo')
+    await repository.changePhase(session.id, 'start')
+    const state = await repository.getSafeGameState(session.roomCode)
+    expect(state?.reveal).toBeNull()
+    expect(JSON.stringify(state?.currentQuestion)).not.toContain('correctMember')
+    expect(JSON.stringify(state?.currentQuestion)).not.toContain('revealCaption')
+  })
+
   it('restores a player using the opaque reconnect token', async () => {
     const repository = new DemoGameRepository()
     const session = await repository.launchGame('quiz-demo')
@@ -39,6 +49,24 @@ describe('DemoGameRepository game state', () => {
     expect(await repository.reconnectPlayer({
       playerId: joined.player.id, roomCode: session.roomCode, nickname: joined.player.nickname, reconnectToken: 'wrong',
     })).toBeNull()
+  })
+
+  it('updates presence only for a valid reconnect session', async () => {
+    const repository = new DemoGameRepository()
+    const session = await repository.launchGame('quiz-demo')
+    const joined = await repository.joinRoom(session.roomCode, 'Presence Player')
+    const saved = {
+      playerId: joined.player.id,
+      roomCode: session.roomCode,
+      nickname: joined.player.nickname,
+      reconnectToken: joined.reconnectToken,
+    }
+    await repository.setPlayerPresence(saved, false)
+    expect((await repository.getSafeGameState(session.roomCode))?.players[0].connected).toBe(false)
+    await expect(repository.setPlayerPresence({ ...saved, reconnectToken: 'wrong' }, true))
+      .rejects.toMatchObject({ code: 'invalid-player' })
+    await repository.setPlayerPresence(saved, true)
+    expect((await repository.getSafeGameState(session.roomCode))?.players[0].connected).toBe(true)
   })
 
   it('rejects submissions outside the question phase, duplicate submissions and late submissions', async () => {
@@ -78,5 +106,35 @@ describe('DemoGameRepository game state', () => {
     const state = await repository.getSafeGameState(session.roomCode)
     expect(state?.leaderboard.map((entry) => entry.nickname)).toEqual(['Amy', 'Zed'])
     expect(state?.leaderboard[0].totalScore).toBe(1)
+  })
+
+  it('rejects invalid quiz payloads in the repository layer', async () => {
+    const repository = new DemoGameRepository()
+    const quiz = await repository.getQuiz('quiz-demo')
+    if (!quiz) throw new Error('Demo quiz missing')
+    await expect(repository.saveQuiz({
+      id: quiz.id,
+      title: quiz.title,
+      roster: quiz.roster,
+      questions: [{ ...quiz.questions[0], imagePath: '' }],
+    })).rejects.toThrow('Add a question image.')
+    await expect(repository.saveQuiz({
+      id: quiz.id,
+      title: quiz.title,
+      roster: quiz.roster,
+      questions: [{
+        ...quiz.questions[0],
+        correctMemberIds: ['member-alex', 'member-alex'],
+      }],
+    })).rejects.toThrow('Choose exactly two different correct people.')
+  })
+
+  it('cannot restart an unfinished game or reactivate a closed room', async () => {
+    const repository = new DemoGameRepository()
+    const session = await repository.launchGame('quiz-demo')
+    await expect(repository.changePhase(session.id, 'restart')).rejects.toMatchObject({ code: 'invalid-phase' })
+    await repository.changePhase(session.id, 'close')
+    await expect(repository.changePhase(session.id, 'restart')).rejects.toMatchObject({ code: 'expired-room' })
+    expect((await repository.getSafeGameState(session.roomCode))?.status).toBe('closed')
   })
 })

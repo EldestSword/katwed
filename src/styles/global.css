@@ -316,7 +316,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .is-selected .choice-marker { border-color: var(--purple); background: var(--yellow); }
 .selection-status { min-height: 44px; padding: .65rem 0; color: var(--purple); font-weight: 800; }
 .selection-status p { margin: 0; }
-.lock-button { position: sticky; bottom: 1rem; z-index: 3; }
+.lock-button {
+  position: sticky;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 3;
+}
 .player-waiting { width: min(92%, 620px); margin: 5rem auto; padding: 2.5rem; border-radius: 26px; background: #fff; text-align: center; box-shadow: var(--shadow); }
 .waiting-tick { background: var(--mint); color: #073c30; }
 .locked-pair { display: flex; justify-content: center; flex-wrap: wrap; gap: .7rem; margin-top: 1.5rem; }
@@ -441,7 +445,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
   .roster-grid { grid-template-columns: 1fr; }
   .roster-choice { min-height: 56px; }
   .portrait-frame { border-width: 4px; box-shadow: 5px 5px 0 var(--yellow); }
-  .player-question { padding-inline: .75rem; }
+  .player-question {
+    padding-inline: .75rem;
+    padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+  }
   .player-waiting { margin-top: 2rem; padding: 1.5rem; }
   .leaderboard li { grid-template-columns: 36px 1fr auto; padding: .6rem; }
   .leaderboard li > span:last-child { font-size: .8rem; }

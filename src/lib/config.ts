@@ -7,12 +7,24 @@ export interface AppConfig {
 }
 
 const buildMode = typeof __KATWED_BUILD_MODE__ === 'string' ? __KATWED_BUILD_MODE__ : 'test'
-const requestedDemo = import.meta.env.VITE_DEMO_MODE === 'true'
 
-export const config: AppConfig = {
-  demoMode: requestedDemo && buildMode !== 'production',
-  supabaseConfigured: Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY),
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
-  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
-  buildMode,
+export function resolveConfig(
+  environment: {
+    VITE_DEMO_MODE?: string
+    VITE_SUPABASE_URL?: string
+    VITE_SUPABASE_ANON_KEY?: string
+  },
+  mode: string,
+): AppConfig {
+  const supabaseUrl = environment.VITE_SUPABASE_URL?.trim() ?? ''
+  const supabaseAnonKey = environment.VITE_SUPABASE_ANON_KEY?.trim() ?? ''
+  return {
+    demoMode: environment.VITE_DEMO_MODE === 'true' && mode !== 'production',
+    supabaseConfigured: Boolean(supabaseUrl && supabaseAnonKey),
+    supabaseUrl,
+    supabaseAnonKey,
+    buildMode: mode,
+  }
 }
+
+export const config = resolveConfig(import.meta.env, buildMode)

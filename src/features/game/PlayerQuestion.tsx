@@ -8,7 +8,7 @@ interface PlayerQuestionProps {
   question: SafeQuestion
   roster: RosterMember[]
   closesAt: string | null
-  initiallySubmitted?: boolean
+  initialSelection?: readonly [string, string] | null
   onSubmit(selectedIds: readonly [string, string]): Promise<void>
 }
 
@@ -16,22 +16,22 @@ export function PlayerQuestion({
   question,
   roster,
   closesAt,
-  initiallySubmitted = false,
+  initialSelection = null,
   onSubmit,
 }: PlayerQuestionProps) {
-  const [selected, setSelected] = useState<string[]>([])
-  const [submitted, setSubmitted] = useState(initiallySubmitted)
+  const [selected, setSelected] = useState<string[]>(() => initialSelection ? [...initialSelection] : [])
+  const [submitted, setSubmitted] = useState(Boolean(initialSelection))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
   const remaining = useCountdown(closesAt)
 
   useEffect(() => {
-    setSelected([])
-    setSubmitted(initiallySubmitted)
+    setSelected(initialSelection ? [...initialSelection] : [])
+    setSubmitted(Boolean(initialSelection))
     setError('')
     setLimitMessage('')
-  }, [initiallySubmitted, question.id])
+  }, [initialSelection, question.id])
 
   function toggle(memberId: string) {
     if (submitted || submitting || remaining <= 0) return

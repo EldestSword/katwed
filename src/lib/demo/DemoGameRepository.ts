@@ -11,6 +11,7 @@ import { scoreExactPair, sortLeaderboard } from '../../utils/scoring'
 import type { GameRepository, QuizSaveInput } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
 import { sampleQuiz } from './sampleData'
+import { validateQuizSave } from '../../features/quiz-editor/validation'
 
 interface DemoState {
   quizzes: Quiz[]
@@ -70,6 +71,13 @@ export class DemoGameRepository implements GameRepository {
     if (notify) this.channel?.postMessage({ subject, at: Date.now() })
   }
 
+  private async withMutation<T>(operation: () => T): Promise<T> {
+    if (navigator.locks) {
+      return navigator.locks.request('katwed-demo-state-write', operation) as Promise<T>
+    }
+    return operation()
+  }
+
   async listQuizzes(): Promise<Quiz[]> {
     return clone(this.read().quizzes)
   }
@@ -79,6 +87,11 @@ export class DemoGameRepository implements GameRepository {
   }
 
   async saveQuiz(input: QuizSaveInput): Promise<Quiz> {
+    const validationMessages = validateQuizSave(input)
+    if (validationMessages.length) {
+      throw new RepositoryError('database', validationMessages[0])
+    }
+    return this.withMutation(() => {
     const state = this.read()
     const now = new Date().toISOString()
     const existing = input.id ? state.quizzes.find((quiz) => quiz.id === input.id) : undefined
@@ -106,23 +119,27 @@ export class DemoGameRepository implements GameRepository {
       : [...state.quizzes, quiz]
     this.write(state, true, quiz.id)
     return clone(quiz)
+    })
   }
 
   async deleteQuiz(quizId: string): Promise<void> {
+    return this.withMutation(() => {
     const state = this.read()
     state.quizzes = state.quizzes.filter((quiz) => quiz.id !== quizId)
     state.sessions = state.sessions.filter((session) => session.quizId !== quizId)
     this.write(state, true, quizId)
+    })
   }
 
   async launchGame(quizId: string): Promise<GameSession> {
+    return this.withMutation(() => {
     const state = this.read()
     const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
     if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
     const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
     if (active) return clone(active)
 
-    const usedCodes = new Set(state.sessions.filter((session) => session.status === 'active').map((session) => session.roomCode))
+    const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
     let roomCode: string
     do roomCode = String(100000 + Math.floor(Math.random() * 900000))
     while (usedCodes.has(roomCode))
@@ -144,6 +161,7 @@ export class DemoGameRepository implements GameRepository {
     state.sessions.push(session)
     this.write(state, true, session.id)
     return clone(session)
+    })
   }
 
   async getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null> {
@@ -161,6 +179,7 @@ export class DemoGameRepository implements GameRepository {
   }
 
   async joinRoom(rawRoomCode: string, rawNickname: string): Promise<JoinResult> {
+    return this.withMutation(() => {
     const state = this.read()
     const roomCode = rawRoomCode.replace(/\D/g, '')
     const nickname = rawNickname.trim().replace(/\s+/g, ' ')
@@ -188,9 +207,11 @@ export class DemoGameRepository implements GameRepository {
     state.reconnectTokens[player.id] = reconnectToken
     this.write(state, true, session.id)
     return clone({ player, reconnectToken })
+    })
   }
 
   async reconnectPlayer(saved: PlayerSession): Promise<JoinResult | null> {
+    return this.withMutation(() => {
     const state = this.read()
     const session = state.sessions.find(
       (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
@@ -201,6 +222,23 @@ export class DemoGameRepository implements GameRepository {
     player.connected = true
     this.write(state, true, session.id)
     return clone({ player, reconnectToken: saved.reconnectToken })
+    })
+  }
+
+  async setPlayerPresence(saved: PlayerSession, connected: boolean): Promise<void> {
+    return this.withMutation(() => {
+    const state = this.read()
+    const session = state.sessions.find(
+      (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
+    )
+    const player = session?.players.find((candidate) => candidate.id === saved.playerId)
+    if (!session || !player || state.reconnectTokens[player.id] !== saved.reconnectToken) {
+      throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+    }
+    if (player.connected === connected) return
+    player.connected = connected
+    this.write(state, true, session.id)
+    })
   }
 
   async getSafeGameState(rawRoomCode: string): Promise<SafeGameState | null> {
@@ -256,6 +294,7 @@ export class DemoGameRepository implements GameRepository {
     reconnectToken: string,
     selectedIds: readonly string[],
   ): Promise<void> {
+    return this.withMutation(() => {
     const state = this.read()
     const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
     if (!session || session.status !== 'active') throw new RepositoryError('invalid-room', 'This room is not active.')
@@ -299,16 +338,19 @@ export class DemoGameRepository implements GameRepository {
       player.totalCorrectResponseMs += responseTimeMs
     }
     this.write(state, true, session.id)
+    })
   }
 
   async changePhase(
     sessionId: string,
     action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
+    return this.withMutation(() => {
     const state = this.read()
     const session = state.sessions.find((candidate) => candidate.id === sessionId)
     const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
     if (!session || !quiz) throw new RepositoryError('database', 'The game could not be found.')
+    if (session.status !== 'active') throw new RepositoryError('expired-room', 'This room is closed.')
     const now = new Date()
     const openCurrentQuestion = (): void => {
       const question = quiz.questions[session.currentQuestionIndex]
@@ -355,8 +397,10 @@ export class DemoGameRepository implements GameRepository {
         session.questionClosesAt = now.toISOString()
         break
       case 'restart':
+        if (session.phase !== 'finished') {
+          throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
+        }
         session.phase = 'lobby'
-        session.status = 'active'
         session.currentQuestionIndex = 0
         session.questionOpenedAt = null
         session.questionClosesAt = null
@@ -376,12 +420,12 @@ export class DemoGameRepository implements GameRepository {
         break
     }
     this.write(state, true, session.id)
+    })
   }
 
   subscribe(subject: string, callback: () => void): Unsubscribe {
     const handleMessage = (event: MessageEvent<{ subject?: string }>): void => {
       if (event.data.subject === '*' || event.data.subject === subject) callback()
-      else callback()
     }
     const handleStorage = (event: StorageEvent): void => {
       if (event.key === STORAGE_KEY) callback()

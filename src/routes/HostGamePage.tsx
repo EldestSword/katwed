@@ -20,6 +20,7 @@ export function HostGamePage() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const autoLocking = useRef(false)
+  const actionInFlight = useRef(false)
   const navigate = useNavigate()
   const remaining = useCountdown(safeState?.questionClosesAt ?? null)
 
@@ -52,6 +53,8 @@ export function HostGamePage() {
   }, [refresh, sessionId])
 
   const action = useCallback(async (kind: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close') => {
+    if (actionInFlight.current) return
+    actionInFlight.current = true
     setWorking(true)
     setError('')
     try {
@@ -61,6 +64,7 @@ export function HostGamePage() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The host action failed.')
     } finally {
+      actionInFlight.current = false
       setWorking(false)
       if (kind === 'lock') autoLocking.current = false
     }

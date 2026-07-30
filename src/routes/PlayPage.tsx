@@ -6,14 +6,15 @@ import { StatusMessage } from '../components/StatusMessage'
 import { PlayerQuestion } from '../features/game/PlayerQuestion'
 import { useSafeGameState } from '../hooks/useSafeGameState'
 import { repository } from '../services/repository'
-import { clearPlayerSession, loadPlayerSession } from '../services/playerSession'
+import {
+  clearPlayerSession,
+  loadPlayerSession,
+  loadSubmittedAnswer,
+  saveSubmittedAnswer,
+} from '../services/playerSession'
 import type { PlayerSession } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionImage } from '../components/QuestionImage'
-
-function answerKey(playerId: string, questionId: string, openedAt: string | null): string {
-  return `katwed.answer.${playerId}.${questionId}.${openedAt ?? 'unknown'}`
-}
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -44,6 +45,23 @@ export function PlayPage() {
     () => state?.players.find((player) => player.id === playerSession?.playerId),
     [playerSession?.playerId, state?.players],
   )
+  const currentPlayerId = currentPlayer?.id
+
+  useEffect(() => {
+    if (!playerSession || !currentPlayerId) return
+    const updatePresence = (connected: boolean): void => {
+      void repository.setPlayerPresence(playerSession, connected).catch(() => undefined)
+    }
+    updatePresence(true)
+    const heartbeat = window.setInterval(() => updatePresence(true), 15_000)
+    const disconnect = (): void => updatePresence(false)
+    window.addEventListener('pagehide', disconnect)
+    return () => {
+      window.clearInterval(heartbeat)
+      window.removeEventListener('pagehide', disconnect)
+      disconnect()
+    }
+  }, [currentPlayerId, playerSession])
 
   if (loading || reconnecting) return <LoadingScreen message="Rejoining the room…" />
   if (!state || state.status === 'closed') {
@@ -68,9 +86,9 @@ export function PlayPage() {
   }
 
   const question = state.currentQuestion
-  const submitted = question
-    ? localStorage.getItem(answerKey(playerSession.playerId, question.id, state.questionOpenedAt)) === 'true'
-    : false
+  const submittedAnswer = question
+    ? loadSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt)
+    : null
 
   return (
     <main className="game-screen player-game">
@@ -94,10 +112,10 @@ export function PlayPage() {
           question={question}
           roster={state.roster}
           closesAt={state.questionClosesAt}
-          initiallySubmitted={submitted}
+          initialSelection={submittedAnswer}
           onSubmit={async (ids) => {
             await repository.submitAnswer(roomCode, playerSession.playerId, playerSession.reconnectToken, ids)
-            localStorage.setItem(answerKey(playerSession.playerId, question.id, state.questionOpenedAt), 'true')
+            saveSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt, ids)
           }}
         />
       )}

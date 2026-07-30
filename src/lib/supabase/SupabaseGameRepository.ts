@@ -73,6 +73,15 @@ export class SupabaseGameRepository implements GameRepository {
     })
   }
 
+  async setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void> {
+    await this.rpc('set_player_presence', {
+      p_room_code: session.roomCode,
+      p_player_id: session.playerId,
+      p_reconnect_token: session.reconnectToken,
+      p_connected: connected,
+    })
+  }
+
   async getSafeGameState(roomCode: string): Promise<SafeGameState | null> {
     return this.rpc<SafeGameState | null>('get_player_game_state', { p_room_code: roomCode })
   }

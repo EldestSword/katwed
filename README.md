@@ -12,7 +12,7 @@ Selecting only one correct person earns no points.
 
 ## Project status
 
-Version 1 is implemented as a React, Vite and TypeScript application. It includes the public landing, join and player routes; a protected host dashboard, quiz editor and live-game controller; local multi-tab demo mode; Supabase migrations and RPC functions; automated tests; and Netlify configuration.
+Version 1 is implemented as a React, Vite and TypeScript application. It includes the public landing, join and player routes; a protected host dashboard, quiz editor and live-game controller; local multi-tab demo mode; Supabase migrations and RPC functions; automated tests; and Netlify configuration. The current review suite completes all three demo questions with three players on desktop and mobile-sized Chromium.
 
 The local demo is the quickest way to explore the complete flow. Production use still requires a real Supabase project, applying the migrations, and creating a host account. The migration and browser client are implemented, but this repository has not been tested against the project owner’s eventual Supabase instance.
 
@@ -29,7 +29,7 @@ Screenshots will be added after the first hosted deployment.
 
 Katwed! keeps game rules and domain models separate from the interface. Screens use the `GameRepository` contract; development uses the demo repository while configured deployments use Supabase. Supabase is authoritative in production: player writes use security-definer RPC functions, scoring happens in SQL, and player-safe state omits correct IDs until reveal.
 
-Demo state is synchronised between tabs with `BroadcastChannel` and persisted in browser storage. It is deliberately development-only: `VITE_DEMO_MODE=true` is ignored by production builds.
+Demo state is synchronised between tabs with `BroadcastChannel` and persisted in browser storage. Reconnect tokens, locked answer choices and player presence survive ordinary refresh/reconnect flows. It is deliberately development-only: `VITE_DEMO_MODE=true` is ignored by production builds.
 
 ## Local setup
 
@@ -82,7 +82,7 @@ Never put the service-role key in a `VITE_` variable. Every `VITE_` value is bun
 
 ### Migrations, storage and host accounts
 
-The SQL files in [`supabase/migrations`](supabase/migrations) create the schema, constraints, indexes, Row Level Security, narrow RPC functions, Realtime publication entries and the `question-images` bucket.
+The SQL files in [`supabase/migrations`](supabase/migrations) create the schema, constraints, indexes, Row Level Security, narrow RPC functions, Realtime publication entries and the `question-images` bucket. Migration `202607300004_room_and_rpc_hardening.sql` makes room codes unambiguous for their full lifetime, prevents closed-room reactivation, constrains restart, adds token-validated presence updates and makes RPC execution grants explicit.
 
 The bucket accepts JPEG, PNG and WebP files up to 8 MB. Uploads are authenticated and owner-prefixed. Reads are public because current portraits must display for account-free players; UUID filenames are unguessable and never contain correct names. The editor scales the longest edge to at most 1,600 pixels and converts images to WebP before upload.
 
@@ -153,7 +153,7 @@ tests/e2e/             Playwright smoke tests
 - **Image upload fails** — apply the Storage migration, sign in again, and use JPEG, PNG or WebP under 8 MB.
 - **A player cannot rejoin** — use the same browser origin so its reconnect token remains available. Closed rooms cannot be restored.
 - **Playwright cannot find a browser** — run `npx playwright install chromium`.
-- **Updates appear delayed** — clients refetch after Realtime notifications and use a small safety poll; check Realtime configuration.
+- **Updates appear delayed** — clients refetch after Realtime notifications and use a small safety poll; check Realtime configuration. Presence changes are best effort when a browser is terminated abruptly.
 - **`npm audit` reports two React Router findings** — npm counts the direct and transitive packages separately for the same [RSC-mode advisory](https://github.com/advisories/GHSA-qwww-vcr4-c8h2). Katwed! is a client-only SPA and does not use React Server Components. The latest published React Router release is installed; do not use `npm audit fix --force`, which currently proposes a downgrade.
 
 ---

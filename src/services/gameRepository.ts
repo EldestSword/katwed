@@ -25,6 +25,7 @@ export interface GameRepository {
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
   joinRoom(roomCode: string, nickname: string): Promise<JoinResult>
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
+  setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, selectedIds: readonly string[]): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>

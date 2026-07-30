@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { QuestionImage } from '../components/QuestionImage'
 import { StatusMessage } from '../components/StatusMessage'
-import { validateQuestion } from '../features/quiz-editor/validation'
+import { validateQuestion, validateQuizSave } from '../features/quiz-editor/validation'
 import { uploadQuestionImage } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type { Question, Quiz, RosterMember } from '../types/domain'
@@ -29,6 +29,7 @@ export function QuizEditorPage() {
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
   const navigate = useNavigate()
+  const blocker = useBlocker(dirty)
 
   useEffect(() => {
     void repository.getQuiz(quizId).then((value) => {
@@ -47,6 +48,12 @@ export function QuizEditorPage() {
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (window.confirm('You have unsaved changes. Leave without saving?')) blocker.proceed()
+    else blocker.reset()
+  }, [blocker])
 
   const invalidQuestions = useMemo(
     () => quiz?.questions.map((question) => validateQuestion(question, quiz.roster)) ?? [],
@@ -117,23 +124,12 @@ export function QuizEditorPage() {
   async function save() {
     if (!quiz) return
     const title = quiz.title.trim()
-    if (!title) return setMessage({ tone: 'error', text: 'Give the quiz a title before saving.' })
-    if (quiz.roster.some((member) => !member.displayName.trim())) {
-      return setMessage({ tone: 'error', text: 'Every roster member needs a display name.' })
-    }
-    const duplicateNames = new Set<string>()
-    for (const member of quiz.roster) {
-      const key = member.displayName.trim().toLocaleLowerCase('en-GB')
-      if (duplicateNames.has(key)) return setMessage({ tone: 'error', text: 'Roster names must be unique.' })
-      duplicateNames.add(key)
-    }
-    if (invalidQuestions.some((validation) => !validation.valid)) {
-      return setMessage({ tone: 'error', text: 'Fix the highlighted question details before saving.' })
-    }
+    const roster = quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder }))
+    const questions = quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder }))
+    const validationMessages = validateQuizSave({ id: quiz.id, title, roster, questions })
+    if (validationMessages.length) return setMessage({ tone: 'error', text: validationMessages[0] })
     setSaving(true)
     try {
-      const roster = quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder }))
-      const questions = quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder }))
       const saved = await repository.saveQuiz({ id: quiz.id, title, roster, questions })
       setQuiz(saved)
       setDirty(false)
@@ -145,10 +141,6 @@ export function QuizEditorPage() {
     }
   }
 
-  function leave(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (dirty && !window.confirm('You have unsaved changes. Leave without saving?')) event.preventDefault()
-  }
-
   if (loading) return <LoadingScreen message="Opening the quiz editor…" />
   if (!quiz) return <main className="centred-screen"><h1>Quiz not found</h1><Link className="button button--primary" to="/host">Back to quizzes</Link></main>
 
@@ -158,7 +150,7 @@ export function QuizEditorPage() {
     <main className="editor-page">
       <header className="editor-toolbar">
         <div>
-          <Link className="text-link" to="/host" onClick={leave}>← All quizzes</Link>
+          <Link className="text-link" to="/host">← All quizzes</Link>
           <input className="title-input" aria-label="Quiz title" value={quiz.title}
             onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} />
         </div>
@@ -256,9 +248,9 @@ export function QuizEditorPage() {
       </section>
       <footer className="editor-footer">
         <button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button>
-        <button className="button button--secondary" type="button" onClick={() => {
-          if (!dirty || window.confirm('Leave without saving your changes?')) void navigate('/host')
-        }}>Back to dashboard</button>
+        <button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>
+          Back to dashboard
+        </button>
       </footer>
     </main>
   )

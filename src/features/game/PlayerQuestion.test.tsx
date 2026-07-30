@@ -48,4 +48,21 @@ describe('PlayerQuestion', () => {
     expect(screen.queryByRole('button', { name: 'Alex' })).not.toBeInTheDocument()
     expect(onSubmit).toHaveBeenCalledWith(['alex', 'bailey'])
   })
+
+  it('restores the submitted pair without exposing correctness', () => {
+    render(
+      <PlayerQuestion
+        question={question}
+        roster={roster}
+        closesAt={closesAt}
+        initialSelection={['bailey', 'alex']}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Answer locked in' })).toBeInTheDocument()
+    expect(screen.getByText('Alex')).toBeInTheDocument()
+    expect(screen.getByText('Bailey')).toBeInTheDocument()
+    expect(screen.queryByText(/correct/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Alex' })).not.toBeInTheDocument()
+  })
 })
