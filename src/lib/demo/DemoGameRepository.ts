@@ -123,7 +123,7 @@ export class DemoGameRepository implements GameRepository {
     if (active) return clone(active)
 
     const usedCodes = new Set(state.sessions.filter((session) => session.status === 'active').map((session) => session.roomCode))
-    let roomCode = ''
+    let roomCode: string
     do roomCode = String(100000 + Math.floor(Math.random() * 900000))
     while (usedCodes.has(roomCode))
 

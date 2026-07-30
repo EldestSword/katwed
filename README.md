@@ -154,6 +154,7 @@ tests/e2e/             Playwright smoke tests
 - **A player cannot rejoin** — use the same browser origin so its reconnect token remains available. Closed rooms cannot be restored.
 - **Playwright cannot find a browser** — run `npx playwright install chromium`.
 - **Updates appear delayed** — clients refetch after Realtime notifications and use a small safety poll; check Realtime configuration.
+- **`npm audit` reports two React Router findings** — npm counts the direct and transitive packages separately for the same [RSC-mode advisory](https://github.com/advisories/GHSA-qwww-vcr4-c8h2). Katwed! is a client-only SPA and does not use React Server Components. The latest published React Router release is installed; do not use `npm audit fix --force`, which currently proposes a downgrade.
 
 ---
 
