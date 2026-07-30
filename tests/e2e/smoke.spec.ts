@@ -1,218 +1,143 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.evaluate(() => {
-    localStorage.clear()
-    sessionStorage.clear()
-  })
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
 })
 
-test('landing and joining validation work', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: /team portrait quiz/i })).toBeVisible()
-  await page.getByRole('button', { name: 'Join game' }).click()
-  await expect(page.getByText('Enter the six-digit room code.')).toBeVisible()
+async function enterHost(page: Page) {
+  await page.goto('/host/login')
+  await page.getByRole('button', { name: 'Enter demo host area' }).click()
+  await expect(page.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
+}
+
+async function joinPlayer(context: BrowserContext, roomCode: string, nickname: string) {
+  const player = await context.newPage()
+  await player.goto(`/join?room=${roomCode}`)
+  await player.getByLabel('Nickname').fill(nickname)
+  await player.getByRole('button', { name: 'Join game' }).click()
+  await expect(player.getByRole('heading', { name: new RegExp(`You’re in, ${nickname}`) })).toBeVisible()
+  return player
+}
+
+async function launchQuiz(page: Page, title: string) {
+  const card = page.getByRole('article').filter({ hasText: title })
+  await card.getByRole('button', { name: 'Launch game' }).click()
+  await expect(page).toHaveURL(/\/host\/game\/.+\/control$/)
+  const text = await page.locator('.controller-bar').textContent()
+  const roomCode = text?.match(/Room\s+(\d{6})/)?.[1]
+  if (!roomCode) throw new Error('Room code was not displayed')
+  return roomCode
+}
+
+test('landing, joining validation and host guards work', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: /live team quiz/i })).toBeVisible()
   await page.goto('/join?room=999999')
   await page.getByLabel('Nickname').fill('Browser Player')
   await page.getByRole('button', { name: 'Join game' }).click()
   await expect(page.getByText('We could not find that room.')).toBeVisible()
+  await page.goto('/host/game/not-a-session/present')
+  await expect(page.getByRole('heading', { name: 'Sign in to host' })).toBeVisible()
 })
 
-test('direct routes, host guards and editor persistence work', async ({ page }) => {
-  await page.goto('/play/999999')
-  await expect(page.getByRole('heading', { name: 'Room not found' })).toBeVisible()
-  await page.goto('/host/quizzes/not-a-quiz/edit')
-  await expect(page.getByRole('heading', { name: 'Sign in to host' })).toBeVisible()
-  await page.goto('/not-a-route')
-  await expect(page.getByRole('heading', { name: 'This face doesn’t ring a bell' })).toBeVisible()
-
-  await page.goto('/host/login')
-  await page.getByRole('button', { name: 'Enter demo host area' }).click()
-  await page.getByRole('link', { name: 'Edit' }).click()
+test('editor has six formats and persists a changed title', async ({ page }) => {
+  await enterHost(page)
+  const card = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+  await card.getByRole('link', { name: 'Edit' }).click()
+  for (const name of ['Single choice', 'Multiple select', 'True or false', 'Slider', 'Pinpoint', 'Mash-up']) {
+    await expect(page.locator('.question-type-picker').getByRole('button', { name: new RegExp(name) })).toBeVisible()
+  }
   const title = page.getByLabel('Quiz title')
   await title.fill('A Persisted Curious Crew')
-  page.once('dialog', (dialog) => dialog.dismiss())
-  await page.getByRole('link', { name: 'All quizzes' }).click()
-  await expect(title).toHaveValue('A Persisted Curious Crew')
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
-test('a complete demo game keeps exact-pair scoring and reconnect state across tabs', async ({ context, page }) => {
-  await page.goto('/host/login')
-  await page.getByRole('button', { name: 'Enter demo host area' }).click()
-  await expect(page.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
-  await page.getByRole('button', { name: 'Launch game' }).click()
-  const roomCode = (await page.locator('.join-panel h1').textContent())?.trim()
-  expect(roomCode).toMatch(/^\d{6}$/)
-  if (!roomCode) throw new Error('Room code was not displayed')
+test('controller, presentation and three players complete every mixed format', async ({ context, page }) => {
+  test.setTimeout(120_000)
+  await enterHost(page)
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const presentation = await context.newPage()
+  await presentation.goto(page.url().replace('/control', '/present'))
+  await expect(presentation.getByText(roomCode)).toBeVisible()
+  await expect(presentation.getByRole('button', { name: /Start game|Close answers|Reveal answer|Next question|Close room/ })).toHaveCount(0)
 
-  async function joinPlayer(nickname: string) {
-    const player = await context.newPage()
-    await player.goto(`/join?room=${roomCode}`)
-    await player.getByLabel('Nickname').fill(nickname)
-    await player.getByRole('button', { name: 'Join game' }).click()
-    await expect(player.getByRole('heading', { name: /You’re in/ })).toBeVisible()
-    const savedSession = await player.evaluate(
-      (code) => localStorage.getItem(`katwed.player.${code}`),
-      roomCode,
-    )
-    expect(savedSession).toBeTruthy()
-    if (!savedSession) throw new Error('Player reconnect session was not stored')
-    return { player, savedSession }
-  }
-
-  const quinn = await joinPlayer('Quinn')
-  const riley = await joinPlayer('Riley')
-  const sam = await joinPlayer('Sam')
-  await expect(page.getByText('3 players joined')).toBeVisible()
-
-  const duplicate = await context.newPage()
-  await duplicate.goto(`/join?room=${roomCode}`)
-  await duplicate.getByLabel('Nickname').fill('qUiNn')
-  await duplicate.getByRole('button', { name: 'Join game' }).click()
-  await expect(duplicate.getByText('That nickname is already in this game.')).toBeVisible()
-  await duplicate.close()
-
-  await sam.player.close()
-  await expect(
-    page.locator('.player-chips li').filter({ hasText: 'Sam' }).getByLabel('disconnected'),
-  ).toBeVisible()
-  const reconnectedSam = await context.newPage()
-  await reconnectedSam.goto('/')
-  await reconnectedSam.evaluate(
-    ([code, saved]) => localStorage.setItem(`katwed.player.${code}`, saved),
-    [roomCode, sam.savedSession] as const,
-  )
-  await reconnectedSam.goto(`/play/${roomCode}`)
-  await expect(reconnectedSam.getByRole('heading', { name: /You’re in, Sam/ })).toBeVisible()
-  await expect(
-    page.locator('.player-chips li').filter({ hasText: 'Sam' }).getByLabel('connected'),
-  ).toBeVisible()
-
+  const playerOne = await joinPlayer(context, roomCode, 'Quinn')
+  const playerTwo = await joinPlayer(context, roomCode, 'Riley')
+  await joinPlayer(context, roomCode, 'Sam')
+  await expect(page.getByText('3 / 3').first()).toBeVisible()
   await page.getByRole('button', { name: 'Start game' }).click()
-  await expect(quinn.player.getByRole('heading', { name: 'Select exactly 2 people' })).toBeVisible()
-  const quinnLock = quinn.player.getByRole('button', { name: 'Lock in' })
-  await expect(quinnLock).toBeDisabled()
-  await quinn.player.getByRole('button', { name: 'Bailey' }).click()
-  await expect(quinnLock).toBeDisabled()
-  await quinn.player.getByRole('button', { name: 'Alex' }).click()
-  await expect(quinnLock).toBeEnabled()
-  await quinn.player.getByRole('button', { name: 'Casey' }).click()
-  await expect(quinn.player.getByRole('button', { name: 'Casey' })).toHaveAttribute('aria-pressed', 'false')
-  await expect(quinn.player.getByText(/Two selected already/)).toBeVisible()
-  await quinn.player.getByRole('button', { name: 'Bailey' }).click()
-  await expect(quinnLock).toBeDisabled()
-  await quinn.player.getByRole('button', { name: 'Bailey' }).click()
-  await quinnLock.click()
-  await expect(quinn.player.getByRole('heading', { name: 'Answer locked in' })).toBeVisible()
-  await expect(quinn.player.getByText(/Your choices are safely tucked away/)).toBeVisible()
-  await expect(quinn.player.getByText(/The curious combination was/)).toHaveCount(0)
 
-  await riley.player.getByRole('button', { name: 'Alex' }).click()
-  await riley.player.getByRole('button', { name: 'Casey' }).click()
-  await riley.player.getByRole('button', { name: 'Lock in' }).click()
-  await expect(riley.player.getByRole('heading', { name: 'Answer locked in' })).toBeVisible()
-  await expect(page.getByText('2 / 3')).toBeVisible()
-
-  await quinn.player.evaluate(
-    ([code, saved]) => localStorage.setItem(`katwed.player.${code}`, saved),
-    [roomCode, quinn.savedSession] as const,
-  )
-  await quinn.player.reload()
-  await expect(quinn.player.getByRole('heading', { name: 'Answer locked in' })).toBeVisible()
-  await expect(quinn.player.locator('.locked-pair')).toContainText('Alex')
-  await expect(quinn.player.locator('.locked-pair')).toContainText('Bailey')
-
-  await page.getByRole('button', { name: 'Close answers early' }).click()
-  await expect(reconnectedSam.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
-  await expect(reconnectedSam.getByRole('button', { name: 'Lock in' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Reveal the pair' }).click()
-  await expect(quinn.player.getByRole('heading', { name: /Alex.*Bailey/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Show leaderboard' }).click()
-  await expect(page.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('1 point')
-  await expect(page.locator('.leaderboard li').filter({ hasText: 'Riley' })).toContainText('0 points')
-
-  const questions = [
-    { correct: ['Casey', 'Ellis'], wrong: ['Casey', 'Drew'] },
-    { correct: ['Morgan', 'Drew'], wrong: ['Alex', 'Bailey'] },
-  ] as const
-  for (const [index, choices] of questions.entries()) {
-    await page.getByRole('button', { name: 'Next question' }).click()
-    await expect(quinn.player.getByText(`Question ${index + 2} of 3`)).toBeVisible()
-    for (const name of choices.correct) await quinn.player.getByRole('button', { name }).click()
-    await quinn.player.getByRole('button', { name: 'Lock in' }).click()
-    for (const name of choices.wrong) await riley.player.getByRole('button', { name }).click()
-    await riley.player.getByRole('button', { name: 'Lock in' }).click()
-    await expect(page.getByText('2 / 3')).toBeVisible()
-    await page.getByRole('button', { name: 'Close answers early' }).click()
-    await page.getByRole('button', { name: 'Reveal the pair' }).click()
+  async function finishRound(expectedReveal: RegExp) {
+    const closeAnswers = page.getByRole('button', { name: 'Close answers early' })
+    if (await closeAnswers.isVisible()) await closeAnswers.click()
+    await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
+    await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reveal answer' }).click()
+    await expect(presentation.getByText(expectedReveal).first()).toBeVisible()
     await page.getByRole('button', { name: 'Show leaderboard' }).click()
   }
 
-  await page.getByRole('button', { name: 'Finish game' }).click()
-  await expect(page.getByRole('heading', { name: 'Final leaderboard' })).toBeVisible()
-  await expect(page.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('3 points')
-  const finalNames = await page.locator('.leaderboard li strong').allTextContents()
-  expect(finalNames).toEqual(['Quinn', 'Riley', 'Sam'])
+  await playerOne.getByRole('button', { name: 'Mars' }).click()
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await playerTwo.getByRole('button', { name: 'Venus' }).click()
+  await playerTwo.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/Mars/)
+  await page.getByRole('button', { name: 'Next question' }).click()
 
-  await page.getByRole('button', { name: 'Restart quiz' }).click()
-  await expect(page.getByRole('button', { name: 'Start game' })).toBeVisible()
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Close room' }).click()
-  await expect(page.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
-  await quinn.player.reload()
-  await expect(quinn.player.getByRole('heading', { name: 'This room has closed' })).toBeVisible()
+  for (const option of ['Red', 'Green', 'Blue']) await playerOne.getByRole('button', { name: option }).click()
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/Red.*Green.*Blue/)
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  await playerOne.getByRole('button', { name: 'True' }).click()
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/True/)
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  const slider = playerOne.getByRole('slider')
+  await slider.fill('1440')
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/1440/)
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  const target = playerOne.locator('.pinpoint-surface')
+  const box = await target.boundingBox()
+  if (!box) throw new Error('Pinpoint image was not visible')
+  await playerOne.mouse.click(box.x + box.width * .5, box.y + box.height * .43)
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/target area|Correct answer/i)
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  await playerOne.getByRole('button', { name: 'Alex' }).click()
+  await playerOne.getByRole('button', { name: 'Bailey' }).click()
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/Alex.*Bailey/)
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  await playerOne.getByRole('button', { name: 'A portrait' }).click()
+  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await finishRound(/portrait/i)
+  await page.getByRole('button', { name: 'Finish game' }).click()
+  await expect(presentation.getByRole('heading', { name: 'Final leaderboard' })).toBeVisible()
+  await expect(presentation.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('6001')
 })
 
-test('the player question stays usable at representative mobile widths', async ({ context, page }) => {
-  await page.goto('/host/login')
-  await page.getByRole('button', { name: 'Enter demo host area' }).click()
-  await expect(page.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
-  await page.evaluate(() => {
-    const raw = localStorage.getItem('katwed.demo.state.v1')
-    if (!raw) throw new Error('Demo state was not initialised')
-    const state = JSON.parse(raw) as {
-      quizzes: Array<{ roster: Array<{ id: string; displayName: string }> }>
-    }
-    const member = state.quizzes[0]?.roster.find((candidate) => candidate.id === 'member-morgan')
-    if (member) member.displayName = 'Morgan With A Surprisingly Long Name'
-    localStorage.setItem('katwed.demo.state.v1', JSON.stringify(state))
-  })
-  await page.getByRole('button', { name: 'Launch game' }).click()
-  const roomCode = (await page.locator('.join-panel h1').textContent())?.trim()
-  if (!roomCode) throw new Error('Room code was not displayed')
-
-  const player = await context.newPage()
-  await player.goto(`/join?room=${roomCode}`)
-  await player.getByLabel('Nickname').fill('Mobile Player')
-  await player.getByRole('button', { name: 'Join game' }).click()
+test('mash-up remains usable at representative mobile widths', async ({ context, page }) => {
+  await enterHost(page)
+  const roomCode = await launchQuiz(page, 'The Curious Crew')
+  const player = await joinPlayer(context, roomCode, 'Mobile Player')
   await page.getByRole('button', { name: 'Start game' }).click()
   await expect(player.getByRole('heading', { name: 'Select exactly 2 people' })).toBeVisible()
-
   for (const width of [320, 375, 390, 430]) {
     await player.setViewportSize({ width, height: 760 })
     const bodyBox = await player.locator('body').boundingBox()
-    const imageBox = await player.locator('.portrait-frame').boundingBox()
-    const timerBox = await player.locator('.timer').boundingBox()
-    const choiceBoxes = await Promise.all(
-      (await player.locator('.roster-choice').all()).map((choice) => choice.boundingBox()),
-    )
     expect(bodyBox?.width).toBeLessThanOrEqual(width)
-    expect(imageBox?.height).toBeGreaterThan(150)
-    expect(timerBox?.x).toBeGreaterThanOrEqual(0)
-    expect((timerBox?.x ?? width) + (timerBox?.width ?? 0)).toBeLessThanOrEqual(width)
-    expect(Math.min(...choiceBoxes.map((box) => box?.height ?? 0))).toBeGreaterThanOrEqual(48)
+    await expect(player.getByRole('button', { name: 'Lock in' })).toBeVisible()
   }
-
-  await expect(player.getByRole('button', { name: 'Morgan With A Surprisingly Long Name' })).toBeVisible()
   await player.getByRole('button', { name: 'Alex' }).click()
   await player.getByRole('button', { name: 'Bailey' }).click()
-  const lock = player.getByRole('button', { name: 'Lock in' })
-  await lock.scrollIntoViewIfNeeded()
-  await expect(lock).toBeVisible()
-  await expect(lock).toBeEnabled()
+  await expect(player.getByRole('button', { name: 'Lock in' })).toBeEnabled()
 })

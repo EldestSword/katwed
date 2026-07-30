@@ -21,9 +21,9 @@ export function LandingPage() {
     <main>
       <section className="hero">
         <div className="hero__copy">
-          <p className="eyebrow">Two faces went in. One curious face came out.</p>
-          <h1><Logo /> <span className="sr-only">team portrait quiz</span></h1>
-          <p className="hero__lead">Can you spot the exact two teammates blended into each portrait?</p>
+          <p className="eyebrow">Live questions. Shared suspense. One room code.</p>
+          <h1><Logo /> <span className="sr-only">live team quiz</span></h1>
+          <p className="hero__lead">Run a lively multi-format quiz while everyone answers from their own device.</p>
           <form className="room-entry" onSubmit={submit} noValidate>
             <label htmlFor="landing-room">Room code</label>
             <div className="room-entry__row">
@@ -42,9 +42,9 @@ export function LandingPage() {
         <p className="eyebrow">The wonderfully strict rule</p>
         <h2 id="how-title">Exactly two. Both correct. No half points.</h2>
         <div className="steps">
-          <article><span>1</span><h3>Look closely</h3><p>A peculiar portrait combines two fictional teammates.</p></article>
-          <article><span>2</span><h3>Pick the pair</h3><p>Select exactly two names from the full team roster.</p></article>
-          <article><span>3</span><h3>Lock it in</h3><p>Only the exact pair earns the point. Order never matters.</p></article>
+          <article><span>1</span><h3>Join quickly</h3><p>Enter the room code on any phone, tablet or computer.</p></article>
+          <article><span>2</span><h3>Answer clearly</h3><p>Choose, slide, pinpoint or solve the original two-person mash-up.</p></article>
+          <article><span>3</span><h3>Share the reveal</h3><p>Follow results and standings on a clean presentation screen.</p></article>
         </div>
       </section>
     </main>

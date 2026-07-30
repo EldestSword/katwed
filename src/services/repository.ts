@@ -7,6 +7,7 @@ import { RepositoryError } from './gameRepository'
 import type {
   GameSession,
   JoinResult,
+  PlayerAnswerPayload,
   PlayerSession,
   Quiz,
   SafeGameState,
@@ -32,7 +33,7 @@ class UnconfiguredRepository implements GameRepository {
   reconnectPlayer(_session: PlayerSession): Promise<JoinResult | null> { return this.fail() }
   setPlayerPresence(_session: PlayerSession, _connected: boolean): Promise<void> { return this.fail() }
   getSafeGameState(_roomCode: string): Promise<SafeGameState | null> { return this.fail() }
-  submitAnswer(_roomCode: string, _playerId: string, _token: string, _ids: readonly string[]): Promise<void> { return this.fail() }
+  submitAnswer(_roomCode: string, _playerId: string, _token: string, _payload: PlayerAnswerPayload): Promise<void> { return this.fail() }
   changePhase(_sessionId: string, _action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void> { return this.fail() }
   subscribe(_subject: string, _callback: () => void): Unsubscribe { return () => undefined }
 }

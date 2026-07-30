@@ -11,6 +11,7 @@ const HostLoginPage = lazy(() => import('../routes/HostLoginPage').then((module)
 const HostDashboardPage = lazy(() => import('../routes/HostDashboardPage').then((module) => ({ default: module.HostDashboardPage })))
 const QuizEditorPage = lazy(() => import('../routes/QuizEditorPage').then((module) => ({ default: module.QuizEditorPage })))
 const HostGamePage = lazy(() => import('../routes/HostGamePage').then((module) => ({ default: module.HostGamePage })))
+const PresentationPage = lazy(() => import('../routes/PresentationPage').then((module) => ({ default: module.PresentationPage })))
 const NotFoundPage = lazy(() => import('../routes/NotFoundPage').then((module) => ({ default: module.NotFoundPage })))
 
 export function App() {
@@ -25,7 +26,9 @@ export function App() {
           <Route element={<RequireHost />}>
             <Route path="/host" element={<HostDashboardPage />} />
             <Route path="/host/quizzes/:quizId/edit" element={<QuizEditorPage />} />
-            <Route path="/host/game/:sessionId" element={<HostGamePage />} />
+            <Route path="/host/game/:sessionId" element={<Navigate to="control" replace />} />
+            <Route path="/host/game/:sessionId/control" element={<HostGamePage />} />
+            <Route path="/host/game/:sessionId/present" element={<PresentationPage />} />
           </Route>
           <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="*" element={<NotFoundPage />} />

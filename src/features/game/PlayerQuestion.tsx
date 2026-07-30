@@ -1,58 +1,128 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useCountdown } from '../../hooks/useCountdown'
-import type { RosterMember, SafeQuestion } from '../../types/domain'
+import type {
+  ChoiceOption,
+  PlayerAnswerPayload,
+  RosterMember,
+  SafeQuestion,
+} from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
+import { QuestionMedia } from '../../components/QuestionMedia'
 import { QuestionImage } from '../../components/QuestionImage'
+import { ImageViewer } from '../../components/ImageViewer'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
   roster: RosterMember[]
   closesAt: string | null
-  initialSelection?: readonly [string, string] | null
-  onSubmit(selectedIds: readonly [string, string]): Promise<void>
+  openedAt?: string | null
+  initialAnswer?: PlayerAnswerPayload | null
+  onSubmit(payload: PlayerAnswerPayload): Promise<void>
+}
+
+function stableOptions(options: ChoiceOption[], randomise: boolean, seed: string): ChoiceOption[] {
+  if (!randomise) return options
+  return [...options].sort((left, right) => {
+    const score = (value: string) => [...`${seed}${value}`].reduce((total, character) =>
+      ((total * 31) + character.charCodeAt(0)) | 0, 0)
+    return score(left.id) - score(right.id)
+  })
+}
+
+function ChoiceCard({
+  option,
+  selected,
+  onSelect,
+}: {
+  option: ChoiceOption
+  selected: boolean
+  onSelect(): void
+}) {
+  const [enlarged, setEnlarged] = useState(false)
+  return (
+    <button className={`answer-choice ${selected ? 'is-selected' : ''}`} type="button" aria-pressed={selected} onClick={onSelect}>
+      {option.imagePath && <QuestionImage path={option.imagePath} alt={option.imageAlt || option.label || 'Answer option image'} />}
+      <span>{option.label}</span>
+      {option.imagePath && (
+        <span className="enlarge-button" role="button" tabIndex={0} onClick={(event) => {
+          event.stopPropagation()
+          setEnlarged(true)
+        }} onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            event.stopPropagation()
+            setEnlarged(true)
+          }
+        }}>Enlarge</span>
+      )}
+      {enlarged && option.imagePath && <ImageViewer path={option.imagePath} alt={option.imageAlt || option.label} onClose={() => setEnlarged(false)} />}
+    </button>
+  )
+}
+
+function answerSummary(answer: PlayerAnswerPayload, question: SafeQuestion, roster: RosterMember[]): string {
+  switch (answer.type) {
+    case 'single-choice':
+      return question.type === 'single-choice'
+        ? question.options.find((option) => option.id === answer.optionId)?.label ?? 'Selected option'
+        : 'Selected option'
+    case 'multiple-select':
+      return question.type === 'multiple-select'
+        ? answer.optionIds.map((id) => question.options.find((option) => option.id === id)?.label ?? id).join(', ')
+        : 'Selected options'
+    case 'true-false': return answer.value ? 'True' : 'False'
+    case 'slider': return String(answer.value)
+    case 'pinpoint': return 'Location selected'
+    case 'mashup':
+      return answer.memberIds.map((id) => roster.find((member) => member.id === id)?.displayName ?? id).join(' + ')
+  }
 }
 
 export function PlayerQuestion({
   question,
   roster,
   closesAt,
-  initialSelection = null,
+  openedAt = null,
+  initialAnswer = null,
   onSubmit,
 }: PlayerQuestionProps) {
-  const [selected, setSelected] = useState<string[]>(() => initialSelection ? [...initialSelection] : [])
-  const [submitted, setSubmitted] = useState(Boolean(initialSelection))
+  const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
+  const [mashupSelection, setMashupSelection] = useState<string[]>(
+    initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [],
+  )
+  const [submitted, setSubmitted] = useState(Boolean(initialAnswer))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
   const remaining = useCountdown(closesAt)
 
   useEffect(() => {
-    setSelected(initialSelection ? [...initialSelection] : [])
-    setSubmitted(Boolean(initialSelection))
+    setAnswer(initialAnswer)
+    setMashupSelection(initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [])
+    setSubmitted(Boolean(initialAnswer))
     setError('')
     setLimitMessage('')
-  }, [initialSelection, question.id])
+  }, [initialAnswer, question.id])
 
-  function toggle(memberId: string) {
-    if (submitted || submitting || remaining <= 0) return
-    setError('')
-    setLimitMessage('')
-    setSelected((current) => {
-      if (current.includes(memberId)) return current.filter((id) => id !== memberId)
-      if (current.length === 2) {
-        setLimitMessage('Two selected already — deselect one before choosing somebody else.')
-        return current
-      }
-      return [...current, memberId]
-    })
-  }
+  const canSubmit = useMemo(() => {
+    if (question.type === 'mashup') return mashupSelection.length === 2
+    if (!answer || answer.type !== question.type) return false
+    if (answer.type === 'multiple-select' && question.type === 'multiple-select') {
+      return answer.optionIds.length >= question.minimumSelections && answer.optionIds.length <= question.maximumSelections
+    }
+    return true
+  }, [answer, mashupSelection.length, question])
 
   async function lockIn() {
-    if (selected.length !== 2 || submitted || remaining <= 0) return
+    const payload = question.type === 'mashup' && mashupSelection.length === 2
+      ? { type: 'mashup' as const, memberIds: [mashupSelection[0], mashupSelection[1]] as const }
+      : answer
+    if (!payload || !canSubmit || submitted || remaining <= 0) return
     setSubmitting(true)
     setError('')
     try {
-      await onSubmit([selected[0], selected[1]])
+      await onSubmit(payload)
+      setAnswer(payload)
       setSubmitted(true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Your answer could not be submitted. Please try again.')
@@ -61,65 +131,151 @@ export function PlayerQuestion({
     }
   }
 
-  if (submitted) {
+  if (submitted && answer) {
     return (
       <section className="player-waiting" aria-live="polite">
         <div className="waiting-tick" aria-hidden="true">✓</div>
         <h2>Answer locked in</h2>
-        <p>Your choices are safely tucked away. We’ll reveal the pair when the host is ready.</p>
-        <div className="locked-pair">
-          {selected.map((id) => <span key={id}>{roster.find((member) => member.id === id)?.displayName}</span>)}
-        </div>
+        <p>Your answer is safely tucked away. The result will appear after the reveal.</p>
+        <strong>{answerSummary(answer, question, roster)}</strong>
       </section>
     )
   }
 
+  const showMedia = question.mediaVisibility === 'players' || question.mediaVisibility === 'both'
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
         <span>Question {question.questionNumber} of {question.totalQuestions}</span>
         <strong className={`timer ${remaining <= 5 ? 'timer--urgent' : ''}`} aria-label={`${remaining} seconds remaining`}>{remaining}</strong>
       </div>
-      <div className="portrait-frame">
-        <QuestionImage path={question.imagePath} alt="AI-generated merged portrait for the current question." />
+      <div className="player-question__prompt">
+        <h1 id="question-instruction">{question.prompt}</h1>
+        {question.supportingText && <p>{question.supportingText}</p>}
       </div>
-      <div className="selection-heading">
-        <div>
-          <h2 id="question-instruction">Select exactly 2 people</h2>
-          <p>{selected.length} of 2 selected</p>
+      {showMedia && question.type !== 'pinpoint' && (
+        <QuestionMedia media={question.media} openedAt={openedAt} />
+      )}
+
+      {question.type === 'single-choice' && (
+        <div className="answer-grid" role="group" aria-label="Choose one answer">
+          {stableOptions(question.options, question.randomiseOptions, question.id).map((option) => (
+            <ChoiceCard
+              key={option.id}
+              option={option}
+              selected={answer?.type === 'single-choice' && answer.optionId === option.id}
+              onSelect={() => setAnswer({ type: 'single-choice', optionId: option.id })}
+            />
+          ))}
         </div>
-        <span className="selection-count" aria-hidden="true">{selected.length}/2</span>
-      </div>
-      <div className="roster-grid" role="group" aria-label="Team roster">
-        {roster.map((member) => {
-          const isSelected = selected.includes(member.id)
-          return (
-            <button
-              key={member.id}
-              type="button"
-              className={`roster-choice ${isSelected ? 'is-selected' : ''}`}
-              aria-pressed={isSelected}
-              onClick={() => toggle(member.id)}
-            >
-              <span className="choice-marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-              <span>{member.displayName}</span>
-            </button>
-          )
-        })}
-      </div>
+      )}
+
+      {question.type === 'multiple-select' && (
+        <>
+          <p className="selection-guidance">Select {question.minimumSelections === question.maximumSelections
+            ? question.minimumSelections
+            : `${question.minimumSelections}–${question.maximumSelections}`} options.</p>
+          <div className="answer-grid" role="group" aria-label="Choose all applicable answers">
+            {stableOptions(question.options, question.randomiseOptions, question.id).map((option) => {
+              const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
+              return (
+                <ChoiceCard key={option.id} option={option} selected={selected.includes(option.id)} onSelect={() => {
+                  setLimitMessage('')
+                  if (selected.includes(option.id)) {
+                    setAnswer({ type: 'multiple-select', optionIds: selected.filter((id) => id !== option.id) })
+                  } else if (selected.length >= question.maximumSelections) {
+                    setLimitMessage(`You can select up to ${question.maximumSelections} options.`)
+                  } else {
+                    setAnswer({ type: 'multiple-select', optionIds: [...selected, option.id] })
+                  }
+                }} />
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {question.type === 'true-false' && (
+        <div className="boolean-grid" role="group" aria-label="True or false">
+          {[true, false].map((value) => (
+            <button key={String(value)} type="button" className={`boolean-choice ${answer?.type === 'true-false' && answer.value === value ? 'is-selected' : ''}`}
+              aria-pressed={answer?.type === 'true-false' && answer.value === value}
+              onClick={() => setAnswer({ type: 'true-false', value })}>{value ? 'True' : 'False'}</button>
+          ))}
+        </div>
+      )}
+
+      {question.type === 'slider' && (
+        <div className="slider-answer">
+          <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix} {question.unitLabel}</output>
+          <input type="range" min={question.minimum} max={question.maximum} step={question.step}
+            value={answer?.type === 'slider' ? answer.value : question.minimum}
+            aria-label={question.unitLabel || 'Answer value'}
+            onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
+          <div><span>{question.minimum}</span><span>{question.maximum}</span></div>
+        </div>
+      )}
+
+      {question.type === 'pinpoint' && (
+        <div className="pinpoint-answer">
+          <div className="pinpoint-surface" role="button" tabIndex={0} aria-label="Select a location on the image"
+            onClick={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect()
+              setAnswer({
+                type: 'pinpoint',
+                x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+                y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+              })
+            }}>
+            <QuestionImage path={question.media.path} alt={question.media.altText} />
+            {answer?.type === 'pinpoint' && <span className="pinpoint-marker" style={{ left: `${answer.x * 100}%`, top: `${answer.y * 100}%` }} />}
+          </div>
+          <details>
+            <summary>Keyboard location controls</summary>
+            <label>Horizontal <input type="range" min="0" max="1" step="0.01" value={answer?.type === 'pinpoint' ? answer.x : 0.5}
+              onChange={(event) => setAnswer({ type: 'pinpoint', x: Number(event.target.value), y: answer?.type === 'pinpoint' ? answer.y : 0.5 })} /></label>
+            <label>Vertical <input type="range" min="0" max="1" step="0.01" value={answer?.type === 'pinpoint' ? answer.y : 0.5}
+              onChange={(event) => setAnswer({ type: 'pinpoint', x: answer?.type === 'pinpoint' ? answer.x : 0.5, y: Number(event.target.value) })} /></label>
+          </details>
+        </div>
+      )}
+
+      {question.type === 'mashup' && (
+        <>
+          <div className="selection-heading"><h2>Select exactly 2 people</h2></div>
+          <div className="roster-grid" role="group" aria-label="People bank">
+            {roster.map((member) => {
+              const selected = mashupSelection
+              const isSelected = selected.includes(member.id)
+              return (
+                <button key={member.id} type="button" className={`roster-choice ${isSelected ? 'is-selected' : ''}`} aria-pressed={isSelected}
+                  onClick={() => {
+                    setLimitMessage('')
+                    if (isSelected) {
+                      setMashupSelection(selected.filter((id) => id !== member.id))
+                    } else if (selected.length === 2) {
+                      setLimitMessage('Two selected already — deselect one before choosing somebody else.')
+                    } else {
+                      setMashupSelection([...selected, member.id])
+                    }
+                  }}>
+                  <span className="choice-marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                  <span>{member.displayName}</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
       <div className="selection-status" aria-live="polite">
         {limitMessage && <p>{limitMessage}</p>}
-        {remaining <= 0 && <StatusMessage tone="error">Time is up. Waiting for the host to reveal the answer.</StatusMessage>}
+        {remaining <= 0 && <StatusMessage tone="error">Time is up. Waiting for the reveal.</StatusMessage>}
         {error && <StatusMessage tone="error">{error}</StatusMessage>}
       </div>
-      <button
-        className="button button--primary button--wide lock-button"
-        type="button"
-        disabled={selected.length !== 2 || submitted || submitting || remaining <= 0}
-        onClick={() => void lockIn()}
-      >
-        {submitting ? 'Submitting…' : 'Lock in'}
-      </button>
+      <button className="button button--primary button--wide lock-button" type="button"
+        disabled={!canSubmit || submitted || submitting || remaining <= 0}
+        onClick={() => void lockIn()}>{submitting ? 'Submitting…' : 'Lock in'}</button>
     </section>
   )
 }

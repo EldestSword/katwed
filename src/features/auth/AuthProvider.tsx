@@ -16,7 +16,7 @@ const DEMO_AUTH_KEY = 'katwed.demo.host'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthValue['user']>(
-    config.demoMode && sessionStorage.getItem(DEMO_AUTH_KEY) === 'true'
+    config.demoMode && localStorage.getItem(DEMO_AUTH_KEY) === 'true'
       ? { id: 'demo-host', email: 'demo@katwed.local' }
       : null,
   )
@@ -45,11 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     demoSignIn() {
       if (!config.demoMode) return
-      sessionStorage.setItem(DEMO_AUTH_KEY, 'true')
+      localStorage.setItem(DEMO_AUTH_KEY, 'true')
       setUser({ id: 'demo-host', email: 'demo@katwed.local' })
     },
     async signOut() {
-      sessionStorage.removeItem(DEMO_AUTH_KEY)
+      localStorage.removeItem(DEMO_AUTH_KEY)
       if (supabase) await supabase.auth.signOut()
       setUser(null)
     },

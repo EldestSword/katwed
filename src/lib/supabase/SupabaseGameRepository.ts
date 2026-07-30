@@ -2,6 +2,7 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   GameSession,
   JoinResult,
+  PlayerAnswerPayload,
   PlayerSession,
   Quiz,
   SafeGameState,
@@ -90,13 +91,13 @@ export class SupabaseGameRepository implements GameRepository {
     roomCode: string,
     playerId: string,
     reconnectToken: string,
-    selectedIds: readonly string[],
+    payload: PlayerAnswerPayload,
   ): Promise<void> {
     await this.rpc('submit_answer', {
       p_room_code: roomCode,
       p_player_id: playerId,
       p_reconnect_token: reconnectToken,
-      p_selected_member_ids: selectedIds,
+      p_answer: payload,
     })
   }
 

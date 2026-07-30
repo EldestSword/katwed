@@ -1,6 +1,7 @@
 import type {
   GameSession,
   JoinResult,
+  PlayerAnswerPayload,
   PlayerSession,
   Quiz,
   SafeGameState,
@@ -27,7 +28,7 @@ export interface GameRepository {
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
-  submitAnswer(roomCode: string, playerId: string, reconnectToken: string, selectedIds: readonly string[]): Promise<void>
+  submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void): Unsubscribe
 }

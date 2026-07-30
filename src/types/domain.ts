@@ -1,5 +1,171 @@
 export type GamePhase = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
 export type SessionStatus = 'active' | 'closed'
+export type QuestionType =
+  | 'single-choice'
+  | 'multiple-select'
+  | 'true-false'
+  | 'slider'
+  | 'pinpoint'
+  | 'mashup'
+
+export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
+export type MediaVisibility = 'presentation' | 'players' | 'both'
+export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
+
+export type QuestionMedia =
+  | { type: 'none' }
+  | {
+      type: 'image'
+      path: string
+      altText: string
+      revealEffect: ImageRevealEffect
+      revealDurationSeconds: number
+    }
+  | {
+      type: 'youtube'
+      videoId: string
+      startSeconds?: number
+      endSeconds?: number
+    }
+
+export interface ChoiceOption {
+  id: string
+  label: string
+  imagePath?: string
+  imageAlt?: string
+}
+
+interface QuestionBase {
+  id: string
+  quizId: string
+  prompt: string
+  supportingText: string
+  timeLimitSeconds: number
+  points: number
+  displayOrder: number
+  revealCaption: string
+  media: QuestionMedia
+  mediaVisibility: MediaVisibility
+  presentationChoiceVisibility: PresentationChoiceVisibility
+}
+
+export interface SingleChoiceQuestion extends QuestionBase {
+  type: 'single-choice'
+  options: ChoiceOption[]
+  correctOptionId: string
+  randomiseOptions: boolean
+}
+
+export interface MultipleSelectQuestion extends QuestionBase {
+  type: 'multiple-select'
+  options: ChoiceOption[]
+  correctOptionIds: string[]
+  minimumSelections: number
+  maximumSelections: number
+  scoringMode: 'exact' | 'partial-wipeout'
+  randomiseOptions: boolean
+}
+
+export interface TrueFalseQuestion extends QuestionBase {
+  type: 'true-false'
+  correctValue: boolean
+}
+
+export interface SliderQuestion extends QuestionBase {
+  type: 'slider'
+  minimum: number
+  maximum: number
+  step: number
+  correctValue: number
+  tolerance: number
+  prefix: string
+  suffix: string
+  unitLabel: string
+}
+
+export interface PinpointQuestion extends QuestionBase {
+  type: 'pinpoint'
+  media: Extract<QuestionMedia, { type: 'image' }>
+  targetX: number
+  targetY: number
+  targetRadius: number
+}
+
+export interface MashupQuestion extends QuestionBase {
+  type: 'mashup'
+  media: Extract<QuestionMedia, { type: 'image' }>
+  correctMemberIds: readonly [string, string]
+}
+
+export type Question =
+  | SingleChoiceQuestion
+  | MultipleSelectQuestion
+  | TrueFalseQuestion
+  | SliderQuestion
+  | PinpointQuestion
+  | MashupQuestion
+
+export type PlayerAnswerPayload =
+  | { type: 'single-choice'; optionId: string }
+  | { type: 'multiple-select'; optionIds: string[] }
+  | { type: 'true-false'; value: boolean }
+  | { type: 'slider'; value: number }
+  | { type: 'pinpoint'; x: number; y: number }
+  | { type: 'mashup'; memberIds: readonly [string, string] }
+
+export type SafeQuestion =
+  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'revealCaption'> & QuestionProgress)
+
+interface QuestionProgress {
+  questionNumber: number
+  totalQuestions: number
+}
+
+export type RevealPayload =
+  | {
+      type: 'single-choice'
+      correctOptionId: string
+      caption: string
+      optionCounts: Record<string, number>
+    }
+  | {
+      type: 'multiple-select'
+      correctOptionIds: string[]
+      caption: string
+      optionCounts: Record<string, number>
+    }
+  | {
+      type: 'true-false'
+      correctValue: boolean
+      caption: string
+      counts: { true: number; false: number }
+    }
+  | {
+      type: 'slider'
+      correctValue: number
+      tolerance: number
+      caption: string
+      values: number[]
+    }
+  | {
+      type: 'pinpoint'
+      targetX: number
+      targetY: number
+      targetRadius: number
+      caption: string
+      points: Array<{ x: number; y: number }>
+    }
+  | {
+      type: 'mashup'
+      correctMemberIds: readonly [string, string]
+      correctNames: readonly [string, string]
+      caption: string
+    }
 
 export interface RosterMember {
   id: string
@@ -8,16 +174,6 @@ export interface RosterMember {
   shortName: string
   active: boolean
   displayOrder: number
-}
-
-export interface Question {
-  id: string
-  quizId: string
-  imagePath: string
-  correctMemberIds: readonly [string, string]
-  timeLimitSeconds: number
-  displayOrder: number
-  revealCaption: string
 }
 
 export interface Quiz {
@@ -45,11 +201,11 @@ export interface PlayerAnswer {
   sessionId: string
   questionId: string
   playerId: string
-  selectedMemberIds: readonly [string, string]
+  payload: PlayerAnswerPayload
   submittedAt: string
   responseTimeMs: number
   correct: boolean
-  pointsAwarded: 0 | 1
+  pointsAwarded: number
 }
 
 export interface GameSession {
@@ -65,14 +221,6 @@ export interface GameSession {
   endedAt: string | null
   players: Player[]
   answers: PlayerAnswer[]
-}
-
-export interface SafeQuestion {
-  id: string
-  imagePath: string
-  questionNumber: number
-  totalQuestions: number
-  timeLimitSeconds: number
 }
 
 export interface LeaderboardEntry {
@@ -95,13 +243,7 @@ export interface SafeGameState {
   players: Player[]
   submittedCount: number
   leaderboard: LeaderboardEntry[]
-  reveal:
-    | {
-        correctMemberIds: readonly [string, string]
-        correctNames: readonly [string, string]
-        caption: string
-      }
-    | null
+  reveal: RevealPayload | null
   questionOpenedAt: string | null
   questionClosesAt: string | null
 }

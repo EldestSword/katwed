@@ -2,15 +2,20 @@ import type {
   GameSession,
   JoinResult,
   Player,
+  PlayerAnswer,
+  PlayerAnswerPayload,
   PlayerSession,
+  Question,
   Quiz,
+  RevealPayload,
   SafeGameState,
+  SafeQuestion,
   Unsubscribe,
 } from '../../types/domain'
-import { scoreExactPair, sortLeaderboard } from '../../utils/scoring'
+import { scoreQuestion, sortLeaderboard } from '../../utils/scoring'
 import type { GameRepository, QuizSaveInput } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
-import { sampleQuiz } from './sampleData'
+import { sampleQuizzes } from './sampleData'
 import { validateQuizSave } from '../../features/quiz-editor/validation'
 
 interface DemoState {
@@ -19,8 +24,8 @@ interface DemoState {
   reconnectTokens: Record<string, string>
 }
 
-const STORAGE_KEY = 'katwed.demo.state.v1'
-const CHANNEL_NAME = 'katwed-demo-realtime'
+const STORAGE_KEY = 'katwed.demo.state.v2'
+const CHANNEL_NAME = 'katwed-demo-realtime-v2'
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -31,7 +36,7 @@ function uid(prefix: string): string {
 }
 
 function freshState(): DemoState {
-  return { quizzes: [clone(sampleQuiz)], sessions: [], reconnectTokens: {} }
+  return { quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {} }
 }
 
 function isDemoState(value: unknown): value is DemoState {
@@ -39,8 +44,124 @@ function isDemoState(value: unknown): value is DemoState {
     typeof value === 'object' &&
     value !== null &&
     Array.isArray((value as { quizzes?: unknown }).quizzes) &&
-    Array.isArray((value as { sessions?: unknown }).sessions)
+    Array.isArray((value as { sessions?: unknown }).sessions) &&
+    typeof (value as { reconnectTokens?: unknown }).reconnectTokens === 'object'
   )
+}
+
+function safeBase(question: Question, questionNumber: number, totalQuestions: number) {
+  return {
+    id: question.id,
+    prompt: question.prompt,
+    supportingText: question.supportingText,
+    timeLimitSeconds: question.timeLimitSeconds,
+    points: question.points,
+    displayOrder: question.displayOrder,
+    media: question.media,
+    mediaVisibility: question.mediaVisibility,
+    presentationChoiceVisibility: question.presentationChoiceVisibility,
+    questionNumber,
+    totalQuestions,
+  }
+}
+
+function toSafeQuestion(question: Question, questionNumber: number, totalQuestions: number): SafeQuestion {
+  const base = safeBase(question, questionNumber, totalQuestions)
+  switch (question.type) {
+    case 'single-choice':
+      return { ...base, type: question.type, options: question.options, randomiseOptions: question.randomiseOptions }
+    case 'multiple-select':
+      return {
+        ...base,
+        type: question.type,
+        options: question.options,
+        minimumSelections: question.minimumSelections,
+        maximumSelections: question.maximumSelections,
+        randomiseOptions: question.randomiseOptions,
+      }
+    case 'true-false':
+      return { ...base, type: question.type }
+    case 'slider':
+      return {
+        ...base,
+        type: question.type,
+        minimum: question.minimum,
+        maximum: question.maximum,
+        step: question.step,
+        prefix: question.prefix,
+        suffix: question.suffix,
+        unitLabel: question.unitLabel,
+      }
+    case 'pinpoint':
+      return { ...base, type: question.type, media: question.media }
+    case 'mashup':
+      return { ...base, type: question.type, media: question.media }
+  }
+}
+
+function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Quiz): RevealPayload {
+  switch (question.type) {
+    case 'single-choice': {
+      const optionCounts = Object.fromEntries(question.options.map((option) => [option.id, 0]))
+      answers.forEach((answer) => {
+        if (answer.payload.type === 'single-choice') {
+          optionCounts[answer.payload.optionId] = (optionCounts[answer.payload.optionId] ?? 0) + 1
+        }
+      })
+      return { type: question.type, correctOptionId: question.correctOptionId, caption: question.revealCaption, optionCounts }
+    }
+    case 'multiple-select': {
+      const optionCounts = Object.fromEntries(question.options.map((option) => [option.id, 0]))
+      answers.forEach((answer) => {
+        if (answer.payload.type === 'multiple-select') {
+          answer.payload.optionIds.forEach((id) => {
+            optionCounts[id] = (optionCounts[id] ?? 0) + 1
+          })
+        }
+      })
+      return {
+        type: question.type,
+        correctOptionIds: question.correctOptionIds,
+        caption: question.revealCaption,
+        optionCounts,
+      }
+    }
+    case 'true-false': {
+      const counts = { true: 0, false: 0 }
+      answers.forEach((answer) => {
+        if (answer.payload.type === 'true-false') counts[String(answer.payload.value) as 'true' | 'false'] += 1
+      })
+      return { type: question.type, correctValue: question.correctValue, caption: question.revealCaption, counts }
+    }
+    case 'slider':
+      return {
+        type: question.type,
+        correctValue: question.correctValue,
+        tolerance: question.tolerance,
+        caption: question.revealCaption,
+        values: answers.flatMap((answer) => answer.payload.type === 'slider' ? [answer.payload.value] : []),
+      }
+    case 'pinpoint':
+      return {
+        type: question.type,
+        targetX: question.targetX,
+        targetY: question.targetY,
+        targetRadius: question.targetRadius,
+        caption: question.revealCaption,
+        points: answers.flatMap((answer) => answer.payload.type === 'pinpoint'
+          ? [{ x: answer.payload.x, y: answer.payload.y }]
+          : []),
+      }
+    case 'mashup':
+      return {
+        type: question.type,
+        correctMemberIds: question.correctMemberIds,
+        correctNames: question.correctMemberIds.map(
+          (id) => quiz.roster.find((member) => member.id === id)?.displayName ?? 'Unknown',
+        ) as [string, string],
+        caption: question.revealCaption,
+      }
+  }
 }
 
 export class DemoGameRepository implements GameRepository {
@@ -73,7 +194,7 @@ export class DemoGameRepository implements GameRepository {
 
   private async withMutation<T>(operation: () => T): Promise<T> {
     if (navigator.locks) {
-      return navigator.locks.request('katwed-demo-state-write', operation) as Promise<T>
+      return navigator.locks.request('katwed-demo-state-write-v2', operation) as Promise<T>
     }
     return operation()
   }
@@ -88,79 +209,75 @@ export class DemoGameRepository implements GameRepository {
 
   async saveQuiz(input: QuizSaveInput): Promise<Quiz> {
     const validationMessages = validateQuizSave(input)
-    if (validationMessages.length) {
-      throw new RepositoryError('database', validationMessages[0])
-    }
+    if (validationMessages.length) throw new RepositoryError('database', validationMessages[0])
     return this.withMutation(() => {
-    const state = this.read()
-    const now = new Date().toISOString()
-    const existing = input.id ? state.quizzes.find((quiz) => quiz.id === input.id) : undefined
-    const quizId = existing?.id ?? uid('quiz')
-    const quiz: Quiz = {
-      id: quizId,
-      title: input.title.trim() || 'Untitled quiz',
-      roster: input.roster.map((member, index) => ({
-        ...member,
-        id: member.id || uid('member'),
-        quizId,
-        displayOrder: index,
-      })),
-      questions: input.questions.map((question, index) => ({
-        ...question,
-        id: question.id || uid('question'),
-        quizId,
-        displayOrder: index,
-      })),
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    }
-    state.quizzes = existing
-      ? state.quizzes.map((candidate) => (candidate.id === quiz.id ? quiz : candidate))
-      : [...state.quizzes, quiz]
-    this.write(state, true, quiz.id)
-    return clone(quiz)
+      const state = this.read()
+      const now = new Date().toISOString()
+      const existing = input.id ? state.quizzes.find((quiz) => quiz.id === input.id) : undefined
+      const quizId = existing?.id ?? uid('quiz')
+      const quiz: Quiz = {
+        id: quizId,
+        title: input.title.trim() || 'Untitled quiz',
+        roster: input.roster.map((member, index) => ({
+          ...member,
+          id: member.id || uid('member'),
+          quizId,
+          displayOrder: index,
+        })),
+        questions: input.questions.map((question, index) => ({
+          ...question,
+          id: question.id || uid('question'),
+          quizId,
+          displayOrder: index,
+        })),
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      }
+      state.quizzes = existing
+        ? state.quizzes.map((candidate) => candidate.id === quiz.id ? quiz : candidate)
+        : [...state.quizzes, quiz]
+      this.write(state, true, quiz.id)
+      return clone(quiz)
     })
   }
 
   async deleteQuiz(quizId: string): Promise<void> {
     return this.withMutation(() => {
-    const state = this.read()
-    state.quizzes = state.quizzes.filter((quiz) => quiz.id !== quizId)
-    state.sessions = state.sessions.filter((session) => session.quizId !== quizId)
-    this.write(state, true, quizId)
+      const state = this.read()
+      state.quizzes = state.quizzes.filter((quiz) => quiz.id !== quizId)
+      state.sessions = state.sessions.filter((session) => session.quizId !== quizId)
+      this.write(state, true, quizId)
     })
   }
 
   async launchGame(quizId: string): Promise<GameSession> {
     return this.withMutation(() => {
-    const state = this.read()
-    const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
-    if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
-    const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
-    if (active) return clone(active)
-
-    const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
-    let roomCode: string
-    do roomCode = String(100000 + Math.floor(Math.random() * 900000))
-    while (usedCodes.has(roomCode))
-
-    const session: GameSession = {
-      id: uid('game'),
-      quizId,
-      roomCode,
-      status: 'active',
-      phase: 'lobby',
-      currentQuestionIndex: 0,
-      questionOpenedAt: null,
-      questionClosesAt: null,
-      startedAt: null,
-      endedAt: null,
-      players: [],
-      answers: [],
-    }
-    state.sessions.push(session)
-    this.write(state, true, session.id)
-    return clone(session)
+      const state = this.read()
+      const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
+      if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
+      const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
+      if (active) return clone(active)
+      const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
+      let roomCode: string
+      do roomCode = String(100000 + Math.floor(Math.random() * 900000))
+      while (usedCodes.has(roomCode))
+      const session: GameSession = {
+        id: uid('game'),
+        quizId,
+        roomCode,
+        status: 'active',
+        phase: 'lobby',
+        currentQuestionIndex: 0,
+        questionOpenedAt: null,
+        questionClosesAt: null,
+        startedAt: null,
+        endedAt: null,
+        players: [],
+        answers: [],
+      }
+      state.sessions.push(session)
+      this.write(state, true, session.id)
+      return clone(session)
     })
   }
 
@@ -173,71 +290,70 @@ export class DemoGameRepository implements GameRepository {
   }
 
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
-    return clone(
-      this.read().sessions.find((session) => session.quizId === quizId && session.status === 'active') ?? null,
-    )
+    return clone(this.read().sessions.find(
+      (session) => session.quizId === quizId && session.status === 'active',
+    ) ?? null)
   }
 
   async joinRoom(rawRoomCode: string, rawNickname: string): Promise<JoinResult> {
     return this.withMutation(() => {
-    const state = this.read()
-    const roomCode = rawRoomCode.replace(/\D/g, '')
-    const nickname = rawNickname.trim().replace(/\s+/g, ' ')
-    const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
-    if (!session) throw new RepositoryError('invalid-room', 'We could not find that room.')
-    if (session.status !== 'active') throw new RepositoryError('expired-room', 'That room has closed.')
-    if (session.phase !== 'lobby') throw new RepositoryError('game-started', 'That game has already started.')
-    if (!nickname || nickname.length > 30) throw new RepositoryError('database', 'Enter a nickname of 1–30 characters.')
-    if (session.players.some((player) => player.nickname.localeCompare(nickname, 'en-GB', { sensitivity: 'base' }) === 0)) {
-      throw new RepositoryError('duplicate-nickname', 'That nickname is already in this game.')
-    }
-
-    const player: Player = {
-      id: uid('player'),
-      sessionId: session.id,
-      nickname,
-      connected: true,
-      joinedAt: new Date().toISOString(),
-      totalScore: 0,
-      correctAnswerCount: 0,
-      totalCorrectResponseMs: 0,
-    }
-    const reconnectToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
-    session.players.push(player)
-    state.reconnectTokens[player.id] = reconnectToken
-    this.write(state, true, session.id)
-    return clone({ player, reconnectToken })
+      const state = this.read()
+      const roomCode = rawRoomCode.replace(/\D/g, '')
+      const nickname = rawNickname.trim().replace(/\s+/g, ' ')
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
+      if (!session) throw new RepositoryError('invalid-room', 'We could not find that room.')
+      if (session.status !== 'active') throw new RepositoryError('expired-room', 'That room has closed.')
+      if (session.phase !== 'lobby') throw new RepositoryError('game-started', 'That game has already started.')
+      if (!nickname || nickname.length > 30) throw new RepositoryError('database', 'Enter a nickname of 1–30 characters.')
+      if (session.players.some((player) =>
+        player.nickname.localeCompare(nickname, 'en-GB', { sensitivity: 'base' }) === 0
+      )) throw new RepositoryError('duplicate-nickname', 'That nickname is already in this game.')
+      const player: Player = {
+        id: uid('player'),
+        sessionId: session.id,
+        nickname,
+        connected: true,
+        joinedAt: new Date().toISOString(),
+        totalScore: 0,
+        correctAnswerCount: 0,
+        totalCorrectResponseMs: 0,
+      }
+      const reconnectToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
+      session.players.push(player)
+      state.reconnectTokens[player.id] = reconnectToken
+      this.write(state, true, session.id)
+      return clone({ player, reconnectToken })
     })
   }
 
   async reconnectPlayer(saved: PlayerSession): Promise<JoinResult | null> {
     return this.withMutation(() => {
-    const state = this.read()
-    const session = state.sessions.find(
-      (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
-    )
-    if (!session) return null
-    const player = session.players.find((candidate) => candidate.id === saved.playerId)
-    if (!player || state.reconnectTokens[player.id] !== saved.reconnectToken) return null
-    player.connected = true
-    this.write(state, true, session.id)
-    return clone({ player, reconnectToken: saved.reconnectToken })
+      const state = this.read()
+      const session = state.sessions.find(
+        (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
+      )
+      if (!session) return null
+      const player = session.players.find((candidate) => candidate.id === saved.playerId)
+      if (!player || state.reconnectTokens[player.id] !== saved.reconnectToken) return null
+      player.connected = true
+      this.write(state, true, session.id)
+      return clone({ player, reconnectToken: saved.reconnectToken })
     })
   }
 
   async setPlayerPresence(saved: PlayerSession, connected: boolean): Promise<void> {
     return this.withMutation(() => {
-    const state = this.read()
-    const session = state.sessions.find(
-      (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
-    )
-    const player = session?.players.find((candidate) => candidate.id === saved.playerId)
-    if (!session || !player || state.reconnectTokens[player.id] !== saved.reconnectToken) {
-      throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
-    }
-    if (player.connected === connected) return
-    player.connected = connected
-    this.write(state, true, session.id)
+      const state = this.read()
+      const session = state.sessions.find(
+        (candidate) => candidate.roomCode === saved.roomCode && candidate.status === 'active',
+      )
+      const player = session?.players.find((candidate) => candidate.id === saved.playerId)
+      if (!session || !player || state.reconnectTokens[player.id] !== saved.reconnectToken) {
+        throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      }
+      if (player.connected === connected) return
+      player.connected = connected
+      this.write(state, true, session.id)
     })
   }
 
@@ -249,11 +365,9 @@ export class DemoGameRepository implements GameRepository {
     if (!quiz) return null
     const question = quiz.questions[session.currentQuestionIndex] ?? null
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
-    const activeRoster = quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
     const currentAnswers = question
       ? session.answers.filter((answer) => answer.questionId === question.id)
       : []
-
     return clone({
       sessionId: session.id,
       quizTitle: quiz.title,
@@ -261,28 +375,15 @@ export class DemoGameRepository implements GameRepository {
       status: session.status,
       phase: session.phase,
       currentQuestion: question
-        ? {
-            id: question.id,
-            imagePath: question.imagePath,
-            questionNumber: session.currentQuestionIndex + 1,
-            totalQuestions: quiz.questions.length,
-            timeLimitSeconds: question.timeLimitSeconds,
-          }
+        ? toSafeQuestion(question, session.currentQuestionIndex + 1, quiz.questions.length)
         : null,
-      roster: activeRoster,
+      roster: question?.type === 'mashup'
+        ? quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
+        : [],
       players: session.players,
       submittedCount: currentAnswers.length,
       leaderboard: sortLeaderboard(session.players),
-      reveal:
-        mayReveal && question
-          ? {
-              correctMemberIds: question.correctMemberIds,
-              correctNames: question.correctMemberIds.map(
-                (id) => quiz.roster.find((member) => member.id === id)?.displayName ?? 'Unknown',
-              ) as [string, string],
-              caption: question.revealCaption,
-            }
-          : null,
+      reveal: mayReveal && question ? revealFor(question, currentAnswers, quiz) : null,
       questionOpenedAt: session.questionOpenedAt,
       questionClosesAt: session.questionClosesAt,
     })
@@ -292,52 +393,52 @@ export class DemoGameRepository implements GameRepository {
     roomCode: string,
     playerId: string,
     reconnectToken: string,
-    selectedIds: readonly string[],
+    payload: PlayerAnswerPayload,
   ): Promise<void> {
     return this.withMutation(() => {
-    const state = this.read()
-    const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
-    if (!session || session.status !== 'active') throw new RepositoryError('invalid-room', 'This room is not active.')
-    const player = session.players.find((candidate) => candidate.id === playerId)
-    if (!player || state.reconnectTokens[playerId] !== reconnectToken) {
-      throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
-    }
-    if (session.phase !== 'question') {
-      throw new RepositoryError('invalid-phase', 'Answers are not open.')
-    }
-    const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
-    if (!closesAt || Date.now() > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
-    const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
-    const question = quiz?.questions[session.currentQuestionIndex]
-    if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
-    if (session.answers.some((answer) => answer.playerId === playerId && answer.questionId === question.id)) {
-      throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
-    }
-    const activeIds = new Set(quiz.roster.filter((member) => member.active).map((member) => member.id))
-    if (selectedIds.length !== 2 || new Set(selectedIds).size !== 2 || selectedIds.some((id) => !activeIds.has(id))) {
-      throw new RepositoryError('invalid-selection', 'Select exactly two different active people.')
-    }
-    const score = scoreExactPair(selectedIds, question.correctMemberIds)
-    if (!score.valid) throw new RepositoryError('invalid-selection', 'Select exactly two different people.')
-    const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : Date.now()
-    const responseTimeMs = Math.max(0, Date.now() - openedAt)
-    session.answers.push({
-      id: uid('answer'),
-      sessionId: session.id,
-      questionId: question.id,
-      playerId,
-      selectedMemberIds: [selectedIds[0], selectedIds[1]],
-      submittedAt: new Date().toISOString(),
-      responseTimeMs,
-      correct: score.correct,
-      pointsAwarded: score.points,
-    })
-    if (score.correct) {
-      player.totalScore += 1
-      player.correctAnswerCount += 1
-      player.totalCorrectResponseMs += responseTimeMs
-    }
-    this.write(state, true, session.id)
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
+      if (!session || session.status !== 'active') throw new RepositoryError('invalid-room', 'This room is not active.')
+      const player = session.players.find((candidate) => candidate.id === playerId)
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) {
+        throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      }
+      if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not open.')
+      const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
+      if (!closesAt || Date.now() > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
+      const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+      const question = quiz?.questions[session.currentQuestionIndex]
+      if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
+      if (session.answers.some((answer) => answer.playerId === playerId && answer.questionId === question.id)) {
+        throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
+      }
+      if (question.type === 'mashup' && payload.type === 'mashup') {
+        const activeIds = new Set(quiz.roster.filter((member) => member.active).map((member) => member.id))
+        if (payload.memberIds.some((id) => !activeIds.has(id))) {
+          throw new RepositoryError('invalid-selection', 'Select exactly two different active people.')
+        }
+      }
+      const score = scoreQuestion(question, payload)
+      if (!score.valid) throw new RepositoryError('invalid-selection', 'That answer is not valid for this question.')
+      const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : Date.now()
+      const responseTimeMs = Math.max(0, Date.now() - openedAt)
+      session.answers.push({
+        id: uid('answer'),
+        sessionId: session.id,
+        questionId: question.id,
+        playerId,
+        payload,
+        submittedAt: new Date().toISOString(),
+        responseTimeMs,
+        correct: score.correct,
+        pointsAwarded: score.points,
+      })
+      player.totalScore += score.points
+      if (score.correct) {
+        player.correctAnswerCount += 1
+        player.totalCorrectResponseMs += responseTimeMs
+      }
+      this.write(state, true, session.id)
     })
   }
 
@@ -346,80 +447,77 @@ export class DemoGameRepository implements GameRepository {
     action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
     return this.withMutation(() => {
-    const state = this.read()
-    const session = state.sessions.find((candidate) => candidate.id === sessionId)
-    const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
-    if (!session || !quiz) throw new RepositoryError('database', 'The game could not be found.')
-    if (session.status !== 'active') throw new RepositoryError('expired-room', 'This room is closed.')
-    const now = new Date()
-    const openCurrentQuestion = (): void => {
-      const question = quiz.questions[session.currentQuestionIndex]
-      if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
-      session.phase = 'question'
-      session.questionOpenedAt = now.toISOString()
-      session.questionClosesAt = new Date(now.getTime() + question.timeLimitSeconds * 1000).toISOString()
-    }
-
-    switch (action) {
-      case 'start':
-        if (session.phase !== 'lobby') throw new RepositoryError('invalid-phase', 'The game has already started.')
-        if (!quiz.questions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
-        session.startedAt = now.toISOString()
-        session.currentQuestionIndex = 0
-        openCurrentQuestion()
-        break
-      case 'lock':
-        if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not currently open.')
-        session.phase = 'locked'
-        session.questionClosesAt = now.toISOString()
-        break
-      case 'reveal':
-        if (session.phase !== 'locked') throw new RepositoryError('invalid-phase', 'Lock answers before the reveal.')
-        session.phase = 'reveal'
-        break
-      case 'leaderboard':
-        if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Reveal the answer first.')
-        session.phase = 'leaderboard'
-        break
-      case 'next':
-        if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
-        if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId)
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      if (!session || !quiz) throw new RepositoryError('database', 'The game could not be found.')
+      if (session.status !== 'active') throw new RepositoryError('expired-room', 'This room is closed.')
+      const now = new Date()
+      const openCurrentQuestion = (): void => {
+        const question = quiz.questions[session.currentQuestionIndex]
+        if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
+        session.phase = 'question'
+        session.questionOpenedAt = now.toISOString()
+        session.questionClosesAt = new Date(now.getTime() + question.timeLimitSeconds * 1000).toISOString()
+      }
+      switch (action) {
+        case 'start':
+          if (session.phase !== 'lobby') throw new RepositoryError('invalid-phase', 'The game has already started.')
+          if (!quiz.questions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
+          session.startedAt = now.toISOString()
+          session.currentQuestionIndex = 0
+          openCurrentQuestion()
+          break
+        case 'lock':
+          if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not currently open.')
+          session.phase = 'locked'
+          session.questionClosesAt = now.toISOString()
+          break
+        case 'reveal':
+          if (session.phase !== 'locked') throw new RepositoryError('invalid-phase', 'Lock answers before the reveal.')
+          session.phase = 'reveal'
+          break
+        case 'leaderboard':
+          if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Reveal the answer first.')
+          session.phase = 'leaderboard'
+          break
+        case 'next':
+          if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
+          if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+            session.phase = 'finished'
+            session.endedAt = now.toISOString()
+          } else {
+            session.currentQuestionIndex += 1
+            openCurrentQuestion()
+          }
+          break
+        case 'finish':
           session.phase = 'finished'
           session.endedAt = now.toISOString()
-        } else {
-          session.currentQuestionIndex += 1
-          openCurrentQuestion()
-        }
-        break
-      case 'finish':
-        session.phase = 'finished'
-        session.endedAt = now.toISOString()
-        session.questionClosesAt = now.toISOString()
-        break
-      case 'restart':
-        if (session.phase !== 'finished') {
-          throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
-        }
-        session.phase = 'lobby'
-        session.currentQuestionIndex = 0
-        session.questionOpenedAt = null
-        session.questionClosesAt = null
-        session.startedAt = null
-        session.endedAt = null
-        session.answers = []
-        session.players.forEach((player) => {
-          player.totalScore = 0
-          player.correctAnswerCount = 0
-          player.totalCorrectResponseMs = 0
-        })
-        break
-      case 'close':
-        session.status = 'closed'
-        session.phase = 'finished'
-        session.endedAt = now.toISOString()
-        break
-    }
-    this.write(state, true, session.id)
+          session.questionClosesAt = now.toISOString()
+          break
+        case 'restart':
+          if (session.phase !== 'finished') throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
+          session.phase = 'lobby'
+          session.currentQuestionIndex = 0
+          session.questionOpenedAt = null
+          session.questionClosesAt = null
+          session.startedAt = null
+          session.endedAt = null
+          session.answers = []
+          session.players.forEach((player) => {
+            player.totalScore = 0
+            player.correctAnswerCount = 0
+            player.totalCorrectResponseMs = 0
+          })
+          break
+        case 'close':
+          session.status = 'closed'
+          session.phase = 'finished'
+          session.endedAt = now.toISOString()
+          break
+      }
+      this.write(state, true, session.id)
     })
   }
 

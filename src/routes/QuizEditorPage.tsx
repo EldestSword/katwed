@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
-import { QuestionImage } from '../components/QuestionImage'
+import { QuestionMedia } from '../components/QuestionMedia'
 import { StatusMessage } from '../components/StatusMessage'
 import { validateQuestion, validateQuizSave } from '../features/quiz-editor/validation'
+import { createQuestion } from '../features/questions/factories'
+import { questionTypes, questionTypeRegistry } from '../features/questions/registry'
 import { uploadQuestionImage } from '../services/questionImages'
 import { repository } from '../services/repository'
-import type { Question, Quiz, RosterMember } from '../types/domain'
-
-function makeId(_prefix: string): string {
-  return crypto.randomUUID()
-}
+import type { ChoiceOption, Question, QuestionMedia as Media, QuestionType, Quiz, RosterMember } from '../types/domain'
+import { normaliseYouTubeVideoId } from '../utils/youtube'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction
@@ -20,12 +19,16 @@ function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   return copy
 }
 
+function number(value: string): number {
+  return Number(value) || 0
+}
+
 export function QuizEditorPage() {
   const quizId = useParams().quizId ?? ''
   const [quiz, setQuiz] = useState<Quiz | null>(null)
+  const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadingQuestionId, setUploadingQuestionId] = useState('')
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
   const navigate = useNavigate()
@@ -34,17 +37,14 @@ export function QuizEditorPage() {
   useEffect(() => {
     void repository.getQuiz(quizId).then((value) => {
       setQuiz(value)
+      setSelectedId(value?.questions[0]?.id ?? '')
       if (!value) setMessage({ tone: 'error', text: 'That quiz could not be found.' })
-    }).catch((reason) => {
-      setMessage({ tone: 'error', text: reason instanceof Error ? reason.message : 'The quiz could not be loaded.' })
-    }).finally(() => setLoading(false))
+    }).catch((reason) => setMessage({ tone: 'error', text: reason instanceof Error ? reason.message : 'The quiz could not be loaded.' }))
+      .finally(() => setLoading(false))
   }, [quizId])
 
   useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => {
-      if (!dirty) return
-      event.preventDefault()
-    }
+    const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
@@ -55,10 +55,8 @@ export function QuizEditorPage() {
     else blocker.reset()
   }, [blocker])
 
-  const invalidQuestions = useMemo(
-    () => quiz?.questions.map((question) => validateQuestion(question, quiz.roster)) ?? [],
-    [quiz],
-  )
+  const selected = useMemo(() => quiz?.questions.find((question) => question.id === selectedId) ?? null, [quiz, selectedId])
+  const validation = selected && quiz ? validateQuestion(selected, quiz.roster) : null
 
   function update(updater: (current: Quiz) => Quiz) {
     setQuiz((current) => current ? updater(current) : current)
@@ -66,71 +64,52 @@ export function QuizEditorPage() {
     setMessage(null)
   }
 
-  function addMember() {
-    if (!quiz) return
-    const member: RosterMember = {
-      id: makeId('member'),
-      quizId: quiz.id,
-      displayName: `Person ${quiz.roster.length + 1}`,
-      shortName: '',
-      active: true,
-      displayOrder: quiz.roster.length,
-    }
-    update((current) => ({ ...current, roster: [...current.roster, member] }))
+  function updateQuestion(updater: (question: Question) => Question) {
+    update((current) => ({
+      ...current,
+      questions: current.questions.map((question) => question.id === selectedId ? updater(question) : question),
+    }))
   }
 
-  function removeMember(member: RosterMember) {
+  function addQuestion(type: QuestionType) {
     if (!quiz) return
-    if (quiz.questions.some((question) => question.correctMemberIds.includes(member.id))) {
-      window.alert('This person is used as a correct answer. Change those questions before deleting them.')
-      return
-    }
-    if (!window.confirm(`Delete ${member.displayName}?`)) return
-    update((current) => ({ ...current, roster: current.roster.filter((candidate) => candidate.id !== member.id) }))
-  }
-
-  function addQuestion() {
-    if (!quiz) return
-    const active = quiz.roster.filter((member) => member.active)
-    const question: Question = {
-      id: makeId('question'),
-      quizId: quiz.id,
-      imagePath: '',
-      correctMemberIds: [active[0]?.id ?? '', active[1]?.id ?? ''],
-      timeLimitSeconds: 30,
-      displayOrder: quiz.questions.length,
-      revealCaption: '',
-    }
+    const question = createQuestion(type, quiz.id, quiz.questions.length)
     update((current) => ({ ...current, questions: [...current.questions, question] }))
+    setSelectedId(question.id)
   }
 
-  async function upload(questionId: string, file: File | undefined) {
-    if (!file) return
-    setUploadingQuestionId(questionId)
-    setMessage(null)
+  async function upload(file: File | undefined) {
+    if (!file || !selected) return
     try {
-      const imagePath = await uploadQuestionImage(file)
-      update((current) => ({
-        ...current,
-        questions: current.questions.map((question) => question.id === questionId ? { ...question, imagePath } : question),
+      const path = await uploadQuestionImage(file)
+      updateQuestion((question) => ({
+        ...question,
+        media: {
+          type: 'image',
+          path,
+          altText: question.type === 'mashup' ? 'AI-generated merged portrait for the current question.' : 'Question image',
+          revealEffect: 'immediate',
+          revealDurationSeconds: 0,
+        },
       }))
     } catch (reason) {
       setMessage({ tone: 'error', text: reason instanceof Error ? reason.message : 'The image could not be uploaded.' })
-    } finally {
-      setUploadingQuestionId('')
     }
   }
 
   async function save() {
     if (!quiz) return
-    const title = quiz.title.trim()
-    const roster = quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder }))
-    const questions = quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder }))
-    const validationMessages = validateQuizSave({ id: quiz.id, title, roster, questions })
-    if (validationMessages.length) return setMessage({ tone: 'error', text: validationMessages[0] })
+    const input = {
+      id: quiz.id,
+      title: quiz.title.trim(),
+      roster: quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder })),
+      questions: quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder })),
+    }
+    const messages = validateQuizSave(input)
+    if (messages.length) { setMessage({ tone: 'error', text: messages[0] }); return }
     setSaving(true)
     try {
-      const saved = await repository.saveQuiz({ id: quiz.id, title, roster, questions })
+      const saved = await repository.saveQuiz(input)
       setQuiz(saved)
       setDirty(false)
       setMessage({ tone: 'success', text: 'Quiz saved.' })
@@ -144,114 +123,160 @@ export function QuizEditorPage() {
   if (loading) return <LoadingScreen message="Opening the quiz editor…" />
   if (!quiz) return <main className="centred-screen"><h1>Quiz not found</h1><Link className="button button--primary" to="/host">Back to quizzes</Link></main>
 
-  const activeRoster = quiz.roster.filter((member) => member.active)
+  const changeType = (type: QuestionType) => {
+    if (!selected || type === selected.type) return
+    if (!window.confirm('Changing type will replace this question’s type-specific answers. Continue?')) return
+    const replacement = createQuestion(type, selected.quizId, selected.displayOrder)
+    updateQuestion(() => ({
+      ...replacement,
+      id: selected.id,
+      prompt: selected.prompt,
+      supportingText: selected.supportingText,
+      timeLimitSeconds: selected.timeLimitSeconds,
+      points: selected.points,
+      revealCaption: selected.revealCaption,
+    }))
+  }
 
   return (
-    <main className="editor-page">
+    <main className="editor-page editor-page--three-panel">
       <header className="editor-toolbar">
-        <div>
-          <Link className="text-link" to="/host">← All quizzes</Link>
-          <input className="title-input" aria-label="Quiz title" value={quiz.title}
-            onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} />
-        </div>
-        <div className="heading-actions">
-          {dirty && <span className="unsaved-dot">Unsaved changes</span>}
-          <button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>
-            {saving ? 'Saving…' : 'Save quiz'}
-          </button>
-        </div>
+        <div><Link className="text-link" to="/host">← All quizzes</Link><input className="title-input" aria-label="Quiz title" value={quiz.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></div>
+        <div className="heading-actions">{dirty && <span className="unsaved-dot">Unsaved changes</span>}<button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save quiz'}</button></div>
       </header>
       {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
-
-      <section className="editor-section" aria-labelledby="roster-title">
-        <div className="section-heading">
-          <div><p className="eyebrow">Answer pool</p><h2 id="roster-title">Team roster</h2><p>Inactive people stay in your quiz but will not appear as choices.</p></div>
-          <button className="button button--secondary" type="button" onClick={addMember}>+ Add person</button>
-        </div>
-        <div className="roster-editor">
-          {quiz.roster.map((member, index) => (
-            <div className={`roster-row ${!member.active ? 'is-inactive' : ''}`} key={member.id}>
-              <div className="reorder-buttons">
-                <button type="button" aria-label={`Move ${member.displayName} up`} disabled={index === 0}
-                  onClick={() => update((current) => ({ ...current, roster: move(current.roster, index, -1) }))}>↑</button>
-                <button type="button" aria-label={`Move ${member.displayName} down`} disabled={index === quiz.roster.length - 1}
-                  onClick={() => update((current) => ({ ...current, roster: move(current.roster, index, 1) }))}>↓</button>
+      <div className="editor-workspace">
+        <aside className="question-navigator">
+          <h2>Questions</h2>
+          <div className="question-type-picker">
+            {questionTypes.map((definition) => <button key={definition.type} type="button" onClick={() => addQuestion(definition.type)}><span>{definition.icon}</span><strong>{definition.name}</strong><small>{definition.description}</small></button>)}
+          </div>
+          <ol>
+            {quiz.questions.map((question, index) => <li key={question.id}>
+              <button className={question.id === selectedId ? 'is-selected' : ''} type="button" onClick={() => setSelectedId(question.id)}>
+                <span>{index + 1}</span><span><strong>{question.prompt}</strong><small>{questionTypeRegistry[question.type].name}</small></span>
+              </button>
+              <div className="mini-actions">
+                <button type="button" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, -1) }))}>↑</button>
+                <button type="button" disabled={index === quiz.questions.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, 1) }))}>↓</button>
               </div>
-              <label><span>Display name</span><input value={member.displayName} maxLength={60}
-                onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, displayName: event.target.value } : candidate) }))} /></label>
-              <label><span>Short name</span><input value={member.shortName} maxLength={30} placeholder="Optional"
-                onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, shortName: event.target.value } : candidate) }))} /></label>
-              <label className="switch-label"><input type="checkbox" checked={member.active}
-                onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, active: event.target.checked } : candidate) }))} /><span>{member.active ? 'Active' : 'Inactive'}</span></label>
-              <button className="icon-button danger" type="button" onClick={() => removeMember(member)}>Delete</button>
-            </div>
-          ))}
-          {!quiz.roster.length && <p className="empty-note">Add at least two people to build a question.</p>}
-        </div>
-      </section>
+            </li>)}
+          </ol>
+        </aside>
 
-      <section className="editor-section" aria-labelledby="questions-title">
-        <div className="section-heading">
-          <div><p className="eyebrow">The strange portraits</p><h2 id="questions-title">Questions</h2><p>Every question needs an image and exactly two active correct people.</p></div>
-          <button className="button button--secondary" type="button" disabled={activeRoster.length < 2} onClick={addQuestion}>+ Add question</button>
-        </div>
-        <div className="question-list">
-          {quiz.questions.map((question, index) => {
-            const validation = invalidQuestions[index]
-            return (
-              <article className={`question-editor ${validation && !validation.valid ? 'has-errors' : ''}`} key={question.id}>
-                <div className="question-editor__header">
-                  <h3>Question {index + 1}</h3>
-                  <div className="reorder-buttons">
-                    <button type="button" aria-label={`Move question ${index + 1} up`} disabled={index === 0}
-                      onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, -1) }))}>↑</button>
-                    <button type="button" aria-label={`Move question ${index + 1} down`} disabled={index === quiz.questions.length - 1}
-                      onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, 1) }))}>↓</button>
-                    <button className="danger" type="button" onClick={() => {
-                      if (window.confirm(`Delete question ${index + 1}?`)) update((current) => ({ ...current, questions: current.questions.filter((candidate) => candidate.id !== question.id) }))
-                    }}>Delete</button>
-                  </div>
-                </div>
-                <div className="question-editor__grid">
-                  <div className="image-uploader">
-                    {question.imagePath
-                      ? <QuestionImage path={question.imagePath} alt={`Preview for question ${index + 1}`} />
-                      : <div className="image-placeholder">No portrait yet</div>}
-                    <label className="button button--secondary">
-                      {uploadingQuestionId === question.id ? 'Preparing image…' : 'Choose image'}
-                      <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp"
-                        disabled={uploadingQuestionId === question.id} onChange={(event) => void upload(question.id, event.target.files?.[0])} />
-                    </label>
-                    <small>JPEG, PNG or WebP · up to 8 MB</small>
-                  </div>
-                  <div className="question-fields">
-                    <div className="two-columns">
-                      <label><span>First correct person</span><select value={question.correctMemberIds[0]} onChange={(event) => update((current) => ({ ...current, questions: current.questions.map((candidate) => candidate.id === question.id ? { ...candidate, correctMemberIds: [event.target.value, candidate.correctMemberIds[1]] } : candidate) }))}>
-                        <option value="">Choose…</option>{activeRoster.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
-                      </select></label>
-                      <label><span>Second correct person</span><select value={question.correctMemberIds[1]} onChange={(event) => update((current) => ({ ...current, questions: current.questions.map((candidate) => candidate.id === question.id ? { ...candidate, correctMemberIds: [candidate.correctMemberIds[0], event.target.value] } : candidate) }))}>
-                        <option value="">Choose…</option>{activeRoster.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
-                      </select></label>
-                    </div>
-                    <label><span>Timer (seconds)</span><input type="number" min={5} max={180} value={question.timeLimitSeconds}
-                      onChange={(event) => update((current) => ({ ...current, questions: current.questions.map((candidate) => candidate.id === question.id ? { ...candidate, timeLimitSeconds: Number(event.target.value) } : candidate) }))} /></label>
-                    <label><span>Reveal caption <em>optional</em></span><textarea rows={2} maxLength={240} value={question.revealCaption}
-                      onChange={(event) => update((current) => ({ ...current, questions: current.questions.map((candidate) => candidate.id === question.id ? { ...candidate, revealCaption: event.target.value } : candidate) }))} /></label>
-                    {validation && !validation.valid && <ul className="validation-list">{validation.messages.map((item) => <li key={item}>{item}</li>)}</ul>}
-                  </div>
-                </div>
-              </article>
-            )
-          })}
-          {!quiz.questions.length && <div className="empty-card"><h3>No questions yet</h3><p>Add a portrait once at least two roster members are active.</p></div>}
-        </div>
-      </section>
-      <footer className="editor-footer">
-        <button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button>
-        <button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>
-          Back to dashboard
-        </button>
-      </footer>
+        <section className="editor-preview">
+          {selected ? <>
+            <div className="preview-tabs"><span>Presentation preview</span><span>Player preview</span></div>
+            <article className="question-preview-card"><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></article>
+            <div className="heading-actions">
+              <button className="button button--secondary" type="button" onClick={() => {
+                const duplicate = structuredClone(selected)
+                duplicate.id = crypto.randomUUID()
+                duplicate.displayOrder = quiz.questions.length
+                if (duplicate.type === 'single-choice') {
+                  const correctIndex = duplicate.options.findIndex((option) => option.id === duplicate.correctOptionId)
+                  duplicate.options = duplicate.options.map((option) => ({ ...option, id: crypto.randomUUID() }))
+                  duplicate.correctOptionId = duplicate.options[correctIndex]?.id ?? ''
+                }
+                if (duplicate.type === 'multiple-select') {
+                  const correctIndexes = duplicate.options.flatMap((option, index) => duplicate.correctOptionIds.includes(option.id) ? [index] : [])
+                  duplicate.options = duplicate.options.map((option) => ({ ...option, id: crypto.randomUUID() }))
+                  duplicate.correctOptionIds = correctIndexes.map((index) => duplicate.options[index].id)
+                }
+                update((current) => ({ ...current, questions: [...current.questions, duplicate] }))
+                setSelectedId(duplicate.id)
+              }}>Duplicate</button>
+              <button className="button button--ghost danger" type="button" onClick={() => {
+                if (!window.confirm('Delete this question?')) return
+                const index = quiz.questions.findIndex((question) => question.id === selected.id)
+                update((current) => ({ ...current, questions: current.questions.filter((question) => question.id !== selected.id) }))
+                setSelectedId(quiz.questions[index + 1]?.id ?? quiz.questions[index - 1]?.id ?? '')
+              }}>Delete</button>
+            </div>
+          </> : <div className="empty-card"><h2>Add a question</h2><p>Choose one of the six supported formats.</p></div>}
+        </section>
+
+        <aside className="question-settings">
+          {selected && <>
+            <h2>Question settings</h2>
+            <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
+            <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
+            <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
+            <div className="two-columns">
+              <label><span>Timer</span><input type="number" min="5" max="300" value={selected.timeLimitSeconds} onChange={(event) => updateQuestion((question) => ({ ...question, timeLimitSeconds: number(event.target.value) }))} /></label>
+              <label><span>Points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>
+            </div>
+            <MediaSettings question={selected} update={updateQuestion} upload={upload} />
+            <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
+            <label><span>Choices on presentation</span><select value={selected.presentationChoiceVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, presentationChoiceVisibility: event.target.value as Question['presentationChoiceVisibility'] }))}><option value="show">Show choices</option><option value="hide">Hide choices</option><option value="after-lock">Reveal after answers close</option></select></label>
+            <TypeSettings question={selected} roster={quiz.roster} update={updateQuestion} />
+            <label><span>Reveal caption</span><textarea rows={2} value={selected.revealCaption} onChange={(event) => updateQuestion((question) => ({ ...question, revealCaption: event.target.value }))} /></label>
+            {validation && !validation.valid && <ul className="validation-list">{validation.messages.map((item) => <li key={item}>{item}</li>)}</ul>}
+          </>}
+          <PeopleBank quiz={quiz} update={update} />
+        </aside>
+      </div>
+      <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
   )
+}
+
+function MediaSettings({ question, update, upload }: { question: Question; update(updater: (question: Question) => Question): void; upload(file: File | undefined): Promise<void> }) {
+  const setMedia = (type: Media['type']) => {
+    if (type === 'none') update((current) => current.type === 'pinpoint' || current.type === 'mashup' ? current : { ...current, media: { type: 'none' } })
+    if (type === 'image') update((current) => ({ ...current, media: { type: 'image', path: '', altText: 'Question image', revealEffect: 'immediate', revealDurationSeconds: 0 } }))
+    if (type === 'youtube') update((current) => current.type === 'pinpoint' || current.type === 'mashup' ? current : { ...current, media: { type: 'youtube', videoId: '' }, mediaVisibility: 'presentation' })
+  }
+  return <fieldset><legend>Media</legend>
+    <label><span>Type</span><select value={question.media.type} disabled={question.type === 'pinpoint' || question.type === 'mashup'} onChange={(event) => setMedia(event.target.value as Media['type'])}><option value="none">None</option><option value="image">Uploaded image</option><option value="youtube">YouTube</option></select></label>
+    {question.media.type === 'image' && <>
+      <label className="button button--secondary">Choose image<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void upload(event.target.files?.[0])} /></label>
+      <label><span>Alt text</span><input value={question.media.altText} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, altText: event.target.value } } : current)} /></label>
+      <label><span>Reveal effect</span><select value={question.media.revealEffect} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealEffect: event.target.value as Extract<Media, { type: 'image' }>['revealEffect'] } } : current)}><option value="immediate">Immediate</option><option value="blur">Blur to clear</option><option value="pixelate">Pixelated to clear</option><option value="tiles">Tile uncover</option><option value="zoom-out">Zoom out</option></select></label>
+      <label><span>Reveal duration</span><input type="number" min="0" max="180" value={question.media.revealDurationSeconds} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealDurationSeconds: number(event.target.value) } } : current)} /></label>
+    </>}
+    {question.media.type === 'youtube' && <>
+      <label><span>YouTube URL or video ID</span><input value={question.media.videoId} onChange={(event) => {
+        const videoId = normaliseYouTubeVideoId(event.target.value) ?? event.target.value.trim()
+        update((current) => {
+          if (current.type === 'pinpoint' || current.type === 'mashup' || current.media.type !== 'youtube') return current
+          return { ...current, media: { ...current.media, videoId } }
+        })
+      }} /></label>
+      <div className="two-columns">
+        <label><span>Start seconds</span><input type="number" min="0" value={question.media.startSeconds ?? ''} onChange={(event) => update((current) => {
+          if (current.type === 'pinpoint' || current.type === 'mashup' || current.media.type !== 'youtube') return current
+          return { ...current, media: { ...current.media, startSeconds: event.target.value === '' ? undefined : number(event.target.value) } }
+        })} /></label>
+        <label><span>End seconds</span><input type="number" min="0" value={question.media.endSeconds ?? ''} onChange={(event) => update((current) => {
+          if (current.type === 'pinpoint' || current.type === 'mashup' || current.media.type !== 'youtube') return current
+          return { ...current, media: { ...current.media, endSeconds: event.target.value === '' ? undefined : number(event.target.value) } }
+        })} /></label>
+      </div>
+    </>}
+  </fieldset>
+}
+
+function TypeSettings({ question, roster, update }: { question: Question; roster: RosterMember[]; update(updater: (question: Question) => Question): void }) {
+  if (question.type === 'single-choice' || question.type === 'multiple-select') {
+    const toggleCorrect = (id: string) => update((current) => {
+      if (current.type === 'single-choice') return { ...current, correctOptionId: id }
+      if (current.type === 'multiple-select') return { ...current, correctOptionIds: current.correctOptionIds.includes(id) ? current.correctOptionIds.filter((value) => value !== id) : [...current.correctOptionIds, id] }
+      return current
+    })
+    return <fieldset><legend>Answer options</legend>{question.options.map((option) => <div className="option-editor" key={option.id}><input type={question.type === 'single-choice' ? 'radio' : 'checkbox'} name={`correct-${question.id}`} checked={question.type === 'single-choice' ? question.correctOptionId === option.id : question.correctOptionIds.includes(option.id)} aria-label={`Mark ${option.label} correct`} onChange={() => toggleCorrect(option.id)} /><div><input value={option.label} aria-label="Option label" onChange={(event) => update((current) => 'options' in current ? { ...current, options: current.options.map((candidate) => candidate.id === option.id ? { ...candidate, label: event.target.value } : candidate) } : current)} /><input value={option.imagePath ?? ''} aria-label="Option image path" placeholder="Optional uploaded image path" onChange={(event) => update((current) => 'options' in current ? { ...current, options: current.options.map((candidate) => candidate.id === option.id ? { ...candidate, imagePath: event.target.value || undefined } : candidate) } : current)} /></div><button type="button" onClick={() => update((current) => 'options' in current ? { ...current, options: current.options.filter((candidate) => candidate.id !== option.id) } : current)}>Remove</button></div>)}<button type="button" className="button button--secondary" disabled={question.options.length >= 8} onClick={() => update((current) => 'options' in current ? { ...current, options: [...current.options, { id: crypto.randomUUID(), label: `Option ${current.options.length + 1}` } as ChoiceOption] } : current)}>Add option</button>
+      {question.type === 'multiple-select' && <><div className="two-columns"><label><span>Minimum</span><input type="number" min="1" value={question.minimumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, minimumSelections: number(event.target.value) } : current)} /></label><label><span>Maximum</span><input type="number" min="1" value={question.maximumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, maximumSelections: number(event.target.value) } : current)} /></label></div><label><span>Scoring</span><select value={question.scoringMode} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, scoringMode: event.target.value as 'exact' | 'partial-wipeout' } : current)}><option value="exact">Exact set</option><option value="partial-wipeout">Partial, wrong answer wipes out</option></select></label></>}
+    </fieldset>
+  }
+  if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
+  if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  if (question.type === 'pinpoint') return <fieldset><legend>Target</legend>{(['targetX', 'targetY', 'targetRadius'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" min="0" max="1" step="0.01" value={question[field]} onChange={(event) => update((current) => current.type === 'pinpoint' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  return <fieldset><legend>Correct people</legend>{[0, 1].map((index) => <label key={index}><span>Person {index + 1}</span><select value={question.correctMemberIds[index]} onChange={(event) => update((current) => current.type === 'mashup' ? { ...current, correctMemberIds: index === 0 ? [event.target.value, current.correctMemberIds[1]] : [current.correctMemberIds[0], event.target.value] } : current)}><option value="">Choose…</option>{roster.filter((member) => member.active).map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></label>)}</fieldset>
+}
+
+function PeopleBank({ quiz, update }: { quiz: Quiz; update(updater: (quiz: Quiz) => Quiz): void }) {
+  return <details className="people-bank"><summary>People bank ({quiz.roster.length})</summary>{quiz.roster.map((member) => <div className="option-editor" key={member.id}><input value={member.displayName} aria-label="Person name" onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, displayName: event.target.value } : candidate) }))} /><label><input type="checkbox" checked={member.active} onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, active: event.target.checked } : candidate) }))} /> Active</label></div>)}<button type="button" className="button button--secondary" onClick={() => {
+    const member: RosterMember = { id: crypto.randomUUID(), quizId: quiz.id, displayName: `Person ${quiz.roster.length + 1}`, shortName: '', active: true, displayOrder: quiz.roster.length }
+    update((current) => ({ ...current, roster: [...current.roster, member] }))
+  }}>Add person</button></details>
 }

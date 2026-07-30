@@ -58,7 +58,7 @@ export function HostDashboardPage() {
   async function launch(quiz: Quiz) {
     try {
       const session = await repository.launchGame(quiz.id)
-      await navigate(`/host/game/${session.id}`)
+      await navigate(`/host/game/${session.id}/control`)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The game could not be launched.')
     }
@@ -84,7 +84,7 @@ export function HostDashboardPage() {
             <div className="quiz-card__art" aria-hidden="true"><span>{quiz.questions.length}</span></div>
             <div className="quiz-card__body">
               <h2>{quiz.title}</h2>
-              <p>{quiz.roster.filter((member) => member.active).length} active people · {quiz.questions.length} questions</p>
+              <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>
               <div className="card-actions">
                 <button className="button button--primary" type="button" disabled={!quiz.questions.length} onClick={() => void launch(quiz)}>
                   {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
