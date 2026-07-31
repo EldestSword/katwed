@@ -136,6 +136,7 @@ export type RevealPayload =
   | {
       type: 'multiple-select'
       correctOptionIds: string[]
+      scoringMode: 'exact' | 'partial-wipeout'
       caption: string
       optionCounts: Record<string, number>
     }

@@ -176,6 +176,10 @@ Before reveal, player-safe state omits:
 
 The presentation may receive answer options according to visibility settings, but not correctness metadata. Production answers are accepted only through the generic `submit_answer` RPC. The database checks the room, player token, phase, deadline, active question, payload shape, type-specific rules and duplicate submissions before scoring.
 
+Once the game enters `reveal`, player devices always receive and display the actual answer, including choice labels, formatted slider values, both mash-up names and the pinpoint target overlay. Correctness metadata is never placed in the pre-reveal DOM or safe payload.
+
+Leaderboard rows and cumulative player totals are withheld from player-safe state during `question`, `locked` and `reveal`. Non-final questions continue through `reveal → leaderboard → next question`. The final question instead moves from `reveal` directly to `finished` only when the host deliberately selects **Reveal final results**, so no ordinary leaderboard or final total is disclosed early.
+
 The browser never receives a Supabase service-role credential.
 
 ## Supabase setup and migration
@@ -207,6 +211,8 @@ Migration `202607310001_multiformat_quiz_platform.sql`:
 - generalises player answer payloads and points;
 - replaces quiz save, safe-state and answer-submission RPCs;
 - keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
+
+`202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
 
 The `question-images` bucket accepts JPEG, PNG and WebP files up to 8 MB. Uploads are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 

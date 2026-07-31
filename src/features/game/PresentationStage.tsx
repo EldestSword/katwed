@@ -4,6 +4,8 @@ import { QuestionMedia } from '../../components/QuestionMedia'
 import { useCountdown } from '../../hooks/useCountdown'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { Logo } from '../../components/AppShell'
+import { PinpointSurface } from './PinpointSurface'
+import { formatSliderValue } from './revealFormatting'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -21,7 +23,15 @@ function PresentationChoices({ question, phase }: { question: SafeQuestion; phas
   return null
 }
 
-function RevealResult({ reveal, question }: { reveal: RevealPayload; question: SafeQuestion }) {
+function RevealResult({
+  reveal,
+  question,
+  compact,
+}: {
+  reveal: RevealPayload
+  question: SafeQuestion
+  compact: boolean
+}) {
   switch (reveal.type) {
     case 'single-choice': {
       const option = question.type === 'single-choice'
@@ -37,17 +47,32 @@ function RevealResult({ reveal, question }: { reveal: RevealPayload; question: S
     case 'true-false':
       return <><h2>{reveal.correctValue ? 'True' : 'False'}</h2><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
     case 'slider':
-      return <><h2>{reveal.correctValue}</h2><p>{reveal.tolerance > 0 ? `Accepted range: ${reveal.correctValue - reveal.tolerance}–${reveal.correctValue + reveal.tolerance}` : 'Exact value required'}</p></>
-    case 'pinpoint':
-      return <div className="pinpoint-result">
-        {reveal.points.map((point, index) => <span key={index} className="pinpoint-response" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />)}
-        <span className="pinpoint-target" style={{
-          left: `${reveal.targetX * 100}%`,
-          top: `${reveal.targetY * 100}%`,
-          width: `${reveal.targetRadius * 200}%`,
-          aspectRatio: '1',
-        }} />
-      </div>
+      return question.type === 'slider'
+        ? <><h2>{formatSliderValue(reveal.correctValue, question)}</h2><p>{reveal.tolerance > 0
+          ? `Accepted range: ${formatSliderValue(reveal.correctValue - reveal.tolerance, question)}–${formatSliderValue(reveal.correctValue + reveal.tolerance, question)}`
+          : 'Exact value required'}</p></>
+        : <h2>{reveal.correctValue}</h2>
+    case 'pinpoint': {
+      if (question.type !== 'pinpoint') return null
+      return (
+        <div className="presentation-pinpoint-reveal">
+          <h2>The correct target area is highlighted on the image.</h2>
+          <PinpointSurface
+            path={question.media.path}
+            alt={question.media.altText}
+            mode="presentation-reveal"
+            markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))}
+            target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }}
+            allowEnlarge={!compact}
+          />
+          <div className="pinpoint-legend" aria-label="Pinpoint answer legend">
+            <span><i className="pinpoint-key pinpoint-key--response" />Player answers</span>
+            <span><i className="pinpoint-key pinpoint-key--target" />Correct area</span>
+          </div>
+          <p className="sr-only">The correct target location has been displayed.</p>
+        </div>
+      )
+    }
     case 'mashup':
       return <h2>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h2>
   }
@@ -94,18 +119,18 @@ export function PresentationStage({
       {state.phase === 'reveal' && state.reveal && question && (
         <div className="presentation-reveal">
           <p className="eyebrow">Correct answer</p>
-          {(question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
+          {question.type !== 'pinpoint' && (question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
             <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
           )}
-          <RevealResult reveal={state.reveal} question={question} />
+          <RevealResult reveal={state.reveal} question={question} compact={compact} />
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
         </div>
       )}
       {state.phase === 'leaderboard' && (
-        <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} /></div>
+        <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
       )}
       {state.phase === 'finished' && (
-        <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Final standings</p><h1>Final leaderboard</h1><Leaderboard entries={state.leaderboard} /></div>
+        <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Final standings</p><h1>Final leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
       )}
     </section>
   )

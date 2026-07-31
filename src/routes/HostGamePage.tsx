@@ -82,6 +82,7 @@ export function HostGamePage() {
   const question = state.currentQuestion
   const currentIndex = question ? question.questionNumber - 1 : session.currentQuestionIndex
   const upcoming = quiz.questions[currentIndex + 1]
+  const isFinalQuestion = question?.questionNumber === question?.totalQuestions
   const run = (kind: HostAction) => void action(kind)
 
   return (
@@ -113,9 +114,10 @@ export function HostGamePage() {
             {state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
             {state.phase === 'question' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('lock')}>Close answers early</button>}
             {state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
-            {state.phase === 'reveal' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
-            {state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>{question?.questionNumber === question?.totalQuestions ? 'Finish game' : 'Next question'}</button>}
-            {!['finished', 'lobby', 'leaderboard'].includes(state.phase) && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('finish')}>Finish game</button>}
+            {state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
+            {state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
+            {state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
+            {['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('finish')}>Finish game</button>}
             {state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
             <button className="button button--ghost" disabled={working} type="button" onClick={() => {
               if (window.confirm('Close this room for every player?')) run('close')

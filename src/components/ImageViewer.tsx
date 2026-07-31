@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { QuestionImage } from './QuestionImage'
 
@@ -6,10 +6,12 @@ export function ImageViewer({
   path,
   alt,
   onClose,
+  children,
 }: {
   path: string
   alt: string
   onClose(): void
+  children?: ReactNode
 }) {
   const dialog = useRef<HTMLDivElement>(null)
 
@@ -42,7 +44,7 @@ export function ImageViewer({
   return createPortal(
     <div className="image-viewer" role="dialog" aria-modal="true" aria-label="Enlarged question image" ref={dialog}>
       <button className="image-viewer__close" type="button" onClick={onClose}>Close</button>
-      <QuestionImage path={path} alt={alt} />
+      {children ?? <QuestionImage path={path} alt={alt} />}
     </div>,
     document.body,
   )

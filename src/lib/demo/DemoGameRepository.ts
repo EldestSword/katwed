@@ -122,6 +122,7 @@ function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Q
       return {
         type: question.type,
         correctOptionIds: question.correctOptionIds,
+        scoringMode: question.scoringMode,
         caption: question.revealCaption,
         optionCounts,
       }
@@ -337,7 +338,16 @@ export class DemoGameRepository implements GameRepository {
       if (!player || state.reconnectTokens[player.id] !== saved.reconnectToken) return null
       player.connected = true
       this.write(state, true, session.id)
-      return clone({ player, reconnectToken: saved.reconnectToken })
+      const scoresVisible = ['leaderboard', 'finished'].includes(session.phase)
+      return clone({
+        player: scoresVisible ? player : {
+          ...player,
+          totalScore: 0,
+          correctAnswerCount: 0,
+          totalCorrectResponseMs: 0,
+        },
+        reconnectToken: saved.reconnectToken,
+      })
     })
   }
 
@@ -365,6 +375,7 @@ export class DemoGameRepository implements GameRepository {
     if (!quiz) return null
     const question = quiz.questions[session.currentQuestionIndex] ?? null
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
+    const scoresVisible = ['leaderboard', 'finished'].includes(session.phase)
     const currentAnswers = question
       ? session.answers.filter((answer) => answer.questionId === question.id)
       : []
@@ -380,9 +391,14 @@ export class DemoGameRepository implements GameRepository {
       roster: question?.type === 'mashup'
         ? quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
         : [],
-      players: session.players,
+      players: session.players.map((player) => scoresVisible ? player : {
+        ...player,
+        totalScore: 0,
+        correctAnswerCount: 0,
+        totalCorrectResponseMs: 0,
+      }),
       submittedCount: currentAnswers.length,
-      leaderboard: sortLeaderboard(session.players),
+      leaderboard: scoresVisible ? sortLeaderboard(session.players) : [],
       reveal: mayReveal && question ? revealFor(question, currentAnswers, quiz) : null,
       questionOpenedAt: session.questionOpenedAt,
       questionClosesAt: session.questionClosesAt,
@@ -479,19 +495,32 @@ export class DemoGameRepository implements GameRepository {
           break
         case 'leaderboard':
           if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Reveal the answer first.')
+          if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+            throw new RepositoryError('invalid-phase', 'Reveal the final results instead.')
+          }
           session.phase = 'leaderboard'
           break
         case 'next':
           if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
           if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
-            session.phase = 'finished'
-            session.endedAt = now.toISOString()
-          } else {
-            session.currentQuestionIndex += 1
-            openCurrentQuestion()
+            throw new RepositoryError('invalid-phase', 'There is no next question.')
           }
+          session.currentQuestionIndex += 1
+          openCurrentQuestion()
           break
         case 'finish':
+          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < quiz.questions.length) {
+            throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
+          }
+          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= quiz.questions.length) {
+            session.phase = 'finished'
+            session.endedAt = now.toISOString()
+            session.questionClosesAt = now.toISOString()
+            break
+          }
+          if (!['question', 'locked'].includes(session.phase)) {
+            throw new RepositoryError('invalid-phase', 'The game cannot be finished from this phase.')
+          }
           session.phase = 'finished'
           session.endedAt = now.toISOString()
           session.questionClosesAt = now.toISOString()

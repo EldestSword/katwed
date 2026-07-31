@@ -12,20 +12,10 @@ import {
   loadSubmittedAnswer,
   saveSubmittedAnswer,
 } from '../services/playerSession'
-import type { PlayerSession, RevealPayload } from '../types/domain'
+import type { PlayerSession } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
-
-function revealText(reveal: RevealPayload): string {
-  switch (reveal.type) {
-    case 'single-choice': return 'The correct option is on the shared presentation.'
-    case 'multiple-select': return 'The complete correct set is on the shared presentation.'
-    case 'true-false': return reveal.correctValue ? 'True' : 'False'
-    case 'slider': return reveal.tolerance ? `${reveal.correctValue} (±${reveal.tolerance})` : String(reveal.correctValue)
-    case 'pinpoint': return 'The target area is now revealed.'
-    case 'mashup': return `${reveal.correctNames[0]} + ${reveal.correctNames[1]}`
-  }
-}
+import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -98,10 +88,13 @@ export function PlayPage() {
           }} />
       )}
       {state.phase === 'locked' && <section className="game-state-card" aria-live="polite"><div className="big-icon" aria-hidden="true">🔒</div><h1>Answers locked</h1><p>The host is about to reveal the answer.</p></section>}
-      {state.phase === 'reveal' && state.reveal && (
-        <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p><h1>{revealText(state.reveal)}</h1>
-          {question && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
-          {state.reveal.caption && <p>{state.reveal.caption}</p>}<p className="score-pill">Your score: {currentPlayer.totalScore}</p></section>
+      {state.phase === 'reveal' && state.reveal && question && (
+        <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
+          <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer} />
+          {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
+          {state.reveal.caption && <p>{state.reveal.caption}</p>}
+          {question.questionNumber === question.totalQuestions && <p className="final-results-wait">Waiting for the host to reveal the final results.</p>}
+        </section>
       )}
       {state.phase === 'leaderboard' && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} currentPlayerId={currentPlayer.id} /><p>Waiting for the next question…</p></section>}
       {state.phase === 'finished' && <section className="game-state-card finished-state"><p className="eyebrow">Quiz complete</p><h1>Final scores</h1><Leaderboard entries={state.leaderboard} currentPlayerId={currentPlayer.id} /><Link className="button button--secondary" to="/">Leave game</Link></section>}

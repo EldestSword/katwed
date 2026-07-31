@@ -10,6 +10,7 @@ import type {
 } from '../../types/domain'
 import type { GameRepository, QuizSaveInput } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
+import { parseSafeGameState } from './safeGameState'
 
 type JsonObject = Record<string, unknown>
 
@@ -84,7 +85,8 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async getSafeGameState(roomCode: string): Promise<SafeGameState | null> {
-    return this.rpc<SafeGameState | null>('get_player_game_state', { p_room_code: roomCode })
+    const state = await this.rpc<unknown>('get_player_game_state', { p_room_code: roomCode })
+    return state === null ? null : parseSafeGameState(state)
   }
 
   async submitAnswer(

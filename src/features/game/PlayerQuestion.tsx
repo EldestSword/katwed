@@ -10,6 +10,7 @@ import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
 import { QuestionImage } from '../../components/QuestionImage'
 import { ImageViewer } from '../../components/ImageViewer'
+import { PinpointSurface } from './PinpointSurface'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -218,18 +219,15 @@ export function PlayerQuestion({
 
       {question.type === 'pinpoint' && (
         <div className="pinpoint-answer">
-          <div className="pinpoint-surface" role="button" tabIndex={0} aria-label="Select a location on the image"
-            onClick={(event) => {
-              const bounds = event.currentTarget.getBoundingClientRect()
-              setAnswer({
-                type: 'pinpoint',
-                x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
-                y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
-              })
-            }}>
-            <QuestionImage path={question.media.path} alt={question.media.altText} />
-            {answer?.type === 'pinpoint' && <span className="pinpoint-marker" style={{ left: `${answer.x * 100}%`, top: `${answer.y * 100}%` }} />}
-          </div>
+          <PinpointSurface
+            path={question.media.path}
+            alt={question.media.altText}
+            mode="answer"
+            markers={answer?.type === 'pinpoint'
+              ? [{ x: answer.x, y: answer.y, kind: 'player', label: 'Your pin' }]
+              : []}
+            onSelect={(point) => setAnswer({ type: 'pinpoint', ...point })}
+          />
           <details>
             <summary>Keyboard location controls</summary>
             <label>Horizontal <input type="range" min="0" max="1" step="0.01" value={answer?.type === 'pinpoint' ? answer.x : 0.5}
