@@ -19,6 +19,12 @@ export default defineConfig({
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { VITE_DEMO_MODE: 'true' },
+    env: {
+      VITE_DEMO_MODE: 'true',
+      // Keep the demo suite isolated when a developer has real credentials in .env.local.
+      // Whitespace takes precedence in Vite and is trimmed to an unconfigured value by the app.
+      VITE_SUPABASE_URL: ' ',
+      VITE_SUPABASE_ANON_KEY: ' ',
+    },
   },
 })

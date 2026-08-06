@@ -214,6 +214,8 @@ Migration `202607310001_multiformat_quiz_platform.sql`:
 
 `202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
 
+`202608060001_fix_pgcrypto_schema.sql` qualifies reconnect-token generation and hashing through Supabase's `extensions` schema while retaining the restricted RPC search path.
+
 The `question-images` bucket accepts JPEG, PNG and WebP files up to 8 MB. Uploads are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
 Never put a service-role key in a `VITE_` variable.
