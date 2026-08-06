@@ -13,6 +13,42 @@ describe('DemoGameRepository multi-format game state', () => {
     )
   })
 
+  it('moves an intact quiz between active and archived libraries', async () => {
+    const repository = new DemoGameRepository()
+    const original = await repository.getQuiz('quiz-demo')
+
+    await repository.archiveQuiz('quiz-demo')
+
+    expect((await repository.listQuizzes()).map((quiz) => quiz.id)).not.toContain('quiz-demo')
+    expect((await repository.listArchivedQuizzes()).map((quiz) => quiz.id)).toContain('quiz-demo')
+    expect((await repository.getQuiz('quiz-demo'))?.questions).toEqual(original?.questions)
+    await expect(repository.launchGame('quiz-demo')).rejects.toThrow('Restore this quiz before launching it.')
+
+    await repository.restoreQuiz('quiz-demo')
+    expect((await repository.listQuizzes()).map((quiz) => quiz.id)).toContain('quiz-demo')
+    expect(await repository.listArchivedQuizzes()).toEqual([])
+  })
+
+  it('requires rooms to close before archive and archive before permanent deletion', async () => {
+    const repository = new DemoGameRepository()
+    await expect(repository.permanentlyDeleteQuiz('quiz-demo')).rejects.toThrow(
+      'Archive this quiz before permanently deleting it.',
+    )
+
+    const session = await repository.launchGame('quiz-demo')
+    await expect(repository.archiveQuiz('quiz-demo')).rejects.toThrow(
+      'Close the active game before archiving this quiz.',
+    )
+    await repository.changePhase(session.id, 'close')
+    await repository.archiveQuiz('quiz-demo')
+    expect(await repository.permanentlyDeleteQuiz('quiz-demo')).toEqual({
+      deletedMediaCount: 0,
+      failedMediaCount: 0,
+    })
+    expect(await repository.getQuiz('quiz-demo')).toBeNull()
+    expect(await repository.getHostSession(session.id)).toBeNull()
+  })
+
   it('joins, reconnects and rejects duplicate nicknames', async () => {
     const repository = new DemoGameRepository()
     const session = await repository.launchGame('quiz-demo')

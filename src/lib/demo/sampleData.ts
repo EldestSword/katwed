@@ -35,6 +35,7 @@ const mashup = (
 export const sampleQuiz: Quiz = {
   id: quizId,
   title: 'The Curious Crew',
+  archivedAt: null,
   createdAt: '2026-01-01T12:00:00.000Z',
   updatedAt: '2026-01-01T12:00:00.000Z',
   roster: rosterNames.map((displayName, index) => ({
@@ -71,6 +72,7 @@ const common = (id: string, type: Question['type'], prompt: string, displayOrder
 export const mixedDemoQuiz: Quiz = {
   id: mixedId,
   title: 'Katwed! Mixed Quiz',
+  archivedAt: null,
   createdAt: '2026-07-31T12:00:00.000Z',
   updatedAt: '2026-07-31T12:00:00.000Z',
   roster: sampleQuiz.roster.map((member) => ({ ...member, quizId: mixedId })),

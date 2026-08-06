@@ -55,6 +55,37 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('host can archive, restore and deliberately permanently delete a quiz', async ({ page }) => {
+  await enterHost(page)
+  const activeTab = page.getByRole('tab', { name: /Active quizzes/ })
+  const archivedTab = page.getByRole('tab', { name: /Archived quizzes/ })
+  const activeCard = () => page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+
+  await expect(activeCard().getByRole('button', { name: 'Permanently delete' })).toHaveCount(0)
+  await activeCard().getByRole('button', { name: 'Archive' }).click()
+  await expect(activeCard()).toHaveCount(0)
+
+  await archivedTab.click()
+  const archivedCard = () => page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+  await expect(archivedCard()).toBeVisible()
+  await expect(archivedCard().getByRole('button', { name: /Launch game|Resume game/ })).toHaveCount(0)
+  await expect(archivedCard().getByRole('link', { name: 'Edit' })).toHaveCount(0)
+  await archivedCard().getByRole('button', { name: 'Restore' }).click()
+  await expect(archivedCard()).toHaveCount(0)
+
+  await activeTab.click()
+  await expect(activeCard()).toBeVisible()
+  await activeCard().getByRole('button', { name: 'Archive' }).click()
+  await archivedTab.click()
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('This cannot be undone.')
+    await dialog.accept()
+  })
+  await archivedCard().getByRole('button', { name: 'Permanently delete' }).click()
+  await expect(archivedCard()).toHaveCount(0)
+  await expect(page.getByText('“The Curious Crew” was permanently deleted.')).toBeVisible()
+})
+
 test('controller, presentation and three players complete every mixed format', async ({ context, page }) => {
   test.setTimeout(120_000)
   await enterHost(page)

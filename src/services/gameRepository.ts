@@ -15,12 +15,20 @@ export interface QuizSaveInput {
   questions: Quiz['questions']
 }
 
+export interface QuizDeleteResult {
+  deletedMediaCount: number
+  failedMediaCount: number
+}
+
 export interface GameRepository {
   readonly mode: 'demo' | 'supabase' | 'unconfigured'
   listQuizzes(): Promise<Quiz[]>
+  listArchivedQuizzes(): Promise<Quiz[]>
   getQuiz(quizId: string): Promise<Quiz | null>
   saveQuiz(input: QuizSaveInput): Promise<Quiz>
-  deleteQuiz(quizId: string): Promise<void>
+  archiveQuiz(quizId: string): Promise<void>
+  restoreQuiz(quizId: string): Promise<void>
+  permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult>
   launchGame(quizId: string): Promise<GameSession>
   getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>

@@ -13,7 +13,7 @@ import type {
   Unsubscribe,
 } from '../../types/domain'
 import { scoreQuestion, sortLeaderboard } from '../../utils/scoring'
-import type { GameRepository, QuizSaveInput } from '../../services/gameRepository'
+import type { GameRepository, QuizDeleteResult, QuizSaveInput } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
 import { sampleQuizzes } from './sampleData'
 import { validateQuizSave } from '../../features/quiz-editor/validation'
@@ -37,6 +37,13 @@ function uid(prefix: string): string {
 
 function freshState(): DemoState {
   return { quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {} }
+}
+
+function normaliseState(state: DemoState): DemoState {
+  return {
+    ...state,
+    quizzes: state.quizzes.map((quiz) => ({ ...quiz, archivedAt: quiz.archivedAt ?? null })),
+  }
 }
 
 function isDemoState(value: unknown): value is DemoState {
@@ -182,7 +189,7 @@ export class DemoGameRepository implements GameRepository {
     }
     try {
       const value: unknown = JSON.parse(stored)
-      return isDemoState(value) ? value : freshState()
+      return isDemoState(value) ? normaliseState(value) : freshState()
     } catch {
       return freshState()
     }
@@ -201,7 +208,11 @@ export class DemoGameRepository implements GameRepository {
   }
 
   async listQuizzes(): Promise<Quiz[]> {
-    return clone(this.read().quizzes)
+    return clone(this.read().quizzes.filter((quiz) => quiz.archivedAt === null))
+  }
+
+  async listArchivedQuizzes(): Promise<Quiz[]> {
+    return clone(this.read().quizzes.filter((quiz) => quiz.archivedAt !== null))
   }
 
   async getQuiz(quizId: string): Promise<Quiz | null> {
@@ -231,6 +242,7 @@ export class DemoGameRepository implements GameRepository {
           quizId,
           displayOrder: index,
         })),
+        archivedAt: existing?.archivedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
@@ -242,12 +254,48 @@ export class DemoGameRepository implements GameRepository {
     })
   }
 
-  async deleteQuiz(quizId: string): Promise<void> {
+  async archiveQuiz(quizId: string): Promise<void> {
     return this.withMutation(() => {
       const state = this.read()
+      const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
+      if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
+      if (quiz.archivedAt !== null) throw new RepositoryError('database', 'That quiz is already archived.')
+      if (state.sessions.some((session) => session.quizId === quizId && session.status === 'active')) {
+        throw new RepositoryError('database', 'Close the active game before archiving this quiz.')
+      }
+      quiz.archivedAt = new Date().toISOString()
+      quiz.updatedAt = quiz.archivedAt
+      this.write(state, true, quizId)
+    })
+  }
+
+  async restoreQuiz(quizId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
+      if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
+      if (quiz.archivedAt === null) throw new RepositoryError('database', 'That quiz is not archived.')
+      quiz.archivedAt = null
+      quiz.updatedAt = new Date().toISOString()
+      this.write(state, true, quizId)
+    })
+  }
+
+  async permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
+      if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
+      if (quiz.archivedAt === null) {
+        throw new RepositoryError('database', 'Archive this quiz before permanently deleting it.')
+      }
+      if (state.sessions.some((session) => session.quizId === quizId && session.status === 'active')) {
+        throw new RepositoryError('database', 'Close the active game before permanently deleting this quiz.')
+      }
       state.quizzes = state.quizzes.filter((quiz) => quiz.id !== quizId)
       state.sessions = state.sessions.filter((session) => session.quizId !== quizId)
       this.write(state, true, quizId)
+      return { deletedMediaCount: 0, failedMediaCount: 0 }
     })
   }
 
@@ -256,6 +304,7 @@ export class DemoGameRepository implements GameRepository {
       const state = this.read()
       const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
       if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
+      if (quiz.archivedAt !== null) throw new RepositoryError('database', 'Restore this quiz before launching it.')
       const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
       if (active) return clone(active)
       const usedCodes = new Set(state.sessions.map((session) => session.roomCode))

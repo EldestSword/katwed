@@ -32,7 +32,13 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-All committed Supabase migrations are applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+The production migration chain through `202608060001_fix_pgcrypto_schema.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+
+### Implemented in code, pending production release
+
+The active/archive quiz lifecycle is implemented and tested locally. Active quizzes can be archived only after their live room is closed; archived quizzes can be restored or deliberately permanently deleted. Permanent deletion removes relational quiz and game history first, then uses the authenticated Storage client to remove only now-unreferenced Katwed image objects. Shared image references are preserved, and failed Storage cleanup is reported without pretending the database deletion failed.
+
+This feature requires the pending `202608070001_quiz_archive_lifecycle.sql` migration. It is committed for a deliberate future release but has not been applied to the live Supabase project, so the archive lifecycle must not yet be described as production-tested.
 
 ### Implemented but environment-dependent
 
@@ -202,7 +208,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Every committed migration is applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608060001_fix_pgcrypto_schema.sql` applied.
 
 For a new Supabase environment:
 
@@ -227,7 +233,7 @@ For a new Supabase environment:
 
 ### Migration history
 
-Applied migrations, in order:
+Applied production migrations, in order:
 
 ```text
 202607300001_initial_katwed.sql
@@ -239,9 +245,17 @@ Applied migrations, in order:
 202608060001_fix_pgcrypto_schema.sql
 ```
 
+Committed and pending deliberate production application:
+
+```text
+202608070001_quiz_archive_lifecycle.sql
+```
+
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
 
 `202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
+
+`202608070001_quiz_archive_lifecycle.sql` adds nullable archive timestamps, active and archived library RPCs, archive/restore guards, archive-first permanent deletion, archived-launch rejection and shared-media reference checking. It is not part of the live production schema until a deliberate release applies it.
 
 ### Production pgcrypto repair
 
@@ -258,6 +272,8 @@ Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are st
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
 GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for further image and storage optimisation, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
+
+The pending archive lifecycle performs database deletion before best-effort Storage cleanup. It checks question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained; failed or legacy cleanup remains recoverable through the planned orphan-media tooling.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -313,12 +329,10 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Basic permanent quiz deletion is already implemented through the host dashboard and the owner-checked Supabase deletion RPC. Planned work extends that existing flow:
+Archive, restore and safer permanent deletion are implemented in code and await the pending production migration. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
 
 - duplicate quiz;
-- an archive workflow;
-- safer permanent-deletion safeguards;
-- Supabase Storage media lifecycle and orphaned-media cleanup;
+- general orphaned-media discovery and cleanup;
 - quiz thumbnails;
 - search and tags;
 - storage-usage visibility;

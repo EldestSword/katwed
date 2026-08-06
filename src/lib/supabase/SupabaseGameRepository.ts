@@ -8,8 +8,10 @@ import type {
   SafeGameState,
   Unsubscribe,
 } from '../../types/domain'
-import type { GameRepository, QuizSaveInput } from '../../services/gameRepository'
+import type { GameRepository, QuizDeleteResult, QuizSaveInput } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
+import { removeQuestionImages } from '../../services/questionImages'
+import { config } from '../config'
 import { parseSafeGameState } from './safeGameState'
 
 type JsonObject = Record<string, unknown>
@@ -27,7 +29,10 @@ function normaliseError(error: { message: string; code?: string } | null): Repos
 export class SupabaseGameRepository implements GameRepository {
   readonly mode = 'supabase' as const
 
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(
+    private readonly client: SupabaseClient,
+    private readonly projectUrl = config.supabaseUrl,
+  ) {}
 
   private async rpc<T>(name: string, args: JsonObject = {}): Promise<T> {
     const result = await this.client.rpc(name, args)
@@ -39,6 +44,10 @@ export class SupabaseGameRepository implements GameRepository {
     return this.rpc<Quiz[]>('host_list_quizzes')
   }
 
+  async listArchivedQuizzes(): Promise<Quiz[]> {
+    return this.rpc<Quiz[]>('host_list_archived_quizzes')
+  }
+
   async getQuiz(quizId: string): Promise<Quiz | null> {
     return this.rpc<Quiz | null>('host_get_quiz', { p_quiz_id: quizId })
   }
@@ -47,8 +56,20 @@ export class SupabaseGameRepository implements GameRepository {
     return this.rpc<Quiz>('host_save_quiz', { p_quiz: input })
   }
 
-  async deleteQuiz(quizId: string): Promise<void> {
-    await this.rpc('host_delete_quiz', { p_quiz_id: quizId })
+  async archiveQuiz(quizId: string): Promise<void> {
+    await this.rpc('host_archive_quiz', { p_quiz_id: quizId })
+  }
+
+  async restoreQuiz(quizId: string): Promise<void> {
+    await this.rpc('host_restore_quiz', { p_quiz_id: quizId })
+  }
+
+  async permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult> {
+    const result = await this.rpc<{ mediaPaths?: unknown }>('host_permanently_delete_quiz', { p_quiz_id: quizId })
+    const references = Array.isArray(result?.mediaPaths)
+      ? result.mediaPaths.filter((value): value is string => typeof value === 'string')
+      : []
+    return removeQuestionImages(references, this.client, this.projectUrl)
   }
 
   async launchGame(quizId: string): Promise<GameSession> {

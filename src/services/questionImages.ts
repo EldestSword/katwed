@@ -2,8 +2,69 @@ import { config } from '../lib/config'
 import { supabase } from '../lib/supabase/client'
 
 const BUCKET = 'question-images'
+const PUBLIC_BUCKET_PATH = `/storage/v1/object/public/${BUCKET}/`
+const KATWED_OBJECT_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/\d{4}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const maxUploadBytes = 8 * 1024 * 1024
+
+interface QuestionImageStorageClient {
+  auth: {
+    getUser(): PromiseLike<{
+      data: { user: { id: string } | null }
+      error: { message: string } | null
+    }>
+  }
+  storage: {
+    from(bucket: string): {
+      remove(paths: string[]): PromiseLike<{ error: { message: string } | null }>
+    }
+  }
+}
+
+export interface QuestionImageCleanupResult {
+  deletedMediaCount: number
+  failedMediaCount: number
+}
+
+export function getQuestionImageObjectPath(reference: string, supabaseUrl = config.supabaseUrl): string | null {
+  if (!reference || !supabaseUrl) return null
+  try {
+    const url = new URL(reference)
+    if (url.origin !== new URL(supabaseUrl).origin || !url.pathname.startsWith(PUBLIC_BUCKET_PATH)) return null
+    const encodedPath = url.pathname.slice(PUBLIC_BUCKET_PATH.length)
+    const path = encodedPath.split('/').map((segment) => decodeURIComponent(segment)).join('/')
+    return KATWED_OBJECT_PATH.test(path) ? path : null
+  } catch {
+    return null
+  }
+}
+
+export async function removeQuestionImages(
+  references: readonly string[],
+  client: QuestionImageStorageClient | null = supabase,
+  supabaseUrl = config.supabaseUrl,
+): Promise<QuestionImageCleanupResult> {
+  const paths = [...new Set(references.flatMap((reference) => {
+    const path = getQuestionImageObjectPath(reference, supabaseUrl)
+    return path ? [path] : []
+  }))]
+  if (!paths.length) return { deletedMediaCount: 0, failedMediaCount: 0 }
+  if (!client) return { deletedMediaCount: 0, failedMediaCount: paths.length }
+  try {
+    const auth = await client.auth.getUser()
+    if (auth.error || !auth.data.user) return { deletedMediaCount: 0, failedMediaCount: paths.length }
+    const ownedPrefix = `${auth.data.user.id}/`
+    const ownedPaths = paths.filter((path) => path.startsWith(ownedPrefix))
+    const unownedCount = paths.length - ownedPaths.length
+    if (!ownedPaths.length) return { deletedMediaCount: 0, failedMediaCount: unownedCount }
+    const { error } = await client.storage.from(BUCKET).remove(ownedPaths)
+    return error
+      ? { deletedMediaCount: 0, failedMediaCount: paths.length }
+      : { deletedMediaCount: ownedPaths.length, failedMediaCount: unownedCount }
+  } catch {
+    return { deletedMediaCount: 0, failedMediaCount: paths.length }
+  }
+}
 
 async function resizeImage(file: File): Promise<Blob> {
   if (!allowedTypes.has(file.type)) throw new Error('Choose a JPEG, PNG or WebP image.')

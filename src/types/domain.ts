@@ -182,6 +182,7 @@ export interface Quiz {
   title: string
   roster: RosterMember[]
   questions: Question[]
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }

@@ -2,7 +2,7 @@ import { config } from '../lib/config'
 import { DemoGameRepository } from '../lib/demo/DemoGameRepository'
 import { supabase } from '../lib/supabase/client'
 import { SupabaseGameRepository } from '../lib/supabase/SupabaseGameRepository'
-import type { GameRepository, QuizSaveInput } from './gameRepository'
+import type { GameRepository, QuizDeleteResult, QuizSaveInput } from './gameRepository'
 import { RepositoryError } from './gameRepository'
 import type {
   GameSession,
@@ -23,9 +23,12 @@ class UnconfiguredRepository implements GameRepository {
     )
   }
   listQuizzes(): Promise<Quiz[]> { return this.fail() }
+  listArchivedQuizzes(): Promise<Quiz[]> { return this.fail() }
   getQuiz(_quizId: string): Promise<Quiz | null> { return this.fail() }
   saveQuiz(_input: QuizSaveInput): Promise<Quiz> { return this.fail() }
-  deleteQuiz(_quizId: string): Promise<void> { return this.fail() }
+  archiveQuiz(_quizId: string): Promise<void> { return this.fail() }
+  restoreQuiz(_quizId: string): Promise<void> { return this.fail() }
+  permanentlyDeleteQuiz(_quizId: string): Promise<QuizDeleteResult> { return this.fail() }
   launchGame(_quizId: string): Promise<GameSession> { return this.fail() }
   getHostSession(_sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null> { return this.fail() }
   getActiveSessionForQuiz(_quizId: string): Promise<GameSession | null> { return this.fail() }
