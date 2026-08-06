@@ -255,9 +255,9 @@ After application, the real production flow passed anonymous join, reconnect, an
 
 Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket; authenticated uploads and display after refresh have been verified in production. Images display on controller, presentation and player screens.
 
-The `question-images` bucket accepts JPEG, PNG and WebP files up to 8 MB. Uploads are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
+Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
-GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for image compression, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
+GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for further image and storage optimisation, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -313,18 +313,19 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Planned work:
+Basic permanent quiz deletion is already implemented through the host dashboard and the owner-checked Supabase deletion RPC. Planned work extends that existing flow:
 
 - duplicate quiz;
-- archive and delete workflows;
+- an archive workflow;
+- safer permanent-deletion safeguards;
+- Supabase Storage media lifecycle and orphaned-media cleanup;
 - quiz thumbnails;
 - search and tags;
 - storage-usage visibility;
-- orphaned-media cleanup;
 - quiz export and import;
 - optional media reuse;
 - old game-session cleanup;
-- image compression.
+- further image and storage optimisation controls.
 
 ### Themes and visual identity
 

@@ -33,11 +33,13 @@ The Supabase implementation is the proven production backend. Demo mode remains 
 
 ## Generic question engine
 
-`Question` is a strict discriminated union with six current variants: single choice, multiple select, true or false, slider, pinpoint and mash-up. Every variant contains the common prompt, supporting text, timer, points, order, caption, media and visibility settings. Type-specific answer keys exist only on authoring and trusted host/server models.
+`Question` is a strict discriminated union with six current variants: single choice, multiple select, true or false, slider, pinpoint and mash-up. Every variant contains the common prompt, supporting text, timer, points, order, caption, media and visibility settings. Type-specific answer keys exist only on authoring and trusted host/server models. These discriminated question, answer, safe-state and reveal contracts are the main shared extension boundary.
 
 `PlayerAnswerPayload` is a second discriminated union. `scoreQuestion` rejects a payload whose discriminator does not match the active question before applying type-specific validation. PostgreSQL repeats authoritative payload validation and scoring rather than trusting the browser.
 
-The registry owns human-facing metadata and coordinates factories, editor validation, player renderers, reveal renderers and shared scoring. The mash-up variant always requires exactly two different active people, both correct, in either order, with no partial credit.
+The registry provides shared question-type metadata—name, description, icon and classification—and delegates its scoring entry point to the common `scoreQuestion` function. Factories, quiz-editor validation and controls, player rendering, reveal rendering, presentation rendering, TypeScript scoring, and PostgreSQL validation and scoring remain separate but coordinated extension points. A new type should extend those existing boundaries rather than replace the question engine.
+
+The mash-up variant always requires exactly two different active people, both correct, in either order, with no partial credit.
 
 ## Player-safe state boundary
 
@@ -58,7 +60,9 @@ The PostgreSQL schema uses:
 - owner-scoped RLS;
 - security-definer RPCs with restricted search paths and explicit grants.
 
-Quiz definitions and live game state remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket. Production upload, persistence after refresh and display on controller, presentation and player surfaces have been verified. GitHub stores code, migrations, demo data and documentation; it is not the live quiz database.
+Quiz definitions and live game state remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket. Production upload, persistence after refresh and display on controller, presentation and player surfaces have been verified. The client already resizes accepted source images to a maximum 1,600-pixel edge and converts them to WebP before upload. GitHub stores code, migrations, demo data and documentation; it is not the live quiz database.
+
+Permanent quiz deletion is already available through the host dashboard and the owner-checked `host_delete_quiz` RPC, with relational quiz records removed by the existing cascade relationships. Associated Storage objects are not currently removed by that flow, so archive behaviour, safer destructive-action handling and media lifecycle cleanup remain future work.
 
 Questions may also reference normalised YouTube video IDs. Autoplay remains browser-dependent, and cross-device playback synchronisation is a future extension rather than part of the current architecture.
 
@@ -80,7 +84,7 @@ The existing boundaries allow future work without replacing the core model:
 
 - new question discriminators, payloads and reveal types;
 - quiz-library metadata, thumbnails, tags and archive state;
-- storage accounting, compression, media reuse and orphan cleanup;
+- storage accounting, further image optimisation, media reuse and orphan cleanup;
 - quiz export and import;
 - presentation and per-quiz themes;
 - old game-session retention and cleanup;
