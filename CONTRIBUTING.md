@@ -10,7 +10,7 @@ Katwed! is currently a one-person project assisted by Codex. Keep changes small 
 
 ## Local work
 
-```bash
+```powershell
 npm install
 copy .env.example .env.local
 npm run dev
@@ -27,8 +27,16 @@ npm run check
 npm run test:e2e
 ```
 
-Add focused tests for game rules, phase validation and player interaction changes. Use British English for visible copy. Update the README when setup or architecture changes.
+Add focused tests for game rules, phase validation and player interaction changes. Use British English for visible copy. Update the README and architecture documentation when setup, schema boundaries or architecture change.
+
+## Production migrations
+
+The committed migration chain is already applied to the live Supabase project. Never rewrite an applied migration; add a new chronological forward migration, preserve existing grants and security boundaries, and validate compatibility with production before pushing.
+
+## Deployment
+
+The Netlify site is live, but production builds are deliberately controlled during active development. A GitHub push is not automatically a release decision. Test locally and reactivate or trigger Netlify deployment only when the project owner intends a production release.
 
 ## Commits
 
-Use a concise imperative message. Do not include build output, dependency folders, browser reports, local databases or secrets.
+Use a concise imperative message. Do not include build output, dependency folders, browser reports, local databases or secrets. Stage only files that belong to the change.

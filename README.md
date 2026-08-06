@@ -13,20 +13,38 @@ The mash-up rule remains strict: players select exactly two different people and
 
 ## Status
 
-Version 2 is implemented as a React, Vite and strict TypeScript application. It includes:
+Katwed! version 2 is deployed on Netlify from the `EldestSword/katwed` GitHub repository and uses a live Supabase project. The production setup has been exercised with real host authentication, stored quizzes, uploaded media and multiple player tabs.
+
+### Implemented and production-tested
+
+The hosted application has verified support for:
 
 - a private controller;
 - a read-only 16:9 presentation screen;
-- responsive player controls for every supported type;
+- responsive phone, tablet and desktop player controls;
 - a three-panel quiz editor;
-- image and YouTube media;
-- five progressive image-reveal effects;
-- accessible image enlargement;
-- a shared question validation and scoring engine;
-- a local multi-tab demo repository;
-- a forward Supabase migration with server-side validation and scoring.
+- quiz creation, saving and persistence after refresh;
+- Supabase Storage image upload and persistent image display on controller, presentation and player screens;
+- real-time player-count and answer-count updates without manual refresh;
+- anonymous player joining and reconnect after refresh;
+- database-authoritative answer submission and scoring;
+- answer reveal and deliberate final-results withholding;
+- the controller/presentation window split in the hosted application;
+- a shared question validation and scoring engine.
 
-Demo mode is the quickest way to explore the platform. Production use requires a Supabase project, the migrations and a host account. The new migration is implemented but has not been applied to the project owner’s eventual Supabase instance.
+All committed Supabase migrations are applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+
+### Implemented but environment-dependent
+
+YouTube media is supported, but autoplay depends on browser policy. YouTube controls, branding, adverts and embedding restrictions remain external constraints, and cross-device playback synchronisation is not implemented.
+
+The presentation window can be shared manually through Microsoft Teams or another meeting tool. Katwed! has no Teams API integration and does not require one.
+
+### Planned
+
+The next phase focuses on quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap) and are not yet production features.
+
+Demo mode remains the quickest credential-free way to explore the platform locally.
 
 ## Local setup
 
@@ -62,13 +80,13 @@ All names and artwork are fictional and local to the repository.
 
 | Route | Purpose | Mutating controls |
 |---|---|---:|
-| `/host/game/:sessionId/control` | Private host controller | Yes |
-| `/host/game/:sessionId/present` | Read-only shared presentation | No |
-| `/play/:roomCode` | Player screen | Answer submission only |
+| `/host/game/:sessionId/control` | Private host controller, normally kept on a second monitor | Yes |
+| `/host/game/:sessionId/present` | Read-only shared presentation window | No |
+| `/play/:roomCode` | Responsive phone, tablet and desktop player interface | Answer submission only |
 
 The legacy `/host/game/:sessionId` route redirects to `/control`.
 
-Both host routes require host authentication in production. The presentation uses the same authenticated Supabase session as the controller and never exposes host controls.
+Both host routes require host authentication in production. The presentation uses the same authenticated Supabase session as the controller and never exposes host controls. It is intended to be shared as an ordinary browser window through Teams or another meeting tool; no meeting-platform integration is involved.
 
 ## Recommended Teams workflow
 
@@ -121,7 +139,7 @@ Questions support:
 - uploaded JPEG, PNG or WebP images;
 - a normalised YouTube video ID.
 
-Media can appear on the presentation, player devices or both. YouTube defaults to the presentation. Common `youtube.com`, `youtu.be`, Shorts, Live and embed URLs are normalised to the video ID; arbitrary iframe HTML is never accepted.
+Media can appear on the controller, presentation, player devices or a configured combination. Production image upload, refresh persistence and display across all three screen types have been verified. YouTube defaults to the presentation. Common `youtube.com`, `youtu.be`, Shorts, Live and embed URLs are normalised to the video ID; arbitrary iframe HTML is never accepted.
 
 YouTube playback is deliberately modest:
 
@@ -140,9 +158,9 @@ Images support:
 
 - immediate;
 - blur to clear;
-- pixelated to clear;
+- pixelate to clear;
 - tile uncover;
-- zoom out.
+- zoom-out.
 
 Progress is calculated from the authoritative question-open timestamp and reveal duration, so open screens converge on approximately the same point. Reduced-motion preferences receive an immediate result.
 
@@ -182,7 +200,11 @@ Leaderboard rows and cumulative player totals are withheld from player-safe stat
 
 The browser never receives a Supabase service-role credential.
 
-## Supabase setup and migration
+## Supabase production and setup
+
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Every committed migration is applied.
+
+For a new Supabase environment:
 
 1. Create a Supabase project.
 2. Install and sign in to the Supabase CLI.
@@ -194,7 +216,7 @@ The browser never receives a Supabase service-role credential.
    supabase db push
    ```
 
-5. Enable email/password authentication and create a host.
+5. Enable email/password authentication and create a host account.
 6. Set:
 
    ```dotenv
@@ -203,20 +225,39 @@ The browser never receives a Supabase service-role credential.
    VITE_DEMO_MODE=false
    ```
 
-Migration `202607310001_multiformat_quiz_platform.sql`:
+### Migration history
 
-- preserves existing mash-up rows;
-- adds common question fields, constrained media, type configuration and protected answer keys;
-- adds question options;
-- generalises player answer payloads and points;
-- replaces quiz save, safe-state and answer-submission RPCs;
-- keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
+Applied migrations, in order:
+
+```text
+202607300001_initial_katwed.sql
+202607300002_question_image_storage.sql
+202607300003_realtime_broadcast.sql
+202607300004_room_and_rpc_hardening.sql
+202607310001_multiformat_quiz_platform.sql
+202607310002_answer_reveals_final_results.sql
+202608060001_fix_pgcrypto_schema.sql
+```
+
+`202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
 
 `202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
 
-`202608060001_fix_pgcrypto_schema.sql` qualifies reconnect-token generation and hashing through Supabase's `extensions` schema while retaining the restricted RPC search path.
+### Production pgcrypto repair
+
+The first live anonymous-player test exposed `function gen_random_bytes(integer) does not exist`. Supabase had installed pgcrypto in the `extensions` schema, while the hardened RPCs deliberately retained `search_path = public` and called pgcrypto functions without qualification.
+
+The forward migration `202608060001_fix_pgcrypto_schema.sql` corrected `join_room`, `reconnect_player`, `set_player_presence` and `submit_answer` with `extensions.gen_random_bytes(...)`, `extensions.digest(...)` and core PostgreSQL `pg_catalog.encode(...)`. It preserved security-definer behaviour, reconnect-token hashing, explicit grants, RLS, scoring and phase validation.
+
+After application, the real production flow passed anonymous join, reconnect, answer submission, reveal, final-results release and 1,000-point server-side scoring.
+
+### Quiz data and Storage
+
+Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket; authenticated uploads and display after refresh have been verified in production. Images display on controller, presentation and player screens.
 
 The `question-images` bucket accepts JPEG, PNG and WebP files up to 8 MB. Uploads are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
+
+GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for image compression, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -245,22 +286,87 @@ Playwright runs the controller, presentation and three player pages through the 
 
 ## Deployment
 
-The committed `netlify.toml` builds with `npm run build`, publishes `dist`, uses Node.js 20 and redirects application routes to `index.html`.
+Katwed! is deployed successfully on Netlify, connected to the `EldestSword/katwed` GitHub repository. The committed `netlify.toml` builds with `npm run build`, publishes `dist`, uses Node.js 20 and redirects application routes to `index.html`.
 
 Add the three public environment variables in Netlify. Do not deploy a real `.env` file.
 
-## Deferred formats and limitations
+During active development, production builds are deliberately controlled through the project owner's Netlify settings to avoid spending deploy credits on every small commit. The intended operating workflow is:
 
-Typed answer, ordering, matching, polls, word clouds, open response and brainstorming are intentionally deferred. The discriminated question model and constrained JSON configuration can add them without replacing the common question, media or answer tables.
+```text
+Codex/local changes
+→ commit to main
+→ push to GitHub
+→ no automatic production build during active development
+→ test locally
+→ manually/reactivate deployment when a production release is wanted
+```
 
-Other current limitations:
+This is an operational workflow, not a claim that the repository itself disables Netlify build automation. The live site remains online while new builds are stopped, and future production releases should be deliberate.
+
+## Planning assumptions and load testing
+
+This section records planning assumptions, not guaranteed capacity. The Supabase Free plan has practical limits around database size, Storage, Realtime connections, Realtime message rate and egress. Until formal load testing is complete, treat Katwed! as suitable for small-to-medium private quiz sessions.
+
+Planned test points are approximately 25, 50, 75 and 100 simultaneous players. These room sizes must not be advertised as supported until the relevant tests pass.
+
+## Roadmap
+
+### Quiz library and storage management
+
+Planned work:
+
+- duplicate quiz;
+- archive and delete workflows;
+- quiz thumbnails;
+- search and tags;
+- storage-usage visibility;
+- orphaned-media cleanup;
+- quiz export and import;
+- optional media reuse;
+- old game-session cleanup;
+- image compression.
+
+### Themes and visual identity
+
+Planned work:
+
+- Katwed! typography;
+- a background system;
+- presentation themes;
+- per-quiz colour themes;
+- quiz cover images;
+- answer-card styling.
+
+### Further question formats
+
+Planned formats:
+
+- typed answer;
+- ordering;
+- matching;
+- poll;
+- scale;
+- word cloud;
+- open response;
+- brainstorm;
+- ranking;
+- closest-wins;
+- progressive clue formats;
+- other future Katwed!-specific formats.
+
+The generic discriminated question model and constrained JSON configuration are intended to support these additions without replacing the common question, media or answer tables.
+
+### Load testing
+
+Formal multi-player load testing is required before advertising larger room capacities.
+
+## Current limitations
 
 - no speed bonuses;
 - no remote co-host;
-- no automatic media synchronisation;
+- no cross-device YouTube playback synchronisation;
 - no Teams integration;
-- aggregate presentation results do not show named individual answers;
-- production Supabase migration still requires application and smoke testing against the owner’s project.
+- aggregate presentation results do not show named individual answers.
 
 ## Troubleshooting
 

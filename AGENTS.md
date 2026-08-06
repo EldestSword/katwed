@@ -1,10 +1,14 @@
 # Working on Katwed!
 
 - Read `README.md` fully before making changes.
+- Treat the linked Supabase project and Netlify site as live production systems. All committed migrations are already applied to production.
+- Never edit an applied migration in place. Add a new chronological forward migration and preserve compatibility with the production schema.
 - Preserve the mash-up rule: players select exactly two different people and score only when both are correct.
 - Never introduce partial-credit scoring for mash-up questions. Multiple select may use its explicit wrong-answer-wipeout mode.
 - Use British English in code-facing copy and documentation.
 - Do not reveal correct answers to player-facing queries before the `reveal` phase.
+- Preserve the player-safe state boundary and withhold leaderboard rows and cumulative totals until the existing permitted phases. Final results require the host's explicit reveal action.
+- Preserve the three-screen model: private controller at `/control`, read-only presentation at `/present` and responsive player UI at `/play/:roomCode`.
 - Never commit secrets, real `.env` files, service-role credentials or personal team data.
 - Inspect the existing code before replacing a system or abstraction.
 - Prefer complete, tested changes over unfinished scaffolding.
@@ -13,4 +17,5 @@
 - Run `npm run lint`, `npm run typecheck`, `npm run test` and `npm run build` before committing.
 - Run the relevant Playwright tests for changes to critical host/player flows.
 - Update the README whenever setup, architecture, environment variables or migrations change.
+- Treat Netlify releases as deliberate during active development. Do not assume that pushing to GitHub should trigger a production build; respect the project owner's current deployment setting and release intent.
 - Do not push broken code.
