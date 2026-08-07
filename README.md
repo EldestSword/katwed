@@ -32,7 +32,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608070003_storage_manager.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+The production migration chain through `202608070005_quiz_backgrounds.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
 
 ### Implemented and deployed
 
@@ -78,19 +78,21 @@ The browser lists only the authenticated host's folder. A bounded security-defin
 
 The production release applied `202608070003_storage_manager.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL, deployed Storage Manager assets and the `/host/storage` authentication boundary. A later manual authenticated cleanup reported 2 images totalling 456.3 KB: 1 in use at 211.6 KB and 1 unused at 244.7 KB. After explicit confirmation the UI reported "1 image was removed." The refreshed report showed 1 total/in-use image at 211.6 KB and 0 unused, and the referenced image remained intact. That manual check did not attempt to manufacture a newly protected or concurrent-reference race; those revalidation paths remain covered by automated tests.
 
-### Per-quiz themes and backgrounds - implemented locally, pending release
+### Per-quiz themes and backgrounds
 
-Each quiz now selects one of six built-in audience themes: `katwed`, `midnight`, `sunset`, `arcade`, `mint` or `paper`. Katwed is the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
+Each quiz selects one of six built-in audience themes: `katwed`, `midnight`, `sunset`, `arcade`, `mint` or `paper`. Katwed is the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview, editor audience preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
 
 Each theme also offers three curated built-in 16:9 image backgrounds plus Theme default, which uses no image and preserves the existing themed surface. The editor shows only the current theme's backgrounds. Changing theme clears an incompatible selection rather than choosing a replacement. Backgrounds use trusted static assets under `public/backgrounds/`; they are not uploads, Supabase Storage objects or Storage Manager inventory.
 
 Theme palettes and backgrounds use central typed registries rendered through scoped audience-surface CSS. `themeId` and nullable `backgroundId` travel with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Covers remain separate library metadata. Duplicate preserves both appearance choices alongside the existing independently remapped quiz definition.
 
-This work and its unit, component and desktop/mobile browser coverage are local only. `202608070004_quiz_themes.sql` and the forward `202608070005_quiz_backgrounds.sql` migration are committed in that order and remain unapplied; the matching frontend also awaits a deliberate bundled production release. Production remains on `202608070003_storage_manager.sql` and the currently deployed frontend.
+The production release applied `202608070004_quiz_themes.sql` and `202608070005_quiz_backgrounds.sql` in order and deployed the matching frontend at `https://katwed.co.uk` with `https://katwed.netlify.app` as the Netlify fallback. Both migrations are now immutable production history.
+
+Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
 ### Planned
 
-The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap); locally implemented work remains pending a deliberate release where stated.
+The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap).
 
 Demo mode remains the quickest credential-free way to explore the platform locally.
 
@@ -256,7 +258,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070003_storage_manager.sql` applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied, with no pending migration.
 
 For a new Supabase environment:
 
@@ -294,6 +296,8 @@ Applied production migrations, in order:
 202608070001_quiz_archive_lifecycle.sql
 202608070002_quiz_covers.sql
 202608070003_storage_manager.sql
+202608070004_quiz_themes.sql
+202608070005_quiz_backgrounds.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -306,16 +310,9 @@ Applied production migrations, in order:
 
 `202608070003_storage_manager.sql` adds authenticated owner-folder listing for the existing public image bucket and a bounded classification RPC. The RPC validates caller-owned Katwed-generated paths and checks all quiz-cover, question-media, retained legacy question-image and option-image references globally. It classifies only; physical deletion remains an authenticated browser Storage API operation after immediate revalidation. It is applied to the live production schema and is immutable history.
 
-Pending production migration:
+`202608070004_quiz_themes.sql` is applied immutable production history. It adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and player-safe game state, and extends the existing save function without changing question persistence, scoring or phases.
 
-```text
-202608070004_quiz_themes.sql
-202608070005_quiz_backgrounds.sql
-```
-
-`202608070004_quiz_themes.sql` adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and the player-safe game state, and extends the existing save function without changing question persistence, scoring or phases. It is committed and tested statically but has not been applied. Production remains through `202608070003_storage_manager.sql`.
-
-`202608070005_quiz_backgrounds.sql` assumes the theme migration has run, adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries the safe visual metadata through owner reads, saves and player-safe state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background. It is committed and tested statically but has not been applied.
+`202608070005_quiz_backgrounds.sql` is applied immutable production history and the current production baseline. It adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries safe background metadata through owner reads, saves and player-safe game state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background.
 
 ### Production pgcrypto repair
 
@@ -364,7 +361,7 @@ Playwright runs the controller, presentation and three player pages through the 
 
 ## Deployment
 
-Katwed! is deployed successfully on Netlify, connected to the `EldestSword/katwed` GitHub repository. The committed `netlify.toml` builds with `npm run build`, publishes `dist`, uses Node.js 20 and redirects application routes to `index.html`.
+Katwed! is deployed successfully on Netlify at `https://katwed.co.uk`, with `https://katwed.netlify.app` as the fallback hostname, and is connected to the `EldestSword/katwed` GitHub repository. HTTPS is valid for the custom domain and `www.katwed.co.uk` redirects to the apex domain. The committed `netlify.toml` builds with `npm run build`, publishes `dist`, uses Node.js 20 and redirects application routes to `index.html`.
 
 Add the three public environment variables in Netlify. Do not deploy a real `.env` file.
 
@@ -401,7 +398,7 @@ Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited,
 
 ### Themes and visual identity
 
-The six curated per-quiz colour themes and 18 optional built-in backgrounds are implemented and tested locally, pending `202608070004_quiz_themes.sql`, `202608070005_quiz_backgrounds.sql` and a deliberate matching frontend release.
+The six curated per-quiz colour themes and 18 optional built-in backgrounds are deployed and manually production-UAT verified. Theme default supplies the themed surface without a static image, while each theme owns three compatible built-in backgrounds.
 
 Planned work:
 
