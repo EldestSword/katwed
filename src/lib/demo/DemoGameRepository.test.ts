@@ -1,8 +1,29 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type * as QuestionImages from '../../services/questionImages'
+
+const demoImageMocks = vi.hoisted(() => ({
+  listDemoStoredImages: vi.fn(),
+  removeDemoStoredImages: vi.fn(),
+}))
+
+vi.mock('../../services/questionImages', async () => ({
+  ...await vi.importActual<typeof QuestionImages>('../../services/questionImages'),
+  listDemoStoredImages: demoImageMocks.listDemoStoredImages,
+  removeDemoStoredImages: demoImageMocks.removeDemoStoredImages,
+}))
+
 import { DemoGameRepository } from './DemoGameRepository'
 
 describe('DemoGameRepository multi-format game state', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+    demoImageMocks.listDemoStoredImages.mockResolvedValue([])
+    demoImageMocks.removeDemoStoredImages.mockImplementation(async (paths: string[]) => ({
+      deletedMediaCount: paths.length,
+      failedMediaCount: 0,
+    }))
+  })
 
   it('provides both the preserved mash-up quiz and a mixed quiz', async () => {
     const repository = new DemoGameRepository()
@@ -142,6 +163,63 @@ describe('DemoGameRepository multi-format game state', () => {
     })
 
     expect(created.coverImagePath).toBeNull()
+  })
+
+  it('reports and cleans Demo IndexedDB orphans while preserving current and newly shared references', async () => {
+    const repository = new DemoGameRepository()
+    const inUsePath = 'demo-image://123e4567-e89b-42d3-a456-426614174000'
+    const orphanPath = 'demo-image://223e4567-e89b-42d3-a456-426614174000'
+    demoImageMocks.listDemoStoredImages.mockResolvedValue([
+      { path: inUsePath, publicUrl: inUsePath, sizeBytes: 1000, createdAt: null },
+      { path: orphanPath, publicUrl: orphanPath, sizeBytes: 2000, createdAt: null },
+    ])
+    const source = await repository.getQuiz('quiz-mixed')
+    if (!source) throw new Error('Demo quiz missing')
+    await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      coverImagePath: inUsePath,
+      roster: source.roster,
+      questions: source.questions,
+    })
+
+    const initial = await repository.getStorageReport()
+    expect(initial.total).toEqual({ fileCount: 2, sizeBytes: 3000, unknownSizeCount: 0 })
+    expect(initial.inUse.fileCount).toBe(1)
+    expect(initial.unused.fileCount).toBe(1)
+    await expect(repository.cleanupUnusedImages([orphanPath])).resolves.toEqual({
+      removedCount: 1,
+      preservedCount: 0,
+      failedCount: 0,
+    })
+    expect(demoImageMocks.removeDemoStoredImages).toHaveBeenCalledWith([orphanPath])
+
+    demoImageMocks.removeDemoStoredImages.mockClear()
+    const other = await repository.getQuiz('quiz-demo')
+    if (!other) throw new Error('Second Demo quiz missing')
+    await repository.saveQuiz({
+      id: other.id,
+      title: other.title,
+      coverImagePath: orphanPath,
+      roster: other.roster,
+      questions: other.questions,
+    })
+
+    await expect(repository.cleanupUnusedImages([orphanPath])).resolves.toEqual({
+      removedCount: 0,
+      preservedCount: 1,
+      failedCount: 0,
+    })
+    expect(demoImageMocks.removeDemoStoredImages).not.toHaveBeenCalled()
+
+    await repository.saveQuiz({
+      id: other.id,
+      title: other.title,
+      coverImagePath: null,
+      roster: other.roster,
+      questions: other.questions,
+    })
+    expect((await repository.getStorageReport()).unused.fileCount).toBe(1)
   })
 
   it('rejects duplication of an archived quiz', async () => {

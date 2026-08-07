@@ -68,11 +68,17 @@ Quiz covers are deployed to the production Supabase project and Netlify site. Ho
 
 Covers use the existing authenticated `question-images` upload pipeline: JPEG, PNG and WebP input up to 8 MB is resized without upscaling to a maximum 1,600-pixel edge and encoded as WebP. Duplicate Quiz reuses the exact stored reference rather than uploading a copy. Archive and Restore retain it, while permanent deletion treats cover references as part of the existing exact cross-quiz shared-media safety check.
 
-The production release applied `202608070002_quiz_covers.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL and hosted cover controls/rendering bundle. Authenticated production cover UAT was not performed because no secure host browser session was available; the complete cover lifecycle remains covered by local repository, component and desktop/mobile browser tests. Replacing or removing a cover does not immediately delete the old Storage object; that deliberate orphan-cleanup work remains planned.
+The production release applied `202608070002_quiz_covers.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL and hosted cover controls/rendering bundle. Subsequent manual authenticated production UAT confirmed host access, cover upload and preview, Save persistence, dashboard display, editor reload persistence, and Remove cover plus Save restoring the fallback. Archive preservation, duplicate cover sharing and shared-media permanent deletion were not part of that manual check. The complete cover lifecycle remains covered by local repository, component and desktop/mobile browser tests.
+
+### Storage Manager
+
+Storage Manager is implemented and tested locally at `/host/storage`, pending the forward migration `202608070003_storage_manager.sql` and a deliberate matching frontend release. It reports Total, In use and Unused Katwed images for the signed-in host's folder in the existing `question-images` bucket. Legacy or unmanaged objects are included as Other / protected when Storage metadata is available, but are never offered for automatic deletion.
+
+The browser lists only the authenticated host's folder. A bounded security-definer RPC then checks strict Katwed-generated owner/year/UUID WebP paths against cover, question-media, retained legacy question-image and option-image references across every quiz, including other hosts' quizzes. Cleanup is always user-triggered and confirmed; the proposed unused paths are checked again immediately before the authenticated Storage API removes only the still-unused subset. No scheduled or background cleanup exists. Demo mode provides the same report and cleanup flow over the existing IndexedDB image store.
 
 ### Planned
 
-The next phase focuses on quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap) and are not yet production features.
+The next phase continues quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap); locally implemented work remains pending a deliberate release where stated.
 
 Demo mode remains the quickest credential-free way to explore the platform locally.
 
@@ -279,6 +285,14 @@ Applied production migrations, in order:
 
 `202608070002_quiz_covers.sql` adds nullable quiz-cover metadata, includes it in authenticated quiz reads and saves, and extends permanent deletion's exact cross-quiz reference check to covers. It is applied to the live production schema and is immutable history.
 
+Pending production migration:
+
+```text
+202608070003_storage_manager.sql
+```
+
+`202608070003_storage_manager.sql` adds authenticated owner-folder listing for the existing public image bucket and a bounded classification RPC. The RPC validates caller-owned Katwed-generated paths and checks all quiz-cover, question-media, retained legacy question-image and option-image references globally. It classifies only; physical deletion remains an authenticated browser Storage API operation after immediate revalidation. The migration is implemented and tested locally but has not been applied to production.
+
 ### Production pgcrypto repair
 
 The first live anonymous-player test exposed `function gen_random_bytes(integer) does not exist`. Supabase had installed pgcrypto in the `extensions` schema, while the hardened RPCs deliberately retained `search_path = public` and called pgcrypto functions without qualification.
@@ -293,9 +307,9 @@ Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are st
 
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
-GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for further image and storage optimisation, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
+GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are implemented locally in Storage Manager, pending the new migration and frontend release. Future storage work remains planned for further image optimisation, optional media reuse and quiz export/import.
 
-The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks quiz covers, question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained; failed, replaced, removed or abandoned-upload cleanup remains recoverable through the planned orphan-media tooling.
+The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks quiz covers, question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained. Failed, replaced, removed or abandoned uploads remain cleanup debt in production until the locally implemented Storage Manager is deliberately released.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -351,11 +365,9 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting and Quiz Covers are implemented and deployed. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting and Quiz Covers are implemented and deployed. Storage usage visibility, orphaned-media discovery and explicit safe cleanup are implemented and tested locally in Storage Manager, pending `202608070003_storage_manager.sql` and a deliberate frontend release. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
 
-- general orphaned-media discovery and cleanup;
 - tags;
-- storage-usage visibility;
 - quiz export and import;
 - optional media reuse;
 - old game-session cleanup;

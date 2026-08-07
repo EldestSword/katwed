@@ -106,6 +106,63 @@ test('quiz covers persist across the library lifecycle and remain independent af
   await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
 })
 
+test('Storage Manager reviews and cleans a replaced Demo cover without removing the current cover', async ({ page }) => {
+  test.setTimeout(60_000)
+  const image = {
+    name: 'storage-cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  }
+  await enterHost(page)
+  await page.getByRole('button', { name: '+ Create quiz' }).click()
+  await page.getByLabel('Quiz title').fill('Storage lifecycle quiz')
+  const cover = page.getByRole('region', { name: 'Quiz cover' })
+  await cover.getByLabel('Choose cover').setInputFiles({ ...image, name: 'cover-a.png' })
+  await expect(cover.locator('img')).toBeVisible()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+
+  await cover.getByLabel('Replace cover').setInputFiles({ ...image, name: 'cover-b.png' })
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.goto('/host')
+  const quizCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Storage lifecycle quiz', exact: true }),
+  })
+  await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
+  await page.getByRole('link', { name: 'Storage' }).click()
+  await expect(page).toHaveURL(/\/host\/storage$/)
+
+  const summary = (label: string) => page.locator('.storage-summary-card').filter({
+    has: page.getByRole('heading', { name: label, exact: true }),
+  })
+  await expect(summary('Total')).toContainText('2 images')
+  await expect(summary('In use')).toContainText('1 image')
+  await expect(summary('Unused')).toContainText('1 image')
+  await expect(page.getByRole('heading', { name: 'Unused image', exact: true })).toHaveCount(0)
+  await expect(page.getByText('Unused image', { exact: true })).toBeVisible()
+  expect(await page.evaluate<boolean>(
+    'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
+  )).toBe(true)
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('Katwed will re-check that these files are still unused before deleting them.')
+    await dialog.accept()
+  })
+  await page.getByRole('button', { name: 'Clean up 1 unused image' }).click()
+  await expect(page.getByText('1 image was removed.')).toBeVisible()
+  await expect(summary('Unused')).toContainText('0 images')
+  await expect(page.getByRole('heading', { name: 'No unused images' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Your quizzes' }).click()
+  await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
+  await quizCard.getByRole('link', { name: 'Edit' }).click()
+  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+})
+
 test('quiz library search, sorting and last-edited details work across views', async ({ page }) => {
   await enterHost(page)
 

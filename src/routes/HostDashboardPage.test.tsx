@@ -96,7 +96,8 @@ describe('HostDashboardPage quiz library', () => {
   it('renders accessible controls, defaults to Last edited and shows British last-edited metadata', async () => {
     renderDashboard()
 
-    expect(await screen.findByRole('searchbox', { name: 'Search quizzes' })).toBeVisible()
+    expect(await screen.findByRole('link', { name: 'Storage' })).toHaveAttribute('href', '/host/storage')
+    expect(screen.getByRole('searchbox', { name: 'Search quizzes' })).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Sort quizzes' })).toHaveValue('updated-desc')
     expect(cardTitles()).toEqual(['Friday Team Quiz', 'quiz 2', 'Quiz 10'])
     expect(screen.getByText('Last edited 1 Mar 2026')).toBeVisible()

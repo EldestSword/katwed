@@ -1,7 +1,8 @@
 import { config } from '../lib/config'
 import { supabase } from '../lib/supabase/client'
 
-const BUCKET = 'question-images'
+export const KATWED_IMAGE_BUCKET = 'question-images'
+const BUCKET = KATWED_IMAGE_BUCKET
 const PUBLIC_BUCKET_PATH = `/storage/v1/object/public/${BUCKET}/`
 const KATWED_OBJECT_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/\d{4}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -29,6 +30,17 @@ export interface QuestionImageCleanupResult {
   failedMediaCount: number
 }
 
+export interface DemoStoredImage {
+  path: string
+  publicUrl: string
+  sizeBytes: number
+  createdAt: null
+}
+
+export function isKatwedImageObjectPath(path: string): boolean {
+  return KATWED_OBJECT_PATH.test(path)
+}
+
 export function getQuestionImageObjectPath(reference: string, supabaseUrl = config.supabaseUrl): string | null {
   if (!reference || !supabaseUrl) return null
   try {
@@ -36,7 +48,7 @@ export function getQuestionImageObjectPath(reference: string, supabaseUrl = conf
     if (url.origin !== new URL(supabaseUrl).origin || !url.pathname.startsWith(PUBLIC_BUCKET_PATH)) return null
     const encodedPath = url.pathname.slice(PUBLIC_BUCKET_PATH.length)
     const path = encodedPath.split('/').map((segment) => decodeURIComponent(segment)).join('/')
-    return KATWED_OBJECT_PATH.test(path) ? path : null
+    return isKatwedImageObjectPath(path) ? path : null
   } catch {
     return null
   }
@@ -51,19 +63,34 @@ export async function removeQuestionImages(
     const path = getQuestionImageObjectPath(reference, supabaseUrl)
     return path ? [path] : []
   }))]
+  return removeStoredImagePaths(paths, client)
+}
+
+export async function removeStoredImagePaths(
+  candidatePaths: readonly string[],
+  client: QuestionImageStorageClient | null = supabase,
+  batchSize = 100,
+): Promise<QuestionImageCleanupResult> {
+  const paths = [...new Set(candidatePaths)]
   if (!paths.length) return { deletedMediaCount: 0, failedMediaCount: 0 }
   if (!client) return { deletedMediaCount: 0, failedMediaCount: paths.length }
   try {
     const auth = await client.auth.getUser()
     if (auth.error || !auth.data.user) return { deletedMediaCount: 0, failedMediaCount: paths.length }
     const ownedPrefix = `${auth.data.user.id}/`
-    const ownedPaths = paths.filter((path) => path.startsWith(ownedPrefix))
+    const ownedPaths = paths.filter((path) => path.startsWith(ownedPrefix) && isKatwedImageObjectPath(path))
     const unownedCount = paths.length - ownedPaths.length
     if (!ownedPaths.length) return { deletedMediaCount: 0, failedMediaCount: unownedCount }
-    const { error } = await client.storage.from(BUCKET).remove(ownedPaths)
-    return error
-      ? { deletedMediaCount: 0, failedMediaCount: paths.length }
-      : { deletedMediaCount: ownedPaths.length, failedMediaCount: unownedCount }
+    let deletedMediaCount = 0
+    let failedMediaCount = unownedCount
+    const safeBatchSize = Math.max(1, Math.min(100, Math.floor(batchSize)))
+    for (let index = 0; index < ownedPaths.length; index += safeBatchSize) {
+      const batch = ownedPaths.slice(index, index + safeBatchSize)
+      const { error } = await client.storage.from(BUCKET).remove(batch)
+      if (error) failedMediaCount += batch.length
+      else deletedMediaCount += batch.length
+    }
+    return { deletedMediaCount, failedMediaCount }
   } catch {
     return { deletedMediaCount: 0, failedMediaCount: paths.length }
   }
@@ -122,6 +149,52 @@ async function readDemoImage(path: string): Promise<Blob | null> {
   })
   database.close()
   return blob
+}
+
+export async function listDemoStoredImages(): Promise<DemoStoredImage[]> {
+  const database = await openDemoImageDatabase()
+  const images = await new Promise<DemoStoredImage[]>((resolve, reject) => {
+    const stored: DemoStoredImage[] = []
+    const request = database.transaction('images', 'readonly').objectStore('images').openCursor()
+    request.onsuccess = () => {
+      const cursor = request.result
+      if (!cursor) {
+        resolve(stored)
+        return
+      }
+      if (typeof cursor.key === 'string' && cursor.value instanceof Blob) {
+        const path = `demo-image://${cursor.key}`
+        stored.push({ path, publicUrl: path, sizeBytes: cursor.value.size, createdAt: null })
+      }
+      cursor.continue()
+    }
+    request.onerror = () => reject(new Error('Local image storage could not be listed.'))
+  })
+  database.close()
+  return images
+}
+
+export async function removeDemoStoredImages(paths: readonly string[]): Promise<QuestionImageCleanupResult> {
+  const uniquePaths = [...new Set(paths)]
+  const safePaths = uniquePaths.filter((path) => (
+    /^demo-image:\/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(path)
+  ))
+  const failedMediaCount = uniquePaths.length - safePaths.length
+  if (!safePaths.length) return { deletedMediaCount: 0, failedMediaCount }
+  try {
+    const database = await openDemoImageDatabase()
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('images', 'readwrite')
+      const store = transaction.objectStore('images')
+      safePaths.forEach((path) => store.delete(path.slice('demo-image://'.length)))
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(new Error('Local images could not be removed.'))
+    })
+    database.close()
+    return { deletedMediaCount: safePaths.length, failedMediaCount }
+  } catch {
+    return { deletedMediaCount: 0, failedMediaCount: failedMediaCount + safePaths.length }
+  }
 }
 
 export function createKatwedImageObjectPath(

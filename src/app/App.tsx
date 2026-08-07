@@ -9,6 +9,7 @@ const JoinPage = lazy(() => import('../routes/JoinPage').then((module) => ({ def
 const PlayPage = lazy(() => import('../routes/PlayPage').then((module) => ({ default: module.PlayPage })))
 const HostLoginPage = lazy(() => import('../routes/HostLoginPage').then((module) => ({ default: module.HostLoginPage })))
 const HostDashboardPage = lazy(() => import('../routes/HostDashboardPage').then((module) => ({ default: module.HostDashboardPage })))
+const HostStoragePage = lazy(() => import('../routes/HostStoragePage').then((module) => ({ default: module.HostStoragePage })))
 const QuizEditorPage = lazy(() => import('../routes/QuizEditorPage').then((module) => ({ default: module.QuizEditorPage })))
 const HostGamePage = lazy(() => import('../routes/HostGamePage').then((module) => ({ default: module.HostGamePage })))
 const PresentationPage = lazy(() => import('../routes/PresentationPage').then((module) => ({ default: module.PresentationPage })))
@@ -25,6 +26,7 @@ export function App() {
           <Route path="/host/login" element={<HostLoginPage />} />
           <Route element={<RequireHost />}>
             <Route path="/host" element={<HostDashboardPage />} />
+            <Route path="/host/storage" element={<HostStoragePage />} />
             <Route path="/host/quizzes/:quizId/edit" element={<QuizEditorPage />} />
             <Route path="/host/game/:sessionId" element={<Navigate to="control" replace />} />
             <Route path="/host/game/:sessionId/control" element={<HostGamePage />} />

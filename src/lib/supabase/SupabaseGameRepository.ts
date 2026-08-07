@@ -14,6 +14,8 @@ import { removeQuestionImages } from '../../services/questionImages'
 import { config } from '../config'
 import { parseSafeGameState } from './safeGameState'
 import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQuiz'
+import type { StorageCleanupResult, StorageReport } from '../../features/storage-manager/storageManager'
+import { cleanupSupabaseUnusedImages, loadSupabaseStorageReport } from '../../services/storageManager'
 
 type JsonObject = Record<string, unknown>
 
@@ -80,6 +82,14 @@ export class SupabaseGameRepository implements GameRepository {
       ? result.mediaPaths.filter((value): value is string => typeof value === 'string')
       : []
     return removeQuestionImages(references, this.client, this.projectUrl)
+  }
+
+  getStorageReport(): Promise<StorageReport> {
+    return loadSupabaseStorageReport(this.client)
+  }
+
+  cleanupUnusedImages(paths: readonly string[]): Promise<StorageCleanupResult> {
+    return cleanupSupabaseUnusedImages(this.client, paths)
   }
 
   async launchGame(quizId: string): Promise<GameSession> {

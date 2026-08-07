@@ -5,8 +5,10 @@ import {
   KATWED_IMAGE_WEBP_QUALITY,
   createKatwedImageObjectPath,
   getQuestionImageObjectPath,
+  isKatwedImageObjectPath,
   prepareKatwedImage,
   removeQuestionImages,
+  removeStoredImagePaths,
   uploadQuestionImage,
   uploadQuizCover,
 } from './questionImages'
@@ -151,4 +153,38 @@ describe('question image lifecycle cleanup', () => {
     })
     expect(remove).not.toHaveBeenCalled()
   })
+
+  it('accepts only the generated owner/year/UUID WebP shape for direct removal', async () => {
+    expect(isKatwedImageObjectPath(objectPath)).toBe(true)
+    expect(isKatwedImageObjectPath(objectPath.replace('.webp', '.png'))).toBe(false)
+    expect(isKatwedImageObjectPath(objectPath.replace('/2026/', '/not-a-year/'))).toBe(false)
+    expect(isKatwedImageObjectPath('123e4567-e89b-42d3-a456-426614174000/2026/image.webp')).toBe(false)
+
+    const { client, remove } = storageClient()
+    await expect(removeStoredImagePaths([
+      objectPath,
+      objectPath,
+      publicUrl,
+      objectPath.replace('.webp', '.jpg'),
+    ], client)).resolves.toEqual({ deletedMediaCount: 1, failedMediaCount: 2 })
+    expect(remove).toHaveBeenCalledWith([objectPath])
+  })
+
+  it('rechecks authenticated ownership and removes generated paths in bounded batches', async () => {
+    const { client, remove } = storageClient()
+    const paths = Array.from({ length: 101 }, (_, index) => (
+      `${userIdForTest()}/2026/${String(index).padStart(8, '0')}-e89b-42d3-a456-426614174000.webp`
+    ))
+
+    const result = await removeStoredImagePaths(paths, client, 100)
+
+    expect(result).toEqual({ deletedMediaCount: 101, failedMediaCount: 0 })
+    expect(remove).toHaveBeenCalledTimes(2)
+    expect(remove.mock.calls[0][0]).toHaveLength(100)
+    expect(remove.mock.calls[1][0]).toHaveLength(1)
+  })
 })
+
+function userIdForTest() {
+  return '123e4567-e89b-42d3-a456-426614174000'
+}

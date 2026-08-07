@@ -7,6 +7,7 @@ import type {
   SafeGameState,
   Unsubscribe,
 } from '../types/domain'
+import type { StorageCleanupResult, StorageReport } from '../features/storage-manager/storageManager'
 
 export interface QuizSaveInput {
   id?: string
@@ -31,6 +32,8 @@ export interface GameRepository {
   archiveQuiz(quizId: string): Promise<void>
   restoreQuiz(quizId: string): Promise<void>
   permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult>
+  getStorageReport(): Promise<StorageReport>
+  cleanupUnusedImages(paths: readonly string[]): Promise<StorageCleanupResult>
   launchGame(quizId: string): Promise<GameSession>
   getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>

@@ -13,6 +13,7 @@ import type {
   SafeGameState,
   Unsubscribe,
 } from '../types/domain'
+import type { StorageCleanupResult, StorageReport } from '../features/storage-manager/storageManager'
 
 class UnconfiguredRepository implements GameRepository {
   readonly mode = 'unconfigured' as const
@@ -30,6 +31,8 @@ class UnconfiguredRepository implements GameRepository {
   archiveQuiz(_quizId: string): Promise<void> { return this.fail() }
   restoreQuiz(_quizId: string): Promise<void> { return this.fail() }
   permanentlyDeleteQuiz(_quizId: string): Promise<QuizDeleteResult> { return this.fail() }
+  getStorageReport(): Promise<StorageReport> { return this.fail() }
+  cleanupUnusedImages(_paths: readonly string[]): Promise<StorageCleanupResult> { return this.fail() }
   launchGame(_quizId: string): Promise<GameSession> { return this.fail() }
   getHostSession(_sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null> { return this.fail() }
   getActiveSessionForQuiz(_quizId: string): Promise<GameSession | null> { return this.fail() }

@@ -170,6 +170,7 @@ export function HostDashboardPage() {
       <header className="page-heading">
         <div><p className="eyebrow">Host headquarters</p><h1>Your quizzes</h1><p>Welcome, {user?.email ?? 'host'}.</p></div>
         <div className="heading-actions">
+          <Link className="button button--secondary" to="/host/storage">Storage</Link>
           <button className="button button--primary" type="button" disabled={creating} onClick={() => void createQuiz()}>
             {creating ? 'Creating…' : '+ Create quiz'}
           </button>

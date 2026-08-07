@@ -18,6 +18,14 @@ import { RepositoryError } from '../../services/gameRepository'
 import { sampleQuizzes } from './sampleData'
 import { validateQuizSave } from '../../features/quiz-editor/validation'
 import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQuiz'
+import {
+  buildStorageReport,
+  classifyDemoInventory,
+  collectQuizImageReferences,
+  type StorageCleanupResult,
+  type StorageReport,
+} from '../../features/storage-manager/storageManager'
+import { listDemoStoredImages, removeDemoStoredImages } from '../../services/questionImages'
 
 interface DemoState {
   quizzes: Quiz[]
@@ -312,6 +320,35 @@ export class DemoGameRepository implements GameRepository {
       this.write(state, true, quizId)
       return { deletedMediaCount: 0, failedMediaCount: 0 }
     })
+  }
+
+  async getStorageReport(): Promise<StorageReport> {
+    const inventory = await listDemoStoredImages()
+    const classification = classifyDemoInventory(inventory, collectQuizImageReferences(this.read().quizzes))
+    return buildStorageReport(inventory, classification)
+  }
+
+  async cleanupUnusedImages(paths: readonly string[]): Promise<StorageCleanupResult> {
+    const inventory = await listDemoStoredImages()
+    const inventoryPaths = new Set(inventory.map((object) => object.path))
+    const uniquePaths = [...new Set(paths)]
+    const requested = uniquePaths.filter((path) => inventoryPaths.has(path))
+    const classification = classifyDemoInventory(inventory, collectQuizImageReferences(this.read().quizzes))
+    const referenced = new Set(classification.referencedPaths)
+    const unused = new Set(classification.unusedPaths)
+    const ignored = new Set(classification.ignoredPaths)
+    const stillUnused = requested.filter((path) => unused.has(path))
+    const uncertainCount = requested.filter((path) => (
+      ignored.has(path) || (!referenced.has(path) && !unused.has(path))
+    )).length
+    const removal = stillUnused.length
+      ? await removeDemoStoredImages(stillUnused)
+      : { deletedMediaCount: 0, failedMediaCount: 0 }
+    return {
+      removedCount: removal.deletedMediaCount,
+      preservedCount: requested.filter((path) => referenced.has(path)).length,
+      failedCount: uniquePaths.length - requested.length + uncertainCount + removal.failedMediaCount,
+    }
   }
 
   async launchGame(quizId: string): Promise<GameSession> {
