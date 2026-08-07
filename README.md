@@ -56,7 +56,9 @@ This feature uses the existing authenticated quiz read/save repository path and 
 
 ### Quiz library search and sorting
 
-Title search, Last edited metadata and deterministic library sorting are implemented and tested locally, pending a deliberate Netlify frontend release. Search is case-insensitive, trims the query and filters only the currently selected Active or Archived library. Sorting defaults to most recently edited, with Name A–Z, Name Z–A and Newest created alternatives; the selected sort is retained for the current browser session.
+Title search, Last edited metadata and deterministic library sorting are deployed to Netlify. Search is case-insensitive, trims the query and filters only the currently selected Active or Archived library. Sorting defaults to most recently edited, with Name A–Z, Name Z–A and Newest created alternatives; the selected sort is retained for the current browser session.
+
+The production release verified the public root and host-login routes, SPA routing, the immutable deploy URL and the hosted dashboard bundle containing the search, clear and sort controls. Authenticated production dashboard UAT was not performed because no secure host session was available. The complete library flow remains covered by local helper, component and desktop/mobile browser tests.
 
 This feature works entirely in the browser over the already-loaded quiz lists and uses the existing `createdAt` and `updatedAt` values. It adds no search endpoint, repository operation or database migration.
 
