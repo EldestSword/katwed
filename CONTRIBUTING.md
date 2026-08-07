@@ -31,7 +31,7 @@ Add focused tests for game rules, phase validation and player interaction change
 
 ## Production migrations
 
-The live Supabase project has applied migrations through `202608070001_quiz_archive_lifecycle.sql`. Never rewrite an applied migration; add a new chronological forward migration, preserve existing grants and security boundaries, and keep pending migrations unapplied until a deliberate production release.
+The live Supabase project has applied migrations through `202608070002_quiz_covers.sql`. Never rewrite an applied migration; add a new chronological forward migration, preserve existing grants and security boundaries, and keep pending migrations unapplied until a deliberate production release.
 
 ## Deployment
 
