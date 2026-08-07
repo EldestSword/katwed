@@ -55,12 +55,18 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
-test('host can archive, restore and deliberately permanently delete a quiz', async ({ page }) => {
+test('active and archived libraries preserve quiz content through archive and restore', async ({ page }) => {
   await enterHost(page)
   const activeTab = page.getByRole('tab', { name: /Active quizzes/ })
   const archivedTab = page.getByRole('tab', { name: /Archived quizzes/ })
   const activeCard = () => page.getByRole('article').filter({ hasText: 'The Curious Crew' })
 
+  await expect(activeTab).toHaveAttribute('aria-selected', 'true')
+  await expect(archivedTab).toHaveAttribute('aria-selected', 'false')
+  await expect(activeCard()).toContainText('3 questions')
+  await expect(activeCard().getByRole('button', { name: 'Launch game' })).toBeVisible()
+  await expect(activeCard().getByRole('link', { name: 'Edit' })).toBeVisible()
+  await expect(activeCard().getByRole('button', { name: 'Archive' })).toBeEnabled()
   await expect(activeCard().getByRole('button', { name: 'Permanently delete' })).toHaveCount(0)
   await activeCard().getByRole('button', { name: 'Archive' }).click()
   await expect(activeCard()).toHaveCount(0)
@@ -68,6 +74,9 @@ test('host can archive, restore and deliberately permanently delete a quiz', asy
   await archivedTab.click()
   const archivedCard = () => page.getByRole('article').filter({ hasText: 'The Curious Crew' })
   await expect(archivedCard()).toBeVisible()
+  await expect(archivedCard()).toContainText('3 questions')
+  await expect(archivedCard().getByRole('button', { name: 'Restore' })).toBeVisible()
+  await expect(archivedCard().getByRole('button', { name: 'Permanently delete' })).toBeVisible()
   await expect(archivedCard().getByRole('button', { name: /Launch game|Resume game/ })).toHaveCount(0)
   await expect(archivedCard().getByRole('link', { name: 'Edit' })).toHaveCount(0)
   await archivedCard().getByRole('button', { name: 'Restore' }).click()
@@ -75,15 +84,65 @@ test('host can archive, restore and deliberately permanently delete a quiz', asy
 
   await activeTab.click()
   await expect(activeCard()).toBeVisible()
-  await activeCard().getByRole('button', { name: 'Archive' }).click()
-  await archivedTab.click()
+  await expect(activeCard()).toContainText('3 questions')
+  await activeCard().getByRole('button', { name: 'Launch game' }).click()
+  await expect(page).toHaveURL(/\/host\/game\/.+\/control$/)
+})
+
+test('active room blocks archive until the host closes it', async ({ page }) => {
+  await enterHost(page)
+  await launchQuiz(page, 'The Curious Crew')
+  const controllerUrl = page.url()
+
+  await page.goto('/host')
+  const card = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+  await expect(card.getByRole('button', { name: 'Resume game' })).toBeVisible()
+  const archive = card.getByRole('button', { name: 'Archive' })
+  await expect(archive).toBeDisabled()
+  await expect(archive).toHaveAttribute('title', 'Close the active game before archiving this quiz.')
+
+  await page.goto(controllerUrl)
+  page.once('dialog', async (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Close room' }).click()
+  await expect(page).toHaveURL(/\/host$/)
+  await expect(card.getByRole('button', { name: 'Launch game' })).toBeVisible()
+  await expect(archive).toBeEnabled()
+  await archive.click()
+  await page.getByRole('tab', { name: /Archived quizzes/ }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'The Curious Crew' })).toBeVisible()
+})
+
+test('permanent deletion uses a disposable archived quiz and survives reload', async ({ page }) => {
+  await enterHost(page)
+  await page.getByRole('button', { name: '+ Create quiz' }).click()
+  await page.getByLabel('Quiz title').fill('Disposable release quiz')
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.getByRole('button', { name: 'Back to dashboard' }).click()
+
+  const activeCard = page.getByRole('article').filter({ hasText: 'Disposable release quiz' })
+  await expect(activeCard).toBeVisible()
+  await expect(activeCard.getByRole('button', { name: 'Permanently delete' })).toHaveCount(0)
+  await activeCard.getByRole('button', { name: 'Archive' }).click()
+  await page.getByRole('tab', { name: /Archived quizzes/ }).click()
+
+  const archivedCard = page.getByRole('article').filter({ hasText: 'Disposable release quiz' })
+  await expect(archivedCard).toBeVisible()
   page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain('This cannot be undone.')
+    expect(dialog.message()).toBe(
+      'Permanently delete “Disposable release quiz”? This will remove the quiz, its questions and its game history. This cannot be undone.',
+    )
     await dialog.accept()
   })
-  await archivedCard().getByRole('button', { name: 'Permanently delete' }).click()
-  await expect(archivedCard()).toHaveCount(0)
-  await expect(page.getByText('“The Curious Crew” was permanently deleted.')).toBeVisible()
+  await archivedCard.getByRole('button', { name: 'Permanently delete' }).click()
+  await expect(archivedCard).toHaveCount(0)
+  await expect(page.getByText('“Disposable release quiz” was permanently deleted.')).toBeVisible()
+
+  await page.reload()
+  await page.getByRole('tab', { name: /Archived quizzes/ }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'Disposable release quiz' })).toHaveCount(0)
+  await page.getByRole('tab', { name: /Active quizzes/ }).click()
+  await expect(page.getByRole('article').filter({ hasText: 'The Curious Crew' })).toBeVisible()
 })
 
 test('controller, presentation and three players complete every mixed format', async ({ context, page }) => {

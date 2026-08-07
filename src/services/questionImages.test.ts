@@ -24,12 +24,21 @@ function storageClient(error: { message: string } | null = null) {
 describe('question image lifecycle cleanup', () => {
   it('recognises only Katwed-generated objects in the configured public bucket', () => {
     expect(getQuestionImageObjectPath(publicUrl, projectUrl)).toBe(objectPath)
+    expect(getQuestionImageObjectPath(
+      publicUrl.replace('katwed-test.supabase.co', 'another-project.supabase.co'),
+      projectUrl,
+    )).toBeNull()
     expect(getQuestionImageObjectPath('https://example.com/image.webp', projectUrl)).toBeNull()
     expect(getQuestionImageObjectPath(
       `${projectUrl}/storage/v1/object/public/another-bucket/${objectPath}`,
       projectUrl,
     )).toBeNull()
     expect(getQuestionImageObjectPath('/demo/portrait-1.svg', projectUrl)).toBeNull()
+    expect(getQuestionImageObjectPath(publicUrl.replace(/\.webp$/, '.png'), projectUrl)).toBeNull()
+    expect(getQuestionImageObjectPath(
+      `${projectUrl}/storage/v1/object/public/question-images/not-a-generated-path.webp`,
+      projectUrl,
+    )).toBeNull()
   })
 
   it('deduplicates object paths and ignores unrelated references', async () => {
