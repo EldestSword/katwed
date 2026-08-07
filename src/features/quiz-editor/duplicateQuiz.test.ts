@@ -12,6 +12,7 @@ describe('createDuplicateQuizInput', () => {
   it('creates an independent, fully remapped save input for every current question type', () => {
     const source: Quiz = structuredClone(mixedDemoQuiz)
     source.title = 'Original'
+    source.coverImagePath = 'https://media.example/shared-cover.webp'
     source.archivedAt = '2026-08-07T12:00:00.000Z'
 
     const single = source.questions.find((question) => question.type === 'single-choice')
@@ -31,7 +32,11 @@ describe('createDuplicateQuizInput', () => {
     const sourceSnapshot = structuredClone(source)
     const input = createDuplicateQuizInput(source, sequentialIds())
 
-    expect(input).toMatchObject({ title: 'Original (Copy)' })
+    expect(input).toMatchObject({
+      title: 'Original (Copy)',
+      coverImagePath: 'https://media.example/shared-cover.webp',
+    })
+    expect(input.coverImagePath).toBe(source.coverImagePath)
     expect(input).not.toHaveProperty('id')
     expect(input).not.toHaveProperty('archivedAt')
     expect(source).toEqual(sourceSnapshot)

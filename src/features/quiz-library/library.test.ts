@@ -12,6 +12,7 @@ function quiz(overrides: Partial<Quiz> & Pick<Quiz, 'id' | 'title'>): Quiz {
   return {
     roster: [],
     questions: [],
+    coverImagePath: null,
     archivedAt: null,
     createdAt: '2026-01-01T12:00:00.000Z',
     updatedAt: '2026-01-01T12:00:00.000Z',

@@ -11,6 +11,7 @@ import type {
 export interface QuizSaveInput {
   id?: string
   title: string
+  coverImagePath: string | null
   roster: Quiz['roster']
   questions: Quiz['questions']
 }

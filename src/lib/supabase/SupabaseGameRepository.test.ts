@@ -9,6 +9,7 @@ const imageId = '223e4567-e89b-42d3-a456-426614174000'
 describe('SupabaseGameRepository duplication', () => {
   it('reads an active source and creates its remapped copy through host_save_quiz', async () => {
     const source = structuredClone(mixedDemoQuiz)
+    source.coverImagePath = 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/shared-cover.webp'
     const newQuizId = '323e4567-e89b-42d3-a456-426614174000'
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
       if (name === 'host_get_quiz') return { data: source, error: null }
@@ -40,6 +41,7 @@ describe('SupabaseGameRepository duplication', () => {
     expect(rpc.mock.calls[0][1]).toEqual({ p_quiz_id: source.id })
     const saveInput = rpc.mock.calls[1][1].p_quiz as typeof source
     expect(saveInput).not.toHaveProperty('id')
+    expect(saveInput.coverImagePath).toBe(source.coverImagePath)
     expect(saveInput.questions.every((question) =>
       !source.questions.some((candidate) => candidate.id === question.id)
     )).toBe(true)
@@ -47,6 +49,25 @@ describe('SupabaseGameRepository duplication', () => {
       !source.roster.some((candidate) => candidate.id === member.id)
     )).toBe(true)
     expect(storageFrom).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a cover', 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/cover.webp'],
+    ['no cover', null],
+  ])('passes %s through the existing host_save_quiz contract', async (_description, coverImagePath) => {
+    const input = {
+      id: mixedDemoQuiz.id,
+      title: mixedDemoQuiz.title,
+      coverImagePath,
+      roster: mixedDemoQuiz.roster,
+      questions: mixedDemoQuiz.questions,
+    }
+    const saved = { ...structuredClone(mixedDemoQuiz), coverImagePath }
+    const rpc = vi.fn().mockResolvedValue({ data: saved, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    await expect(repository.saveQuiz(input)).resolves.toEqual(saved)
+    expect(rpc).toHaveBeenCalledWith('host_save_quiz', { p_quiz: input })
   })
 
   it('rejects an archived source without trying to save it', async () => {

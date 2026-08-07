@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { StoredImage } from '../components/StoredImage'
 import { StatusMessage } from '../components/StatusMessage'
 import { useAuth } from '../features/auth/AuthProvider'
 import {
@@ -71,7 +72,7 @@ export function HostDashboardPage() {
     setCreating(true)
     setNotice('')
     try {
-      const quiz = await repository.saveQuiz({ title: 'Untitled quiz', roster: [], questions: [] })
+      const quiz = await repository.saveQuiz({ title: 'Untitled quiz', coverImagePath: null, roster: [], questions: [] })
       await navigate(`/host/quizzes/${quiz.id}/edit`)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The quiz could not be created.')
@@ -220,6 +221,7 @@ export function HostDashboardPage() {
         {quizzes.map((quiz) => {
           const lastEdited = formatLastEdited(quiz.updatedAt)
           const titleId = `quiz-${quiz.id}-title`
+          const coverFallback = <span>{quiz.questions.length}</span>
 
           return (
             <article
@@ -227,7 +229,17 @@ export function HostDashboardPage() {
               className={`quiz-card${view === 'archived' ? ' quiz-card--archived' : ''}`}
               key={quiz.id}
             >
-              <div className="quiz-card__art" aria-hidden="true"><span>{quiz.questions.length}</span></div>
+              <div className="quiz-card__art" aria-hidden="true">
+                {quiz.coverImagePath ? (
+                  <StoredImage
+                    reference={quiz.coverImagePath}
+                    alt=""
+                    className="quiz-card__cover"
+                    fallback={coverFallback}
+                    loadingFallback={coverFallback}
+                  />
+                ) : coverFallback}
+              </div>
               <div className="quiz-card__body">
                 <h2 id={titleId}>{quiz.title}</h2>
                 <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>

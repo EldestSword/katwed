@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { QuestionMedia } from '../components/QuestionMedia'
+import { StoredImage } from '../components/StoredImage'
 import { StatusMessage } from '../components/StatusMessage'
 import { validateQuestion, validateQuizSave } from '../features/quiz-editor/validation'
 import { createQuestion } from '../features/questions/factories'
 import { questionTypes, questionTypeRegistry } from '../features/questions/registry'
-import { uploadQuestionImage } from '../services/questionImages'
+import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type { ChoiceOption, Question, QuestionMedia as Media, QuestionType, Quiz, RosterMember } from '../types/domain'
 import { normaliseYouTubeVideoId } from '../utils/youtube'
@@ -29,6 +30,7 @@ export function QuizEditorPage() {
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [coverUploading, setCoverUploading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
   const navigate = useNavigate()
@@ -97,11 +99,26 @@ export function QuizEditorPage() {
     }
   }
 
+  async function uploadCover(file: File | undefined) {
+    if (!file) return
+    setCoverUploading(true)
+    setMessage(null)
+    try {
+      const coverImagePath = await uploadQuizCover(file)
+      update((current) => ({ ...current, coverImagePath }))
+    } catch (reason) {
+      setMessage({ tone: 'error', text: reason instanceof Error ? reason.message : 'The cover could not be uploaded.' })
+    } finally {
+      setCoverUploading(false)
+    }
+  }
+
   async function save() {
     if (!quiz) return
     const input = {
       id: quiz.id,
       title: quiz.title.trim(),
+      coverImagePath: quiz.coverImagePath,
       roster: quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder })),
       questions: quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder })),
     }
@@ -197,6 +214,12 @@ export function QuizEditorPage() {
         </section>
 
         <aside className="question-settings">
+          <QuizCover
+            coverImagePath={quiz.coverImagePath}
+            uploading={coverUploading}
+            upload={uploadCover}
+            remove={() => update((current) => ({ ...current, coverImagePath: null }))}
+          />
           {selected && <>
             <h2>Question settings</h2>
             <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
@@ -221,6 +244,51 @@ export function QuizEditorPage() {
   )
 }
 
+function QuizCover({
+  coverImagePath,
+  uploading,
+  upload,
+  remove,
+}: {
+  coverImagePath: string | null
+  uploading: boolean
+  upload(file: File | undefined): Promise<void>
+  remove(): void
+}) {
+  const actionLabel = coverImagePath ? 'Replace cover' : 'Choose cover'
+  const fallback = <div className="quiz-cover-editor__fallback">No cover selected</div>
+
+  return (
+    <section className="quiz-cover-editor" aria-labelledby="quiz-cover-heading">
+      <h2 id="quiz-cover-heading">Quiz cover</h2>
+      <div className="quiz-cover-editor__preview">
+        {coverImagePath ? (
+          <StoredImage reference={coverImagePath} alt="" fallback={fallback} loadingFallback={fallback} />
+        ) : fallback}
+      </div>
+      <div className="quiz-cover-editor__actions">
+        <label className="button button--secondary">
+          {uploading ? 'Uploading…' : actionLabel}
+          <input
+            className="sr-only"
+            type="file"
+            accept={KATWED_IMAGE_ACCEPT}
+            aria-label={actionLabel}
+            disabled={uploading}
+            onChange={(event) => void upload(event.target.files?.[0])}
+          />
+        </label>
+        {coverImagePath && (
+          <button className="button button--ghost" type="button" disabled={uploading} onClick={remove}>
+            Remove cover
+          </button>
+        )}
+      </div>
+      <p className="quiz-cover-editor__note">Shown in your quiz library only. Save the quiz to keep this change.</p>
+    </section>
+  )
+}
+
 function MediaSettings({ question, update, upload }: { question: Question; update(updater: (question: Question) => Question): void; upload(file: File | undefined): Promise<void> }) {
   const setMedia = (type: Media['type']) => {
     if (type === 'none') update((current) => current.type === 'pinpoint' || current.type === 'mashup' ? current : { ...current, media: { type: 'none' } })
@@ -230,7 +298,7 @@ function MediaSettings({ question, update, upload }: { question: Question; updat
   return <fieldset><legend>Media</legend>
     <label><span>Type</span><select value={question.media.type} disabled={question.type === 'pinpoint' || question.type === 'mashup'} onChange={(event) => setMedia(event.target.value as Media['type'])}><option value="none">None</option><option value="image">Uploaded image</option><option value="youtube">YouTube</option></select></label>
     {question.media.type === 'image' && <>
-      <label className="button button--secondary">Choose image<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void upload(event.target.files?.[0])} /></label>
+      <label className="button button--secondary">Choose image<input className="sr-only" type="file" accept={KATWED_IMAGE_ACCEPT} onChange={(event) => void upload(event.target.files?.[0])} /></label>
       <label><span>Alt text</span><input value={question.media.altText} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, altText: event.target.value } } : current)} /></label>
       <label><span>Reveal effect</span><select value={question.media.revealEffect} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealEffect: event.target.value as Extract<Media, { type: 'image' }>['revealEffect'] } } : current)}><option value="immediate">Immediate</option><option value="blur">Blur to clear</option><option value="pixelate">Pixelated to clear</option><option value="tiles">Tile uncover</option><option value="zoom-out">Zoom out</option></select></label>
       <label><span>Reveal duration</span><input type="number" min="0" max="180" value={question.media.revealDurationSeconds} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealDurationSeconds: number(event.target.value) } } : current)} /></label>

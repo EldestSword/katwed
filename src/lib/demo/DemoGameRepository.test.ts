@@ -78,6 +78,7 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.saveQuiz({
       id: duplicate.id,
       title: 'Edited copy',
+      coverImagePath: duplicate.coverImagePath,
       roster: duplicate.roster,
       questions: duplicate.questions,
     })
@@ -92,6 +93,55 @@ describe('DemoGameRepository multi-format game state', () => {
     })
     const retainedSource = await repository.getQuiz('quiz-mixed')
     expect(retainedSource?.questions.find((question) => question.media.type === 'image')?.media).toEqual(sharedPath)
+  })
+
+  it('persists optional covers through save, reload, duplication, archive and restore', async () => {
+    const repository = new DemoGameRepository()
+    const source = await repository.getQuiz('quiz-mixed')
+    if (!source) throw new Error('Demo quiz missing')
+    const sharedCover = 'demo-image://shared-cover'
+
+    const covered = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      coverImagePath: sharedCover,
+      roster: source.roster,
+      questions: source.questions,
+    })
+    expect(covered.coverImagePath).toBe(sharedCover)
+    expect((await new DemoGameRepository().getQuiz(source.id))?.coverImagePath).toBe(sharedCover)
+
+    const duplicate = await repository.duplicateQuiz(source.id)
+    expect(duplicate.coverImagePath).toBe(sharedCover)
+    expect(await repository.getActiveSessionForQuiz(duplicate.id)).toBeNull()
+
+    await repository.archiveQuiz(source.id)
+    expect((await repository.listArchivedQuizzes()).find((quiz) => quiz.id === source.id)?.coverImagePath).toBe(sharedCover)
+    await repository.restoreQuiz(source.id)
+    expect((await repository.getQuiz(source.id))?.coverImagePath).toBe(sharedCover)
+
+    const uncovered = await repository.saveQuiz({
+      id: duplicate.id,
+      title: duplicate.title,
+      coverImagePath: null,
+      roster: duplicate.roster,
+      questions: duplicate.questions,
+    })
+    expect(uncovered.coverImagePath).toBeNull()
+    expect((await repository.getQuiz(source.id))?.coverImagePath).toBe(sharedCover)
+    await expect(repository.launchGame(duplicate.id)).resolves.toMatchObject({ quizId: duplicate.id })
+  })
+
+  it('creates a quiz without requiring a cover', async () => {
+    const repository = new DemoGameRepository()
+    const created = await repository.saveQuiz({
+      title: 'No-cover quiz',
+      coverImagePath: null,
+      roster: [],
+      questions: [],
+    })
+
+    expect(created.coverImagePath).toBeNull()
   })
 
   it('rejects duplication of an archived quiz', async () => {

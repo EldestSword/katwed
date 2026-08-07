@@ -180,6 +180,7 @@ export interface RosterMember {
 export interface Quiz {
   id: string
   title: string
+  coverImagePath: string | null
   roster: RosterMember[]
   questions: Question[]
   archivedAt: string | null

@@ -43,7 +43,11 @@ function freshState(): DemoState {
 function normaliseState(state: DemoState): DemoState {
   return {
     ...state,
-    quizzes: state.quizzes.map((quiz) => ({ ...quiz, archivedAt: quiz.archivedAt ?? null })),
+    quizzes: state.quizzes.map((quiz) => ({
+      ...quiz,
+      coverImagePath: quiz.coverImagePath ?? null,
+      archivedAt: quiz.archivedAt ?? null,
+    })),
   }
 }
 
@@ -231,6 +235,7 @@ export class DemoGameRepository implements GameRepository {
       const quiz: Quiz = {
         id: quizId,
         title: input.title.trim() || 'Untitled quiz',
+        coverImagePath: input.coverImagePath?.trim() || null,
         roster: input.roster.map((member, index) => ({
           ...member,
           id: member.id || uid('member'),

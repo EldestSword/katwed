@@ -5,7 +5,10 @@ const BUCKET = 'question-images'
 const PUBLIC_BUCKET_PATH = `/storage/v1/object/public/${BUCKET}/`
 const KATWED_OBJECT_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/\d{4}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/i
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
-const maxUploadBytes = 8 * 1024 * 1024
+export const KATWED_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp'
+export const KATWED_IMAGE_MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+export const KATWED_IMAGE_MAX_EDGE = 1600
+export const KATWED_IMAGE_WEBP_QUALITY = 0.86
 
 interface QuestionImageStorageClient {
   auth: {
@@ -66,11 +69,11 @@ export async function removeQuestionImages(
   }
 }
 
-async function resizeImage(file: File): Promise<Blob> {
+export async function prepareKatwedImage(file: File): Promise<Blob> {
   if (!allowedTypes.has(file.type)) throw new Error('Choose a JPEG, PNG or WebP image.')
-  if (file.size > maxUploadBytes) throw new Error('Choose an image smaller than 8 MB.')
+  if (file.size > KATWED_IMAGE_MAX_UPLOAD_BYTES) throw new Error('Choose an image smaller than 8 MB.')
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, KATWED_IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(bitmap.width * scale)
   canvas.height = Math.round(bitmap.height * scale)
@@ -82,7 +85,7 @@ async function resizeImage(file: File): Promise<Blob> {
     canvas.toBlob(
       (blob) => blob ? resolve(blob) : reject(new Error('The image could not be compressed.')),
       'image/webp',
-      0.86,
+      KATWED_IMAGE_WEBP_QUALITY,
     )
   })
 }
@@ -121,13 +124,21 @@ async function readDemoImage(path: string): Promise<Blob | null> {
   return blob
 }
 
-export async function uploadQuestionImage(file: File): Promise<string> {
-  const blob = await resizeImage(file)
+export function createKatwedImageObjectPath(
+  userId: string,
+  date = new Date(),
+  imageId = crypto.randomUUID(),
+): string {
+  return `${userId}/${date.getUTCFullYear()}/${imageId}.webp`
+}
+
+export async function uploadKatwedImage(file: File): Promise<string> {
+  const blob = await prepareKatwedImage(file)
   if (config.demoMode) return saveDemoImage(blob)
   if (!supabase) throw new Error('Supabase is not configured.')
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) throw new Error('Sign in again before uploading an image.')
-  const path = `${auth.user.id}/${new Date().getUTCFullYear()}/${crypto.randomUUID()}.webp`
+  const path = createKatwedImageObjectPath(auth.user.id)
   const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
     contentType: 'image/webp',
     cacheControl: '31536000',
@@ -137,8 +148,18 @@ export async function uploadQuestionImage(file: File): Promise<string> {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }
 
-export async function resolveQuestionImage(path: string): Promise<string> {
+export function uploadQuestionImage(file: File): Promise<string> {
+  return uploadKatwedImage(file)
+}
+
+export function uploadQuizCover(file: File): Promise<string> {
+  return uploadKatwedImage(file)
+}
+
+export async function resolveStoredImage(path: string): Promise<string> {
   if (!path.startsWith('demo-image://')) return path
   const blob = await readDemoImage(path)
   return blob ? URL.createObjectURL(blob) : ''
 }
+
+export const resolveQuestionImage = resolveStoredImage

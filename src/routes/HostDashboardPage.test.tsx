@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,6 +23,7 @@ function quiz(
   createdAt: string,
   updatedAt: string,
   archivedAt: string | null = null,
+  coverImagePath: string | null = null,
 ): Quiz {
   return {
     ...structuredClone(sampleQuiz),
@@ -31,17 +32,32 @@ function quiz(
     createdAt,
     updatedAt,
     archivedAt,
+    coverImagePath,
   }
 }
 
 const activeQuizzes = [
-  quiz('active-friday', 'Friday Team Quiz', '2026-01-01T12:00:00.000Z', '2026-03-01T12:00:00.000Z'),
+  quiz(
+    'active-friday',
+    'Friday Team Quiz',
+    '2026-01-01T12:00:00.000Z',
+    '2026-03-01T12:00:00.000Z',
+    null,
+    'https://media.example/friday-cover.webp',
+  ),
   quiz('quiz-10', 'Quiz 10', '2026-04-01T12:00:00.000Z', '2026-01-01T12:00:00.000Z'),
   quiz('quiz-2', 'quiz 2', '2026-02-01T12:00:00.000Z', '2026-02-01T12:00:00.000Z'),
 ]
 
 const archivedQuizzes = [
-  quiz('archived-friday', 'Friday Archive', '2025-01-01T12:00:00.000Z', '2026-02-01T12:00:00.000Z', '2026-05-01T12:00:00.000Z'),
+  quiz(
+    'archived-friday',
+    'Friday Archive',
+    '2025-01-01T12:00:00.000Z',
+    '2026-02-01T12:00:00.000Z',
+    '2026-05-01T12:00:00.000Z',
+    'https://media.example/archived-cover.webp',
+  ),
   quiz('archived-old', 'Old Notes', '2024-01-01T12:00:00.000Z', '2026-01-01T12:00:00.000Z', '2026-05-02T12:00:00.000Z'),
 ]
 
@@ -84,6 +100,36 @@ describe('HostDashboardPage quiz library', () => {
     expect(screen.getByRole('combobox', { name: 'Sort quizzes' })).toHaveValue('updated-desc')
     expect(cardTitles()).toEqual(['Friday Team Quiz', 'quiz 2', 'Quiz 10'])
     expect(screen.getByText('Last edited 1 Mar 2026')).toBeVisible()
+  })
+
+  it('renders decorative covers for Active and Archived cards and a fallback without a cover', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    const covered = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    expect(covered.querySelector('img.quiz-card__cover[alt=""]')).toHaveAttribute(
+      'src',
+      'https://media.example/friday-cover.webp',
+    )
+    const fallback = screen.getByRole('article', { name: 'Quiz 10' })
+    expect(fallback.querySelector('img')).toBeNull()
+    expect(fallback.querySelector('.quiz-card__art')).toHaveTextContent('3')
+
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 2' }))
+    const archived = screen.getByRole('article', { name: 'Friday Archive' })
+    expect(archived.querySelector('img.quiz-card__cover[alt=""]')).toHaveAttribute(
+      'src',
+      'https://media.example/archived-cover.webp',
+    )
+  })
+
+  it('falls back cleanly when a cover image fails to load', async () => {
+    renderDashboard()
+
+    const covered = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    fireEvent.error(covered.querySelector('img.quiz-card__cover')!)
+    expect(covered.querySelector('img')).toBeNull()
+    expect(covered.querySelector('.quiz-card__art')).toHaveTextContent('3')
   })
 
   it('filters Active titles without case sensitivity, preserves total counts and clears the search', async () => {

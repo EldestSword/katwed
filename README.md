@@ -62,6 +62,14 @@ The production release verified the public root and host-login routes, SPA routi
 
 This feature works entirely in the browser over the already-loaded quiz lists and uses the existing `createdAt` and `updatedAt` values. It adds no search endpoint, repository operation or database migration.
 
+### Quiz covers
+
+Quiz covers are implemented and tested locally, pending a deliberate Supabase migration and Netlify frontend release. Hosts can choose, preview, replace or remove an optional 16:9 library cover in the quiz editor; the change becomes persistent only when the quiz is saved. Active and Archived cards show the stored cover with the existing question-count artwork as a graceful fallback.
+
+Covers use the existing authenticated `question-images` upload pipeline: JPEG, PNG and WebP input up to 8 MB is resized without upscaling to a maximum 1,600-pixel edge and encoded as WebP. Duplicate Quiz reuses the exact stored reference rather than uploading a copy. Archive and Restore retain it, while permanent deletion treats cover references as part of the existing exact cross-quiz shared-media safety check.
+
+The forward migration `202608070002_quiz_covers.sql` is committed but has not been applied to production. It adds only nullable cover metadata and updates the existing quiz serialisation, save and safe permanent-delete functions. Production remains on `202608070001_quiz_archive_lifecycle.sql` until a separate database/frontend release is authorised. Replacing or removing a cover does not immediately delete the old Storage object; that deliberate orphan-cleanup work remains planned.
+
 ### Planned
 
 The next phase focuses on quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap) and are not yet production features.
@@ -268,6 +276,14 @@ Applied production migrations, in order:
 
 `202608070001_quiz_archive_lifecycle.sql` adds nullable archive timestamps, active and archived library RPCs, archive/restore guards, archive-first permanent deletion, archived-launch rejection and shared-media reference checking. It is applied to the live production schema.
 
+Pending production migration:
+
+```text
+202608070002_quiz_covers.sql
+```
+
+`202608070002_quiz_covers.sql` adds nullable quiz-cover metadata, includes it in authenticated quiz reads and saves, and extends permanent deletion's exact cross-quiz reference check to covers. It is implemented and tested locally but has not been applied to production.
+
 ### Production pgcrypto repair
 
 The first live anonymous-player test exposed `function gen_random_bytes(integer) does not exist`. Supabase had installed pgcrypto in the `extensions` schema, while the hardened RPCs deliberately retained `search_path = public` and called pgcrypto functions without qualification.
@@ -278,13 +294,13 @@ After application, the real production flow passed anonymous join, reconnect, an
 
 ### Quiz data and Storage
 
-Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket; authenticated uploads and display after refresh have been verified in production. Images display on controller, presentation and player screens.
+Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket; authenticated question-image uploads and display after refresh have been verified in production. Images display on controller, presentation and player screens. Quiz covers use the same pipeline and bucket in the pending local implementation, but are library-only metadata and are not sent to live-game screens.
 
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
 GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Future storage work is planned for further image and storage optimisation, optional media reuse, orphaned-media cleanup, storage-usage visibility and quiz export/import.
 
-The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained; failed or legacy cleanup remains recoverable through the planned orphan-media tooling.
+The production archive lifecycle performs database deletion before best-effort Storage cleanup. It currently checks question media, the retained question image path and option image paths across other quizzes before returning any candidate object. The pending cover migration adds cover references to that same exact cross-quiz check. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained; failed, replaced, removed or abandoned-upload cleanup remains recoverable through the planned orphan-media tooling.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -340,10 +356,9 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion and duplicate quiz are implemented and deployed. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion and duplicate quiz are implemented and deployed. Search, Last edited and sorting are also deployed. Quiz covers are implemented and tested locally, with their migration and frontend release still pending. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
 
 - general orphaned-media discovery and cleanup;
-- quiz thumbnails;
 - tags;
 - storage-usage visibility;
 - quiz export and import;
@@ -359,7 +374,6 @@ Planned work:
 - a background system;
 - presentation themes;
 - per-quiz colour themes;
-- quiz cover images;
 - answer-card styling.
 
 ### Further question formats

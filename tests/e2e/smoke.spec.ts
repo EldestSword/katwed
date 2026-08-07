@@ -55,6 +55,57 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('quiz covers persist across the library lifecycle and remain independent after duplication', async ({ page }) => {
+  test.setTimeout(60_000)
+  await enterHost(page)
+  await page.getByRole('button', { name: '+ Create quiz' }).click()
+  await page.getByLabel('Quiz title').fill('Cover lifecycle quiz')
+
+  const coverSection = page.getByRole('region', { name: 'Quiz cover' })
+  await expect(coverSection.getByText('No cover selected')).toBeVisible()
+  await coverSection.getByLabel('Choose cover').setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  })
+  await expect(coverSection.locator('img')).toBeVisible()
+  await expect(page.getByText('Unsaved changes')).toBeVisible()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.goto('/host')
+
+  const card = (title: string) => page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: title, exact: true }),
+  })
+  await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
+
+  await card('Cover lifecycle quiz').getByRole('link', { name: 'Edit' }).click()
+  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  await page.goto('/host')
+  await card('Cover lifecycle quiz').getByRole('button', { name: 'Duplicate' }).click()
+
+  await expect(page.getByLabel('Quiz title')).toHaveValue('Cover lifecycle quiz (Copy)')
+  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  await page.getByRole('region', { name: 'Quiz cover' }).getByRole('button', { name: 'Remove cover' }).click()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.goto('/host')
+
+  await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
+  await expect(card('Cover lifecycle quiz (Copy)').locator('.quiz-card__cover')).toHaveCount(0)
+  await expect(card('Cover lifecycle quiz (Copy)').locator('.quiz-card__art')).toContainText('0')
+
+  await card('Cover lifecycle quiz').getByRole('button', { name: 'Archive' }).click()
+  await page.getByRole('tab', { name: /Archived quizzes/ }).click()
+  await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
+  await card('Cover lifecycle quiz').getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('tab', { name: /Active quizzes/ }).click()
+  await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
+})
+
 test('quiz library search, sorting and last-edited details work across views', async ({ page }) => {
   await enterHost(page)
 
@@ -190,7 +241,7 @@ test('permanent deletion uses a disposable archived quiz and survives reload', a
   await page.getByLabel('Quiz title').fill('Disposable release quiz')
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
-  await page.getByRole('button', { name: 'Back to dashboard' }).click()
+  await page.goto('/host')
 
   const activeCard = page.getByRole('article').filter({ hasText: 'Disposable release quiz' })
   await expect(activeCard).toBeVisible()
