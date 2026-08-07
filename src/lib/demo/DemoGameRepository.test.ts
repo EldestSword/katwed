@@ -14,7 +14,8 @@ vi.mock('../../services/questionImages', async () => ({
 
 import { DemoGameRepository } from './DemoGameRepository'
 import type { PlayerAnswerPayload, Question } from '../../types/domain'
-import { headToHeadDemoQuiz } from './sampleData'
+import { headToHeadDemoQuiz, mixedDemoQuiz } from './sampleData'
+import { exportQuizToPortable, parseKatwedQuizJson } from '../../features/quiz-transfer/katwedQuizFormat'
 
 function correctAnswer(question: Question): PlayerAnswerPayload {
   switch (question.type) {
@@ -58,6 +59,35 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(new Set(quizzes[1].questions.map((question) => question.type))).toEqual(
       new Set(['single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup']),
     )
+  })
+
+  it('imports a Standard all-six-format definition as a fresh Active quiz and persists it across reload', async () => {
+    const repository = new DemoGameRepository()
+    const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(mixedDemoQuiz)))
+    const imported = await repository.saveQuiz(parsed.input)
+    const reloaded = await new DemoGameRepository().getQuiz(imported.id)
+
+    expect(imported.id).not.toBe(mixedDemoQuiz.id)
+    expect(imported.archivedAt).toBeNull()
+    expect(imported.questions.map((question) => question.type)).toEqual(mixedDemoQuiz.questions.map((question) => question.type))
+    expect(imported.questions.every((question) => !mixedDemoQuiz.questions.some((source) => source.id === question.id))).toBe(true)
+    expect(imported.roster.every((member) => !mixedDemoQuiz.roster.some((source) => source.id === member.id))).toBe(true)
+    expect(reloaded).toEqual(imported)
+    expect(await repository.getActiveSessionForQuiz(imported.id)).toBeNull()
+  })
+
+  it('imports a Head-to-Head definition with fresh competitors and remapped assignments', async () => {
+    const repository = new DemoGameRepository()
+    const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(headToHeadDemoQuiz)))
+    const imported = await repository.saveQuiz(parsed.input)
+    const competitorIds = imported.headToHeadCompetitors.map((competitor) => competitor.id)
+
+    expect(imported.quizType).toBe('head-to-head')
+    expect(imported.id).not.toBe(headToHeadDemoQuiz.id)
+    expect(competitorIds).not.toEqual(headToHeadDemoQuiz.headToHeadCompetitors.map((competitor) => competitor.id))
+    expect(imported.questions.every((question) => competitorIds.includes(question.assignedCompetitorId ?? ''))).toBe(true)
+    expect((await new DemoGameRepository().getQuiz(imported.id))?.questions).toEqual(imported.questions)
+    expect(await repository.getActiveSessionForQuiz(imported.id)).toBeNull()
   })
 
   it('normalises absent, unknown and wrong-theme backgrounds in older Demo state', async () => {

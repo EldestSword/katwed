@@ -166,6 +166,103 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await expect(page.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
 })
 
+test('a blind Head-to-Head file imports, plays with remapped answers and exports again', async ({ context, page }) => {
+  test.setTimeout(120_000)
+  const portableQuiz = {
+    format: 'katwed-quiz',
+    formatVersion: 1,
+    quiz: {
+      title: 'Blind Import Duel',
+      quizType: 'head-to-head',
+      themeId: 'katwed',
+      backgroundId: null,
+      coverImagePath: null,
+      competitors: [
+        { key: 'ross', displayName: 'Ross' },
+        { key: 'jess', displayName: 'Jess' },
+      ],
+      roster: [],
+      questions: [
+        {
+          key: 'q1',
+          type: 'true-false',
+          assignedTo: 'ross',
+          prompt: 'SECRET IMPORT QUESTION ONE',
+          revealCaption: 'SECRET IMPORT REVEAL ONE',
+          correctValue: true,
+        },
+        {
+          key: 'q2',
+          type: 'true-false',
+          assignedTo: 'jess',
+          prompt: 'SECRET IMPORT QUESTION TWO',
+          correctValue: false,
+        },
+      ],
+    },
+  }
+
+  await enterHost(page)
+  await expect(page.getByRole('button', { name: 'Import quiz' })).toBeVisible()
+  await page.getByLabel('Choose Katwed quiz file').setInputFiles({
+    name: 'blind-import-duel.katwed.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(portableQuiz), 'utf8'),
+  })
+
+  const preview = page.getByRole('region', { name: 'Quiz import preview' })
+  await expect(preview.getByRole('heading', { name: 'Blind Import Duel' })).toBeVisible()
+  await expect(preview.getByText('Head to Head')).toBeVisible()
+  await expect(preview.getByText('Ross vs Jess')).toBeVisible()
+  await expect(preview.getByText('2')).toBeVisible()
+  await expect(page.getByText('SECRET IMPORT QUESTION ONE')).toHaveCount(0)
+  await expect(page.getByText('SECRET IMPORT REVEAL ONE')).toHaveCount(0)
+  await preview.getByRole('button', { name: 'Import' }).click()
+
+  await expect(page).toHaveURL(/\/host$/)
+  await expect(page.getByText('Imported Blind Import Duel: 2 questions.')).toBeVisible()
+  const importedCard = page.getByRole('article', { name: 'Blind Import Duel' })
+  await expect(importedCard).toBeVisible()
+  await expect(importedCard).toContainText('2 questions')
+
+  const roomCode = await launchQuiz(page, 'Blind Import Duel')
+  const ross = await context.newPage()
+  await ross.goto(`/join?room=${roomCode}`)
+  await ross.getByRole('button', { name: 'Ross' }).click()
+  const jess = await context.newPage()
+  await jess.goto(`/join?room=${roomCode}`)
+  await jess.getByRole('button', { name: 'Jess' }).click()
+  await ross.getByRole('button', { name: 'Start game' }).click()
+
+  await expect(ross.getByText('Your question')).toBeVisible()
+  await expect(jess.getByText(/Ross’s question/)).toBeVisible()
+  await ross.getByRole('button', { name: 'True' }).click()
+  await ross.getByRole('button', { name: 'Lock in' }).click()
+  await jess.getByRole('button', { name: 'Skip play-along' }).click()
+  await expect(ross.getByText('+1 · Correct')).toBeVisible()
+  await jess.getByRole('button', { name: 'Continue' }).click()
+
+  await expect(jess.getByText('Your question')).toBeVisible()
+  await expect(ross.getByText(/Jess’s question/)).toBeVisible()
+  await jess.getByRole('button', { name: 'False' }).click()
+  await jess.getByRole('button', { name: 'Lock in' }).click()
+  await ross.getByRole('button', { name: 'Skip play-along' }).click()
+  await expect(jess.getByText('+1 · Correct')).toBeVisible()
+  await ross.getByRole('button', { name: 'Show final result' }).click()
+  await expect(ross.getByRole('heading', { name: 'It’s a draw!' })).toBeVisible()
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Close room' }).click()
+  await expect(page).toHaveURL(/\/host$/)
+  await ross.close()
+  await jess.close()
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('article', { name: 'Blind Import Duel' }).getByRole('button', { name: 'Export' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('blind-import-duel.katwed.json')
+})
+
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
   test.setTimeout(120_000)
   await enterHost(page)

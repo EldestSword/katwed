@@ -96,7 +96,17 @@ Head to Head is implemented and tested locally as a quiz type, not a question ty
 
 The editor, duplication remapping and all six question formats remain shared with Standard quizzes. Standard games retain their existing timed host-controlled question, lock, reveal, leaderboard and final-results flow. Head-to-Head presentation and controller views expose the assignment and two-person progress without giving the host Standard phase controls. Reconnect preserves the claimed slot, and safe state withholds answer correctness until reveal.
 
-This work is not deployed. Production remains at `202608070005_quiz_backgrounds.sql`. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending forward migrations and must be applied together, in order, during a deliberate database-first release before the matching frontend is deployed. Typed Answer remains later work, and quiz import/export is the next planned product feature.
+This work is not deployed. Production remains at `202608070005_quiz_backgrounds.sql`. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending forward migrations and must be applied together, in order, during a deliberate database-first release before the matching frontend is deployed. Typed Answer remains later work.
+
+### Quiz import and export — implemented locally, pending release
+
+Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` files using the versioned `katwed-quiz` format. The format uses deterministic file-local keys rather than database identities and carries Standard or Head-to-Head definitions, all six current question formats, people-bank and answer references, themes, backgrounds, covers and question media settings. It deliberately excludes archive state, timestamps, rooms, sessions, players, submitted answers and scores.
+
+Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
+
+Version 1 references image paths and URLs but does not embed or upload image bytes. References may therefore be shared safely within the same Katwed deployment but are not guaranteed to work in another deployment or Demo browser. See [`docs/katwed-quiz-format-v1.md`](docs/katwed-quiz-format-v1.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v1.schema.json) for the generator-facing contract.
+
+Import/export itself requires no database migration. The feature is implemented and tested locally but has not been deployed. Production remains at `202608070005_quiz_backgrounds.sql`, with `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` still pending and unchanged. Head-to-Head files depend on those pending migrations when the complete frontend is deliberately released.
 
 ### Planned
 
@@ -338,7 +348,7 @@ Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are st
 
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
-GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are deployed through Storage Manager. Future storage work remains planned for further image optimisation, optional media reuse and quiz export/import.
+GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are deployed through Storage Manager. Portable quiz import/export is implemented locally without embedding or copying media; future storage work remains planned for further image optimisation and optional media reuse.
 
 Built-in quiz backgrounds are versioned static files under `public/backgrounds/`. They are not stored in the `question-images` bucket, are not counted or classified by Storage Manager, and are never deleted with a quiz.
 
@@ -398,9 +408,8 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. Head-to-Head authoring and two-player live play are implemented and tested locally, with both pending migrations and the matching frontend awaiting a deliberate database-first production release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Quiz import/export is the next planned product feature; Typed Answer remains later work.
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. Head-to-Head authoring and two-player live play are implemented and tested locally, with both pending migrations and the matching frontend awaiting a deliberate database-first production release. Portable quiz import/export v1 is also implemented and tested locally over the existing save/read boundary and awaits that deliberate frontend release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Typed Answer remains later work.
 
-- quiz export and import;
 - tags;
 - optional media reuse;
 - old game-session cleanup;

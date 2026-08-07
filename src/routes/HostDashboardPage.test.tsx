@@ -1,17 +1,20 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { QUIZ_SORT_STORAGE_KEY } from '../features/quiz-library/library'
 import { sampleQuiz } from '../lib/demo/sampleData'
 import type { Quiz } from '../types/domain'
 import { HostDashboardPage } from './HostDashboardPage'
+import { exportQuizToPortable } from '../features/quiz-transfer/katwedQuizFormat'
 
 const repositoryMocks = vi.hoisted(() => ({
   listQuizzes: vi.fn(),
   listArchivedQuizzes: vi.fn(),
   getActiveSessionForQuiz: vi.fn(),
+  getQuiz: vi.fn(),
+  saveQuiz: vi.fn(),
   duplicateQuiz: vi.fn(),
 }))
 
@@ -91,7 +94,12 @@ describe('HostDashboardPage quiz library', () => {
     repositoryMocks.listQuizzes.mockResolvedValue(activeQuizzes)
     repositoryMocks.listArchivedQuizzes.mockResolvedValue(archivedQuizzes)
     repositoryMocks.getActiveSessionForQuiz.mockResolvedValue(null)
+    repositoryMocks.getQuiz.mockImplementation(async (id: string) => (
+      [...activeQuizzes, ...archivedQuizzes].find((candidate) => candidate.id === id) ?? null
+    ))
   })
+
+  afterEach(() => vi.restoreAllMocks())
 
   it('renders accessible controls, defaults to Last edited and shows British last-edited metadata', async () => {
     renderDashboard()
@@ -223,11 +231,13 @@ describe('HostDashboardPage quiz library', () => {
     expect(within(activeCard).getByRole('button', { name: 'Launch game' })).toBeVisible()
     expect(within(activeCard).getByRole('link', { name: 'Edit' })).toBeVisible()
     expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
+    expect(within(activeCard).getByRole('button', { name: 'Export' })).toBeVisible()
     expect(within(activeCard).getByRole('button', { name: 'Archive' })).toBeVisible()
 
     await user.click(screen.getByRole('tab', { name: 'Archived quizzes 2' }))
     const archivedCard = screen.getByRole('article', { name: 'Friday Archive' })
     expect(within(archivedCard).getByRole('button', { name: 'Restore' })).toBeVisible()
+    expect(within(archivedCard).getByRole('button', { name: 'Export' })).toBeVisible()
     expect(within(archivedCard).getByRole('button', { name: 'Permanently delete' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
   })
@@ -277,5 +287,113 @@ describe('HostDashboardPage quiz library', () => {
       title: 'Friday Team Quiz (Copy)',
     })
     expect(await screen.findByRole('heading', { name: 'Editing copy new-copy-id' })).toBeVisible()
+  })
+
+  it('shows a spoiler-safe Head-to-Head import preview and creates a new Active quiz without navigating', async () => {
+    const user = userEvent.setup()
+    const portable = exportQuizToPortable({
+      ...structuredClone(activeQuizzes[0]),
+      title: 'Blind Ross vs Jess',
+      quizType: 'head-to-head',
+      headToHeadCompetitors: [
+        { id: 'ross-id', quizId: 'active-friday', displayName: 'Ross', displayOrder: 0 },
+        { id: 'jess-id', quizId: 'active-friday', displayName: 'Jess', displayOrder: 1 },
+      ],
+      questions: activeQuizzes[0].questions.map((question, index) => ({
+        ...structuredClone(question),
+        assignedCompetitorId: index % 2 === 0 ? 'ross-id' : 'jess-id',
+        prompt: index === 0 ? 'SECRET QUESTION' : question.prompt,
+        revealCaption: index === 0 ? 'SECRET REVEAL' : question.revealCaption,
+      })),
+    })
+    if (portable.quiz.questions[0].type !== 'mashup') throw new Error('Fixture changed')
+    portable.quiz.roster[0].displayName = 'Public metadata person'
+    const imported = {
+      ...structuredClone(activeQuizzes[0]),
+      id: 'imported-id',
+      title: portable.quiz.title,
+      quizType: 'head-to-head' as const,
+    }
+    repositoryMocks.listQuizzes.mockResolvedValueOnce(activeQuizzes).mockResolvedValue([...activeQuizzes, imported])
+    repositoryMocks.saveQuiz.mockResolvedValue(imported)
+    renderDashboard()
+
+    await user.upload(
+      await screen.findByLabelText('Choose Katwed quiz file'),
+      new File([JSON.stringify(portable)], 'blind.katwed.json', { type: 'application/json' }),
+    )
+
+    const preview = await screen.findByRole('region', { name: 'Quiz import preview' })
+    expect(within(preview).getByRole('heading', { name: 'Blind Ross vs Jess' })).toBeVisible()
+    expect(within(preview).getByText('Head to Head')).toBeVisible()
+    expect(within(preview).getByText('Ross vs Jess')).toBeVisible()
+    expect(within(preview).getByText('3')).toBeVisible()
+    expect(screen.queryByText('SECRET QUESTION')).not.toBeInTheDocument()
+    expect(screen.queryByText('SECRET REVEAL')).not.toBeInTheDocument()
+    expect(screen.queryByText('Public metadata person')).not.toBeInTheDocument()
+
+    await user.click(within(preview).getByRole('button', { name: 'Import' }))
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledOnce()
+    expect(repositoryMocks.saveQuiz.mock.calls[0][0]).not.toHaveProperty('id')
+    expect(await screen.findByText('Imported Blind Ross vs Jess: 3 questions.')).toBeVisible()
+    expect(screen.getByRole('article', { name: 'Blind Ross vs Jess' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
+    expect(screen.queryByText(/Editing copy/)).not.toBeInTheDocument()
+  })
+
+  it('allows cancellation, same-file reselection and retry after a repository import failure', async () => {
+    const user = userEvent.setup()
+    const file = new File(
+      [JSON.stringify(exportQuizToPortable(activeQuizzes[0]))],
+      'friday.katwed.json',
+      { type: 'application/json' },
+    )
+    repositoryMocks.saveQuiz.mockRejectedValueOnce(new Error('Temporary save failure'))
+    renderDashboard()
+    const input = await screen.findByLabelText('Choose Katwed quiz file')
+
+    await user.upload(input, file)
+    await user.click(within(screen.getByRole('region', { name: 'Quiz import preview' })).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('region', { name: 'Quiz import preview' })).not.toBeInTheDocument()
+
+    await user.upload(input, file)
+    const preview = await screen.findByRole('region', { name: 'Quiz import preview' })
+    await user.click(within(preview).getByRole('button', { name: 'Import' }))
+    expect(await screen.findByText('Temporary save failure')).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Quiz import preview' })).toBeVisible()
+    expect(within(preview).getByRole('button', { name: 'Import' })).toBeEnabled()
+  })
+
+  it('rejects malformed files without showing an import preview', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await user.upload(
+      await screen.findByLabelText('Choose Katwed quiz file'),
+      new File(['{'], 'broken.katwed.json', { type: 'application/json' }),
+    )
+    expect(await screen.findByText('The selected file is not valid JSON.')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Quiz import preview' })).not.toBeInTheDocument()
+  })
+
+  it('exports both Active and Archived quizzes with safe filenames and an answer warning', async () => {
+    const user = userEvent.setup()
+    const downloads: string[] = []
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:quiz-export') })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function click(this: HTMLAnchorElement) {
+      downloads.push(this.download)
+    })
+    renderDashboard()
+
+    expect(await screen.findByRole('note')).toHaveTextContent('Export files contain the quiz’s correct answers')
+    await user.click(within(screen.getByRole('article', { name: 'Friday Team Quiz' })).getByRole('button', { name: 'Export' }))
+    expect(repositoryMocks.getQuiz).toHaveBeenCalledWith('active-friday')
+    expect(downloads).toEqual(['friday-team-quiz.katwed.json'])
+    expect(screen.getByText('Exported Friday Team Quiz. The file contains the quiz’s correct answers.')).toBeVisible()
+
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 2' }))
+    await user.click(within(screen.getByRole('article', { name: 'Friday Archive' })).getByRole('button', { name: 'Export' }))
+    expect(repositoryMocks.getQuiz).toHaveBeenCalledWith('archived-friday')
+    expect(downloads).toEqual(['friday-team-quiz.katwed.json', 'friday-archive.katwed.json'])
   })
 })

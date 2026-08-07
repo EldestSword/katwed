@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StoredImage } from '../components/StoredImage'
@@ -18,6 +18,14 @@ import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
 import { DEFAULT_QUIZ_TYPE } from '../features/head-to-head/headToHead'
+import {
+  KATWED_QUIZ_FILE_EXTENSION,
+  createKatwedQuizFilename,
+  parseKatwedQuizFile,
+  serialiseKatwedQuiz,
+  type ParsedKatwedQuiz,
+} from '../features/quiz-transfer/katwedQuizFormat'
+import { QuizImportPreview } from '../features/quiz-transfer/QuizImportPreview'
 
 type LibraryView = 'active' | 'archived'
 
@@ -38,7 +46,11 @@ export function HostDashboardPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importCandidate, setImportCandidate] = useState<ParsedKatwedQuiz | null>(null)
   const [workingQuizId, setWorkingQuizId] = useState('')
+  const [exportingQuizId, setExportingQuizId] = useState('')
+  const importInputRef = useRef<HTMLInputElement>(null)
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const sourceQuizzes = view === 'active' ? activeQuizzes : archivedQuizzes
@@ -165,6 +177,61 @@ export function HostDashboardPage() {
     }
   }
 
+  async function selectImportFile(file: File | undefined) {
+    if (!file) return
+    setNotice('')
+    setError('')
+    try {
+      setImportCandidate(await parseKatwedQuizFile(file))
+    } catch (reason) {
+      setImportCandidate(null)
+      setError(reason instanceof Error ? reason.message : 'The quiz file could not be read.')
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = ''
+    }
+  }
+
+  async function importQuiz() {
+    if (!importCandidate || importing) return
+    setImporting(true)
+    setNotice('')
+    setError('')
+    try {
+      const imported = await repository.saveQuiz(importCandidate.input)
+      await refresh()
+      setImportCandidate(null)
+      setView('active')
+      setSearchQuery('')
+      setNotice(`Imported ${imported.title}: ${imported.questions.length} ${imported.questions.length === 1 ? 'question' : 'questions'}.`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The quiz could not be imported.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function exportQuiz(quiz: Quiz) {
+    setExportingQuizId(quiz.id)
+    setNotice('')
+    setError('')
+    try {
+      const fullQuiz = await repository.getQuiz(quiz.id)
+      if (!fullQuiz) throw new Error('That quiz could not be found.')
+      const blob = new Blob([serialiseKatwedQuiz(fullQuiz)], { type: 'application/json;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = createKatwedQuizFilename(fullQuiz.title)
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      setNotice(`Exported ${fullQuiz.title}. The file contains the quiz’s correct answers.`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The quiz could not be exported.')
+    } finally {
+      setExportingQuizId('')
+    }
+  }
+
   function changeSort(nextSort: QuizSort) {
     setSort(nextSort)
     try {
@@ -182,6 +249,17 @@ export function HostDashboardPage() {
         <div><p className="eyebrow">Host headquarters</p><h1>Your quizzes</h1><p>Welcome, {user?.email ?? 'host'}.</p></div>
         <div className="heading-actions">
           <Link className="button button--secondary" to="/host/storage">Storage</Link>
+          <button className="button button--secondary" type="button" onClick={() => importInputRef.current?.click()}>
+            Import quiz
+          </button>
+          <input
+            ref={importInputRef}
+            className="sr-only"
+            type="file"
+            accept={`${KATWED_QUIZ_FILE_EXTENSION},application/json`}
+            aria-label="Choose Katwed quiz file"
+            onChange={(event) => void selectImportFile(event.target.files?.[0])}
+          />
           <button className="button button--primary" type="button" disabled={creating} onClick={() => void createQuiz()}>
             {creating ? 'Creating…' : '+ Create quiz'}
           </button>
@@ -227,6 +305,17 @@ export function HostDashboardPage() {
           </select>
         </div>
       </div>
+      <p className="library-export-warning" role="note">
+        Export files contain the quiz’s correct answers. Keep the file closed if you plan to play it blind.
+      </p>
+      {importCandidate && (
+        <QuizImportPreview
+          summary={importCandidate.summary}
+          importing={importing}
+          onImport={() => void importQuiz()}
+          onCancel={() => setImportCandidate(null)}
+        />
+      )}
       {notice && <StatusMessage tone="success">{notice}</StatusMessage>}
       {error && <StatusMessage tone="error">{error}</StatusMessage>}
       <div className="quiz-grid">
@@ -281,6 +370,12 @@ export function HostDashboardPage() {
                       onClick={() => void duplicate(quiz)}
                     >{workingQuizId === quiz.id ? 'Duplicating...' : 'Duplicate'}</button>
                     <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={exportingQuizId === quiz.id}
+                      onClick={() => void exportQuiz(quiz)}
+                    >{exportingQuizId === quiz.id ? 'Exporting…' : 'Export'}</button>
+                    <button
                       className="button button--ghost"
                       type="button"
                       disabled={Boolean(activeSessionIds[quiz.id]) || workingQuizId === quiz.id}
@@ -291,6 +386,12 @@ export function HostDashboardPage() {
                 ) : (
                   <div className="card-actions">
                     <button className="button button--secondary" type="button" disabled={workingQuizId === quiz.id} onClick={() => void restore(quiz)}>Restore</button>
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={exportingQuizId === quiz.id}
+                      onClick={() => void exportQuiz(quiz)}
+                    >{exportingQuizId === quiz.id ? 'Exporting…' : 'Export'}</button>
                     <button className="button button--ghost danger" type="button" disabled={workingQuizId === quiz.id} onClick={() => void permanentlyRemove(quiz)}>Permanently delete</button>
                   </div>
                 )}
