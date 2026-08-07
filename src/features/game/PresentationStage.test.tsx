@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { GamePhase, SafeGameState } from '../../types/domain'
 import { PresentationStage } from './PresentationStage'
@@ -47,5 +47,37 @@ describe('PresentationStage quiz theme', () => {
     const stage = container.querySelector('.presentation-stage')
     expect(stage).not.toHaveAttribute('data-quiz-background')
     expect(stage).not.toHaveAttribute('style')
+  })
+
+  it('shows Head-to-Head assignment, untimed state and both reveal results', () => {
+    const question = {
+      id: 'question', type: 'true-false' as const, assignedCompetitorId: 'ross', prompt: 'True?',
+      supportingText: '', timeLimitSeconds: 30, points: 1000, displayOrder: 0,
+      media: { type: 'none' as const }, mediaVisibility: 'both' as const,
+      presentationChoiceVisibility: 'show' as const, questionNumber: 1, totalQuestions: 1,
+    }
+    const competitors = [
+      { competitorId: 'ross', displayName: 'Ross', displayOrder: 0 as const, claimed: true, connected: true, playerId: 'p1', totalScore: 1, correctAnswerCount: 1 },
+      { competitorId: 'jess', displayName: 'Jess', displayOrder: 1 as const, claimed: true, connected: true, playerId: 'p2', totalScore: 0, correctAnswerCount: 0 },
+    ]
+    const questionState: SafeGameState = {
+      ...state('question'), quizType: 'head-to-head', currentQuestion: question,
+      players: [], headToHeadCompetitors: competitors, headToHeadResolutions: [], headToHeadResults: [],
+    }
+    const { rerender } = render(<PresentationStage state={questionState} />)
+    expect(screen.getByText('Untimed')).toBeVisible()
+    expect(screen.getByText(/For/)).toHaveTextContent('Ross · 1 point')
+
+    rerender(<PresentationStage state={{
+      ...questionState,
+      phase: 'reveal',
+      reveal: { type: 'true-false', correctValue: true, caption: '', counts: { true: 1, false: 1 } },
+      headToHeadResults: [
+        { competitorId: 'ross', assigned: true, status: 'correct', pointsAwarded: 1 },
+        { competitorId: 'jess', assigned: false, status: 'incorrect', pointsAwarded: 0 },
+      ],
+    }} />)
+    expect(screen.getByText('Correct · 1 point')).toBeVisible()
+    expect(screen.getByText('Incorrect · 0 points')).toBeVisible()
   })
 })

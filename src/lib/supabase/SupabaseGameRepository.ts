@@ -5,6 +5,7 @@ import type {
   PlayerAnswerPayload,
   PlayerSession,
   Quiz,
+  RoomJoinInfo,
   SafeGameState,
   Unsubscribe,
 } from '../../types/domain'
@@ -118,8 +119,19 @@ export class SupabaseGameRepository implements GameRepository {
     return this.rpc('host_get_active_game', { p_quiz_id: quizId })
   }
 
+  async getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null> {
+    return this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
+  }
+
   async joinRoom(roomCode: string, nickname: string): Promise<JoinResult> {
     return this.rpc<JoinResult>('join_room', { p_room_code: roomCode, p_nickname: nickname })
+  }
+
+  async joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult> {
+    return this.rpc<JoinResult>('join_head_to_head_room', {
+      p_room_code: roomCode,
+      p_competitor_id: competitorId,
+    })
   }
 
   async reconnectPlayer(session: PlayerSession): Promise<JoinResult | null> {
@@ -155,6 +167,42 @@ export class SupabaseGameRepository implements GameRepository {
       p_player_id: playerId,
       p_reconnect_token: reconnectToken,
       p_answer: payload,
+    })
+  }
+
+  async startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void> {
+    await this.rpc('start_head_to_head_game', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+    })
+  }
+
+  async skipHeadToHead(
+    roomCode: string,
+    playerId: string,
+    reconnectToken: string,
+    expectedQuestionId: string,
+  ): Promise<void> {
+    await this.rpc('skip_head_to_head_answer', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+      p_expected_question_id: expectedQuestionId,
+    })
+  }
+
+  async continueHeadToHead(
+    roomCode: string,
+    playerId: string,
+    reconnectToken: string,
+    expectedQuestionId: string,
+  ): Promise<void> {
+    await this.rpc('continue_head_to_head_game', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+      p_expected_question_id: expectedQuestionId,
     })
   }
 

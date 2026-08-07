@@ -168,4 +168,26 @@ export const mixedDemoQuiz: Quiz = {
   ],
 }
 
+const headToHeadId = 'quiz-head-to-head'
+const headToHeadCompetitorIds = ['competitor-ross', 'competitor-jess'] as const
+
+export const headToHeadDemoQuiz: Quiz = {
+  ...structuredClone(mixedDemoQuiz),
+  id: headToHeadId,
+  title: 'Ross vs Jess',
+  quizType: 'head-to-head',
+  headToHeadCompetitors: [
+    { id: headToHeadCompetitorIds[0], quizId: headToHeadId, displayName: 'Ross', displayOrder: 0 },
+    { id: headToHeadCompetitorIds[1], quizId: headToHeadId, displayName: 'Jess', displayOrder: 1 },
+  ],
+  roster: mixedDemoQuiz.roster.map((member) => ({ ...member, quizId: headToHeadId })),
+  questions: mixedDemoQuiz.questions.map((question, index) => ({
+    ...structuredClone(question),
+    quizId: headToHeadId,
+    assignedCompetitorId: headToHeadCompetitorIds[index % 2],
+  })),
+  createdAt: '2026-08-07T14:00:00.000Z',
+  updatedAt: '2026-08-07T14:00:00.000Z',
+}
+
 export const sampleQuizzes = [sampleQuiz, mixedDemoQuiz]

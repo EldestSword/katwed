@@ -4,6 +4,7 @@ import type {
   PlayerAnswerPayload,
   PlayerSession,
   Quiz,
+  RoomJoinInfo,
   SafeGameState,
   Unsubscribe,
 } from '../types/domain'
@@ -41,11 +42,16 @@ export interface GameRepository {
   launchGame(quizId: string): Promise<GameSession>
   getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
+  getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null>
   joinRoom(roomCode: string, nickname: string): Promise<JoinResult>
+  joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult>
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
+  startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void>
+  skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
+  continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void): Unsubscribe
 }

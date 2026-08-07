@@ -7,6 +7,7 @@ import type {
   PlayerSession,
   Question,
   Quiz,
+  RoomJoinInfo,
   RevealPayload,
   SafeGameState,
   SafeQuestion,
@@ -28,12 +29,19 @@ import {
 import { listDemoStoredImages, removeDemoStoredImages } from '../../services/questionImages'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
-import { HEAD_TO_HEAD_LAUNCH_MESSAGE, normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
+import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
+
+interface DemoHeadToHeadSkip {
+  sessionId: string
+  questionId: string
+  playerId: string
+}
 
 interface DemoState {
   quizzes: Quiz[]
   sessions: GameSession[]
   reconnectTokens: Record<string, string>
+  headToHeadSkips: DemoHeadToHeadSkip[]
 }
 
 const STORAGE_KEY = 'katwed.demo.state.v2'
@@ -48,12 +56,13 @@ function uid(prefix: string): string {
 }
 
 function freshState(): DemoState {
-  return { quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {} }
+  return { quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {}, headToHeadSkips: [] }
 }
 
 function normaliseState(state: DemoState): DemoState {
   return {
     ...state,
+    headToHeadSkips: state.headToHeadSkips ?? [],
     quizzes: state.quizzes.map((quiz) => {
       const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
       return normaliseQuizHeadToHead({
@@ -80,6 +89,7 @@ function isDemoState(value: unknown): value is DemoState {
 function safeBase(question: Question, questionNumber: number, totalQuestions: number) {
   return {
     id: question.id,
+    assignedCompetitorId: question.assignedCompetitorId,
     prompt: question.prompt,
     supportingText: question.supportingText,
     timeLimitSeconds: question.timeLimitSeconds,
@@ -91,6 +101,16 @@ function safeBase(question: Question, questionNumber: number, totalQuestions: nu
     questionNumber,
     totalQuestions,
   }
+}
+
+function isHeadToHeadResolved(state: DemoState, session: GameSession, questionId: string, playerId: string): boolean {
+  return session.answers.some((answer) => answer.questionId === questionId && answer.playerId === playerId) ||
+    state.headToHeadSkips.some((skip) => skip.sessionId === session.id && skip.questionId === questionId && skip.playerId === playerId)
+}
+
+function revealHeadToHeadWhenComplete(state: DemoState, session: GameSession, question: Question): void {
+  if (session.players.length !== 2 || !session.players.every((player) => isHeadToHeadResolved(state, session, question.id, player.id))) return
+  session.phase = 'reveal'
 }
 
 function toSafeQuestion(question: Question, questionNumber: number, totalQuestions: number): SafeQuestion {
@@ -218,7 +238,13 @@ export class DemoGameRepository implements GameRepository {
 
   private write(state: DemoState, notify = true, subject = '*'): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    if (notify) this.channel?.postMessage({ subject, at: Date.now() })
+    if (notify) {
+      const at = Date.now()
+      this.channel?.postMessage({ subject, at })
+      const session = state.sessions.find((candidate) => candidate.id === subject || candidate.roomCode === subject)
+      if (session && session.id !== subject) this.channel?.postMessage({ subject: session.id, at })
+      if (session && session.roomCode !== subject) this.channel?.postMessage({ subject: session.roomCode, at })
+    }
   }
 
   private async withMutation<T>(operation: () => T): Promise<T> {
@@ -374,7 +400,13 @@ export class DemoGameRepository implements GameRepository {
       const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
       if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
       if (quiz.archivedAt !== null) throw new RepositoryError('database', 'Restore this quiz before launching it.')
-      if (quiz.quizType === 'head-to-head') throw new RepositoryError('database', HEAD_TO_HEAD_LAUNCH_MESSAGE)
+      if (quiz.quizType === 'head-to-head') {
+        const competitorIds = new Set(quiz.headToHeadCompetitors.map((competitor) => competitor.id))
+        if (quiz.headToHeadCompetitors.length !== 2 || !quiz.questions.length ||
+          quiz.questions.some((question) => !question.assignedCompetitorId || !competitorIds.has(question.assignedCompetitorId))) {
+          throw new RepositoryError('database', 'Complete both competitors and every question assignment before launching.')
+        }
+      }
       const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
       if (active) return clone(active)
       const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
@@ -415,6 +447,32 @@ export class DemoGameRepository implements GameRepository {
     ) ?? null)
   }
 
+  async getRoomJoinInfo(rawRoomCode: string): Promise<RoomJoinInfo | null> {
+    const state = this.read()
+    const roomCode = rawRoomCode.replace(/\D/g, '')
+    const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
+    if (!session) return null
+    const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+    if (!quiz) return null
+    return clone({
+      roomCode,
+      quizTitle: quiz.title,
+      quizType: quiz.quizType,
+      status: session.status,
+      phase: session.phase,
+      headToHeadCompetitors: quiz.headToHeadCompetitors.map((competitor) => {
+        const player = session.players.find((candidate) => candidate.competitorId === competitor.id)
+        return {
+          competitorId: competitor.id,
+          displayName: competitor.displayName,
+          displayOrder: competitor.displayOrder,
+          claimed: Boolean(player),
+          connected: player?.connected ?? false,
+        }
+      }),
+    })
+  }
+
   async joinRoom(rawRoomCode: string, rawNickname: string): Promise<JoinResult> {
     return this.withMutation(() => {
       const state = this.read()
@@ -424,6 +482,10 @@ export class DemoGameRepository implements GameRepository {
       if (!session) throw new RepositoryError('invalid-room', 'We could not find that room.')
       if (session.status !== 'active') throw new RepositoryError('expired-room', 'That room has closed.')
       if (session.phase !== 'lobby') throw new RepositoryError('game-started', 'That game has already started.')
+      const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+      if (quiz?.quizType === 'head-to-head') {
+        throw new RepositoryError('invalid-selection', 'Choose one of the two Head-to-Head competitors instead.')
+      }
       if (!nickname || nickname.length > 30) throw new RepositoryError('database', 'Enter a nickname of 1–30 characters.')
       if (session.players.some((player) =>
         player.nickname.localeCompare(nickname, 'en-GB', { sensitivity: 'base' }) === 0
@@ -432,6 +494,44 @@ export class DemoGameRepository implements GameRepository {
         id: uid('player'),
         sessionId: session.id,
         nickname,
+        competitorId: null,
+        connected: true,
+        joinedAt: new Date().toISOString(),
+        totalScore: 0,
+        correctAnswerCount: 0,
+        totalCorrectResponseMs: 0,
+      }
+      const reconnectToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
+      session.players.push(player)
+      state.reconnectTokens[player.id] = reconnectToken
+      this.write(state, true, session.id)
+      return clone({ player, reconnectToken })
+    })
+  }
+
+
+  async joinHeadToHeadRoom(rawRoomCode: string, competitorId: string): Promise<JoinResult> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const roomCode = rawRoomCode.replace(/\D/g, '')
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode)
+      if (!session) throw new RepositoryError('invalid-room', 'We could not find that room.')
+      if (session.status !== 'active') throw new RepositoryError('expired-room', 'That room has closed.')
+      if (session.phase !== 'lobby') throw new RepositoryError('game-started', 'That game has already started.')
+      const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+      if (!quiz || quiz.quizType !== 'head-to-head') {
+        throw new RepositoryError('invalid-selection', 'This room uses ordinary nickname joining.')
+      }
+      const competitor = quiz.headToHeadCompetitors.find((candidate) => candidate.id === competitorId)
+      if (!competitor) throw new RepositoryError('invalid-selection', 'Choose a valid competitor.')
+      if (session.players.some((player) => player.competitorId === competitorId)) {
+        throw new RepositoryError('duplicate-nickname', `${competitor.displayName} has already joined this game.`)
+      }
+      const player: Player = {
+        id: uid('player'),
+        sessionId: session.id,
+        nickname: competitor.displayName,
+        competitorId,
         connected: true,
         joinedAt: new Date().toISOString(),
         totalScore: 0,
@@ -458,8 +558,10 @@ export class DemoGameRepository implements GameRepository {
       player.connected = true
       this.write(state, true, session.id)
       const scoresVisible = ['leaderboard', 'finished'].includes(session.phase)
+      const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+      const headToHead = quiz?.quizType === 'head-to-head'
       return clone({
-        player: scoresVisible ? player : {
+        player: scoresVisible || headToHead ? player : {
           ...player,
           totalScore: 0,
           correctAnswerCount: 0,
@@ -492,15 +594,17 @@ export class DemoGameRepository implements GameRepository {
     if (!session) return null
     const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
     if (!quiz) return null
-    const question = quiz.questions[session.currentQuestionIndex] ?? null
+      const question = quiz.questions[session.currentQuestionIndex] ?? null
+    const headToHead = quiz.quizType === 'head-to-head'
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
-    const scoresVisible = ['leaderboard', 'finished'].includes(session.phase)
+    const scoresVisible = headToHead || ['leaderboard', 'finished'].includes(session.phase)
     const currentAnswers = question
       ? session.answers.filter((answer) => answer.questionId === question.id)
       : []
     return clone({
       sessionId: session.id,
       quizTitle: quiz.title,
+      quizType: quiz.quizType,
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
       roomCode: session.roomCode,
@@ -518,8 +622,40 @@ export class DemoGameRepository implements GameRepository {
         correctAnswerCount: 0,
         totalCorrectResponseMs: 0,
       }),
-      submittedCount: currentAnswers.length,
-      leaderboard: scoresVisible ? sortLeaderboard(session.players) : [],
+      headToHeadCompetitors: headToHead ? quiz.headToHeadCompetitors.map((competitor) => {
+        const player = session.players.find((candidate) => candidate.competitorId === competitor.id)
+        return {
+          competitorId: competitor.id,
+          displayName: competitor.displayName,
+          displayOrder: competitor.displayOrder,
+          claimed: Boolean(player),
+          connected: player?.connected ?? false,
+          playerId: player?.id ?? null,
+          totalScore: player?.totalScore ?? 0,
+          correctAnswerCount: player?.correctAnswerCount ?? 0,
+        }
+      }) : [],
+      headToHeadResolutions: headToHead && question ? session.players.flatMap((player) => {
+        const answer = currentAnswers.find((candidate) => candidate.playerId === player.id)
+        const skipped = state.headToHeadSkips.some((skip) => skip.sessionId === session.id && skip.questionId === question.id && skip.playerId === player.id)
+        return answer || skipped ? [{
+          playerId: player.id,
+          competitorId: player.competitorId!,
+          status: skipped ? 'skipped' as const : 'answered' as const,
+        }] : []
+      }) : [],
+      headToHeadResults: headToHead && mayReveal && question ? session.players.map((player) => {
+        const answer = currentAnswers.find((candidate) => candidate.playerId === player.id)
+        const assigned = player.competitorId === question.assignedCompetitorId
+        return {
+          competitorId: player.competitorId!,
+          assigned,
+          status: answer ? (answer.correct ? 'correct' as const : 'incorrect' as const) : 'skipped' as const,
+          pointsAwarded: (answer?.pointsAwarded ?? 0) as 0 | 1,
+        }
+      }) : [],
+      submittedCount: currentAnswers.length + (question ? state.headToHeadSkips.filter((skip) => skip.sessionId === session.id && skip.questionId === question.id).length : 0),
+      leaderboard: !headToHead && scoresVisible ? sortLeaderboard(session.players) : [],
       reveal: mayReveal && question ? revealFor(question, currentAnswers, quiz) : null,
       questionOpenedAt: session.questionOpenedAt,
       questionClosesAt: session.questionClosesAt,
@@ -541,12 +677,14 @@ export class DemoGameRepository implements GameRepository {
         throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
       }
       if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not open.')
-      const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
-      if (!closesAt || Date.now() > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
       const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
       const question = quiz?.questions[session.currentQuestionIndex]
       if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
-      if (session.answers.some((answer) => answer.playerId === playerId && answer.questionId === question.id)) {
+      if (quiz.quizType === 'standard') {
+        const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
+        if (!closesAt || Date.now() > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
+      }
+      if (isHeadToHeadResolved(state, session, question.id, playerId)) {
         throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
       }
       if (question.type === 'mashup' && payload.type === 'mashup') {
@@ -559,21 +697,92 @@ export class DemoGameRepository implements GameRepository {
       if (!score.valid) throw new RepositoryError('invalid-selection', 'That answer is not valid for this question.')
       const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : Date.now()
       const responseTimeMs = Math.max(0, Date.now() - openedAt)
+      const assigned = quiz.quizType === 'head-to-head' && player.competitorId === question.assignedCompetitorId
+      const pointsAwarded = quiz.quizType === 'head-to-head' ? (assigned && score.correct ? 1 : 0) : score.points
       session.answers.push({
         id: uid('answer'),
         sessionId: session.id,
         questionId: question.id,
         playerId,
         payload,
+        resolutionStatus: 'answered',
         submittedAt: new Date().toISOString(),
         responseTimeMs,
         correct: score.correct,
-        pointsAwarded: score.points,
+        pointsAwarded,
       })
-      player.totalScore += score.points
-      if (score.correct) {
+      player.totalScore += pointsAwarded
+      if (score.correct && (quiz.quizType === 'standard' || assigned)) {
         player.correctAnswerCount += 1
-        player.totalCorrectResponseMs += responseTimeMs
+        if (quiz.quizType === 'standard') player.totalCorrectResponseMs += responseTimeMs
+      }
+      if (quiz.quizType === 'head-to-head') revealHeadToHeadWhenComplete(state, session, question)
+      this.write(state, true, session.id)
+    })
+  }
+
+  async startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode && candidate.status === 'active')
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      const player = session?.players.find((candidate) => candidate.id === playerId)
+      if (!session || !quiz || quiz.quizType !== 'head-to-head') throw new RepositoryError('invalid-room', 'This Head-to-Head room is not active.')
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      if (session.phase !== 'lobby') return
+      if (session.players.length !== 2 || quiz.headToHeadCompetitors.some((competitor) => !session.players.some((candidate) => candidate.competitorId === competitor.id))) {
+        throw new RepositoryError('invalid-phase', 'Both competitors must join before the game can start.')
+      }
+      const question = quiz.questions[0]
+      if (!question) throw new RepositoryError('database', 'This quiz has no questions.')
+      const now = new Date().toISOString()
+      session.phase = 'question'
+      session.currentQuestionIndex = 0
+      session.questionOpenedAt = now
+      session.questionClosesAt = null
+      session.startedAt = now
+      this.write(state, true, session.id)
+    })
+  }
+
+  async skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode && candidate.status === 'active')
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      const player = session?.players.find((candidate) => candidate.id === playerId)
+      const question = quiz && session ? quiz.questions[session.currentQuestionIndex] : undefined
+      if (!session || !quiz || quiz.quizType !== 'head-to-head') throw new RepositoryError('invalid-room', 'This Head-to-Head room is not active.')
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      if (session.phase !== 'question' || !question || question.id !== expectedQuestionId) throw new RepositoryError('invalid-phase', 'That question is no longer open.')
+      if (player.competitorId === question.assignedCompetitorId) throw new RepositoryError('invalid-selection', 'The assigned competitor must answer this question.')
+      if (isHeadToHeadResolved(state, session, question.id, playerId)) throw new RepositoryError('duplicate-submission', 'You have already resolved this question.')
+      state.headToHeadSkips.push({ sessionId: session.id, questionId: question.id, playerId })
+      revealHeadToHeadWhenComplete(state, session, question)
+      this.write(state, true, session.id)
+    })
+  }
+
+  async continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode && candidate.status === 'active')
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      const player = session?.players.find((candidate) => candidate.id === playerId)
+      if (!session || !quiz || quiz.quizType !== 'head-to-head') throw new RepositoryError('invalid-room', 'This Head-to-Head room is not active.')
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      const question = quiz.questions[session.currentQuestionIndex]
+      if (session.phase === 'finished') return
+      if (!question || question.id !== expectedQuestionId) return
+      if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Wait for both competitors to resolve the question.')
+      if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+        session.phase = 'finished'
+        session.endedAt = new Date().toISOString()
+      } else {
+        session.currentQuestionIndex += 1
+        session.phase = 'question'
+        session.questionOpenedAt = new Date().toISOString()
+        session.questionClosesAt = null
       }
       this.write(state, true, session.id)
     })
@@ -589,6 +798,9 @@ export class DemoGameRepository implements GameRepository {
       const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
       if (!session || !quiz) throw new RepositoryError('database', 'The game could not be found.')
       if (session.status !== 'active') throw new RepositoryError('expired-room', 'This room is closed.')
+      if (quiz.quizType === 'head-to-head' && action !== 'close') {
+        throw new RepositoryError('invalid-phase', 'Head-to-Head progression is controlled by the competitors.')
+      }
       const now = new Date()
       const openCurrentQuestion = (): void => {
         const question = quiz.questions[session.currentQuestionIndex]

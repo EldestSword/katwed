@@ -18,6 +18,7 @@ interface PlayerQuestionProps {
   closesAt: string | null
   openedAt?: string | null
   initialAnswer?: PlayerAnswerPayload | null
+  modeLabel?: string
   onSubmit(payload: PlayerAnswerPayload): Promise<void>
 }
 
@@ -85,6 +86,7 @@ export function PlayerQuestion({
   closesAt,
   openedAt = null,
   initialAnswer = null,
+  modeLabel,
   onSubmit,
 }: PlayerQuestionProps) {
   const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
@@ -96,6 +98,7 @@ export function PlayerQuestion({
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
   const remaining = useCountdown(closesAt)
+  const timedOut = closesAt !== null && remaining <= 0
 
   useEffect(() => {
     setAnswer(initialAnswer)
@@ -118,7 +121,7 @@ export function PlayerQuestion({
     const payload = question.type === 'mashup' && mashupSelection.length === 2
       ? { type: 'mashup' as const, memberIds: [mashupSelection[0], mashupSelection[1]] as const }
       : answer
-    if (!payload || !canSubmit || submitted || remaining <= 0) return
+    if (!payload || !canSubmit || submitted || timedOut) return
     setSubmitting(true)
     setError('')
     try {
@@ -147,8 +150,8 @@ export function PlayerQuestion({
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
-        <span>Question {question.questionNumber} of {question.totalQuestions}</span>
-        <strong className={`timer ${remaining <= 5 ? 'timer--urgent' : ''}`} aria-label={`${remaining} seconds remaining`}>{remaining}</strong>
+        <span>{modeLabel ?? `Question ${question.questionNumber} of ${question.totalQuestions}`}</span>
+        {closesAt !== null && <strong className={`timer ${remaining <= 5 ? 'timer--urgent' : ''}`} aria-label={`${remaining} seconds remaining`}>{remaining}</strong>}
       </div>
       <div className="player-question__prompt">
         <h1 id="question-instruction">{question.prompt}</h1>
@@ -268,11 +271,11 @@ export function PlayerQuestion({
 
       <div className="selection-status" aria-live="polite">
         {limitMessage && <p>{limitMessage}</p>}
-        {remaining <= 0 && <StatusMessage tone="error">Time is up. Waiting for the reveal.</StatusMessage>}
+        {timedOut && <StatusMessage tone="error">Time is up. Waiting for the reveal.</StatusMessage>}
         {error && <StatusMessage tone="error">{error}</StatusMessage>}
       </div>
       <button className="button button--primary button--wide lock-button" type="button"
-        disabled={!canSubmit || submitted || submitting || remaining <= 0}
+        disabled={!canSubmit || submitted || submitting || timedOut}
         onClick={() => void lockIn()}>{submitting ? 'Submitting…' : 'Lock in'}</button>
     </section>
   )

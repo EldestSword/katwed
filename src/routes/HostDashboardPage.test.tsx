@@ -232,7 +232,7 @@ describe('HostDashboardPage quiz library', () => {
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
   })
 
-  it('badges Head-to-Head quizzes and blocks live launch in both library views', async () => {
+  it('badges Head-to-Head quizzes and exposes live launch only in the active library', async () => {
     const user = userEvent.setup()
     const headToHead = {
       ...activeQuizzes[0],
@@ -248,15 +248,14 @@ describe('HostDashboardPage quiz library', () => {
 
     const activeCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
     expect(within(activeCard).getByText('Head to Head')).toBeVisible()
-    const launch = within(activeCard).getByRole('button', { name: 'Live play pending' })
-    expect(launch).toBeDisabled()
-    expect(launch).toHaveAttribute('title', 'Head-to-Head live play is not available in this build yet.')
+    const launch = within(activeCard).getByRole('button', { name: 'Launch game' })
+    expect(launch).toBeEnabled()
     expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
 
     await user.click(screen.getByRole('tab', { name: 'Archived quizzes 1' }))
     const archivedCard = screen.getByRole('article', { name: 'Friday Team Quiz' })
     expect(within(archivedCard).getByText('Head to Head')).toBeVisible()
-    expect(within(archivedCard).queryByRole('button', { name: 'Live play pending' })).not.toBeInTheDocument()
+    expect(within(archivedCard).queryByRole('button', { name: 'Launch game' })).not.toBeInTheDocument()
   })
 
   it('prevents repeat Duplicate clicks and navigates to the newly created quiz editor', async () => {

@@ -81,4 +81,27 @@ describe('parseSafeGameState', () => {
       currentQuestion: { ...safeState.currentQuestion, targetX: .5 },
     })).toThrow(/answer key/)
   })
+
+  it('accepts safe Head-to-Head assignment and scores but rejects early correctness results', () => {
+    const headToHead = {
+      ...safeState,
+      quizType: 'head-to-head',
+      phase: 'question',
+      reveal: null,
+      questionClosesAt: null,
+      players: [{ ...safeState.players[0], competitorId: 'ross', totalScore: 2 }],
+      currentQuestion: { ...safeState.currentQuestion, assignedCompetitorId: 'ross' },
+      headToHeadCompetitors: [{
+        competitorId: 'ross', displayName: 'Ross', displayOrder: 0, claimed: true,
+        connected: true, playerId: 'player', totalScore: 2, correctAnswerCount: 2,
+      }],
+      headToHeadResolutions: [],
+      headToHeadResults: [],
+    }
+    expect(parseSafeGameState(headToHead)).toMatchObject({ quizType: 'head-to-head', questionClosesAt: null })
+    expect(() => parseSafeGameState({
+      ...headToHead,
+      headToHeadResults: [{ competitorId: 'ross', assigned: true, status: 'correct', pointsAwarded: 1 }],
+    })).toThrow(/before the reveal/)
+  })
 })

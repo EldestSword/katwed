@@ -1,6 +1,7 @@
 import type { RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
+import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -52,8 +53,11 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   if ((!revealAllowed && value.reveal !== null) || (value.reveal !== null && !isRevealPayload(value.reveal))) {
     throw new Error('The server returned reveal data in an invalid phase.')
   }
+  if (!revealAllowed && Array.isArray(value.headToHeadResults) && value.headToHeadResults.length > 0) {
+    throw new Error('The server returned Head-to-Head results before the reveal.')
+  }
 
-  const scoresAllowed = ['leaderboard', 'finished'].includes(value.phase)
+  const scoresAllowed = normaliseQuizType(value.quizType) === 'head-to-head' || ['leaderboard', 'finished'].includes(value.phase)
   if (!scoresAllowed && value.leaderboard.length > 0) {
     throw new Error('The server returned leaderboard data before it was revealed.')
   }
@@ -87,6 +91,10 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   const themeId = normaliseQuizThemeId(value.themeId)
   return {
     ...value,
+    quizType: normaliseQuizType(value.quizType),
+    headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
+    headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],
+    headToHeadResults: Array.isArray(value.headToHeadResults) ? value.headToHeadResults : [],
     themeId,
     backgroundId: normaliseQuizBackgroundId(value.backgroundId, themeId),
   } as unknown as SafeGameState

@@ -154,3 +154,24 @@ describe('SupabaseGameRepository permanent deletion', () => {
     expect(events).toEqual(['host_permanently_delete_quiz', 'storage'])
   })
 })
+
+describe('SupabaseGameRepository Head-to-Head live play', () => {
+  it('uses the dedicated safe join and player-controlled progression RPCs', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    await repository.getRoomJoinInfo('123456')
+    await repository.joinHeadToHeadRoom('123456', 'competitor-id')
+    await repository.startHeadToHead('123456', 'player-id', 'secret-token')
+    await repository.skipHeadToHead('123456', 'player-id', 'secret-token', 'question-id')
+    await repository.continueHeadToHead('123456', 'player-id', 'secret-token', 'question-id')
+
+    expect(rpc.mock.calls).toEqual([
+      ['get_room_join_info', { p_room_code: '123456' }],
+      ['join_head_to_head_room', { p_room_code: '123456', p_competitor_id: 'competitor-id' }],
+      ['start_head_to_head_game', { p_room_code: '123456', p_player_id: 'player-id', p_reconnect_token: 'secret-token' }],
+      ['skip_head_to_head_answer', { p_room_code: '123456', p_player_id: 'player-id', p_reconnect_token: 'secret-token', p_expected_question_id: 'question-id' }],
+      ['continue_head_to_head_game', { p_room_code: '123456', p_player_id: 'player-id', p_reconnect_token: 'secret-token', p_expected_question_id: 'question-id' }],
+    ])
+  })
+})

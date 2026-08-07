@@ -88,6 +88,8 @@ export function PresentationStage({
 }) {
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
+  const headToHead = state.quizType === 'head-to-head'
+  const competitors = state.headToHeadCompetitors ?? []
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
   return (
     <section
@@ -112,20 +114,23 @@ export function PresentationStage({
               title="QR code for joining this Katwed room"
             />
           </div>
-          <p>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} joined</p>
-          <ul>{state.players.slice(0, compact ? 5 : 16).map((player) => <li key={player.id}>{player.nickname}</li>)}</ul>
+          {headToHead ? <div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.claimed ? (competitor.connected ? 'Ready' : 'Joined') : 'Waiting to join'}</span></div>)}</div> : <>
+            <p>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} joined</p>
+            <ul>{state.players.slice(0, compact ? 5 : 16).map((player) => <li key={player.id}>{player.nickname}</li>)}</ul>
+          </>}
         </div>
       )}
       {state.phase === 'question' && question && (
         <div className="presentation-question">
-          <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span><strong>{remaining}</strong></div>
+          <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span>{headToHead ? <strong>Untimed</strong> : <strong>{remaining}</strong>}</div>
+          {headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}
           <h1>{question.prompt}</h1>
           {question.supportingText && <p>{question.supportingText}</p>}
           {(question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
             <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
           )}
           <PresentationChoices question={question} phase={state.phase} />
-          <p>{state.submittedCount} of {state.players.length} answers submitted</p>
+          <p>{state.submittedCount} of {state.players.length} {headToHead ? 'responses resolved' : 'answers submitted'}</p>
         </div>
       )}
       {state.phase === 'locked' && (
@@ -139,14 +144,17 @@ export function PresentationStage({
           )}
           <RevealResult reveal={state.reveal} question={question} compact={compact} />
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
+          {headToHead && <><div className="head-to-head-results">{(state.headToHeadResults ?? []).map((result) => <div key={result.competitorId}><strong>{competitors.find((competitor) => competitor.competitorId === result.competitorId)?.displayName}</strong><span>{result.status === 'skipped' ? 'Skipped' : `${result.status === 'correct' ? 'Correct' : 'Incorrect'} · ${result.pointsAwarded} ${result.pointsAwarded === 1 ? 'point' : 'points'}`}</span></div>)}</div><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></>}
         </div>
       )}
       {state.phase === 'leaderboard' && (
         <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
       )}
-      {state.phase === 'finished' && (
+      {state.phase === 'finished' && (headToHead ? (
+        <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Head-to-Head complete</p><h1>{competitors[0]?.totalScore === competitors[1]?.totalScore ? 'It’s a draw!' : `${[...competitors].sort((a, b) => b.totalScore - a.totalScore)[0]?.displayName} wins!`}</h1><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>
+      ) : (
         <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Final standings</p><h1>Final leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
-      )}
+      ))}
     </section>
   )
 }

@@ -90,13 +90,13 @@ The production release applied `202608070004_quiz_themes.sql` and `202608070005_
 
 Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
-### Head-to-Head quiz foundation — live play pending
+### Head-to-Head live play — implemented locally, pending release
 
-Head to Head is implemented and tested locally as a quiz type, not a question type. A Head-to-Head quiz has exactly two named competitors and assigns every ordinary Katwed question to one of them. The editor provides stable competitor identities, assignment controls and question-list indicators across all six existing formats. New questions alternate from the most recent valid assignment, while an individually duplicated question keeps its assignment. Whole-quiz duplication creates fresh competitor IDs and remaps every assignment.
+Head to Head is implemented and tested locally as a quiz type, not a question type. A quiz has exactly two named competitors and assigns every existing Katwed question to one of them. Competitors claim their named slot rather than entering a nickname, both answer every question, and either may start and continue the game. The assigned competitor earns exactly one point for a correct answer; the other competitor may play along for no points or explicitly skip. Questions are untimed, reveal automatically only after both players resolve them, and finish with a two-person score and win/draw result.
 
-Standard quizzes continue to use the existing points controls and live engine. Head-to-Head definitions preserve stored point values for compatibility, while the editor explains that the future mode will score a correct assigned answer as one point. Live launch is deliberately blocked in both the dashboard and repository/database boundaries until the separate Stage 2 join, play-along and scoring work is designed and implemented. Typed Answer and quiz import/export remain later work.
+The editor, duplication remapping and all six question formats remain shared with Standard quizzes. Standard games retain their existing timed host-controlled question, lock, reveal, leaderboard and final-results flow. Head-to-Head presentation and controller views expose the assignment and two-person progress without giving the host Standard phase controls. Reconnect preserves the claimed slot, and safe state withholds answer correctness until reveal.
 
-This foundation is not deployed. `202608070006_head_to_head_foundation.sql` is a pending forward migration; production remains at `202608070005_quiz_backgrounds.sql`. The pending migration adds the constrained quiz type, dedicated two-person competitor rows, same-quiz question assignments, owner JSON/save support, old-client compatibility and an authoritative launch guard without changing player-safe state, scoring, phases, joining or answers.
+This work is not deployed. Production remains at `202608070005_quiz_backgrounds.sql`. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending forward migrations and must be applied together, in order, during a deliberate database-first release before the matching frontend is deployed. Typed Answer remains later work, and quiz import/export is the next planned product feature.
 
 ### Planned
 
@@ -266,7 +266,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied. `202608070006_head_to_head_foundation.sql` is committed for a future deliberate release and has not been applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are committed for a future deliberate release and have not been applied.
 
 For a new Supabase environment:
 
@@ -322,7 +322,7 @@ Applied production migrations, in order:
 
 `202608070005_quiz_backgrounds.sql` is applied immutable production history and the current production baseline. It adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries safe background metadata through owner reads, saves and player-safe game state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background.
 
-`202608070006_head_to_head_foundation.sql` is pending and must not be treated as production history until a deliberate database-first release. It adds `quiz_type`, dedicated `quiz_competitors`, common question assignment metadata and the server launch guard. It preserves missing new fields from older clients on update and defaults missing new definitions to Standard where safe.
+`202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending and must not be treated as production history until a deliberate database-first release. The immutable foundation file adds `quiz_type`, dedicated `quiz_competitors`, common question assignment metadata and its original server launch guard. The new forward migration adds competitor claims, one-resolution-per-player live play, player-authenticated start/skip/continue operations, exact Head-to-Head scoring and the extended safe game state. Release order is database first (`006`, then `007`), then the matching frontend.
 
 ### Production pgcrypto repair
 
@@ -398,10 +398,10 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. The Head-to-Head authoring and persistence foundation is implemented and tested locally, with its migration and frontend pending a deliberate release; Head-to-Head live play remains planned Stage 2 work. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. Head-to-Head authoring and two-player live play are implemented and tested locally, with both pending migrations and the matching frontend awaiting a deliberate database-first production release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Quiz import/export is the next planned product feature; Typed Answer remains later work.
 
-- tags;
 - quiz export and import;
+- tags;
 - optional media reuse;
 - old game-session cleanup;
 - further image and storage optimisation controls.

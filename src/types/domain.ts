@@ -142,13 +142,20 @@ export type PlayerAnswerPayload =
   | { type: 'pinpoint'; x: number; y: number }
   | { type: 'mashup'; memberIds: readonly [string, string] }
 
+export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
+export type HeadToHeadResultStatus = 'correct' | 'incorrect' | 'skipped'
+
 export type SafeQuestion =
-  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+
+interface SafeAssignment {
+  assignedCompetitorId?: string | null
+}
 
 interface QuestionProgress {
   questionNumber: number
@@ -232,6 +239,7 @@ export interface Player {
   id: string
   sessionId: string
   nickname: string
+  competitorId?: string | null
   connected: boolean
   joinedAt: string
   totalScore: number
@@ -245,6 +253,7 @@ export interface PlayerAnswer {
   questionId: string
   playerId: string
   payload: PlayerAnswerPayload
+  resolutionStatus?: HeadToHeadResolutionStatus
   submittedAt: string
   responseTimeMs: number
   correct: boolean
@@ -278,6 +287,7 @@ export interface LeaderboardEntry {
 export interface SafeGameState {
   sessionId: string
   quizTitle: string
+  quizType?: QuizType
   themeId: QuizThemeId
   backgroundId: QuizBackgroundId | null
   roomCode: string
@@ -286,6 +296,9 @@ export interface SafeGameState {
   currentQuestion: SafeQuestion | null
   roster: RosterMember[]
   players: Player[]
+  headToHeadCompetitors?: HeadToHeadGameCompetitor[]
+  headToHeadResolutions?: HeadToHeadResolution[]
+  headToHeadResults?: HeadToHeadResult[]
   submittedCount: number
   leaderboard: LeaderboardEntry[]
   reveal: RevealPayload | null
@@ -297,12 +310,49 @@ export interface PlayerSession {
   playerId: string
   roomCode: string
   nickname: string
+  competitorId?: string | null
   reconnectToken: string
 }
 
 export interface JoinResult {
   player: Player
   reconnectToken: string
+}
+
+export interface HeadToHeadJoinSlot {
+  competitorId: string
+  displayName: string
+  displayOrder: 0 | 1
+  claimed: boolean
+  connected: boolean
+}
+
+export interface RoomJoinInfo {
+  roomCode: string
+  quizTitle: string
+  quizType: QuizType
+  status: SessionStatus
+  phase: GamePhase
+  headToHeadCompetitors: HeadToHeadJoinSlot[]
+}
+
+export interface HeadToHeadGameCompetitor extends HeadToHeadJoinSlot {
+  playerId: string | null
+  totalScore: number
+  correctAnswerCount: number
+}
+
+export interface HeadToHeadResolution {
+  playerId: string
+  competitorId: string
+  status: HeadToHeadResolutionStatus
+}
+
+export interface HeadToHeadResult {
+  competitorId: string
+  assigned: boolean
+  status: HeadToHeadResultStatus
+  pointsAwarded: 0 | 1
 }
 
 export type Unsubscribe = () => void

@@ -17,7 +17,7 @@ import {
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
-import { DEFAULT_QUIZ_TYPE, HEAD_TO_HEAD_LAUNCH_MESSAGE } from '../features/head-to-head/headToHead'
+import { DEFAULT_QUIZ_TYPE } from '../features/head-to-head/headToHead'
 
 type LibraryView = 'active' | 'archived'
 
@@ -268,11 +268,10 @@ export function HostDashboardPage() {
                     <button
                       className="button button--primary"
                       type="button"
-                      disabled={!quiz.questions.length || quiz.quizType === 'head-to-head'}
-                      title={quiz.quizType === 'head-to-head' ? HEAD_TO_HEAD_LAUNCH_MESSAGE : undefined}
+                      disabled={!quiz.questions.length}
                       onClick={() => void launch(quiz)}
                     >
-                      {quiz.quizType === 'head-to-head' ? 'Live play pending' : activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
+                      {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
                     </button>
                     <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
                     <button

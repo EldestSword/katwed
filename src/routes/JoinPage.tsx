@@ -4,6 +4,7 @@ import { StatusMessage } from '../components/StatusMessage'
 import { repository } from '../services/repository'
 import { loadPlayerSession, savePlayerSession } from '../services/playerSession'
 import { RepositoryError } from '../services/gameRepository'
+import type { JoinResult, RoomJoinInfo } from '../types/domain'
 
 export function JoinPage() {
   const [params] = useSearchParams()
@@ -12,12 +13,39 @@ export function JoinPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [recoverableName, setRecoverableName] = useState('')
+  const [roomInfo, setRoomInfo] = useState<RoomJoinInfo | null>(null)
+  const [checkingRoom, setCheckingRoom] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (roomCode.length === 6) setRecoverableName(loadPlayerSession(roomCode)?.nickname ?? '')
-    else setRecoverableName('')
+    if (roomCode.length !== 6) {
+      setRecoverableName('')
+      setRoomInfo(null)
+      return
+    }
+    setRecoverableName(loadPlayerSession(roomCode)?.nickname ?? '')
+    let cancelled = false
+    setCheckingRoom(true)
+    void repository.getRoomJoinInfo(roomCode).then((info) => {
+      if (!cancelled) setRoomInfo(info)
+    }).catch(() => {
+      if (!cancelled) setRoomInfo(null)
+    }).finally(() => {
+      if (!cancelled) setCheckingRoom(false)
+    })
+    return () => { cancelled = true }
   }, [roomCode])
+
+  async function storeAndPlay(result: JoinResult) {
+    savePlayerSession({
+      playerId: result.player.id,
+      roomCode,
+      nickname: result.player.nickname,
+      competitorId: result.player.competitorId ?? null,
+      reconnectToken: result.reconnectToken,
+    })
+    await navigate(`/play/${roomCode}`)
+  }
 
   async function join(event: FormEvent) {
     event.preventDefault()
@@ -27,17 +55,23 @@ export function JoinPage() {
     setSubmitting(true)
     setError('')
     try {
-      const result = await repository.joinRoom(roomCode, nickname)
-      savePlayerSession({
-        playerId: result.player.id,
-        roomCode,
-        nickname: result.player.nickname,
-        reconnectToken: result.reconnectToken,
-      })
-      await navigate(`/play/${roomCode}`)
+      await storeAndPlay(await repository.joinRoom(roomCode, nickname))
     } catch (reason) {
       if (reason instanceof RepositoryError) setError(reason.message)
       else setError('We could not join the game. Check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function joinCompetitor(competitorId: string) {
+    setSubmitting(true)
+    setError('')
+    try {
+      await storeAndPlay(await repository.joinHeadToHeadRoom(roomCode, competitorId))
+    } catch (reason) {
+      setError(reason instanceof RepositoryError ? reason.message : 'We could not claim that competitor. Try again.')
+      setRoomInfo(await repository.getRoomJoinInfo(roomCode).catch(() => null))
     } finally {
       setSubmitting(false)
     }
@@ -51,7 +85,7 @@ export function JoinPage() {
       const result = await repository.reconnectPlayer(saved)
       if (!result) {
         setRecoverableName('')
-        setError('That saved player session has expired. Join again with a nickname.')
+        setError('That saved player session has expired. Join again.')
         return
       }
       await navigate(`/play/${roomCode}`)
@@ -61,6 +95,8 @@ export function JoinPage() {
       setSubmitting(false)
     }
   }
+
+  const isHeadToHead = roomInfo?.quizType === 'head-to-head'
 
   return (
     <main className="form-page">
@@ -79,13 +115,36 @@ export function JoinPage() {
           <input id="join-room" className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
             value={roomCode} onChange={(event) => { setRoomCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
             placeholder="123456" />
-          <label htmlFor="nickname">Nickname</label>
-          <input id="nickname" autoComplete="nickname" maxLength={30} value={nickname}
-            onChange={(event) => { setNickname(event.target.value); setError('') }} placeholder="e.g. Quizzy Lizzy" />
+          {checkingRoom && <p className="muted">Checking room…</p>}
+          {isHeadToHead ? (
+            <fieldset className="head-to-head-join">
+              <legend>Who are you?</legend>
+              <p>{roomInfo.quizTitle}</p>
+              <div className="head-to-head-join__choices">
+                {roomInfo.headToHeadCompetitors.map((competitor) => (
+                  <button
+                    className="button button--primary"
+                    disabled={submitting || competitor.claimed || roomInfo.phase !== 'lobby'}
+                    key={competitor.competitorId}
+                    onClick={() => void joinCompetitor(competitor.competitorId)}
+                    type="button"
+                  >
+                    {competitor.displayName}{competitor.claimed ? ' — joined' : ''}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <>
+              <label htmlFor="nickname">Nickname</label>
+              <input id="nickname" autoComplete="nickname" maxLength={30} value={nickname}
+                onChange={(event) => { setNickname(event.target.value); setError('') }} placeholder="e.g. Quizzy Lizzy" />
+              <button className="button button--primary button--wide" disabled={submitting} type="submit">
+                {submitting ? 'Joining…' : 'Join game'}
+              </button>
+            </>
+          )}
           {error && <StatusMessage tone="error">{error}</StatusMessage>}
-          <button className="button button--primary button--wide" disabled={submitting} type="submit">
-            {submitting ? 'Joining…' : 'Join game'}
-          </button>
         </form>
         <Link className="text-link" to="/">← Back home</Link>
       </div>

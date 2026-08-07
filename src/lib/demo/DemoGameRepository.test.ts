@@ -13,6 +13,32 @@ vi.mock('../../services/questionImages', async () => ({
 }))
 
 import { DemoGameRepository } from './DemoGameRepository'
+import type { PlayerAnswerPayload, Question } from '../../types/domain'
+import { headToHeadDemoQuiz } from './sampleData'
+
+function correctAnswer(question: Question): PlayerAnswerPayload {
+  switch (question.type) {
+    case 'single-choice': return { type: question.type, optionId: question.correctOptionId }
+    case 'multiple-select': return { type: question.type, optionIds: [...question.correctOptionIds] }
+    case 'true-false': return { type: question.type, value: question.correctValue }
+    case 'slider': return { type: question.type, value: question.correctValue }
+    case 'pinpoint': return { type: question.type, x: question.targetX, y: question.targetY }
+    case 'mashup': return { type: question.type, memberIds: question.correctMemberIds }
+  }
+}
+
+function saveHeadToHeadFixture(repository: DemoGameRepository) {
+  return repository.saveQuiz({
+    title: headToHeadDemoQuiz.title,
+    quizType: headToHeadDemoQuiz.quizType,
+    headToHeadCompetitors: headToHeadDemoQuiz.headToHeadCompetitors,
+    coverImagePath: headToHeadDemoQuiz.coverImagePath,
+    themeId: headToHeadDemoQuiz.themeId,
+    backgroundId: headToHeadDemoQuiz.backgroundId,
+    roster: headToHeadDemoQuiz.roster,
+    questions: headToHeadDemoQuiz.questions,
+  })
+}
 
 describe('DemoGameRepository multi-format game state', () => {
   beforeEach(() => {
@@ -68,7 +94,7 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(quiz.questions.every((question) => question.assignedCompetitorId === null)).toBe(true)
   })
 
-  it('persists and duplicates Head-to-Head definitions but blocks them from live rooms', async () => {
+  it('persists, duplicates and launches valid Head-to-Head definitions', async () => {
     const repository = new DemoGameRepository()
     const source = await repository.getQuiz('quiz-mixed')
     if (!source) throw new Error('Demo quiz missing')
@@ -97,10 +123,9 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(saved.themeId).toBe(source.themeId)
     expect(saved.backgroundId).toBe(source.backgroundId)
     expect((await new DemoGameRepository().getQuiz(saved.id))?.headToHeadCompetitors).toEqual(saved.headToHeadCompetitors)
-    await expect(repository.launchGame(saved.id)).rejects.toThrow(
-      'Head-to-Head live play is not available in this build yet.',
-    )
-    expect(await repository.getActiveSessionForQuiz(saved.id)).toBeNull()
+    const session = await repository.launchGame(saved.id)
+    expect(session).toMatchObject({ quizId: saved.id, phase: 'lobby', questionClosesAt: null })
+    await repository.changePhase(session.id, 'close')
 
     const duplicate = await repository.duplicateQuiz(saved.id)
     expect(duplicate.headToHeadCompetitors.every((competitor) =>
@@ -386,6 +411,117 @@ describe('DemoGameRepository multi-format game state', () => {
       playerId: joined.player.id, roomCode: session.roomCode, nickname: joined.player.nickname,
       reconnectToken: joined.reconnectToken,
     }))?.player.id).toBe(joined.player.id)
+  })
+
+  it('runs a complete untimed two-player Head-to-Head game across all six question types', async () => {
+    const repository = new DemoGameRepository()
+    const quiz = await saveHeadToHeadFixture(repository)
+    const session = await repository.launchGame(quiz.id)
+    const [rossSlot, jessSlot] = (await repository.getRoomJoinInfo(session.roomCode))!.headToHeadCompetitors
+
+    await expect(repository.joinRoom(session.roomCode, 'Nickname')).rejects.toThrow(/competitors/i)
+    const ross = await repository.joinHeadToHeadRoom(session.roomCode, rossSlot.competitorId)
+    await expect(repository.joinHeadToHeadRoom(session.roomCode, rossSlot.competitorId)).rejects.toMatchObject({ code: 'duplicate-nickname' })
+    await expect(repository.startHeadToHead(session.roomCode, ross.player.id, ross.reconnectToken)).rejects.toThrow(/Both competitors/i)
+    const jess = await repository.joinHeadToHeadRoom(session.roomCode, jessSlot.competitorId)
+    expect((await repository.reconnectPlayer({
+      playerId: jess.player.id,
+      roomCode: session.roomCode,
+      nickname: jess.player.nickname,
+      competitorId: jess.player.competitorId,
+      reconnectToken: jess.reconnectToken,
+    }))?.player.competitorId).toBe(jessSlot.competitorId)
+
+    await repository.startHeadToHead(session.roomCode, ross.player.id, ross.reconnectToken)
+    await expect(repository.changePhase(session.id, 'lock')).rejects.toThrow(/controlled by the competitors/i)
+
+    for (let index = 0; index < quiz.questions.length; index += 1) {
+      const question = quiz.questions[index]
+      const assigned = question.assignedCompetitorId === rossSlot.competitorId ? ross : jess
+      const playAlong = assigned === ross ? jess : ross
+      const before = await repository.getSafeGameState(session.roomCode)
+      expect(before).toMatchObject({ quizType: 'head-to-head', phase: 'question', questionClosesAt: null })
+      expect(before?.currentQuestion?.assignedCompetitorId).toBe(question.assignedCompetitorId)
+      expect(before?.headToHeadResults).toEqual([])
+      expect(JSON.stringify(before?.currentQuestion)).not.toMatch(/correctOptionId|correctValue|correctMemberIds|targetX/)
+
+      await repository.submitAnswer(session.roomCode, assigned.player.id, assigned.reconnectToken, correctAnswer(question))
+      expect((await repository.getSafeGameState(session.roomCode))?.phase).toBe('question')
+      if (index === 0) {
+        await repository.submitAnswer(session.roomCode, playAlong.player.id, playAlong.reconnectToken, correctAnswer(question))
+      } else {
+        await repository.skipHeadToHead(session.roomCode, playAlong.player.id, playAlong.reconnectToken, question.id)
+      }
+
+      const reveal = await repository.getSafeGameState(session.roomCode)
+      expect(reveal?.phase).toBe('reveal')
+      expect(reveal?.headToHeadResults).toHaveLength(2)
+      expect(reveal?.headToHeadResults?.find((result) => result.competitorId === assigned.player.competitorId))
+        .toMatchObject({ assigned: true, status: 'correct', pointsAwarded: 1 })
+      if (index === 0) {
+        expect(reveal?.headToHeadResults?.find((result) => result.competitorId === playAlong.player.competitorId))
+          .toMatchObject({ assigned: false, status: 'correct', pointsAwarded: 0 })
+      }
+
+      await repository.continueHeadToHead(session.roomCode, playAlong.player.id, playAlong.reconnectToken, question.id)
+      await repository.continueHeadToHead(session.roomCode, assigned.player.id, assigned.reconnectToken, question.id)
+    }
+
+    const finished = await repository.getSafeGameState(session.roomCode)
+    expect(finished?.phase).toBe('finished')
+    expect(finished?.leaderboard).toEqual([])
+    expect(finished?.headToHeadCompetitors?.reduce((total, competitor) => total + competitor.totalScore, 0))
+      .toBe(quiz.questions.length)
+  })
+
+  it('awards no point for an assigned wrong answer and forbids the assigned competitor from skipping', async () => {
+    const repository = new DemoGameRepository()
+    const quiz = await saveHeadToHeadFixture(repository)
+    if (quiz.questions[0].type !== 'single-choice') throw new Error('Head-to-Head fixture changed')
+    const question = quiz.questions[0]
+    const session = await repository.launchGame(quiz.id)
+    const [firstSlot, secondSlot] = (await repository.getRoomJoinInfo(session.roomCode))!.headToHeadCompetitors
+    const first = await repository.joinHeadToHeadRoom(session.roomCode, firstSlot.competitorId)
+    const second = await repository.joinHeadToHeadRoom(session.roomCode, secondSlot.competitorId)
+    await repository.startHeadToHead(session.roomCode, first.player.id, first.reconnectToken)
+    const assigned = question.assignedCompetitorId === firstSlot.competitorId ? first : second
+    const playAlong = assigned === first ? second : first
+    await expect(repository.skipHeadToHead(session.roomCode, assigned.player.id, assigned.reconnectToken, question.id))
+      .rejects.toThrow(/must answer/i)
+    await repository.submitAnswer(session.roomCode, assigned.player.id, assigned.reconnectToken, {
+      type: 'single-choice', optionId: question.options.find((option) => option.id !== question.correctOptionId)!.id,
+    })
+    await repository.skipHeadToHead(session.roomCode, playAlong.player.id, playAlong.reconnectToken, question.id)
+    expect((await repository.getSafeGameState(session.roomCode))?.headToHeadResults?.find((result) => result.assigned))
+      .toMatchObject({ status: 'incorrect', pointsAwarded: 0 })
+  })
+
+  it('does not convert Standard multiple-select partial credit into a Head-to-Head point', async () => {
+    const repository = new DemoGameRepository()
+    const source = structuredClone(headToHeadDemoQuiz)
+    const multiple = source.questions.find((question) => question.type === 'multiple-select')
+    if (!multiple) throw new Error('Multiple-select fixture missing')
+    multiple.scoringMode = 'partial-wipeout'
+    multiple.minimumSelections = 1
+    source.questions = [multiple]
+    const quiz = await repository.saveQuiz({
+      title: source.title, quizType: source.quizType, headToHeadCompetitors: source.headToHeadCompetitors,
+      coverImagePath: null, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions: source.questions,
+    })
+    const session = await repository.launchGame(quiz.id)
+    const [firstSlot, secondSlot] = (await repository.getRoomJoinInfo(session.roomCode))!.headToHeadCompetitors
+    const first = await repository.joinHeadToHeadRoom(session.roomCode, firstSlot.competitorId)
+    const second = await repository.joinHeadToHeadRoom(session.roomCode, secondSlot.competitorId)
+    await repository.startHeadToHead(session.roomCode, first.player.id, first.reconnectToken)
+    const assigned = multiple.assignedCompetitorId === firstSlot.competitorId ? first : second
+    const playAlong = assigned === first ? second : first
+    await repository.submitAnswer(session.roomCode, assigned.player.id, assigned.reconnectToken, {
+      type: 'multiple-select', optionIds: [multiple.correctOptionIds[0]],
+    })
+    await repository.skipHeadToHead(session.roomCode, playAlong.player.id, playAlong.reconnectToken, multiple.id)
+    expect((await repository.getSafeGameState(session.roomCode))?.headToHeadResults?.find((result) => result.assigned))
+      .toMatchObject({ status: 'incorrect', pointsAwarded: 0 })
   })
 
   it('does not expose any answer key before reveal', async () => {

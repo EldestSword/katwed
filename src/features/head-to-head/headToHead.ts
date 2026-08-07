@@ -7,7 +7,6 @@ import {
 } from '../../types/domain'
 
 export const DEFAULT_QUIZ_TYPE: QuizType = 'standard'
-export const HEAD_TO_HEAD_LAUNCH_MESSAGE = 'Head-to-Head live play is not available in this build yet.'
 
 const quizTypes = new Set<string>(QUIZ_TYPE_IDS)
 
