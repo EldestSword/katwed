@@ -55,6 +55,49 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('quiz library search, sorting and last-edited details work across views', async ({ page }) => {
+  await enterHost(page)
+
+  const activeTab = page.getByRole('tab', { name: /Active quizzes/ })
+  const archivedTab = page.getByRole('tab', { name: /Archived quizzes/ })
+  const search = page.getByRole('searchbox', { name: 'Search quizzes' })
+  const sort = page.getByRole('combobox', { name: 'Sort quizzes' })
+
+  await expect(activeTab).toHaveAttribute('aria-selected', 'true')
+  await expect(search).toBeVisible()
+  await expect(sort).toHaveValue('updated-desc')
+  await expect(page.locator('.quiz-card__metadata')).toHaveCount(2)
+  await expect(page.locator('.quiz-card__metadata').first()).toContainText(/^Last edited /)
+
+  await search.fill('curious')
+  await expect(page.getByRole('article', { name: 'The Curious Crew' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Katwed! Mixed Quiz' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Clear search' }).click()
+  await sort.selectOption({ label: 'Name A–Z' })
+  await expect(page.getByRole('article').getByRole('heading', { level: 2 })).toHaveText([
+    'Katwed! Mixed Quiz',
+    'The Curious Crew',
+  ])
+
+  await search.fill('curious')
+  await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('button', { name: 'Archive' }).click()
+  await expect(page.getByRole('heading', { name: 'No active quizzes match “curious”.' })).toBeVisible()
+  await expect(search).toHaveValue('curious')
+  await expect(sort).toHaveValue('title-asc')
+
+  await archivedTab.click()
+  await expect(page.getByRole('article', { name: 'The Curious Crew' })).toBeVisible()
+
+  await search.fill('missing')
+  await expect(page.getByRole('heading', { name: 'No archived quizzes match “missing”.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Clear search' }).last().click()
+
+  await activeTab.click()
+  await expect(sort).toHaveValue('title-asc')
+  await expect(page.getByRole('article', { name: 'Katwed! Mixed Quiz' })).toBeVisible()
+})
+
 test('an active quiz duplicates into an independent new editor', async ({ page }) => {
   await enterHost(page)
   const sourceCard = page.getByRole('article').filter({ hasText: 'The Curious Crew' })

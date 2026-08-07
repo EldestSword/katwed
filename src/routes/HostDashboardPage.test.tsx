@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../features/auth/AuthProvider'
+import { QUIZ_SORT_STORAGE_KEY } from '../features/quiz-library/library'
 import { sampleQuiz } from '../lib/demo/sampleData'
 import type { Quiz } from '../types/domain'
 import { HostDashboardPage } from './HostDashboardPage'
@@ -15,6 +16,34 @@ const repositoryMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../services/repository', () => ({ repository: repositoryMocks }))
+
+function quiz(
+  id: string,
+  title: string,
+  createdAt: string,
+  updatedAt: string,
+  archivedAt: string | null = null,
+): Quiz {
+  return {
+    ...structuredClone(sampleQuiz),
+    id,
+    title,
+    createdAt,
+    updatedAt,
+    archivedAt,
+  }
+}
+
+const activeQuizzes = [
+  quiz('active-friday', 'Friday Team Quiz', '2026-01-01T12:00:00.000Z', '2026-03-01T12:00:00.000Z'),
+  quiz('quiz-10', 'Quiz 10', '2026-04-01T12:00:00.000Z', '2026-01-01T12:00:00.000Z'),
+  quiz('quiz-2', 'quiz 2', '2026-02-01T12:00:00.000Z', '2026-02-01T12:00:00.000Z'),
+]
+
+const archivedQuizzes = [
+  quiz('archived-friday', 'Friday Archive', '2025-01-01T12:00:00.000Z', '2026-02-01T12:00:00.000Z', '2026-05-01T12:00:00.000Z'),
+  quiz('archived-old', 'Old Notes', '2024-01-01T12:00:00.000Z', '2026-01-01T12:00:00.000Z', '2026-05-02T12:00:00.000Z'),
+]
 
 function CopyEditorDestination() {
   return <h1>Editing copy {useParams().quizId}</h1>
@@ -34,50 +63,145 @@ function renderDashboard() {
   )
 }
 
-describe('HostDashboardPage quiz duplication', () => {
-  const active = structuredClone(sampleQuiz)
-  const archived: Quiz = {
-    ...structuredClone(sampleQuiz),
-    id: 'archived-quiz',
-    title: 'Archived Curious Crew',
-    archivedAt: '2026-08-07T12:00:00.000Z',
-  }
+function cardTitles() {
+  return screen.getAllByRole('article').map((card) => within(card).getByRole('heading', { level: 2 }).textContent)
+}
 
+describe('HostDashboardPage quiz library', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    repositoryMocks.listQuizzes.mockResolvedValue([active])
-    repositoryMocks.listArchivedQuizzes.mockResolvedValue([archived])
+    sessionStorage.clear()
+    repositoryMocks.listQuizzes.mockResolvedValue(activeQuizzes)
+    repositoryMocks.listArchivedQuizzes.mockResolvedValue(archivedQuizzes)
     repositoryMocks.getActiveSessionForQuiz.mockResolvedValue(null)
   })
 
-  it('shows Duplicate only in the active library', async () => {
+  it('renders accessible controls, defaults to Last edited and shows British last-edited metadata', async () => {
     renderDashboard()
 
-    const activeCard = await screen.findByRole('article', { name: '' })
-    expect(activeCard).toHaveTextContent('The Curious Crew')
-    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeVisible()
-
-    await userEvent.click(screen.getByRole('tab', { name: /Archived quizzes/ }))
-    expect(await screen.findByText('Archived Curious Crew')).toBeVisible()
-    expect(screen.queryByRole('button', { name: /Duplicate/ })).not.toBeInTheDocument()
+    expect(await screen.findByRole('searchbox', { name: 'Search quizzes' })).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Sort quizzes' })).toHaveValue('updated-desc')
+    expect(cardTitles()).toEqual(['Friday Team Quiz', 'quiz 2', 'Quiz 10'])
+    expect(screen.getByText('Last edited 1 Mar 2026')).toBeVisible()
   })
 
-  it('prevents repeat clicks and navigates to the newly created quiz editor', async () => {
+  it('filters Active titles without case sensitivity, preserves total counts and clears the search', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    const search = await screen.findByRole('searchbox', { name: 'Search quizzes' })
+    await user.type(search, '  TEAM  ')
+
+    expect(screen.getByRole('article', { name: 'Friday Team Quiz' })).toBeVisible()
+    expect(screen.queryByRole('article', { name: 'Quiz 10' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Active quizzes 3' })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(search).toHaveValue('')
+    expect(screen.getAllByRole('article')).toHaveLength(3)
+  })
+
+  it('keeps the current query when switching between Active and Archived libraries', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search quizzes' }), 'FRIDAY')
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 2' }))
+
+    expect(screen.getByRole('article', { name: 'Friday Archive' })).toBeVisible()
+    expect(screen.queryByRole('article', { name: 'Old Notes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search quizzes' })).toHaveValue('FRIDAY')
+  })
+
+  it.each([
+    ['title-asc', ['Friday Team Quiz', 'quiz 2', 'Quiz 10']],
+    ['title-desc', ['Quiz 10', 'quiz 2', 'Friday Team Quiz']],
+    ['created-desc', ['Quiz 10', 'quiz 2', 'Friday Team Quiz']],
+  ])('sorts cards using %s', async (sort, expected) => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort quizzes' }), sort)
+
+    expect(cardTitles()).toEqual(expected)
+    expect(sessionStorage.getItem(QUIZ_SORT_STORAGE_KEY)).toBe(sort)
+  })
+
+  it('restores a valid session sort preference', async () => {
+    sessionStorage.setItem(QUIZ_SORT_STORAGE_KEY, 'title-desc')
+    renderDashboard()
+
+    expect(await screen.findByRole('combobox', { name: 'Sort quizzes' })).toHaveValue('title-desc')
+    expect(cardTitles()).toEqual(['Quiz 10', 'quiz 2', 'Friday Team Quiz'])
+  })
+
+  it('falls back safely when the stored sort preference is invalid', async () => {
+    sessionStorage.setItem(QUIZ_SORT_STORAGE_KEY, 'not-a-sort')
+    renderDashboard()
+
+    expect(await screen.findByRole('combobox', { name: 'Sort quizzes' })).toHaveValue('updated-desc')
+    expect(cardTitles()).toEqual(['Friday Team Quiz', 'quiz 2', 'Quiz 10'])
+  })
+
+  it('shows a search-specific empty state and can clear it', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search quizzes' }), 'Missing')
+    expect(screen.getByRole('heading', { name: 'No active quizzes match “Missing”.' })).toBeVisible()
+
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear search' })
+    await user.click(clearButtons.at(-1)!)
+    expect(screen.getAllByRole('article')).toHaveLength(3)
+  })
+
+  it('preserves genuine empty states when the underlying libraries are empty', async () => {
+    const user = userEvent.setup()
+    repositoryMocks.listQuizzes.mockResolvedValue([])
+    repositoryMocks.listArchivedQuizzes.mockResolvedValue([])
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: 'No active quizzes' })).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 0' }))
+    expect(screen.getByRole('heading', { name: 'No archived quizzes' })).toBeVisible()
+  })
+
+  it('preserves the different Active and Archived card actions', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    const activeCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    expect(within(activeCard).getByRole('button', { name: 'Launch game' })).toBeVisible()
+    expect(within(activeCard).getByRole('link', { name: 'Edit' })).toBeVisible()
+    expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
+    expect(within(activeCard).getByRole('button', { name: 'Archive' })).toBeVisible()
+
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 2' }))
+    const archivedCard = screen.getByRole('article', { name: 'Friday Archive' })
+    expect(within(archivedCard).getByRole('button', { name: 'Restore' })).toBeVisible()
+    expect(within(archivedCard).getByRole('button', { name: 'Permanently delete' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
+  })
+
+  it('prevents repeat Duplicate clicks and navigates to the newly created quiz editor', async () => {
+    const user = userEvent.setup()
     let finishDuplicate: ((quiz: Quiz) => void) | undefined
     repositoryMocks.duplicateQuiz.mockReturnValue(new Promise<Quiz>((resolve) => { finishDuplicate = resolve }))
     renderDashboard()
 
-    const duplicateButton = await screen.findByRole('button', { name: 'Duplicate' })
-    await userEvent.click(duplicateButton)
+    const sourceCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    const duplicateButton = within(sourceCard).getByRole('button', { name: 'Duplicate' })
+    await user.click(duplicateButton)
     expect(duplicateButton).toBeDisabled()
     expect(repositoryMocks.duplicateQuiz).toHaveBeenCalledOnce()
-    expect(repositoryMocks.duplicateQuiz).toHaveBeenCalledWith(active.id)
+    expect(repositoryMocks.duplicateQuiz).toHaveBeenCalledWith('active-friday')
 
     finishDuplicate?.({
-      ...structuredClone(active),
+      ...structuredClone(activeQuizzes[0]),
       id: 'new-copy-id',
-      title: 'The Curious Crew (Copy)',
+      title: 'Friday Team Quiz (Copy)',
     })
     expect(await screen.findByRole('heading', { name: 'Editing copy new-copy-id' })).toBeVisible()
   })

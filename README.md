@@ -54,6 +54,12 @@ The Duplicate Quiz frontend is deployed to Netlify. The production release verif
 
 This feature uses the existing authenticated quiz read/save repository path and required no database migration.
 
+### Quiz library search and sorting
+
+Title search, Last edited metadata and deterministic library sorting are implemented and tested locally, pending a deliberate Netlify frontend release. Search is case-insensitive, trims the query and filters only the currently selected Active or Archived library. Sorting defaults to most recently edited, with Name A–Z, Name Z–A and Newest created alternatives; the selected sort is retained for the current browser session.
+
+This feature works entirely in the browser over the already-loaded quiz lists and uses the existing `createdAt` and `updatedAt` values. It adds no search endpoint, repository operation or database migration.
+
 ### Planned
 
 The next phase focuses on quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap) and are not yet production features.
@@ -336,7 +342,7 @@ Archive, restore, safer permanent deletion and duplicate quiz are implemented an
 
 - general orphaned-media discovery and cleanup;
 - quiz thumbnails;
-- search and tags;
+- tags;
 - storage-usage visibility;
 - quiz export and import;
 - optional media reuse;

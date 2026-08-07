@@ -1,8 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { useAuth } from '../features/auth/AuthProvider'
+import {
+  DEFAULT_QUIZ_SORT,
+  QUIZ_SORT_STORAGE_KEY,
+  filterQuizzes,
+  formatLastEdited,
+  normaliseQuizSort,
+  quizSortOptions,
+  sortQuizzes,
+  type QuizSort,
+} from '../features/quiz-library/library'
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 
@@ -12,6 +22,14 @@ export function HostDashboardPage() {
   const [activeQuizzes, setActiveQuizzes] = useState<Quiz[]>([])
   const [archivedQuizzes, setArchivedQuizzes] = useState<Quiz[]>([])
   const [view, setView] = useState<LibraryView>('active')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sort, setSort] = useState<QuizSort>(() => {
+    try {
+      return normaliseQuizSort(window.sessionStorage.getItem(QUIZ_SORT_STORAGE_KEY))
+    } catch {
+      return DEFAULT_QUIZ_SORT
+    }
+  })
   const [activeSessionIds, setActiveSessionIds] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -20,6 +38,12 @@ export function HostDashboardPage() {
   const [workingQuizId, setWorkingQuizId] = useState('')
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const sourceQuizzes = view === 'active' ? activeQuizzes : archivedQuizzes
+  const normalisedSearchQuery = searchQuery.trim()
+  const quizzes = useMemo(
+    () => sortQuizzes(filterQuizzes(sourceQuizzes, searchQuery), sort),
+    [searchQuery, sort, sourceQuizzes],
+  )
 
   async function refresh() {
     try {
@@ -129,9 +153,16 @@ export function HostDashboardPage() {
     }
   }
 
-  if (loading) return <LoadingScreen message="Opening host headquarters…" />
+  function changeSort(nextSort: QuizSort) {
+    setSort(nextSort)
+    try {
+      window.sessionStorage.setItem(QUIZ_SORT_STORAGE_KEY, nextSort)
+    } catch {
+      // The selection still works when browser storage is unavailable.
+    }
+  }
 
-  const quizzes = view === 'active' ? activeQuizzes : archivedQuizzes
+  if (loading) return <LoadingScreen message="Opening host headquarters…" />
 
   return (
     <main className="host-page">
@@ -152,48 +183,104 @@ export function HostDashboardPage() {
           Archived quizzes <span>{archivedQuizzes.length}</span>
         </button>
       </div>
+      <div className="library-toolbar">
+        <div className="library-control library-search">
+          <label htmlFor="quiz-library-search">Search quizzes</label>
+          <div className="library-search__row">
+            <input
+              id="quiz-library-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search quiz titles"
+            />
+            {searchQuery.length > 0 && (
+              <button className="button button--ghost" type="button" onClick={() => setSearchQuery('')}>
+                Clear search
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="library-control library-sort">
+          <label htmlFor="quiz-library-sort">Sort quizzes</label>
+          <select
+            id="quiz-library-sort"
+            value={sort}
+            onChange={(event) => changeSort(event.target.value as QuizSort)}
+          >
+            {quizSortOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
       {notice && <StatusMessage tone="success">{notice}</StatusMessage>}
       {error && <StatusMessage tone="error">{error}</StatusMessage>}
       <div className="quiz-grid">
-        {quizzes.map((quiz) => (
-          <article className={`quiz-card${view === 'archived' ? ' quiz-card--archived' : ''}`} key={quiz.id}>
-            <div className="quiz-card__art" aria-hidden="true"><span>{quiz.questions.length}</span></div>
-            <div className="quiz-card__body">
-              <h2>{quiz.title}</h2>
-              <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>
-              {view === 'active' ? (
-                <div className="card-actions">
-                  <button className="button button--primary" type="button" disabled={!quiz.questions.length} onClick={() => void launch(quiz)}>
-                    {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
-                  </button>
-                  <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
-                  <button
-                    className="button button--secondary"
-                    type="button"
-                    disabled={workingQuizId === quiz.id}
-                    onClick={() => void duplicate(quiz)}
-                  >{workingQuizId === quiz.id ? 'Duplicating...' : 'Duplicate'}</button>
-                  <button
-                    className="button button--ghost"
-                    type="button"
-                    disabled={Boolean(activeSessionIds[quiz.id]) || workingQuizId === quiz.id}
-                    title={activeSessionIds[quiz.id] ? 'Close the active game before archiving this quiz.' : undefined}
-                    onClick={() => void archive(quiz)}
-                  >Archive</button>
-                </div>
-              ) : (
-                <div className="card-actions">
-                  <button className="button button--secondary" type="button" disabled={workingQuizId === quiz.id} onClick={() => void restore(quiz)}>Restore</button>
-                  <button className="button button--ghost danger" type="button" disabled={workingQuizId === quiz.id} onClick={() => void permanentlyRemove(quiz)}>Permanently delete</button>
-                </div>
-              )}
-            </div>
-          </article>
-        ))}
+        {quizzes.map((quiz) => {
+          const lastEdited = formatLastEdited(quiz.updatedAt)
+          const titleId = `quiz-${quiz.id}-title`
+
+          return (
+            <article
+              aria-labelledby={titleId}
+              className={`quiz-card${view === 'archived' ? ' quiz-card--archived' : ''}`}
+              key={quiz.id}
+            >
+              <div className="quiz-card__art" aria-hidden="true"><span>{quiz.questions.length}</span></div>
+              <div className="quiz-card__body">
+                <h2 id={titleId}>{quiz.title}</h2>
+                <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>
+                {lastEdited.dateTime ? (
+                  <time className="quiz-card__metadata" dateTime={lastEdited.dateTime} title={lastEdited.title}>
+                    {lastEdited.label}
+                  </time>
+                ) : (
+                  <span className="quiz-card__metadata">{lastEdited.label}</span>
+                )}
+                {view === 'active' ? (
+                  <div className="card-actions">
+                    <button className="button button--primary" type="button" disabled={!quiz.questions.length} onClick={() => void launch(quiz)}>
+                      {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
+                    </button>
+                    <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={workingQuizId === quiz.id}
+                      onClick={() => void duplicate(quiz)}
+                    >{workingQuizId === quiz.id ? 'Duplicating...' : 'Duplicate'}</button>
+                    <button
+                      className="button button--ghost"
+                      type="button"
+                      disabled={Boolean(activeSessionIds[quiz.id]) || workingQuizId === quiz.id}
+                      title={activeSessionIds[quiz.id] ? 'Close the active game before archiving this quiz.' : undefined}
+                      onClick={() => void archive(quiz)}
+                    >Archive</button>
+                  </div>
+                ) : (
+                  <div className="card-actions">
+                    <button className="button button--secondary" type="button" disabled={workingQuizId === quiz.id} onClick={() => void restore(quiz)}>Restore</button>
+                    <button className="button button--ghost danger" type="button" disabled={workingQuizId === quiz.id} onClick={() => void permanentlyRemove(quiz)}>Permanently delete</button>
+                  </div>
+                )}
+              </div>
+            </article>
+          )
+        })}
         {!quizzes.length && (
           <div className="empty-card">
-            <h2>{view === 'active' ? 'No active quizzes' : 'No archived quizzes'}</h2>
-            <p>{view === 'active' ? 'Create a quiz or restore one from the archive.' : 'Archived quizzes will appear here.'}</p>
+            {sourceQuizzes.length > 0 && normalisedSearchQuery ? (
+              <>
+                <h2>No {view} quizzes match “{normalisedSearchQuery}”.</h2>
+                <button className="button button--secondary" type="button" onClick={() => setSearchQuery('')}>Clear search</button>
+              </>
+            ) : (
+              <>
+                <h2>{view === 'active' ? 'No active quizzes' : 'No archived quizzes'}</h2>
+                <p>{view === 'active' ? 'Create a quiz or restore one from the archive.' : 'Archived quizzes will appear here.'}</p>
+              </>
+            )}
           </div>
         )}
       </div>

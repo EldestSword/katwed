@@ -31,6 +31,8 @@ Screens depend on the `GameRepository` contract rather than a storage implementa
 
 Quiz duplication also stays behind this boundary. Both implementations use the same pure clone/remapping helper, reject archived sources, and persist the resulting definition through the existing `saveQuiz` path. Supabase reads through `host_get_quiz` and writes through `host_save_quiz`; no duplication RPC or schema migration is required. Because game sessions are stored separately and are not part of the save input, a duplicate starts without players, answers, scores or an active room, while any source room remains untouched.
 
+Quiz-library title search and sorting are intentionally client-side over the complete Active or Archived arrays already returned by the repository. The dashboard filters the selected library, then applies an explicit deterministic sort using existing `createdAt` and `updatedAt` values. Sort choice is browser-session state; search terms are not sent to Supabase. This frontend change is implemented and tested locally, pending a deliberate Netlify release.
+
 The Duplicate Quiz frontend is deployed to Netlify. Release verification confirmed the public and host-login routes, SPA routing, immutable deploy URL and production dashboard bundle. Authenticated production duplication UAT was not performed during the release because no secure host browser session was available; repository, component and browser coverage passed locally before deployment.
 
 The Supabase implementation is the proven production backend. Demo mode remains a development and browser-test convenience, not the production data source.
