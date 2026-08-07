@@ -14,3 +14,9 @@ supabase/.temp/
 
 # Local Netlify folder
 .netlify
+
+# Large local source artwork; commit only optimised public/backgrounds/*.webp files.
+/artwork/backgrounds-source/*.[pP][nN][gG]
+/artwork/backgrounds-source/*.[jJ][pP][gG]
+/artwork/backgrounds-source/*.[jJ][pP][eE][gG]
+/artwork/backgrounds-source/*.[wW][eE][bB][pP]

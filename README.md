@@ -94,7 +94,7 @@ Demo mode remains the quickest credential-free way to explore the platform local
 
 ## Local setup
 
-Requirements are Node.js 20 or newer, npm and Git.
+Requirements are Node.js 20.9 or newer, npm and Git.
 
 ```powershell
 npm install
@@ -121,6 +121,12 @@ Two demo quizzes are included:
 - **Katwed! Mixed Quiz** covers all six question types and a tile-based progressive image reveal.
 
 All names and artwork are fictional and local to the repository.
+
+### Background artwork preparation
+
+Approved local background artwork can be converted into production-ready static assets with `npm run prepare:backgrounds`. Put a lowercase kebab-case PNG, JPEG or WebP source in `artwork/backgrounds-source/`; the command applies orientation, centre-crops to 16:9, limits output to 1920x1080 without upscaling, and writes a quality-82 WebP to `public/backgrounds/`. Large sources are ignored by Git, while finished WebPs are versioned. See [`artwork/README.md`](artwork/README.md) for the workflow and composition guidance.
+
+This is development tooling only. The in-app Background selector and background data model are not implemented yet.
 
 ## Live-game routes
 
