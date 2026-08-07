@@ -17,6 +17,7 @@ import {
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
+import { DEFAULT_QUIZ_TYPE, HEAD_TO_HEAD_LAUNCH_MESSAGE } from '../features/head-to-head/headToHead'
 
 type LibraryView = 'active' | 'archived'
 
@@ -75,6 +76,8 @@ export function HostDashboardPage() {
     try {
       const quiz = await repository.saveQuiz({
         title: 'Untitled quiz',
+        quizType: DEFAULT_QUIZ_TYPE,
+        headToHeadCompetitors: [],
         coverImagePath: null,
         themeId: DEFAULT_QUIZ_THEME_ID,
         backgroundId: null,
@@ -251,6 +254,7 @@ export function HostDashboardPage() {
               </div>
               <div className="quiz-card__body">
                 <h2 id={titleId}>{quiz.title}</h2>
+                {quiz.quizType === 'head-to-head' && <span className="quiz-type-badge">Head to Head</span>}
                 <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>
                 {lastEdited.dateTime ? (
                   <time className="quiz-card__metadata" dateTime={lastEdited.dateTime} title={lastEdited.title}>
@@ -261,8 +265,14 @@ export function HostDashboardPage() {
                 )}
                 {view === 'active' ? (
                   <div className="card-actions">
-                    <button className="button button--primary" type="button" disabled={!quiz.questions.length} onClick={() => void launch(quiz)}>
-                      {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
+                    <button
+                      className="button button--primary"
+                      type="button"
+                      disabled={!quiz.questions.length || quiz.quizType === 'head-to-head'}
+                      title={quiz.quizType === 'head-to-head' ? HEAD_TO_HEAD_LAUNCH_MESSAGE : undefined}
+                      onClick={() => void launch(quiz)}
+                    >
+                      {quiz.quizType === 'head-to-head' ? 'Live play pending' : activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
                     </button>
                     <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
                     <button

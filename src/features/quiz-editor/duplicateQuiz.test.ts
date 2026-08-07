@@ -145,4 +145,33 @@ describe('createDuplicateQuizInput', () => {
     expect(input.title).toHaveLength(120)
     expect(input.title).toBe(`${'A'.repeat(113)} (Copy)`)
   })
+
+  it('creates fresh competitor identities and remaps all Head-to-Head assignments', () => {
+    const source: Quiz = {
+      ...structuredClone(mixedDemoQuiz),
+      quizType: 'head-to-head',
+      headToHeadCompetitors: [
+        { id: 'source-a', quizId: mixedDemoQuiz.id, displayName: 'Ross', displayOrder: 0 },
+        { id: 'source-b', quizId: mixedDemoQuiz.id, displayName: 'Jess', displayOrder: 1 },
+      ],
+      questions: mixedDemoQuiz.questions.map((question, index) => ({
+        ...structuredClone(question),
+        assignedCompetitorId: index % 2 ? 'source-b' : 'source-a',
+      })),
+    }
+
+    const input = createDuplicateQuizInput(source, sequentialIds())
+    const sourceCompetitorIds = new Set(source.headToHeadCompetitors.map((competitor) => competitor.id))
+    const copiedByName = new Map(input.headToHeadCompetitors.map((competitor) => [competitor.displayName, competitor.id]))
+
+    expect(input.quizType).toBe('head-to-head')
+    expect(input.headToHeadCompetitors).toHaveLength(2)
+    expect(input.headToHeadCompetitors.every((competitor) => !sourceCompetitorIds.has(competitor.id))).toBe(true)
+    expect(input.questions.map((question) => question.assignedCompetitorId)).toEqual(
+      source.questions.map((question) => copiedByName.get(
+        source.headToHeadCompetitors.find((competitor) => competitor.id === question.assignedCompetitorId)?.displayName ?? '',
+      )),
+    )
+    expect(source.headToHeadCompetitors.map((competitor) => competitor.id)).toEqual(['source-a', 'source-b'])
+  })
 })

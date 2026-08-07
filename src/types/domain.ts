@@ -12,6 +12,9 @@ export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'z
 export type MediaVisibility = 'presentation' | 'players' | 'both'
 export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
 
+export const QUIZ_TYPE_IDS = ['standard', 'head-to-head'] as const
+export type QuizType = typeof QUIZ_TYPE_IDS[number]
+
 export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 
@@ -63,6 +66,7 @@ export interface ChoiceOption {
 interface QuestionBase {
   id: string
   quizId: string
+  assignedCompetitorId: string | null
   prompt: string
   supportingText: string
   timeLimitSeconds: number
@@ -139,12 +143,12 @@ export type PlayerAnswerPayload =
   | { type: 'mashup'; memberIds: readonly [string, string] }
 
 export type SafeQuestion =
-  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'revealCaption'> & QuestionProgress)
-  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
+  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress)
 
 interface QuestionProgress {
   questionNumber: number
@@ -202,9 +206,18 @@ export interface RosterMember {
   displayOrder: number
 }
 
+export interface HeadToHeadCompetitor {
+  id: string
+  quizId: string
+  displayName: string
+  displayOrder: 0 | 1
+}
+
 export interface Quiz {
   id: string
   title: string
+  quizType: QuizType
+  headToHeadCompetitors: HeadToHeadCompetitor[]
   coverImagePath: string | null
   themeId: QuizThemeId
   backgroundId: QuizBackgroundId | null

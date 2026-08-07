@@ -18,6 +18,7 @@ import type { StorageCleanupResult, StorageReport } from '../../features/storage
 import { cleanupSupabaseUnusedImages, loadSupabaseStorageReport } from '../../services/storageManager'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
+import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 
 type JsonObject = Record<string, unknown>
 
@@ -33,11 +34,11 @@ function normaliseError(error: { message: string; code?: string } | null): Repos
 
 function normaliseQuiz(quiz: Quiz): Quiz {
   const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
-  return {
+  return normaliseQuizHeadToHead({
     ...quiz,
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
-  }
+  })
 }
 
 export class SupabaseGameRepository implements GameRepository {

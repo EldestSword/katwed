@@ -29,6 +29,12 @@ export function createDuplicateQuizInput(
   createId: IdFactory = () => crypto.randomUUID(),
 ): QuizSaveInput {
   const duplicateQuizId = createId()
+  const competitorIds = new Map<string, string>()
+  const headToHeadCompetitors = source.headToHeadCompetitors.map((competitor) => {
+    const id = createId()
+    competitorIds.set(competitor.id, id)
+    return { ...competitor, id, quizId: duplicateQuizId }
+  })
   const memberIds = new Map<string, string>()
   const roster = source.roster.map((member) => {
     const id = createId()
@@ -41,6 +47,9 @@ export function createDuplicateQuizInput(
       ...structuredClone(question),
       id: createId(),
       quizId: duplicateQuizId,
+      assignedCompetitorId: question.assignedCompetitorId === null
+        ? null
+        : remappedId(competitorIds, question.assignedCompetitorId, 'assigned competitor'),
     }
 
     switch (duplicate.type) {
@@ -76,6 +85,8 @@ export function createDuplicateQuizInput(
 
   return {
     title: `${source.title.slice(0, MAX_QUIZ_TITLE_LENGTH - COPY_SUFFIX.length).trimEnd()}${COPY_SUFFIX}`,
+    quizType: source.quizType,
+    headToHeadCompetitors,
     coverImagePath: source.coverImagePath,
     themeId: source.themeId,
     backgroundId: source.backgroundId,

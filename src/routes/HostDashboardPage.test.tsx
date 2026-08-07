@@ -232,6 +232,33 @@ describe('HostDashboardPage quiz library', () => {
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
   })
 
+  it('badges Head-to-Head quizzes and blocks live launch in both library views', async () => {
+    const user = userEvent.setup()
+    const headToHead = {
+      ...activeQuizzes[0],
+      quizType: 'head-to-head' as const,
+      headToHeadCompetitors: [
+        { id: 'a', quizId: activeQuizzes[0].id, displayName: 'Ross', displayOrder: 0 as const },
+        { id: 'b', quizId: activeQuizzes[0].id, displayName: 'Jess', displayOrder: 1 as const },
+      ],
+    }
+    repositoryMocks.listQuizzes.mockResolvedValue([headToHead])
+    repositoryMocks.listArchivedQuizzes.mockResolvedValue([{ ...headToHead, archivedAt: '2026-05-01T12:00:00.000Z' }])
+    renderDashboard()
+
+    const activeCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    expect(within(activeCard).getByText('Head to Head')).toBeVisible()
+    const launch = within(activeCard).getByRole('button', { name: 'Live play pending' })
+    expect(launch).toBeDisabled()
+    expect(launch).toHaveAttribute('title', 'Head-to-Head live play is not available in this build yet.')
+    expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
+
+    await user.click(screen.getByRole('tab', { name: 'Archived quizzes 1' }))
+    const archivedCard = screen.getByRole('article', { name: 'Friday Team Quiz' })
+    expect(within(archivedCard).getByText('Head to Head')).toBeVisible()
+    expect(within(archivedCard).queryByRole('button', { name: 'Live play pending' })).not.toBeInTheDocument()
+  })
+
   it('prevents repeat Duplicate clicks and navigates to the newly created quiz editor', async () => {
     const user = userEvent.setup()
     let finishDuplicate: ((quiz: Quiz) => void) | undefined

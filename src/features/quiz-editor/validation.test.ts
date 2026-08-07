@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sampleQuiz } from '../../lib/demo/sampleData'
+import { mixedDemoQuiz, sampleQuiz } from '../../lib/demo/sampleData'
 import type { MashupQuestion } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { validateQuestion, validateQuizSave } from './validation'
@@ -44,5 +44,66 @@ describe('quiz validation', () => {
       themeId: 'paper',
       backgroundId: 'arcade-grid',
     })).toContain('Choose a background that belongs to the selected quiz theme.')
+  })
+
+  it('requires exactly two distinct named competitors and a valid assignment for every Head-to-Head question', () => {
+    const headToHead: QuizSaveInput = {
+      ...structuredClone(mixedDemoQuiz),
+      quizType: 'head-to-head',
+      headToHeadCompetitors: [
+        { id: 'competitor-a', quizId: mixedDemoQuiz.id, displayName: 'Ross', displayOrder: 0 },
+        { id: 'competitor-b', quizId: mixedDemoQuiz.id, displayName: 'Jess', displayOrder: 1 },
+      ],
+      questions: mixedDemoQuiz.questions.map((question, index) => ({
+        ...structuredClone(question),
+        assignedCompetitorId: index % 2 ? 'competitor-b' : 'competitor-a',
+      })),
+    }
+    expect(validateQuizSave(headToHead)).toEqual([])
+    expect(validateQuizSave({
+      ...headToHead,
+      headToHeadCompetitors: headToHead.headToHeadCompetitors.slice(0, 1),
+    })).toContain('Head-to-Head quizzes need exactly two competitors.')
+    expect(validateQuizSave({
+      ...headToHead,
+      headToHeadCompetitors: headToHead.headToHeadCompetitors.map((competitor) => ({
+        ...competitor,
+        displayName: ' same ',
+      })),
+    })).toContain('Head-to-Head competitor names must be different.')
+    expect(validateQuizSave({
+      ...headToHead,
+      headToHeadCompetitors: headToHead.headToHeadCompetitors.map((competitor, index) => ({
+        ...competitor,
+        displayName: index === 0 ? '   ' : 'A'.repeat(31),
+      })),
+    })).toContain('Enter a name of 1-30 characters for both Head-to-Head competitors.')
+    expect(validateQuizSave({
+      ...headToHead,
+      questions: headToHead.questions.map((question, index) => ({
+        ...question,
+        assignedCompetitorId: index === 0 ? null : question.assignedCompetitorId,
+      })),
+    })).toContain('Assign every question to a competitor.')
+    expect(validateQuizSave({
+      ...headToHead,
+      questions: headToHead.questions.map((question, index) => ({
+        ...question,
+        assignedCompetitorId: index === 0 ? 'not-a-competitor' : question.assignedCompetitorId,
+      })),
+    })).toContain('Question 1 is assigned to an invalid competitor.')
+  })
+
+  it('keeps Standard definitions free of Head-to-Head competitors and assignments', () => {
+    expect(validateQuizSave({
+      ...sampleQuiz,
+      headToHeadCompetitors: [
+        { id: 'competitor-a', quizId: sampleQuiz.id, displayName: 'Ross', displayOrder: 0 },
+      ],
+      questions: sampleQuiz.questions.map((question) => ({ ...question, assignedCompetitorId: 'competitor-a' })),
+    })).toEqual(expect.arrayContaining([
+      'Standard quizzes cannot contain Head-to-Head competitors.',
+      'Standard questions cannot be assigned to Head-to-Head competitors.',
+    ]))
   })
 })

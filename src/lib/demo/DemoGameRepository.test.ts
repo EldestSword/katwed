@@ -50,6 +50,72 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(quizzes[1].backgroundId).toBeNull()
   })
 
+  it('normalises older Demo quizzes to Standard without stale assignments', async () => {
+    const repository = new DemoGameRepository()
+    await repository.listQuizzes()
+    const state = JSON.parse(localStorage.getItem('katwed.demo.state.v2') ?? '{}') as {
+      quizzes: Array<Record<string, unknown>>
+    }
+    delete state.quizzes[0].quizType
+    delete state.quizzes[0].headToHeadCompetitors
+    const questions = state.quizzes[0].questions as Array<Record<string, unknown>>
+    delete questions[0].assignedCompetitorId
+    localStorage.setItem('katwed.demo.state.v2', JSON.stringify(state))
+
+    const quiz = (await new DemoGameRepository().listQuizzes())[0]
+    expect(quiz.quizType).toBe('standard')
+    expect(quiz.headToHeadCompetitors).toEqual([])
+    expect(quiz.questions.every((question) => question.assignedCompetitorId === null)).toBe(true)
+  })
+
+  it('persists and duplicates Head-to-Head definitions but blocks them from live rooms', async () => {
+    const repository = new DemoGameRepository()
+    const source = await repository.getQuiz('quiz-mixed')
+    if (!source) throw new Error('Demo quiz missing')
+    const competitors = [
+      { id: 'competitor-a', quizId: source.id, displayName: 'Ross', displayOrder: 0 as const },
+      { id: 'competitor-b', quizId: source.id, displayName: 'Jess', displayOrder: 1 as const },
+    ]
+    const saved = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      quizType: 'head-to-head',
+      headToHeadCompetitors: competitors,
+      coverImagePath: source.coverImagePath,
+      themeId: source.themeId,
+      backgroundId: source.backgroundId,
+      roster: source.roster,
+      questions: source.questions.map((question, index) => ({
+        ...question,
+        assignedCompetitorId: competitors[index % 2].id,
+      })),
+    })
+
+    expect(saved.quizType).toBe('head-to-head')
+    expect(saved.headToHeadCompetitors.map((competitor) => competitor.displayName)).toEqual(['Ross', 'Jess'])
+    expect(saved.coverImagePath).toBe(source.coverImagePath)
+    expect(saved.themeId).toBe(source.themeId)
+    expect(saved.backgroundId).toBe(source.backgroundId)
+    expect((await new DemoGameRepository().getQuiz(saved.id))?.headToHeadCompetitors).toEqual(saved.headToHeadCompetitors)
+    await expect(repository.launchGame(saved.id)).rejects.toThrow(
+      'Head-to-Head live play is not available in this build yet.',
+    )
+    expect(await repository.getActiveSessionForQuiz(saved.id)).toBeNull()
+
+    const duplicate = await repository.duplicateQuiz(saved.id)
+    expect(duplicate.headToHeadCompetitors.every((competitor) =>
+      !saved.headToHeadCompetitors.some((sourceCompetitor) => sourceCompetitor.id === competitor.id)
+    )).toBe(true)
+    expect(duplicate.questions.every((question) =>
+      duplicate.headToHeadCompetitors.some((competitor) => competitor.id === question.assignedCompetitorId)
+    )).toBe(true)
+    await repository.archiveQuiz(duplicate.id)
+    expect((await repository.getQuiz(duplicate.id))?.quizType).toBe('head-to-head')
+    await repository.restoreQuiz(duplicate.id)
+    expect((await repository.getQuiz(duplicate.id))?.headToHeadCompetitors.map((competitor) => competitor.displayName))
+      .toEqual(['Ross', 'Jess'])
+  })
+
   it('moves an intact quiz between active and archived libraries', async () => {
     const repository = new DemoGameRepository()
     const original = await repository.getQuiz('quiz-demo')
@@ -115,6 +181,8 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.saveQuiz({
       id: duplicate.id,
       title: 'Edited copy',
+      quizType: duplicate.quizType,
+      headToHeadCompetitors: duplicate.headToHeadCompetitors,
       coverImagePath: duplicate.coverImagePath,
       themeId: duplicate.themeId,
       backgroundId: duplicate.backgroundId,
@@ -143,6 +211,8 @@ describe('DemoGameRepository multi-format game state', () => {
     const covered = await repository.saveQuiz({
       id: source.id,
       title: source.title,
+      quizType: source.quizType,
+      headToHeadCompetitors: source.headToHeadCompetitors,
       coverImagePath: sharedCover,
       themeId: source.themeId,
       backgroundId: source.backgroundId,
@@ -164,6 +234,8 @@ describe('DemoGameRepository multi-format game state', () => {
     const uncovered = await repository.saveQuiz({
       id: duplicate.id,
       title: duplicate.title,
+      quizType: duplicate.quizType,
+      headToHeadCompetitors: duplicate.headToHeadCompetitors,
       coverImagePath: null,
       themeId: duplicate.themeId,
       backgroundId: duplicate.backgroundId,
@@ -179,6 +251,8 @@ describe('DemoGameRepository multi-format game state', () => {
     const repository = new DemoGameRepository()
     const created = await repository.saveQuiz({
       title: 'No-cover quiz',
+      quizType: 'standard',
+      headToHeadCompetitors: [],
       coverImagePath: null,
       themeId: 'katwed',
       backgroundId: null,
@@ -197,6 +271,8 @@ describe('DemoGameRepository multi-format game state', () => {
     const themed = await repository.saveQuiz({
       id: source.id,
       title: source.title,
+      quizType: source.quizType,
+      headToHeadCompetitors: source.headToHeadCompetitors,
       coverImagePath: source.coverImagePath,
       themeId: 'arcade',
       backgroundId: 'arcade-grid',
@@ -236,6 +312,8 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.saveQuiz({
       id: source.id,
       title: source.title,
+      quizType: source.quizType,
+      headToHeadCompetitors: source.headToHeadCompetitors,
       coverImagePath: inUsePath,
       themeId: source.themeId,
       backgroundId: source.backgroundId,
@@ -260,6 +338,8 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.saveQuiz({
       id: other.id,
       title: other.title,
+      quizType: other.quizType,
+      headToHeadCompetitors: other.headToHeadCompetitors,
       coverImagePath: orphanPath,
       themeId: other.themeId,
       backgroundId: other.backgroundId,
@@ -277,6 +357,8 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.saveQuiz({
       id: other.id,
       title: other.title,
+      quizType: other.quizType,
+      headToHeadCompetitors: other.headToHeadCompetitors,
       coverImagePath: null,
       themeId: other.themeId,
       backgroundId: other.backgroundId,

@@ -19,6 +19,7 @@ const mashup = (
 ): Question => ({
   id,
   quizId,
+  assignedCompetitorId: null,
   type: 'mashup',
   prompt: 'Who is in this mash-up?',
   supportingText: 'Select exactly two different people.',
@@ -35,6 +36,8 @@ const mashup = (
 export const sampleQuiz: Quiz = {
   id: quizId,
   title: 'The Curious Crew',
+  quizType: 'standard',
+  headToHeadCompetitors: [],
   coverImagePath: null,
   themeId: 'katwed',
   backgroundId: null,
@@ -60,6 +63,7 @@ const mixedId = 'quiz-mixed'
 const common = (id: string, type: Question['type'], prompt: string, displayOrder: number) => ({
   id,
   quizId: mixedId,
+  assignedCompetitorId: null,
   type,
   prompt,
   supportingText: '',
@@ -75,6 +79,8 @@ const common = (id: string, type: Question['type'], prompt: string, displayOrder
 export const mixedDemoQuiz: Quiz = {
   id: mixedId,
   title: 'Katwed! Mixed Quiz',
+  quizType: 'standard',
+  headToHeadCompetitors: [],
   coverImagePath: null,
   themeId: 'katwed',
   backgroundId: null,

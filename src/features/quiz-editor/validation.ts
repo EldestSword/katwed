@@ -2,6 +2,7 @@ import type { Question, RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
+import { isQuizType } from '../head-to-head/headToHead'
 
 export interface QuestionValidation {
   valid: boolean
@@ -132,6 +133,7 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
 export function validateQuizSave(input: QuizSaveInput): string[] {
   const messages: string[] = []
   const title = input.title.trim()
+  if (!isQuizType(input.quizType)) messages.push('Choose a supported quiz type.')
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')
   if (!isQuizThemeId(input.themeId)) messages.push('Choose a supported quiz theme.')
   if (input.backgroundId !== null) {
@@ -159,6 +161,51 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
     if (!question.id || questionIds.has(question.id)) messages.push('Questions must have unique IDs.')
     questionIds.add(question.id)
     messages.push(...validateQuestion(question, input.roster).messages)
+  }
+
+  if (input.quizType === 'standard') {
+    if (input.headToHeadCompetitors.length > 0) {
+      messages.push('Standard quizzes cannot contain Head-to-Head competitors.')
+    }
+    if (input.questions.some((question) => question.assignedCompetitorId !== null)) {
+      messages.push('Standard questions cannot be assigned to Head-to-Head competitors.')
+    }
+  }
+
+  if (input.quizType === 'head-to-head') {
+    if (input.headToHeadCompetitors.length !== 2) {
+      messages.push('Head-to-Head quizzes need exactly two competitors.')
+    }
+    const competitorIds = new Set<string>()
+    const competitorNames = new Set<string>()
+    const orders = new Set<number>()
+    let invalidName = false
+    let duplicateName = false
+    for (const competitor of input.headToHeadCompetitors) {
+      const name = competitor.displayName.trim()
+      if (!competitor.id || competitorIds.has(competitor.id)) {
+        messages.push('Head-to-Head competitors must have unique IDs.')
+      }
+      competitorIds.add(competitor.id)
+      if (!name || name.length > 30) invalidName = true
+      const nameKey = name.toLocaleLowerCase('en-GB')
+      if (nameKey && competitorNames.has(nameKey)) duplicateName = true
+      competitorNames.add(nameKey)
+      orders.add(competitor.displayOrder)
+    }
+    if (invalidName) messages.push('Enter a name of 1-30 characters for both Head-to-Head competitors.')
+    if (duplicateName) messages.push('Head-to-Head competitor names must be different.')
+    if (orders.size !== 2 || !orders.has(0) || !orders.has(1)) {
+      messages.push('Head-to-Head competitors must use the two configured positions.')
+    }
+    if (input.questions.some((question) => question.assignedCompetitorId === null)) {
+      messages.push('Assign every question to a competitor.')
+    }
+    input.questions.forEach((question, index) => {
+      if (question.assignedCompetitorId !== null && !competitorIds.has(question.assignedCompetitorId)) {
+        messages.push(`Question ${index + 1} is assigned to an invalid competitor.`)
+      }
+    })
   }
 
   return [...new Set(messages)]

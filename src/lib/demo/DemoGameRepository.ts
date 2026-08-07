@@ -28,6 +28,7 @@ import {
 import { listDemoStoredImages, removeDemoStoredImages } from '../../services/questionImages'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
+import { HEAD_TO_HEAD_LAUNCH_MESSAGE, normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 
 interface DemoState {
   quizzes: Quiz[]
@@ -55,13 +56,13 @@ function normaliseState(state: DemoState): DemoState {
     ...state,
     quizzes: state.quizzes.map((quiz) => {
       const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
-      return {
+      return normaliseQuizHeadToHead({
         ...quiz,
         coverImagePath: quiz.coverImagePath ?? null,
         themeId,
         backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
         archivedAt: quiz.archivedAt ?? null,
-      }
+      })
     }),
   }
 }
@@ -250,6 +251,13 @@ export class DemoGameRepository implements GameRepository {
       const quiz: Quiz = {
         id: quizId,
         title: input.title.trim() || 'Untitled quiz',
+        quizType: input.quizType,
+        headToHeadCompetitors: input.headToHeadCompetitors.map((competitor, displayOrder) => ({
+          ...competitor,
+          quizId,
+          displayName: competitor.displayName.trim(),
+          displayOrder: displayOrder as 0 | 1,
+        })),
         coverImagePath: input.coverImagePath?.trim() || null,
         themeId: input.themeId,
         backgroundId: input.backgroundId,
@@ -366,6 +374,7 @@ export class DemoGameRepository implements GameRepository {
       const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
       if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
       if (quiz.archivedAt !== null) throw new RepositoryError('database', 'Restore this quiz before launching it.')
+      if (quiz.quizType === 'head-to-head') throw new RepositoryError('database', HEAD_TO_HEAD_LAUNCH_MESSAGE)
       const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
       if (active) return clone(active)
       const usedCodes = new Set(state.sessions.map((session) => session.roomCode))

@@ -20,6 +20,21 @@ describe('SupabaseGameRepository duplication', () => {
     expect(quizzes.map((quiz) => quiz.backgroundId)).toEqual([null, null, null])
   })
 
+  it('normalises older quiz reads to Standard without exposing stale assignment data', async () => {
+    const older = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
+    delete older.quizType
+    delete older.headToHeadCompetitors
+    const questions = older.questions as Array<Record<string, unknown>>
+    questions[0].assignedCompetitorId = 'stale'
+    const rpc = vi.fn().mockResolvedValue({ data: [older], error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    const quiz = (await repository.listQuizzes())[0]
+    expect(quiz.quizType).toBe('standard')
+    expect(quiz.headToHeadCompetitors).toEqual([])
+    expect(quiz.questions.every((question) => question.assignedCompetitorId === null)).toBe(true)
+  })
+
   it('reads an active source and creates its remapped copy through host_save_quiz', async () => {
     const source = structuredClone(mixedDemoQuiz)
     source.coverImagePath = 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/shared-cover.webp'
@@ -74,6 +89,8 @@ describe('SupabaseGameRepository duplication', () => {
     const input = {
       id: mixedDemoQuiz.id,
       title: mixedDemoQuiz.title,
+      quizType: mixedDemoQuiz.quizType,
+      headToHeadCompetitors: mixedDemoQuiz.headToHeadCompetitors,
       coverImagePath,
       themeId: mixedDemoQuiz.themeId,
       backgroundId: mixedDemoQuiz.backgroundId,

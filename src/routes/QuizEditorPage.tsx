@@ -13,6 +13,7 @@ import {
   normaliseQuizBackgroundId,
 } from '../features/themes/quizBackgrounds'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
+import { createHeadToHeadCompetitors, nextHeadToHeadAssignment } from '../features/head-to-head/headToHead'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type {
@@ -23,6 +24,7 @@ import type {
   Quiz,
   QuizBackgroundId,
   QuizThemeId,
+  QuizType,
   RosterMember,
 } from '../types/domain'
 import { normaliseYouTubeVideoId } from '../utils/youtube'
@@ -90,7 +92,10 @@ export function QuizEditorPage() {
 
   function addQuestion(type: QuestionType) {
     if (!quiz) return
-    const question = createQuestion(type, quiz.id, quiz.questions.length)
+    const question = {
+      ...createQuestion(type, quiz.id, quiz.questions.length),
+      assignedCompetitorId: nextHeadToHeadAssignment(quiz),
+    }
     update((current) => ({ ...current, questions: [...current.questions, question] }))
     setSelectedId(question.id)
   }
@@ -133,6 +138,11 @@ export function QuizEditorPage() {
     const input = {
       id: quiz.id,
       title: quiz.title.trim(),
+      quizType: quiz.quizType,
+      headToHeadCompetitors: quiz.headToHeadCompetitors.map((competitor) => ({
+        ...competitor,
+        displayName: competitor.displayName.trim(),
+      })),
       coverImagePath: quiz.coverImagePath,
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
@@ -168,8 +178,40 @@ export function QuizEditorPage() {
       supportingText: selected.supportingText,
       timeLimitSeconds: selected.timeLimitSeconds,
       points: selected.points,
+      assignedCompetitorId: selected.assignedCompetitorId,
       revealCaption: selected.revealCaption,
     }))
+  }
+
+  const changeQuizType = (quizType: QuizType) => {
+    if (quizType === quiz.quizType) return
+    if (quizType === 'head-to-head') {
+      update((current) => ({
+        ...current,
+        quizType,
+        headToHeadCompetitors: createHeadToHeadCompetitors(current.id),
+        questions: current.questions.map((question) => ({ ...question, assignedCompetitorId: null })),
+      }))
+      return
+    }
+    const hasConfiguration = quiz.headToHeadCompetitors.some((competitor) => competitor.displayName.trim())
+      || quiz.questions.some((question) => question.assignedCompetitorId !== null)
+    if (hasConfiguration && !window.confirm(
+      'Switch to Standard and clear both competitors and every question assignment?',
+    )) return
+    update((current) => ({
+      ...current,
+      quizType: 'standard',
+      headToHeadCompetitors: [],
+      questions: current.questions.map((question) => ({ ...question, assignedCompetitorId: null })),
+    }))
+  }
+
+  const assignmentLabel = (question: Question): string => {
+    if (quiz.quizType !== 'head-to-head') return ''
+    const competitor = quiz.headToHeadCompetitors.find((candidate) => candidate.id === question.assignedCompetitorId)
+    if (!competitor) return ' · Unassigned'
+    return ` · ${competitor.displayName.trim() || `Competitor ${competitor.displayOrder + 1}`}`
   }
 
   return (
@@ -188,7 +230,7 @@ export function QuizEditorPage() {
           <ol>
             {quiz.questions.map((question, index) => <li key={question.id}>
               <button className={question.id === selectedId ? 'is-selected' : ''} type="button" onClick={() => setSelectedId(question.id)}>
-                <span>{index + 1}</span><span><strong>{question.prompt}</strong><small>{questionTypeRegistry[question.type].name}</small></span>
+                <span>{index + 1}</span><span><strong>{question.prompt}</strong><small>{questionTypeRegistry[question.type].name}{assignmentLabel(question)}</small></span>
               </button>
               <div className="mini-actions">
                 <button type="button" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, -1) }))}>↑</button>
@@ -236,6 +278,8 @@ export function QuizEditorPage() {
         </section>
 
         <aside className="question-settings">
+          <QuizTypePicker quizType={quiz.quizType} select={changeQuizType} />
+          {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           <QuizThemePicker
             themeId={quiz.themeId}
             select={(themeId) => update((current) => ({
@@ -260,10 +304,16 @@ export function QuizEditorPage() {
             <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
             <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
             <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
+            {quiz.quizType === 'head-to-head' && <QuestionCompetitorPicker
+              question={selected}
+              competitors={quiz.headToHeadCompetitors}
+              select={(assignedCompetitorId) => updateQuestion((question) => ({ ...question, assignedCompetitorId }))}
+            />}
             <div className="two-columns">
               <label><span>Timer</span><input type="number" min="5" max="300" value={selected.timeLimitSeconds} onChange={(event) => updateQuestion((question) => ({ ...question, timeLimitSeconds: number(event.target.value) }))} /></label>
-              <label><span>Points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>
+              {quiz.quizType === 'standard' && <label><span>Points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>}
             </div>
+            {quiz.quizType === 'head-to-head' && <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
             <MediaSettings question={selected} update={updateQuestion} upload={upload} />
             <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
             <label><span>Choices on presentation</span><select value={selected.presentationChoiceVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, presentationChoiceVisibility: event.target.value as Question['presentationChoiceVisibility'] }))}><option value="show">Show choices</option><option value="hide">Hide choices</option><option value="after-lock">Reveal after answers close</option></select></label>
@@ -276,6 +326,79 @@ export function QuizEditorPage() {
       </div>
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
+  )
+}
+
+function QuizTypePicker({ quizType, select }: { quizType: QuizType; select(quizType: QuizType): void }) {
+  const options: Array<{ id: QuizType; name: string; description: string }> = [
+    { id: 'standard', name: 'Standard', description: 'Everyone answers every question using normal Katwed scoring.' },
+    { id: 'head-to-head', name: 'Head to Head', description: 'Two named competitors take turns with questions assigned specifically to them.' },
+  ]
+  return (
+    <fieldset className="quiz-type-picker">
+      <legend>Quiz type</legend>
+      <div className="quiz-type-grid">
+        {options.map((option) => <button
+          key={option.id}
+          type="button"
+          aria-pressed={quizType === option.id}
+          onClick={() => select(option.id)}
+        >
+          <strong>{option.name}</strong>
+          <small>{option.description}</small>
+          <span>{quizType === option.id ? 'Selected' : 'Choose'}</span>
+        </button>)}
+      </div>
+    </fieldset>
+  )
+}
+
+function HeadToHeadSetup({ quiz, update }: { quiz: Quiz; update(updater: (quiz: Quiz) => Quiz): void }) {
+  return (
+    <section className="head-to-head-setup" aria-labelledby="head-to-head-competitors-heading">
+      <h2 id="head-to-head-competitors-heading">Head-to-Head competitors</h2>
+      <p>Every question must be assigned to one of these two competitors.</p>
+      {quiz.headToHeadCompetitors.map((competitor) => <label key={competitor.id}>
+        <span>Competitor {competitor.displayOrder + 1}</span>
+        <input
+          value={competitor.displayName}
+          maxLength={30}
+          placeholder={competitor.displayOrder === 0 ? 'e.g. Ross' : 'e.g. Jess'}
+          onChange={(event) => update((current) => ({
+            ...current,
+            headToHeadCompetitors: current.headToHeadCompetitors.map((candidate) => (
+              candidate.id === competitor.id ? { ...candidate, displayName: event.target.value } : candidate
+            )),
+          }))}
+        />
+      </label>)}
+    </section>
+  )
+}
+
+function QuestionCompetitorPicker({
+  question,
+  competitors,
+  select,
+}: {
+  question: Question
+  competitors: Quiz['headToHeadCompetitors']
+  select(competitorId: string): void
+}) {
+  return (
+    <fieldset className="question-competitor-picker">
+      <legend>Question for</legend>
+      <div>
+        {competitors.map((competitor) => <button
+          key={competitor.id}
+          type="button"
+          aria-pressed={question.assignedCompetitorId === competitor.id}
+          onClick={() => select(competitor.id)}
+        >
+          {competitor.displayName.trim() || `Competitor ${competitor.displayOrder + 1}`}
+        </button>)}
+      </div>
+    </fieldset>
   )
 }
 

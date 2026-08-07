@@ -55,6 +55,62 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('Head-to-Head foundation persists competitors and assignments while live play stays blocked', async ({ page }) => {
+  await enterHost(page)
+  await page.getByRole('button', { name: '+ Create quiz' }).click()
+  await page.getByLabel('Quiz title').fill('Head-to-Head foundation test')
+
+  const typePicker = page.getByRole('group', { name: 'Quiz type' })
+  await expect(typePicker.getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
+  await typePicker.getByRole('button', { name: /Head to Head/ }).click()
+  const setup = page.getByRole('region', { name: 'Head-to-Head competitors' })
+  await setup.getByLabel('Competitor 1').fill('Ross')
+  await setup.getByLabel('Competitor 2').fill('Jess')
+
+  const addQuestion = page.locator('.question-type-picker').getByRole('button', { name: /True or false/ })
+  await addQuestion.click()
+  await page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Ross' }).click()
+  await addQuestion.click()
+  await expect(page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Jess' }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByLabel('Points')).toHaveCount(0)
+  await expect(page.getByText(/Head-to-Head uses 1 point/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.reload()
+  await expect(setup.getByLabel('Competitor 1')).toHaveValue('Ross')
+  await expect(setup.getByLabel('Competitor 2')).toHaveValue('Jess')
+  await expect(page.locator('.question-navigator')).toContainText('Ross')
+  await expect(page.locator('.question-navigator')).toContainText('Jess')
+
+  await page.goto('/host')
+  const card = page.getByRole('article', { name: 'Head-to-Head foundation test' })
+  await expect(card.getByText('Head to Head')).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Live play pending' })).toBeDisabled()
+  await expect(card.getByRole('button', { name: 'Live play pending' })).toHaveAttribute(
+    'title',
+    'Head-to-Head live play is not available in this build yet.',
+  )
+
+  await card.getByRole('button', { name: 'Duplicate' }).click()
+  await expect(page.getByLabel('Quiz title')).toHaveValue('Head-to-Head foundation test (Copy)')
+  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' }).getByLabel('Competitor 1')).toHaveValue('Ross')
+  await expect(page.locator('.question-navigator')).toContainText('Ross')
+  await expect(page.locator('.question-navigator')).toContainText('Jess')
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }).click()
+  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Question for' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+})
+
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
   test.setTimeout(120_000)
   await enterHost(page)

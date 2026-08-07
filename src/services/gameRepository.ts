@@ -12,6 +12,8 @@ import type { StorageCleanupResult, StorageReport } from '../features/storage-ma
 export interface QuizSaveInput {
   id?: string
   title: string
+  quizType: Quiz['quizType']
+  headToHeadCompetitors: Quiz['headToHeadCompetitors']
   coverImagePath: string | null
   themeId: Quiz['themeId']
   backgroundId: Quiz['backgroundId']

@@ -90,6 +90,14 @@ The production release applied `202608070004_quiz_themes.sql` and `202608070005_
 
 Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
+### Head-to-Head quiz foundation — live play pending
+
+Head to Head is implemented and tested locally as a quiz type, not a question type. A Head-to-Head quiz has exactly two named competitors and assigns every ordinary Katwed question to one of them. The editor provides stable competitor identities, assignment controls and question-list indicators across all six existing formats. New questions alternate from the most recent valid assignment, while an individually duplicated question keeps its assignment. Whole-quiz duplication creates fresh competitor IDs and remaps every assignment.
+
+Standard quizzes continue to use the existing points controls and live engine. Head-to-Head definitions preserve stored point values for compatibility, while the editor explains that the future mode will score a correct assigned answer as one point. Live launch is deliberately blocked in both the dashboard and repository/database boundaries until the separate Stage 2 join, play-along and scoring work is designed and implemented. Typed Answer and quiz import/export remain later work.
+
+This foundation is not deployed. `202608070006_head_to_head_foundation.sql` is a pending forward migration; production remains at `202608070005_quiz_backgrounds.sql`. The pending migration adds the constrained quiz type, dedicated two-person competitor rows, same-quiz question assignments, owner JSON/save support, old-client compatibility and an authoritative launch guard without changing player-safe state, scoring, phases, joining or answers.
+
 ### Planned
 
 The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap).
@@ -258,7 +266,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied, with no pending migration.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied. `202608070006_head_to_head_foundation.sql` is committed for a future deliberate release and has not been applied.
 
 For a new Supabase environment:
 
@@ -313,6 +321,8 @@ Applied production migrations, in order:
 `202608070004_quiz_themes.sql` is applied immutable production history. It adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and player-safe game state, and extends the existing save function without changing question persistence, scoring or phases.
 
 `202608070005_quiz_backgrounds.sql` is applied immutable production history and the current production baseline. It adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries safe background metadata through owner reads, saves and player-safe game state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background.
+
+`202608070006_head_to_head_foundation.sql` is pending and must not be treated as production history until a deliberate database-first release. It adds `quiz_type`, dedicated `quiz_competitors`, common question assignment metadata and the server launch guard. It preserves missing new fields from older clients on update and defaults missing new definitions to Standard where safe.
 
 ### Production pgcrypto repair
 
@@ -388,7 +398,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. The Head-to-Head authoring and persistence foundation is implemented and tested locally, with its migration and frontend pending a deliberate release; Head-to-Head live play remains planned Stage 2 work. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Planned work now extends that foundation:
 
 - tags;
 - quiz export and import;

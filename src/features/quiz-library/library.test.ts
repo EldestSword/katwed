@@ -10,6 +10,8 @@ import {
 
 function quiz(overrides: Partial<Quiz> & Pick<Quiz, 'id' | 'title'>): Quiz {
   return {
+    quizType: 'standard',
+    headToHeadCompetitors: [],
     roster: [],
     questions: [],
     coverImagePath: null,

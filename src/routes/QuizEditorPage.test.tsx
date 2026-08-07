@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { sampleQuiz } from '../lib/demo/sampleData'
+import { mixedDemoQuiz, sampleQuiz } from '../lib/demo/sampleData'
 import type * as QuestionImagesModule from '../services/questionImages'
 import type { QuizSaveInput } from '../services/gameRepository'
 import type { Quiz } from '../types/domain'
@@ -30,6 +30,22 @@ function quiz(overrides: Partial<Quiz> = {}): Quiz {
     title: 'Cover test quiz',
     coverImagePath: null,
     ...overrides,
+  }
+}
+
+function headToHeadQuiz(source: Quiz = quiz()): Quiz {
+  const competitors = [
+    { id: 'competitor-a', quizId: source.id, displayName: 'Ross', displayOrder: 0 as const },
+    { id: 'competitor-b', quizId: source.id, displayName: 'Jess', displayOrder: 1 as const },
+  ]
+  return {
+    ...structuredClone(source),
+    quizType: 'head-to-head',
+    headToHeadCompetitors: competitors,
+    questions: source.questions.map((question, index) => ({
+      ...structuredClone(question),
+      assignedCompetitorId: competitors[index % 2].id,
+    })),
   }
 }
 
@@ -233,5 +249,83 @@ describe('QuizEditorPage quiz appearance', () => {
     await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
     expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ coverImagePath: null }))
     expect(imageMocks.uploadQuizCover).not.toHaveBeenCalled()
+  })
+
+  it('defaults to Standard and creates two stable blank competitors when Head to Head is chosen', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    const picker = await screen.findByRole('group', { name: 'Quiz type' })
+    expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(picker).getByRole('button', { name: /Head to Head/ }))
+
+    const setup = screen.getByRole('region', { name: 'Head-to-Head competitors' })
+    const firstName = within(setup).getByLabelText('Competitor 1')
+    const secondName = within(setup).getByLabelText('Competitor 2')
+    expect(firstName).toHaveValue('')
+    expect(secondName).toHaveValue('')
+    expect(screen.getByRole('group', { name: 'Question for' })).toBeVisible()
+    expect(screen.getAllByText(/Unassigned/).length).toBeGreaterThan(0)
+
+    await user.type(firstName, 'Ross')
+    await user.type(secondName, 'Jess')
+    expect(screen.getByRole('button', { name: 'Ross' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Jess' })).toBeVisible()
+  })
+
+  it('confirms before clearing configured Head-to-Head data on a switch to Standard', async () => {
+    const user = userEvent.setup()
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    renderEditor()
+
+    const picker = await screen.findByRole('group', { name: 'Quiz type' })
+    await user.click(within(picker).getByRole('button', { name: /Standard/ }))
+    expect(confirm).toHaveBeenCalledWith('Switch to Standard and clear both competitors and every question assignment?')
+    expect(screen.getByRole('region', { name: 'Head-to-Head competitors' })).toBeVisible()
+
+    await user.click(within(picker).getByRole('button', { name: /Standard/ }))
+    expect(screen.queryByRole('region', { name: 'Head-to-Head competitors' })).not.toBeInTheDocument()
+    expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Points')).toBeVisible()
+  })
+
+  it('supports assignments for all six question formats and hides ordinary point editing', async () => {
+    const source = {
+      ...structuredClone(mixedDemoQuiz),
+      id: 'quiz-cover-test',
+      title: 'All formats Head to Head',
+    }
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz(source))
+    renderEditor()
+
+    await screen.findByRole('region', { name: 'Head-to-Head competitors' })
+    const navigator = document.querySelector('.question-navigator')!
+    const assignmentLabels = [...navigator.querySelectorAll('ol small')].map((item) => item.textContent ?? '')
+    expect(assignmentLabels).toHaveLength(source.questions.length)
+    assignmentLabels.forEach((label, index) => expect(label).toContain(index % 2 ? 'Jess' : 'Ross'))
+    expect(new Set(source.questions.map((question) => question.type))).toEqual(new Set([
+      'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup',
+    ]))
+    expect(screen.getByRole('group', { name: 'Question for' })).toBeVisible()
+    expect(screen.queryByLabelText('Points')).not.toBeInTheDocument()
+    expect(screen.getByText('Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.')).toBeVisible()
+  })
+
+  it('preserves assignment on question duplication and alternates the next new question', async () => {
+    const user = userEvent.setup()
+    const source = headToHeadQuiz()
+    repositoryMocks.getQuiz.mockResolvedValue(source)
+    renderEditor()
+
+    await screen.findByRole('region', { name: 'Head-to-Head competitors' })
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+    await user.click(within(document.querySelector('.question-type-picker') as HTMLElement).getByRole('button', { name: /True or false/ }))
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+
+    const saved = repositoryMocks.saveQuiz.mock.calls.at(-1)?.[0] as QuizSaveInput
+    expect(saved.questions.at(-2)?.assignedCompetitorId).toBe(source.questions[0].assignedCompetitorId)
+    expect(saved.questions.at(-1)?.assignedCompetitorId).toBe('competitor-b')
+    expect(saved.questions.at(-2)?.id).not.toBe(source.questions[0].id)
   })
 })

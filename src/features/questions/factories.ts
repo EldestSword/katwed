@@ -3,6 +3,7 @@ import type { Question, QuestionType } from '../../types/domain'
 const common = (quizId: string, displayOrder: number) => ({
   id: crypto.randomUUID(),
   quizId,
+  assignedCompetitorId: null,
   prompt: 'New question',
   supportingText: '',
   timeLimitSeconds: 30,
