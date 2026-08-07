@@ -62,7 +62,7 @@ The PostgreSQL schema uses:
 
 Quiz definitions and live game state remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket. Production upload, persistence after refresh and display on controller, presentation and player surfaces have been verified. The client already resizes accepted source images to a maximum 1,600-pixel edge and converts them to WebP before upload. GitHub stores code, migrations, demo data and documentation; it is not the live quiz database.
 
-The new quiz lifecycle is implemented in code behind the pending `202608070001_quiz_archive_lifecycle.sql` migration. Active and archived libraries are separate repository queries. Archive and permanent deletion reject quizzes with active rooms, archived quizzes cannot launch, and permanent deletion requires an archived quiz. A database trigger preserves those rules even if an authenticated client attempts a direct row operation.
+The quiz lifecycle is deployed through `202608070001_quiz_archive_lifecycle.sql` and the matching Netlify frontend. Active and archived libraries are separate repository queries. Archive and permanent deletion reject quizzes with active rooms, archived quizzes cannot launch, and permanent deletion requires an archived quiz. A database trigger preserves those rules even if an authenticated client attempts a direct row operation.
 
 Permanent deletion is deliberately database-first. The security-definer RPC gathers image references from question media, the retained question image path and choice-option image paths, excludes any exact reference still used by another quiz, then deletes the quiz. Existing cascades remove its questions, options, game sessions, players and answers. The authenticated browser subsequently accepts only Katwed-generated paths from the configured project's public `question-images` bucket and signed-in host folder for best-effort Storage removal. A Storage failure is reported as cleanup debt rather than misreporting the completed database deletion; general orphan discovery remains planned.
 
@@ -76,11 +76,11 @@ Realtime is a state-refresh signal, not an alternative scoring path: PostgreSQL 
 
 ## Migration discipline
 
-The live Supabase project has applied every migration through `202608060001_fix_pgcrypto_schema.sql`. Applied files are immutable history; production changes require a new chronological forward migration.
+The live Supabase project has applied every migration through `202608070001_quiz_archive_lifecycle.sql`. Applied files are immutable history; production changes require a new chronological forward migration.
 
-That production migration explicitly resolves pgcrypto through Supabase's `extensions` schema in `join_room`, `reconnect_player`, `set_player_presence` and `submit_answer`, while retaining `search_path = public`, reconnect-token hashing, grants, RLS, scoring and phase validation.
+`202608060001_fix_pgcrypto_schema.sql` explicitly resolves pgcrypto through Supabase's `extensions` schema in `join_room`, `reconnect_player`, `set_player_presence` and `submit_answer`, while retaining `search_path = public`, reconnect-token hashing, grants, RLS, scoring and phase validation.
 
-`202608070001_quiz_archive_lifecycle.sql` is the next committed migration. It is ready for a deliberate release but has not been applied to production.
+`202608070001_quiz_archive_lifecycle.sql` is applied to production. The matching archive-lifecycle frontend is deployed on Netlify; release verification confirmed the live routes and deployed bundle, while complete authenticated lifecycle UAT was not automated during the release because no secure host session was available.
 
 ## Future extension points
 

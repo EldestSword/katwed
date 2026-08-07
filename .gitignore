@@ -11,3 +11,6 @@ test-results/
 Thumbs.db
 *.tsbuildinfo
 supabase/.temp/
+
+# Local Netlify folder
+.netlify
