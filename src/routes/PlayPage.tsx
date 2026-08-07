@@ -12,6 +12,7 @@ import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
+import { HeadToHeadResults } from '../features/head-to-head/HeadToHeadResults'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -134,13 +135,7 @@ export function PlayPage() {
           {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead ? <>
-            <div className="head-to-head-results">{(state.headToHeadResults ?? []).map((result) => {
-              const competitor = competitors.find((candidate) => candidate.competitorId === result.competitorId)
-              const message = result.status === 'skipped' ? 'Skipped' : result.assigned
-                ? (result.status === 'correct' ? '+1 · Correct' : 'Incorrect')
-                : (result.status === 'correct' ? 'Also got it right · 0 points' : 'Incorrect · 0 points')
-              return <div key={result.competitorId}><strong>{competitor?.displayName}</strong><span>{message}</span></div>
-            })}</div>
+            <HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} />
             <HeadToHeadScoreboard competitors={competitors} />
             <button className="button button--primary button--wide" disabled={working} type="button" onClick={() => runPlayerAction(
               () => repository.continueHeadToHead(roomCode, currentPlayer.id, playerSession.reconnectToken, question.id), 'The game could not continue.',

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -131,5 +131,46 @@ describe('PlayPage quiz background', () => {
     const surface = container.querySelector('.player-game')
     expect(surface).not.toHaveAttribute('data-quiz-background')
     expect(surface).not.toHaveAttribute('style')
+  })
+
+  it('shows explicit official and play-along result semantics', async () => {
+    const headToHeadPlayer = { ...player, nickname: 'Jess', competitorId: 'jess' }
+    mocks.reconnectPlayer.mockResolvedValue({ player: headToHeadPlayer, reconnectToken: savedSession.reconnectToken })
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState,
+        quizType: 'head-to-head',
+        phase: 'reveal',
+        currentQuestion: {
+          id: 'question', type: 'true-false', assignedCompetitorId: 'jess', prompt: 'True?',
+          supportingText: '', timeLimitSeconds: 30, points: 1000, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+          questionNumber: 1, totalQuestions: 1,
+        },
+        players: [headToHeadPlayer, { ...player, id: 'player-2', nickname: 'Ross', competitorId: 'ross' }],
+        headToHeadCompetitors: [
+          { competitorId: 'jess', displayName: 'Jess', displayOrder: 0, claimed: true, connected: true, playerId: 'player-1', totalScore: 0, correctAnswerCount: 0 },
+          { competitorId: 'ross', displayName: 'Ross', displayOrder: 1, claimed: true, connected: true, playerId: 'player-2', totalScore: 0, correctAnswerCount: 0 },
+        ],
+        headToHeadResolutions: [],
+        headToHeadResults: [
+          { competitorId: 'ross', assigned: false, status: 'correct', pointsAwarded: 0 },
+          { competitorId: 'jess', assigned: true, status: 'incorrect', pointsAwarded: 0 },
+        ],
+        reveal: { type: 'true-false', correctValue: true, caption: '', counts: { true: 1, false: 1 } },
+      },
+      loading: false, error: '', refresh: vi.fn(),
+    })
+    renderPage()
+
+    const official = within(await screen.findByRole('article', { name: 'Jess result' }))
+    expect(official.getByText('Official question')).toBeVisible()
+    expect(official.getByText('✕ Incorrect')).toBeVisible()
+    expect(official.getByText('0 points')).toBeVisible()
+    const playAlong = within(screen.getByRole('article', { name: 'Ross result' }))
+    expect(playAlong.getByText('Playing along')).toBeVisible()
+    expect(playAlong.getByText('✓ Correct')).toBeVisible()
+    expect(playAlong.getByText('No point — play-along')).toBeVisible()
+    expect(screen.queryByText(/Also got it right/i)).not.toBeInTheDocument()
   })
 })

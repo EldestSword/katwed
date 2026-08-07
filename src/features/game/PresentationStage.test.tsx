@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { GamePhase, SafeGameState } from '../../types/domain'
 import { PresentationStage } from './PresentationStage'
@@ -49,7 +49,7 @@ describe('PresentationStage quiz theme', () => {
     expect(stage).not.toHaveAttribute('style')
   })
 
-  it('shows Head-to-Head assignment, untimed state and both reveal results', () => {
+  it.each([false, true])('shows explicit Head-to-Head reveal semantics when compact is %s', (compact) => {
     const question = {
       id: 'question', type: 'true-false' as const, assignedCompetitorId: 'ross', prompt: 'True?',
       supportingText: '', timeLimitSeconds: 30, points: 1000, displayOrder: 0,
@@ -64,20 +64,27 @@ describe('PresentationStage quiz theme', () => {
       ...state('question'), quizType: 'head-to-head', currentQuestion: question,
       players: [], headToHeadCompetitors: competitors, headToHeadResolutions: [], headToHeadResults: [],
     }
-    const { rerender } = render(<PresentationStage state={questionState} />)
+    const { rerender } = render(<PresentationStage state={questionState} compact={compact} />)
     expect(screen.getByText('Untimed')).toBeVisible()
     expect(screen.getByText(/For/)).toHaveTextContent('Ross · 1 point')
 
-    rerender(<PresentationStage state={{
+    rerender(<PresentationStage compact={compact} state={{
       ...questionState,
       phase: 'reveal',
       reveal: { type: 'true-false', correctValue: true, caption: '', counts: { true: 1, false: 1 } },
       headToHeadResults: [
-        { competitorId: 'ross', assigned: true, status: 'correct', pointsAwarded: 1 },
-        { competitorId: 'jess', assigned: false, status: 'incorrect', pointsAwarded: 0 },
+        { competitorId: 'jess', assigned: false, status: 'correct', pointsAwarded: 0 },
+        { competitorId: 'ross', assigned: true, status: 'incorrect', pointsAwarded: 0 },
       ],
     }} />)
-    expect(screen.getByText('Correct · 1 point')).toBeVisible()
-    expect(screen.getByText('Incorrect · 0 points')).toBeVisible()
+    const official = within(screen.getByRole('article', { name: 'Ross result' }))
+    expect(official.getByText('Official question')).toBeVisible()
+    expect(official.getByText('✕ Incorrect')).toBeVisible()
+    expect(official.getByText('0 points')).toBeVisible()
+    const playAlong = within(screen.getByRole('article', { name: 'Jess result' }))
+    expect(playAlong.getByText('Playing along')).toBeVisible()
+    expect(playAlong.getByText('✓ Correct')).toBeVisible()
+    expect(playAlong.getByText('No point — play-along')).toBeVisible()
+    expect(screen.queryByText(/Also got it right/i)).not.toBeInTheDocument()
   })
 })

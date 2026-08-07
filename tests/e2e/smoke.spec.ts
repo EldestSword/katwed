@@ -1,5 +1,22 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
+interface BrowserComputedStyle {
+  touchAction: string
+  overscrollBehaviorX: string
+  paddingLeft: string
+  paddingRight: string
+}
+
+interface BrowserEvaluationElement {
+  closest(selector: string): unknown
+}
+
+interface BrowserEvaluationGlobal {
+  getComputedStyle(element: unknown): BrowserComputedStyle
+  document: { documentElement: { scrollWidth: number } }
+  innerWidth: number
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
@@ -28,6 +45,19 @@ async function launchQuiz(page: Page, title: string) {
   const roomCode = text?.match(/Room\s+(\d{6})/)?.[1]
   if (!roomCode) throw new Error('Room code was not displayed')
   return roomCode
+}
+
+async function expectHeadToHeadResult(
+  page: Page,
+  competitor: string,
+  role: 'Official question' | 'Playing along',
+  status: '✓ Correct' | '✕ Incorrect' | 'Skipped',
+  consequence: '+1 point' | '0 points' | 'No point — play-along' | 'Play-along',
+) {
+  const card = page.getByRole('article', { name: `${competitor} result` })
+  await expect(card.getByText(role)).toBeVisible()
+  await expect(card.getByText(status)).toBeVisible()
+  await expect(card.getByText(consequence)).toBeVisible()
 }
 
 test('landing, joining validation and host guards work', async ({ page }) => {
@@ -73,6 +103,9 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Ross' }).click()
   await addQuestion.click()
   await expect(page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Jess' }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await page.locator('.question-type-picker').getByRole('button', { name: /Slider/ }).click()
+  await expect(page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Ross' }))
     .toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Points')).toHaveCount(0)
   await expect(page.getByText(/Head-to-Head uses 1 point/)).toBeVisible()
@@ -125,8 +158,9 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await expect(ross.getByText('Answer locked in')).toBeVisible()
   await jess.getByRole('button', { name: 'False' }).click()
   await jess.getByRole('button', { name: 'Lock in' }).click()
-  await expect(ross.getByText('+1 · Correct')).toBeVisible()
-  await expect(jess.getByText('Incorrect · 0 points')).toBeVisible()
+  await expectHeadToHeadResult(ross, 'Ross', 'Official question', '✓ Correct', '+1 point')
+  await expectHeadToHeadResult(jess, 'Jess', 'Playing along', '✕ Incorrect', 'No point — play-along')
+  await expect(ross.getByText(/Also got it right/i)).toHaveCount(0)
   await jess.getByRole('button', { name: 'Continue' }).click()
 
   await expect(jess.getByText('Your question')).toBeVisible()
@@ -134,11 +168,67 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await jess.getByRole('button', { name: 'True' }).click()
   await jess.getByRole('button', { name: 'Lock in' }).click()
   await ross.getByRole('button', { name: 'Skip play-along' }).click()
-  await expect(jess.getByText('+1 · Correct')).toBeVisible()
-  await expect(ross.getByText('Skipped')).toBeVisible()
+  await expectHeadToHeadResult(jess, 'Jess', 'Official question', '✓ Correct', '+1 point')
+  await expectHeadToHeadResult(ross, 'Ross', 'Playing along', 'Skipped', 'Play-along')
+  await ross.getByRole('button', { name: 'Continue' }).click()
+
+  await expect(ross.getByText('Your question')).toBeVisible()
+  await expect(jess.getByText(/Ross’s question/)).toBeVisible()
+  const slider = ross.getByRole('slider')
+  const sliderInteraction = ross.locator('.slider-answer__interaction')
+  const sliderStyle = await slider.evaluate((element) => {
+    const browser = globalThis as unknown as BrowserEvaluationGlobal
+    const inputStyle = browser.getComputedStyle(element)
+    const interaction = (element as unknown as BrowserEvaluationElement).closest('.slider-answer__interaction')
+    if (!interaction) throw new Error('Slider interaction area is missing')
+    const interactionStyle = browser.getComputedStyle(interaction)
+    return {
+      inputTouchAction: inputStyle.touchAction,
+      interactionTouchAction: interactionStyle.touchAction,
+      overscrollBehaviorX: interactionStyle.overscrollBehaviorX,
+      paddingLeft: Number.parseFloat(interactionStyle.paddingLeft),
+      paddingRight: Number.parseFloat(interactionStyle.paddingRight),
+    }
+  })
+  expect(sliderStyle).toMatchObject({
+    inputTouchAction: 'pan-y',
+    interactionTouchAction: 'pan-y',
+    overscrollBehaviorX: 'contain',
+  })
+  expect(sliderStyle.paddingLeft).toBeGreaterThanOrEqual(24)
+  expect(sliderStyle.paddingRight).toBeGreaterThanOrEqual(24)
+  await expect(sliderInteraction).toBeVisible()
+  const sliderBox = await slider.boundingBox()
+  if (!sliderBox) throw new Error('Slider was not visible')
+  const viewport = ross.viewportSize()
+  if (!viewport) throw new Error('Player viewport was unavailable')
+  expect(sliderBox.height).toBeGreaterThanOrEqual(48)
+  expect(sliderBox.x).toBeGreaterThanOrEqual(24)
+  expect(viewport.width - sliderBox.x - sliderBox.width).toBeGreaterThanOrEqual(24)
+  await slider.focus()
+  await slider.press('ArrowRight')
+  await expect(slider).toHaveValue('1')
+  await slider.fill('0')
+  await ross.mouse.move(sliderBox.x + 8, sliderBox.y + sliderBox.height / 2)
+  await ross.mouse.down()
+  await ross.mouse.move(sliderBox.x + sliderBox.width * .6, sliderBox.y + sliderBox.height / 2, { steps: 8 })
+  await ross.mouse.up()
+  await expect.poll(() => slider.inputValue()).not.toBe('0')
+  const horizontalOverflow = await ross.evaluate(() => {
+    const browser = globalThis as unknown as BrowserEvaluationGlobal
+    return browser.document.documentElement.scrollWidth > browser.innerWidth
+  })
+  expect(horizontalOverflow).toBe(false)
+
+  await slider.fill('50')
+  await jess.getByRole('slider').fill('50')
+  await ross.getByRole('button', { name: 'Lock in' }).click()
+  await jess.getByRole('button', { name: 'Lock in' }).click()
+  await expectHeadToHeadResult(ross, 'Ross', 'Official question', '✓ Correct', '+1 point')
+  await expectHeadToHeadResult(jess, 'Jess', 'Playing along', '✓ Correct', 'No point — play-along')
   await ross.getByRole('button', { name: 'Show final result' }).click()
-  await expect(ross.getByRole('heading', { name: 'It’s a draw!' })).toBeVisible()
-  await expect(presentation.getByRole('heading', { name: 'It’s a draw!' })).toBeVisible()
+  await expect(ross.getByRole('heading', { name: 'Ross wins!' })).toBeVisible()
+  await expect(presentation.getByRole('heading', { name: 'Ross wins!' })).toBeVisible()
 
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Close room' }).click()
@@ -239,7 +329,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   await ross.getByRole('button', { name: 'True' }).click()
   await ross.getByRole('button', { name: 'Lock in' }).click()
   await jess.getByRole('button', { name: 'Skip play-along' }).click()
-  await expect(ross.getByText('+1 · Correct')).toBeVisible()
+  await expectHeadToHeadResult(ross, 'Ross', 'Official question', '✓ Correct', '+1 point')
   await jess.getByRole('button', { name: 'Continue' }).click()
 
   await expect(jess.getByText('Your question')).toBeVisible()
@@ -247,7 +337,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   await jess.getByRole('button', { name: 'False' }).click()
   await jess.getByRole('button', { name: 'Lock in' }).click()
   await ross.getByRole('button', { name: 'Skip play-along' }).click()
-  await expect(jess.getByText('+1 · Correct')).toBeVisible()
+  await expectHeadToHeadResult(jess, 'Jess', 'Official question', '✓ Correct', '+1 point')
   await ross.getByRole('button', { name: 'Show final result' }).click()
   await expect(ross.getByRole('heading', { name: 'It’s a draw!' })).toBeVisible()
 

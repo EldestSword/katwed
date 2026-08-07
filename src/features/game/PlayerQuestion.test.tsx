@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { PlayerQuestion } from './PlayerQuestion'
@@ -80,5 +80,36 @@ describe('PlayerQuestion image choices', () => {
     expect(screen.getByRole('button', { name: /Picture/ })).toHaveAttribute('aria-pressed', 'false')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('PlayerQuestion slider', () => {
+  const sliderQuestion: SafeQuestion = {
+    id: 'slider', type: 'slider', prompt: 'Choose a value', supportingText: '',
+    media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'hide',
+    points: 1000, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+    minimum: 0, maximum: 100, step: 5, prefix: '', suffix: '', unitLabel: 'units',
+  }
+
+  it('retains a native range, changes value normally and submits the selected value', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const { container } = render(<PlayerQuestion question={sliderQuestion} roster={[]} closesAt={closesAt} onSubmit={onSubmit} />)
+    const slider = screen.getByRole('slider', { name: 'units' }) as HTMLInputElement
+
+    expect(slider.tagName).toBe('INPUT')
+    expect(slider.type).toBe('range')
+    expect(slider.closest('.slider-answer__interaction')).not.toBeNull()
+    fireEvent.change(slider, { target: { value: '60' } })
+    expect(slider.value).toBe('60')
+    expect(screen.getByText(/60 units/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeEnabled()
+
+    slider.focus()
+    expect(document.activeElement).toBe(slider)
+    expect(fireEvent.keyDown(slider, { key: 'ArrowRight' })).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Lock in' }))
+    expect(onSubmit).toHaveBeenCalledWith({ type: 'slider', value: Number(slider.value) })
+    expect(container.querySelector('.slider-answer')).not.toBeInTheDocument()
   })
 })

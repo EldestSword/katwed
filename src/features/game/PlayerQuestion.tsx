@@ -212,11 +212,13 @@ export function PlayerQuestion({
       {question.type === 'slider' && (
         <div className="slider-answer">
           <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix} {question.unitLabel}</output>
-          <input type="range" min={question.minimum} max={question.maximum} step={question.step}
-            value={answer?.type === 'slider' ? answer.value : question.minimum}
-            aria-label={question.unitLabel || 'Answer value'}
-            onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
-          <div><span>{question.minimum}</span><span>{question.maximum}</span></div>
+          <div className="slider-answer__interaction">
+            <input type="range" min={question.minimum} max={question.maximum} step={question.step}
+              value={answer?.type === 'slider' ? answer.value : question.minimum}
+              aria-label={question.unitLabel || 'Answer value'}
+              onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
+          </div>
+          <div className="slider-answer__limits"><span>{question.minimum}</span><span>{question.maximum}</span></div>
         </div>
       )}
 

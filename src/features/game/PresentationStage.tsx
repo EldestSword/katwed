@@ -7,6 +7,7 @@ import { Logo } from '../../components/AppShell'
 import { PinpointSurface } from './PinpointSurface'
 import { formatSliderValue } from './revealFormatting'
 import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
+import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -144,7 +145,7 @@ export function PresentationStage({
           )}
           <RevealResult reveal={state.reveal} question={question} compact={compact} />
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
-          {headToHead && <><div className="head-to-head-results">{(state.headToHeadResults ?? []).map((result) => <div key={result.competitorId}><strong>{competitors.find((competitor) => competitor.competitorId === result.competitorId)?.displayName}</strong><span>{result.status === 'skipped' ? 'Skipped' : `${result.status === 'correct' ? 'Correct' : 'Incorrect'} · ${result.pointsAwarded} ${result.pointsAwarded === 1 ? 'point' : 'points'}`}</span></div>)}</div><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></>}
+          {headToHead && <><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></>}
         </div>
       )}
       {state.phase === 'leaderboard' && (

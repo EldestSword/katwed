@@ -778,8 +778,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .boolean-choice { min-height: 7rem; border: 2px solid #d7dbea; border-radius: 1rem; background: white; font: inherit; font-size: 1.5rem; font-weight: 900; }
 .slider-answer { display: grid; gap: 1.2rem; padding: 1rem 0; }
 .slider-answer output { text-align: center; font-size: 2.2rem; font-weight: 900; }
-.slider-answer input { width: 100%; min-height: 44px; }
-.slider-answer > div { display: flex; justify-content: space-between; }
+.slider-answer__interaction {
+  width: 100%;
+  padding-inline: clamp(1.5rem, 7vw, 3rem);
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+.slider-answer input { display: block; width: 100%; min-height: 48px; touch-action: pan-y; }
+.slider-answer__limits { display: flex; justify-content: space-between; }
 .pinpoint-coordinate-surface {
   position: relative;
   width: min(100%, 58rem);
@@ -1208,9 +1214,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .head-to-head-scoreboard,
 .head-to-head-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; width: 100%; margin: 1rem 0; }
 .head-to-head-scoreboard > div,
-.head-to-head-results > div { display: grid; gap: .3rem; padding: 1rem; border: 2px solid var(--quiz-stage-border, var(--purple)); border-radius: .8rem; background: var(--quiz-stage-surface, var(--white)); text-align: center; }
+.head-to-head-results > article { display: grid; gap: .3rem; padding: 1rem; border: 2px solid var(--quiz-stage-border, var(--purple)); border-radius: .8rem; background: var(--quiz-stage-surface, var(--white)); text-align: center; }
 .head-to-head-scoreboard strong { font-size: clamp(1.05rem, 3vw, 1.8rem); }
 .head-to-head-scoreboard span { font-size: clamp(1rem, 3vw, 2rem); font-weight: 900; }
+.head-to-head-result__role { font-size: .78rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.head-to-head-result__status { font-size: clamp(1.05rem, 3vw, 1.45rem); font-weight: 950; }
+.head-to-head-result__consequence { font-weight: 800; }
 .head-to-head-assignment { margin: 1rem; padding: .85rem 1rem; border-radius: .8rem; text-align: center; }
 .head-to-head-assignment.is-assigned { background: #fff3bd; border: 2px solid #e1a900; }
 .head-to-head-assignment.is-play-along { background: #e9e2f5; border: 2px solid var(--purple); }
