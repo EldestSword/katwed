@@ -55,6 +55,34 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('an active quiz duplicates into an independent new editor', async ({ page }) => {
+  await enterHost(page)
+  const sourceCard = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+  await expect(sourceCard).toContainText('3 questions')
+  await sourceCard.getByRole('button', { name: 'Duplicate' }).click()
+
+  await expect(page).toHaveURL(/\/host\/quizzes\/(?!quiz-demo\/edit)[^/]+\/edit$/)
+  await expect(page.getByLabel('Quiz title')).toHaveValue('The Curious Crew (Copy)')
+  await expect(page.locator('.question-navigator ol > li')).toHaveCount(3)
+
+  await page.getByLabel('Quiz title').fill('Independent Curious Copy')
+  await page.getByLabel('Prompt').fill('A changed copy-only prompt')
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.goto('/host')
+
+  await expect(page.getByRole('heading', { name: 'The Curious Crew', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Independent Curious Copy', exact: true })).toBeVisible()
+  const originalCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'The Curious Crew', exact: true }),
+  })
+  await expect(originalCard).toContainText('3 questions')
+  await originalCard.getByRole('link', { name: 'Edit' }).click()
+  await expect(page.getByLabel('Quiz title')).toHaveValue('The Curious Crew')
+  await expect(page.getByLabel('Prompt')).toHaveValue('Who is in this mash-up?')
+  await expect(page.locator('.question-navigator ol > li')).toHaveCount(3)
+})
+
 test('active and archived libraries preserve quiz content through archive and restore', async ({ page }) => {
   await enterHost(page)
   const activeTab = page.getByRole('tab', { name: /Active quizzes/ })
@@ -79,6 +107,7 @@ test('active and archived libraries preserve quiz content through archive and re
   await expect(archivedCard().getByRole('button', { name: 'Permanently delete' })).toBeVisible()
   await expect(archivedCard().getByRole('button', { name: /Launch game|Resume game/ })).toHaveCount(0)
   await expect(archivedCard().getByRole('link', { name: 'Edit' })).toHaveCount(0)
+  await expect(archivedCard().getByRole('button', { name: /Duplicate/ })).toHaveCount(0)
   await archivedCard().getByRole('button', { name: 'Restore' }).click()
   await expect(archivedCard()).toHaveCount(0)
 

@@ -49,6 +49,60 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(await repository.getHostSession(session.id)).toBeNull()
   })
 
+  it('duplicates an active quiz independently without copying or disturbing its active room', async () => {
+    const repository = new DemoGameRepository()
+    const sourceBefore = await repository.getQuiz('quiz-mixed')
+    const session = await repository.launchGame('quiz-mixed')
+    const player = await repository.joinRoom(session.roomCode, 'Copy Witness')
+    await repository.changePhase(session.id, 'start')
+    await repository.submitAnswer(
+      session.roomCode,
+      player.player.id,
+      player.reconnectToken,
+      { type: 'single-choice', optionId: 'mars' },
+    )
+    const sourceRoomBefore = await repository.getHostSession(session.id)
+
+    const duplicate = await repository.duplicateQuiz('quiz-mixed')
+
+    expect(duplicate.id).not.toBe('quiz-mixed')
+    expect(duplicate.title).toBe('Katwed! Mixed Quiz (Copy)')
+    expect(duplicate.archivedAt).toBeNull()
+    expect(duplicate.createdAt).not.toBe(sourceBefore?.createdAt)
+    expect(duplicate.updatedAt).toBe(duplicate.createdAt)
+    expect((await repository.listQuizzes()).map((quiz) => quiz.id)).toContain(duplicate.id)
+    expect(await repository.getActiveSessionForQuiz(duplicate.id)).toBeNull()
+    expect(await repository.getHostSession(session.id)).toEqual(sourceRoomBefore)
+    expect(await repository.getQuiz('quiz-mixed')).toEqual(sourceBefore)
+
+    await repository.saveQuiz({
+      id: duplicate.id,
+      title: 'Edited copy',
+      roster: duplicate.roster,
+      questions: duplicate.questions,
+    })
+    expect((await repository.getQuiz('quiz-mixed'))?.title).toBe('Katwed! Mixed Quiz')
+    expect((await repository.getQuiz('quiz-mixed'))?.questions).toEqual(sourceBefore?.questions)
+
+    const sharedPath = sourceBefore?.questions.find((question) => question.media.type === 'image')?.media
+    await repository.archiveQuiz(duplicate.id)
+    expect(await repository.permanentlyDeleteQuiz(duplicate.id)).toEqual({
+      deletedMediaCount: 0,
+      failedMediaCount: 0,
+    })
+    const retainedSource = await repository.getQuiz('quiz-mixed')
+    expect(retainedSource?.questions.find((question) => question.media.type === 'image')?.media).toEqual(sharedPath)
+  })
+
+  it('rejects duplication of an archived quiz', async () => {
+    const repository = new DemoGameRepository()
+    await repository.archiveQuiz('quiz-demo')
+    await expect(repository.duplicateQuiz('quiz-demo')).rejects.toThrow(
+      'Restore this quiz before duplicating it.',
+    )
+    expect(await repository.listQuizzes()).toHaveLength(1)
+  })
+
   it('joins, reconnects and rejects duplicate nicknames', async () => {
     const repository = new DemoGameRepository()
     const session = await repository.launchGame('quiz-demo')

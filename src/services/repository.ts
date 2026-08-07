@@ -26,6 +26,7 @@ class UnconfiguredRepository implements GameRepository {
   listArchivedQuizzes(): Promise<Quiz[]> { return this.fail() }
   getQuiz(_quizId: string): Promise<Quiz | null> { return this.fail() }
   saveQuiz(_input: QuizSaveInput): Promise<Quiz> { return this.fail() }
+  duplicateQuiz(_quizId: string): Promise<Quiz> { return this.fail() }
   archiveQuiz(_quizId: string): Promise<void> { return this.fail() }
   restoreQuiz(_quizId: string): Promise<void> { return this.fail() }
   permanentlyDeleteQuiz(_quizId: string): Promise<QuizDeleteResult> { return this.fail() }

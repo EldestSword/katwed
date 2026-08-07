@@ -13,6 +13,7 @@ import { RepositoryError } from '../../services/gameRepository'
 import { removeQuestionImages } from '../../services/questionImages'
 import { config } from '../config'
 import { parseSafeGameState } from './safeGameState'
+import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQuiz'
 
 type JsonObject = Record<string, unknown>
 
@@ -54,6 +55,15 @@ export class SupabaseGameRepository implements GameRepository {
 
   async saveQuiz(input: QuizSaveInput): Promise<Quiz> {
     return this.rpc<Quiz>('host_save_quiz', { p_quiz: input })
+  }
+
+  async duplicateQuiz(quizId: string): Promise<Quiz> {
+    const source = await this.getQuiz(quizId)
+    if (!source) throw new RepositoryError('database', 'That quiz could not be found.')
+    if (source.archivedAt !== null) {
+      throw new RepositoryError('database', 'Restore this quiz before duplicating it.')
+    }
+    return this.saveQuiz(createDuplicateQuizInput(source))
   }
 
   async archiveQuiz(quizId: string): Promise<void> {

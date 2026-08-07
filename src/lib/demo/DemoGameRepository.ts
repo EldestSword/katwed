@@ -17,6 +17,7 @@ import type { GameRepository, QuizDeleteResult, QuizSaveInput } from '../../serv
 import { RepositoryError } from '../../services/gameRepository'
 import { sampleQuizzes } from './sampleData'
 import { validateQuizSave } from '../../features/quiz-editor/validation'
+import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQuiz'
 
 interface DemoState {
   quizzes: Quiz[]
@@ -252,6 +253,15 @@ export class DemoGameRepository implements GameRepository {
       this.write(state, true, quiz.id)
       return clone(quiz)
     })
+  }
+
+  async duplicateQuiz(quizId: string): Promise<Quiz> {
+    const source = await this.getQuiz(quizId)
+    if (!source) throw new RepositoryError('database', 'That quiz could not be found.')
+    if (source.archivedAt !== null) {
+      throw new RepositoryError('database', 'Restore this quiz before duplicating it.')
+    }
+    return this.saveQuiz(createDuplicateQuizInput(source))
   }
 
   async archiveQuiz(quizId: string): Promise<void> {

@@ -26,6 +26,7 @@ export interface GameRepository {
   listArchivedQuizzes(): Promise<Quiz[]>
   getQuiz(quizId: string): Promise<Quiz | null>
   saveQuiz(input: QuizSaveInput): Promise<Quiz>
+  duplicateQuiz(quizId: string): Promise<Quiz>
   archiveQuiz(quizId: string): Promise<void>
   restoreQuiz(quizId: string): Promise<void>
   permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult>

@@ -70,6 +70,19 @@ export function HostDashboardPage() {
     }
   }
 
+  async function duplicate(quiz: Quiz) {
+    setWorkingQuizId(quiz.id)
+    setNotice('')
+    try {
+      const copy = await repository.duplicateQuiz(quiz.id)
+      await navigate(`/host/quizzes/${copy.id}/edit`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The quiz could not be duplicated.')
+    } finally {
+      setWorkingQuizId('')
+    }
+  }
+
   async function restore(quiz: Quiz) {
     setWorkingQuizId(quiz.id)
     setNotice('')
@@ -154,6 +167,12 @@ export function HostDashboardPage() {
                     {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
                   </button>
                   <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
+                  <button
+                    className="button button--secondary"
+                    type="button"
+                    disabled={workingQuizId === quiz.id}
+                    onClick={() => void duplicate(quiz)}
+                  >{workingQuizId === quiz.id ? 'Duplicating...' : 'Duplicate'}</button>
                   <button
                     className="button button--ghost"
                     type="button"

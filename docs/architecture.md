@@ -29,6 +29,8 @@ The controller is private and intended for the host's second monitor. Only it ca
 
 Screens depend on the `GameRepository` contract rather than a storage implementation. `SupabaseGameRepository` calls narrow PostgreSQL RPCs and subscribes to live refresh broadcasts. `DemoGameRepository` uses the same domain models, serialises writes with a browser lock, persists to local storage and synchronises tabs through `BroadcastChannel` and storage events.
 
+Quiz duplication also stays behind this boundary. Both implementations use the same pure clone/remapping helper, reject archived sources, and persist the resulting definition through the existing `saveQuiz` path. Supabase reads through `host_get_quiz` and writes through `host_save_quiz`; no duplication RPC or schema migration is required. Because game sessions are stored separately and are not part of the save input, a duplicate starts without players, answers, scores or an active room, while any source room remains untouched.
+
 The Supabase implementation is the proven production backend. Demo mode remains a development and browser-test convenience, not the production data source.
 
 ## Generic question engine
@@ -65,6 +67,8 @@ Quiz definitions and live game state remain in Supabase PostgreSQL. Uploaded qui
 The quiz lifecycle is deployed through `202608070001_quiz_archive_lifecycle.sql` and the matching Netlify frontend. Active and archived libraries are separate repository queries. Archive and permanent deletion reject quizzes with active rooms, archived quizzes cannot launch, and permanent deletion requires an archived quiz. A database trigger preserves those rules even if an authenticated client attempts a direct row operation.
 
 Permanent deletion is deliberately database-first. The security-definer RPC gathers image references from question media, the retained question image path and choice-option image paths, excludes any exact reference still used by another quiz, then deletes the quiz. Existing cascades remove its questions, options, game sessions, players and answers. The authenticated browser subsequently accepts only Katwed-generated paths from the configured project's public `question-images` bucket and signed-in host folder for best-effort Storage removal. A Storage failure is reported as cleanup debt rather than misreporting the completed database deletion; general orphan discovery remains planned.
+
+Duplicated quizzes intentionally retain the same uploaded-image URLs and option-image paths, and preserve YouTube media settings. No Storage upload or file-copy operation occurs during duplication. The existing cross-quiz reference check therefore prevents one duplicate's permanent deletion from removing media still used by the other.
 
 Questions may also reference normalised YouTube video IDs. Autoplay remains browser-dependent, and cross-device playback synchronisation is a future extension rather than part of the current architecture.
 
