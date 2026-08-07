@@ -46,11 +46,13 @@ YouTube media is supported, but autoplay depends on browser policy. YouTube cont
 
 The presentation window can be shared manually through Microsoft Teams or another meeting tool. Katwed! has no Teams API integration and does not require one.
 
-### Implemented and tested locally, pending a deliberate frontend release
+### Duplicate quiz release
 
 Active quizzes can be duplicated from the host library. A duplicate opens directly in its editor with fresh quiz, people-bank, question and choice-option identities, while preserving authored question settings and remapping answer references. It starts without game history or an active room. Uploaded-image references and YouTube settings are intentionally reused; no Storage objects are copied, and shared-reference-safe permanent deletion continues to protect media used by another quiz.
 
-This feature uses the existing authenticated quiz read/save repository path and requires no database migration. It has not yet been deployed to Netlify.
+The Duplicate Quiz frontend is deployed to Netlify. The production release verified the public root and host-login routes, SPA routing, the immutable deploy URL and the production dashboard bundle containing Duplicate. Authenticated production duplication UAT was not performed during the release because no secure host browser session was available. The complete flow remains covered by local repository, component and browser tests.
+
+This feature uses the existing authenticated quiz read/save repository path and required no database migration.
 
 ### Planned
 
@@ -330,7 +332,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore and safer permanent deletion are implemented and deployed. Duplicate quiz is implemented and tested locally, pending a deliberate frontend release. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion and duplicate quiz are implemented and deployed. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
 
 - general orphaned-media discovery and cleanup;
 - quiz thumbnails;
