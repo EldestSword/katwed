@@ -32,7 +32,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608070002_quiz_covers.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+The production migration chain through `202608070003_storage_manager.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
 
 ### Implemented and deployed
 
@@ -72,9 +72,11 @@ The production release applied `202608070002_quiz_covers.sql` and deployed the m
 
 ### Storage Manager
 
-Storage Manager is implemented and tested locally at `/host/storage`, pending the forward migration `202608070003_storage_manager.sql` and a deliberate matching frontend release. It reports Total, In use and Unused Katwed images for the signed-in host's folder in the existing `question-images` bucket. Legacy or unmanaged objects are included as Other / protected when Storage metadata is available, but are never offered for automatic deletion.
+Storage Manager is deployed at `/host/storage`. It reports Total, In use and Unused Katwed images for the signed-in host's folder in the existing `question-images` bucket. Legacy or unmanaged objects are included as Other / protected when Storage metadata is available, but are never offered for automatic deletion.
 
 The browser lists only the authenticated host's folder. A bounded security-definer RPC then checks strict Katwed-generated owner/year/UUID WebP paths against cover, question-media, retained legacy question-image and option-image references across every quiz, including other hosts' quizzes. Cleanup is always user-triggered and confirmed; the proposed unused paths are checked again immediately before the authenticated Storage API removes only the still-unused subset. No scheduled or background cleanup exists. Demo mode provides the same report and cleanup flow over the existing IndexedDB image store.
+
+The production release applied `202608070003_storage_manager.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL, deployed Storage Manager assets and the `/host/storage` authentication boundary. Authenticated production Storage reporting was not exercised because no secure host browser session was available. Cleanup was not performed, and no production Storage object was removed during the release. The complete report, revalidation and cleanup flow remains covered by local repository, component and desktop/mobile browser tests.
 
 ### Planned
 
@@ -238,7 +240,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070002_quiz_covers.sql` applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070003_storage_manager.sql` applied.
 
 For a new Supabase environment:
 
@@ -275,6 +277,7 @@ Applied production migrations, in order:
 202608060001_fix_pgcrypto_schema.sql
 202608070001_quiz_archive_lifecycle.sql
 202608070002_quiz_covers.sql
+202608070003_storage_manager.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -285,13 +288,7 @@ Applied production migrations, in order:
 
 `202608070002_quiz_covers.sql` adds nullable quiz-cover metadata, includes it in authenticated quiz reads and saves, and extends permanent deletion's exact cross-quiz reference check to covers. It is applied to the live production schema and is immutable history.
 
-Pending production migration:
-
-```text
-202608070003_storage_manager.sql
-```
-
-`202608070003_storage_manager.sql` adds authenticated owner-folder listing for the existing public image bucket and a bounded classification RPC. The RPC validates caller-owned Katwed-generated paths and checks all quiz-cover, question-media, retained legacy question-image and option-image references globally. It classifies only; physical deletion remains an authenticated browser Storage API operation after immediate revalidation. The migration is implemented and tested locally but has not been applied to production.
+`202608070003_storage_manager.sql` adds authenticated owner-folder listing for the existing public image bucket and a bounded classification RPC. The RPC validates caller-owned Katwed-generated paths and checks all quiz-cover, question-media, retained legacy question-image and option-image references globally. It classifies only; physical deletion remains an authenticated browser Storage API operation after immediate revalidation. It is applied to the live production schema and is immutable history.
 
 ### Production pgcrypto repair
 
@@ -307,9 +304,9 @@ Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are st
 
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
-GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are implemented locally in Storage Manager, pending the new migration and frontend release. Future storage work remains planned for further image optimisation, optional media reuse and quiz export/import.
+GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are deployed through Storage Manager. Future storage work remains planned for further image optimisation, optional media reuse and quiz export/import.
 
-The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks quiz covers, question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained. Failed, replaced, removed or abandoned uploads remain cleanup debt in production until the locally implemented Storage Manager is deliberately released.
+The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks quiz covers, question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained. Failed, replaced, removed or abandoned uploads may remain cleanup debt until a host reviews and explicitly removes eligible unused files through Storage Manager.
 
 Never put a service-role key in a `VITE_` variable.
 
@@ -365,7 +362,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting and Quiz Covers are implemented and deployed. Storage usage visibility, orphaned-media discovery and explicit safe cleanup are implemented and tested locally in Storage Manager, pending `202608070003_storage_manager.sql` and a deliberate frontend release. The lifecycle removes relational game history on permanent deletion and safely preserves shared media references. Planned work now extends that foundation:
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Planned work now extends that foundation:
 
 - tags;
 - quiz export and import;
