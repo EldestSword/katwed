@@ -65,6 +65,33 @@ describe('QuizEditorPage quiz cover', () => {
     expect(within(section).getByLabelText('Choose cover')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
   })
 
+  it('shows all six themes and marks the persisted theme without relying on colour alone', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'paper', questions: [] }))
+    renderEditor()
+
+    const themes = await screen.findByRole('group', { name: 'Quiz theme' })
+    expect(within(themes).getAllByRole('button')).toHaveLength(6)
+    expect(within(themes).getByRole('button', { name: /Paper/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(themes).getByText('Selected')).toBeVisible()
+  })
+
+  it('updates the preview immediately and saves a newly selected theme', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    const themes = await screen.findByRole('group', { name: 'Quiz theme' })
+    expect(within(themes).getByRole('button', { name: /Katwed!/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(themes).getByRole('button', { name: /Midnight/ }))
+
+    expect(within(themes).getByRole('button', { name: /Midnight/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Midnight theme preview')).toHaveAttribute('data-quiz-theme', 'midnight')
+    expect(screen.getByText('Unsaved changes')).toBeVisible()
+
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ themeId: 'midnight' }))
+    expect(await screen.findByText('Quiz saved.')).toBeVisible()
+  })
+
   it('uploads, previews and persists a cover only through Save quiz', async () => {
     const user = userEvent.setup()
     renderEditor()

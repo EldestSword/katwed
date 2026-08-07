@@ -4,6 +4,7 @@ import { parseSafeGameState } from './safeGameState'
 const safeState = {
   sessionId: 'session',
   quizTitle: 'Quiz',
+  themeId: 'midnight',
   roomCode: '123456',
   status: 'active',
   phase: 'reveal',
@@ -41,6 +42,11 @@ const safeState = {
 }
 
 describe('parseSafeGameState', () => {
+  it('retains supported themes and normalises unknown backend values safely', () => {
+    expect(parseSafeGameState(safeState).themeId).toBe('midnight')
+    expect(parseSafeGameState({ ...safeState, themeId: 'future-theme' }).themeId).toBe('katwed')
+  })
+
   it('accepts normalised pinpoint reveal data only in a reveal-capable phase', () => {
     expect(parseSafeGameState(safeState).reveal).toMatchObject({ type: 'pinpoint', targetX: .5 })
     expect(() => parseSafeGameState({ ...safeState, phase: 'question' })).toThrow(/reveal data/)

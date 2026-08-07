@@ -1,5 +1,6 @@
 import type { Question, RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
+import { isQuizThemeId } from '../themes/quizThemes'
 
 export interface QuestionValidation {
   valid: boolean
@@ -131,6 +132,7 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   const messages: string[] = []
   const title = input.title.trim()
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')
+  if (!isQuizThemeId(input.themeId)) messages.push('Choose a supported quiz theme.')
 
   const memberIds = new Set<string>()
   const memberNames = new Set<string>()

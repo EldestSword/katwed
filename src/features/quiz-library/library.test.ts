@@ -13,6 +13,7 @@ function quiz(overrides: Partial<Quiz> & Pick<Quiz, 'id' | 'title'>): Quiz {
     roster: [],
     questions: [],
     coverImagePath: null,
+    themeId: 'katwed',
     archivedAt: null,
     createdAt: '2026-01-01T12:00:00.000Z',
     updatedAt: '2026-01-01T12:00:00.000Z',

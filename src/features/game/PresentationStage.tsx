@@ -89,14 +89,27 @@ export function PresentationStage({
   const question = state.currentQuestion
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
   return (
-    <section className={`presentation-stage ${compact ? 'presentation-stage--compact' : ''}`} aria-live="polite">
+    <section
+      className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`}
+      data-quiz-theme={state.themeId}
+      aria-live="polite"
+    >
       {state.phase === 'lobby' && (
         <div className="presentation-lobby">
           <Logo />
           <h1>{state.quizTitle}</h1>
           <p>Join at {window.location.host}</p>
           <strong className="presentation-room-code">{state.roomCode}</strong>
-          <QRCodeSVG value={joinUrl} size={compact ? 90 : 220} level="M" title="QR code for joining this Katwed room" />
+          <div className="presentation-qr-panel">
+            <QRCodeSVG
+              value={joinUrl}
+              size={compact ? 90 : 220}
+              level="M"
+              bgColor="#ffffff"
+              fgColor="#111827"
+              title="QR code for joining this Katwed room"
+            />
+          </div>
           <p>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} joined</p>
           <ul>{state.players.slice(0, compact ? 5 : 16).map((player) => <li key={player.id}>{player.nickname}</li>)}</ul>
         </div>

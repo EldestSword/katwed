@@ -12,6 +12,9 @@ export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'z
 export type MediaVisibility = 'presentation' | 'players' | 'both'
 export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
 
+export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
+export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
+
 export type QuestionMedia =
   | { type: 'none' }
   | {
@@ -181,6 +184,7 @@ export interface Quiz {
   id: string
   title: string
   coverImagePath: string | null
+  themeId: QuizThemeId
   roster: RosterMember[]
   questions: Question[]
   archivedAt: string | null
@@ -238,6 +242,7 @@ export interface LeaderboardEntry {
 export interface SafeGameState {
   sessionId: string
   quizTitle: string
+  themeId: QuizThemeId
   roomCode: string
   status: SessionStatus
   phase: GamePhase

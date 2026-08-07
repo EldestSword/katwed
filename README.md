@@ -76,11 +76,19 @@ Storage Manager is deployed at `/host/storage`. It reports Total, In use and Unu
 
 The browser lists only the authenticated host's folder. A bounded security-definer RPC then checks strict Katwed-generated owner/year/UUID WebP paths against cover, question-media, retained legacy question-image and option-image references across every quiz, including other hosts' quizzes. Cleanup is always user-triggered and confirmed; the proposed unused paths are checked again immediately before the authenticated Storage API removes only the still-unused subset. No scheduled or background cleanup exists. Demo mode provides the same report and cleanup flow over the existing IndexedDB image store.
 
-The production release applied `202608070003_storage_manager.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL, deployed Storage Manager assets and the `/host/storage` authentication boundary. Authenticated production Storage reporting was not exercised because no secure host browser session was available. Cleanup was not performed, and no production Storage object was removed during the release. The complete report, revalidation and cleanup flow remains covered by local repository, component and desktop/mobile browser tests.
+The production release applied `202608070003_storage_manager.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL, deployed Storage Manager assets and the `/host/storage` authentication boundary. A later manual authenticated cleanup reported 2 images totalling 456.3 KB: 1 in use at 211.6 KB and 1 unused at 244.7 KB. After explicit confirmation the UI reported "1 image was removed." The refreshed report showed 1 total/in-use image at 211.6 KB and 0 unused, and the referenced image remained intact. That manual check did not attempt to manufacture a newly protected or concurrent-reference race; those revalidation paths remain covered by automated tests.
+
+### Per-quiz themes - implemented locally, pending release
+
+Each quiz now selects one of six built-in audience themes: `katwed`, `midnight`, `sunset`, `arcade`, `mint` or `paper`. Katwed is the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
+
+Theme palettes are a central typed registry rendered through scoped CSS custom properties. `themeId` travels with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Covers remain separate library metadata. Duplicate preserves the selected theme alongside the existing independently remapped quiz definition.
+
+This work and its unit, component and desktop/mobile browser coverage are local only. `202608070004_quiz_themes.sql` is committed as the single pending migration and has not been applied; the matching frontend also awaits a deliberate production release. Production remains on `202608070003_storage_manager.sql` and the currently deployed frontend.
 
 ### Planned
 
-The next phase continues quiz-library and storage management, followed by themes and visual identity, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap); locally implemented work remains pending a deliberate release where stated.
+The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap); locally implemented work remains pending a deliberate release where stated.
 
 Demo mode remains the quickest credential-free way to explore the platform locally.
 
@@ -290,6 +298,14 @@ Applied production migrations, in order:
 
 `202608070003_storage_manager.sql` adds authenticated owner-folder listing for the existing public image bucket and a bounded classification RPC. The RPC validates caller-owned Katwed-generated paths and checks all quiz-cover, question-media, retained legacy question-image and option-image references globally. It classifies only; physical deletion remains an authenticated browser Storage API operation after immediate revalidation. It is applied to the live production schema and is immutable history.
 
+Pending production migration:
+
+```text
+202608070004_quiz_themes.sql
+```
+
+`202608070004_quiz_themes.sql` adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and the player-safe game state, and extends the existing save function without changing question persistence, scoring or phases. It is committed and tested statically but has not been applied. Production remains through `202608070003_storage_manager.sql`.
+
 ### Production pgcrypto repair
 
 The first live anonymous-player test exposed `function gen_random_bytes(integer) does not exist`. Supabase had installed pgcrypto in the `extensions` schema, while the hardened RPCs deliberately retained `search_path = public` and called pgcrypto functions without qualification.
@@ -372,13 +388,14 @@ Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited,
 
 ### Themes and visual identity
 
+The six curated per-quiz colour themes and their presentation/player answer styling are implemented and tested locally, pending `202608070004_quiz_themes.sql` and a deliberate matching frontend release.
+
 Planned work:
 
 - Katwed! typography;
 - a background system;
-- presentation themes;
-- per-quiz colour themes;
-- answer-card styling.
+- presentation background images;
+- custom themes.
 
 ### Further question formats
 

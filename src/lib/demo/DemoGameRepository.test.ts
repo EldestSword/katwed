@@ -100,6 +100,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: duplicate.id,
       title: 'Edited copy',
       coverImagePath: duplicate.coverImagePath,
+      themeId: duplicate.themeId,
       roster: duplicate.roster,
       questions: duplicate.questions,
     })
@@ -126,6 +127,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: source.id,
       title: source.title,
       coverImagePath: sharedCover,
+      themeId: source.themeId,
       roster: source.roster,
       questions: source.questions,
     })
@@ -145,6 +147,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: duplicate.id,
       title: duplicate.title,
       coverImagePath: null,
+      themeId: duplicate.themeId,
       roster: duplicate.roster,
       questions: duplicate.questions,
     })
@@ -158,11 +161,39 @@ describe('DemoGameRepository multi-format game state', () => {
     const created = await repository.saveQuiz({
       title: 'No-cover quiz',
       coverImagePath: null,
+      themeId: 'katwed',
       roster: [],
       questions: [],
     })
 
     expect(created.coverImagePath).toBeNull()
+  })
+
+  it('persists themes through reload, duplication, archive, restore and safe game state', async () => {
+    const repository = new DemoGameRepository()
+    const source = await repository.getQuiz('quiz-demo')
+    if (!source) throw new Error('Demo quiz missing')
+
+    const themed = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      coverImagePath: source.coverImagePath,
+      themeId: 'arcade',
+      roster: source.roster,
+      questions: source.questions,
+    })
+    expect(themed.themeId).toBe('arcade')
+    expect((await new DemoGameRepository().getQuiz(source.id))?.themeId).toBe('arcade')
+
+    const duplicate = await repository.duplicateQuiz(source.id)
+    expect(duplicate.themeId).toBe('arcade')
+    await repository.archiveQuiz(duplicate.id)
+    expect((await repository.listArchivedQuizzes()).find((quiz) => quiz.id === duplicate.id)?.themeId).toBe('arcade')
+    await repository.restoreQuiz(duplicate.id)
+    expect((await repository.getQuiz(duplicate.id))?.themeId).toBe('arcade')
+
+    const session = await repository.launchGame(duplicate.id)
+    expect((await repository.getSafeGameState(session.roomCode))?.themeId).toBe('arcade')
   })
 
   it('reports and cleans Demo IndexedDB orphans while preserving current and newly shared references', async () => {
@@ -179,6 +210,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: source.id,
       title: source.title,
       coverImagePath: inUsePath,
+      themeId: source.themeId,
       roster: source.roster,
       questions: source.questions,
     })
@@ -201,6 +233,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: other.id,
       title: other.title,
       coverImagePath: orphanPath,
+      themeId: other.themeId,
       roster: other.roster,
       questions: other.questions,
     })
@@ -216,6 +249,7 @@ describe('DemoGameRepository multi-format game state', () => {
       id: other.id,
       title: other.title,
       coverImagePath: null,
+      themeId: other.themeId,
       roster: other.roster,
       questions: other.questions,
     })

@@ -1,4 +1,5 @@
 import type { RevealPayload, SafeGameState } from '../../types/domain'
+import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -82,5 +83,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     }
   }
 
-  return value as unknown as SafeGameState
+  return {
+    ...value,
+    themeId: normaliseQuizThemeId(value.themeId),
+  } as unknown as SafeGameState
 }

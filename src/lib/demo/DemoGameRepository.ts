@@ -26,6 +26,7 @@ import {
   type StorageReport,
 } from '../../features/storage-manager/storageManager'
 import { listDemoStoredImages, removeDemoStoredImages } from '../../services/questionImages'
+import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 
 interface DemoState {
   quizzes: Quiz[]
@@ -54,6 +55,7 @@ function normaliseState(state: DemoState): DemoState {
     quizzes: state.quizzes.map((quiz) => ({
       ...quiz,
       coverImagePath: quiz.coverImagePath ?? null,
+      themeId: normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId),
       archivedAt: quiz.archivedAt ?? null,
     })),
   }
@@ -244,6 +246,7 @@ export class DemoGameRepository implements GameRepository {
         id: quizId,
         title: input.title.trim() || 'Untitled quiz',
         coverImagePath: input.coverImagePath?.trim() || null,
+        themeId: input.themeId,
         roster: input.roster.map((member, index) => ({
           ...member,
           id: member.id || uid('member'),
@@ -483,6 +486,7 @@ export class DemoGameRepository implements GameRepository {
     return clone({
       sessionId: session.id,
       quizTitle: quiz.title,
+      themeId: quiz.themeId,
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,

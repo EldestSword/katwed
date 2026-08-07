@@ -73,7 +73,7 @@ export function PlayPage() {
     : null
 
   return (
-    <main className="game-screen player-game">
+    <main className="game-screen player-game quiz-themed-surface" data-quiz-theme={state.themeId}>
       <header className="game-bar"><Logo /><div><span className="muted">Room</span><strong>{roomCode}</strong></div><div><span className="muted">Playing as</span><strong>{currentPlayer.nickname}</strong></div></header>
       {error && <StatusMessage tone="error">Connection lost: {error}</StatusMessage>}
       {state.phase === 'lobby' && (

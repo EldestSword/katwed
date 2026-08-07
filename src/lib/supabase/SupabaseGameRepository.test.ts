@@ -59,6 +59,7 @@ describe('SupabaseGameRepository duplication', () => {
       id: mixedDemoQuiz.id,
       title: mixedDemoQuiz.title,
       coverImagePath,
+      themeId: mixedDemoQuiz.themeId,
       roster: mixedDemoQuiz.roster,
       questions: mixedDemoQuiz.questions,
     }

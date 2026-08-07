@@ -16,6 +16,7 @@ import { parseSafeGameState } from './safeGameState'
 import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQuiz'
 import type { StorageCleanupResult, StorageReport } from '../../features/storage-manager/storageManager'
 import { cleanupSupabaseUnusedImages, loadSupabaseStorageReport } from '../../services/storageManager'
+import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 
 type JsonObject = Record<string, unknown>
 
@@ -27,6 +28,10 @@ function normaliseError(error: { message: string; code?: string } | null): Repos
     '42501': 'unauthorised',
   }
   return new RepositoryError(codeMap[error.code ?? ''] ?? 'database', error.message)
+}
+
+function normaliseQuiz(quiz: Quiz): Quiz {
+  return { ...quiz, themeId: normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId) }
 }
 
 export class SupabaseGameRepository implements GameRepository {
@@ -44,19 +49,20 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async listQuizzes(): Promise<Quiz[]> {
-    return this.rpc<Quiz[]>('host_list_quizzes')
+    return (await this.rpc<Quiz[]>('host_list_quizzes')).map(normaliseQuiz)
   }
 
   async listArchivedQuizzes(): Promise<Quiz[]> {
-    return this.rpc<Quiz[]>('host_list_archived_quizzes')
+    return (await this.rpc<Quiz[]>('host_list_archived_quizzes')).map(normaliseQuiz)
   }
 
   async getQuiz(quizId: string): Promise<Quiz | null> {
-    return this.rpc<Quiz | null>('host_get_quiz', { p_quiz_id: quizId })
+    const quiz = await this.rpc<Quiz | null>('host_get_quiz', { p_quiz_id: quizId })
+    return quiz ? normaliseQuiz(quiz) : null
   }
 
   async saveQuiz(input: QuizSaveInput): Promise<Quiz> {
-    return this.rpc<Quiz>('host_save_quiz', { p_quiz: input })
+    return normaliseQuiz(await this.rpc<Quiz>('host_save_quiz', { p_quiz: input }))
   }
 
   async duplicateQuiz(quizId: string): Promise<Quiz> {

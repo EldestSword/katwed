@@ -13,6 +13,7 @@ export interface QuizSaveInput {
   id?: string
   title: string
   coverImagePath: string | null
+  themeId: Quiz['themeId']
   roster: Quiz['roster']
   questions: Quiz['questions']
 }

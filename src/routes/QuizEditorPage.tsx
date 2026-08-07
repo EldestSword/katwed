@@ -7,9 +7,10 @@ import { StatusMessage } from '../components/StatusMessage'
 import { validateQuestion, validateQuizSave } from '../features/quiz-editor/validation'
 import { createQuestion } from '../features/questions/factories'
 import { questionTypes, questionTypeRegistry } from '../features/questions/registry'
+import { quizThemes } from '../features/themes/quizThemes'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
-import type { ChoiceOption, Question, QuestionMedia as Media, QuestionType, Quiz, RosterMember } from '../types/domain'
+import type { ChoiceOption, Question, QuestionMedia as Media, QuestionType, Quiz, QuizThemeId, RosterMember } from '../types/domain'
 import { normaliseYouTubeVideoId } from '../utils/youtube'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
@@ -119,6 +120,7 @@ export function QuizEditorPage() {
       id: quiz.id,
       title: quiz.title.trim(),
       coverImagePath: quiz.coverImagePath,
+      themeId: quiz.themeId,
       roster: quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder })),
       questions: quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder })),
     }
@@ -184,7 +186,11 @@ export function QuizEditorPage() {
         <section className="editor-preview">
           {selected ? <>
             <div className="preview-tabs"><span>Presentation preview</span><span>Player preview</span></div>
-            <article className="question-preview-card"><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></article>
+            <article
+              className="question-preview-card quiz-themed-surface"
+              data-quiz-theme={quiz.themeId}
+              aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></article>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
                 const duplicate = structuredClone(selected)
@@ -214,6 +220,10 @@ export function QuizEditorPage() {
         </section>
 
         <aside className="question-settings">
+          <QuizThemePicker
+            themeId={quiz.themeId}
+            select={(themeId) => update((current) => ({ ...current, themeId }))}
+          />
           <QuizCover
             coverImagePath={quiz.coverImagePath}
             uploading={coverUploading}
@@ -241,6 +251,44 @@ export function QuizEditorPage() {
       </div>
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
+  )
+}
+
+function QuizThemePicker({
+  themeId,
+  select,
+}: {
+  themeId: QuizThemeId
+  select(themeId: QuizThemeId): void
+}) {
+  return (
+    <fieldset className="quiz-theme-picker">
+      <legend>Quiz theme</legend>
+      <p>Applied to presentation and player game screens. Save the quiz to keep this change.</p>
+      <div className="quiz-theme-grid">
+        {quizThemes.map((theme) => {
+          const selected = theme.id === themeId
+          return (
+            <button
+              key={theme.id}
+              className="quiz-theme-option"
+              type="button"
+              aria-pressed={selected}
+              onClick={() => select(theme.id)}
+            >
+              <span className="quiz-theme-option__swatches" aria-hidden="true">
+                {theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }} />)}
+              </span>
+              <span className="quiz-theme-option__copy">
+                <strong>{theme.name}</strong>
+                <small>{theme.description}</small>
+              </span>
+              <span className="quiz-theme-option__state">{selected ? 'Selected' : 'Choose'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 

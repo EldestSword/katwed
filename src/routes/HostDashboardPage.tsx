@@ -16,6 +16,7 @@ import {
 } from '../features/quiz-library/library'
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
+import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
 
 type LibraryView = 'active' | 'archived'
 
@@ -72,7 +73,13 @@ export function HostDashboardPage() {
     setCreating(true)
     setNotice('')
     try {
-      const quiz = await repository.saveQuiz({ title: 'Untitled quiz', coverImagePath: null, roster: [], questions: [] })
+      const quiz = await repository.saveQuiz({
+        title: 'Untitled quiz',
+        coverImagePath: null,
+        themeId: DEFAULT_QUIZ_THEME_ID,
+        roster: [],
+        questions: [],
+      })
       await navigate(`/host/quizzes/${quiz.id}/edit`)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The quiz could not be created.')

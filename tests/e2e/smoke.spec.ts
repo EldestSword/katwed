@@ -55,6 +55,74 @@ test('editor has six formats and persists a changed title', async ({ page }) => 
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
+  test.setTimeout(90_000)
+  await enterHost(page)
+  await expect(page.locator('[data-quiz-theme]')).toHaveCount(0)
+
+  const sourceCard = page.getByRole('article', { name: 'The Curious Crew' })
+  await sourceCard.getByRole('link', { name: 'Edit' }).click()
+  const themePicker = page.getByRole('group', { name: 'Quiz theme' })
+  await expect(themePicker.getByRole('button')).toHaveCount(6)
+  const themeGrid = themePicker.locator('.quiz-theme-grid')
+  const themeGridBox = await themeGrid.boundingBox()
+  if (!themeGridBox) throw new Error('Theme grid was not visible')
+  for (const option of await themeGrid.getByRole('button').all()) {
+    const optionBox = await option.boundingBox()
+    if (!optionBox) throw new Error('Theme option was not visible')
+    expect(optionBox.x).toBeGreaterThanOrEqual(themeGridBox.x - 1)
+    expect(optionBox.x + optionBox.width).toBeLessThanOrEqual(themeGridBox.x + themeGridBox.width + 1)
+  }
+  await themePicker.getByRole('button', { name: /Arcade/ }).click()
+  const preview = page.getByLabel('Arcade theme preview')
+  await expect(preview).toHaveAttribute('data-quiz-theme', 'arcade')
+  const previewBackground = await preview.evaluate<string, void>(
+    "element => window.getComputedStyle(element).getPropertyValue('--quiz-bg').trim()",
+  )
+  expect(previewBackground).not.toBe('')
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
+    .toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/host')
+  await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('button', { name: 'Duplicate' }).click()
+  await expect(page.getByLabel('Quiz title')).toHaveValue('The Curious Crew (Copy)')
+  await expect(page.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
+    .toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/host')
+  const roomCode = await launchQuiz(page, 'The Curious Crew (Copy)')
+  await expect(page.locator('.controller-page[data-quiz-theme]')).toHaveCount(0)
+  await expect(page.locator('.presentation-stage')).toHaveAttribute('data-quiz-theme', 'arcade')
+
+  const presentation = await context.newPage()
+  await presentation.goto(page.url().replace('/control', '/present'))
+  await expect(presentation.locator('.presentation-stage')).toHaveAttribute('data-quiz-theme', 'arcade')
+  const player = await joinPlayer(context, roomCode, 'Theme Player')
+  await expect(player.locator('.player-game')).toHaveAttribute('data-quiz-theme', 'arcade')
+
+  await page.getByRole('button', { name: 'Start game' }).click()
+  await expect(player.getByRole('heading', { name: 'Select exactly 2 people' })).toBeVisible()
+  await expect(player.locator('.player-game')).toHaveAttribute('data-quiz-theme', 'arcade')
+  await player.getByRole('button', { name: 'Alex' }).click()
+  await player.getByRole('button', { name: 'Bailey' }).click()
+  await player.getByRole('button', { name: 'Lock in' }).click()
+  await page.getByRole('button', { name: 'Close answers early' }).click()
+  await expect(player.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
+  await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
+  await page.getByRole('button', { name: 'Reveal answer' }).click()
+  await expect(player.locator('.reveal-state')).toBeVisible()
+  await expect(player.locator('.player-game')).toHaveAttribute('data-quiz-theme', 'arcade')
+  await page.getByRole('button', { name: 'Show leaderboard' }).click()
+  await expect(presentation.locator('.leaderboard--presentation')).toBeVisible()
+  await expect(presentation.locator('.presentation-stage')).toHaveAttribute('data-quiz-theme', 'arcade')
+  expect(await player.evaluate<boolean>(
+    'document.documentElement.scrollWidth <= document.documentElement.clientWidth',
+  )).toBe(true)
+})
+
 test('quiz covers persist across the library lifecycle and remain independent after duplication', async ({ page }) => {
   test.setTimeout(60_000)
   await enterHost(page)
