@@ -15,6 +15,28 @@ export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
 export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 
+export const QUIZ_BACKGROUND_IDS = [
+  'katwed-bubbles',
+  'katwed-confetti',
+  'katwed-ribbons',
+  'midnight-aurora',
+  'midnight-glow',
+  'midnight-stars',
+  'sunset-horizon',
+  'sunset-lights',
+  'sunset-ribbons',
+  'arcade-circuit',
+  'arcade-grid',
+  'arcade-neon',
+  'mint-depth',
+  'mint-shapes',
+  'mint-waves',
+  'paper-collage',
+  'paper-geometry',
+  'paper-notebook',
+] as const
+export type QuizBackgroundId = typeof QUIZ_BACKGROUND_IDS[number]
+
 export type QuestionMedia =
   | { type: 'none' }
   | {
@@ -185,6 +207,7 @@ export interface Quiz {
   title: string
   coverImagePath: string | null
   themeId: QuizThemeId
+  backgroundId: QuizBackgroundId | null
   roster: RosterMember[]
   questions: Question[]
   archivedAt: string | null
@@ -243,6 +266,7 @@ export interface SafeGameState {
   sessionId: string
   quizTitle: string
   themeId: QuizThemeId
+  backgroundId: QuizBackgroundId | null
   roomCode: string
   status: SessionStatus
   phase: GamePhase

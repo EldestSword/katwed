@@ -34,6 +34,22 @@ describe('DemoGameRepository multi-format game state', () => {
     )
   })
 
+  it('normalises absent, unknown and wrong-theme backgrounds in older Demo state', async () => {
+    const repository = new DemoGameRepository()
+    await repository.listQuizzes()
+    const state = JSON.parse(localStorage.getItem('katwed.demo.state.v2') ?? '{}') as {
+      quizzes: Array<Record<string, unknown>>
+    }
+    delete state.quizzes[0].backgroundId
+    state.quizzes[1].themeId = 'katwed'
+    state.quizzes[1].backgroundId = 'arcade-grid'
+    localStorage.setItem('katwed.demo.state.v2', JSON.stringify(state))
+
+    const quizzes = await new DemoGameRepository().listQuizzes()
+    expect(quizzes[0].backgroundId).toBeNull()
+    expect(quizzes[1].backgroundId).toBeNull()
+  })
+
   it('moves an intact quiz between active and archived libraries', async () => {
     const repository = new DemoGameRepository()
     const original = await repository.getQuiz('quiz-demo')
@@ -101,6 +117,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: 'Edited copy',
       coverImagePath: duplicate.coverImagePath,
       themeId: duplicate.themeId,
+      backgroundId: duplicate.backgroundId,
       roster: duplicate.roster,
       questions: duplicate.questions,
     })
@@ -128,6 +145,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: source.title,
       coverImagePath: sharedCover,
       themeId: source.themeId,
+      backgroundId: source.backgroundId,
       roster: source.roster,
       questions: source.questions,
     })
@@ -148,6 +166,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: duplicate.title,
       coverImagePath: null,
       themeId: duplicate.themeId,
+      backgroundId: duplicate.backgroundId,
       roster: duplicate.roster,
       questions: duplicate.questions,
     })
@@ -162,6 +181,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: 'No-cover quiz',
       coverImagePath: null,
       themeId: 'katwed',
+      backgroundId: null,
       roster: [],
       questions: [],
     })
@@ -179,21 +199,28 @@ describe('DemoGameRepository multi-format game state', () => {
       title: source.title,
       coverImagePath: source.coverImagePath,
       themeId: 'arcade',
+      backgroundId: 'arcade-grid',
       roster: source.roster,
       questions: source.questions,
     })
     expect(themed.themeId).toBe('arcade')
+    expect(themed.backgroundId).toBe('arcade-grid')
     expect((await new DemoGameRepository().getQuiz(source.id))?.themeId).toBe('arcade')
+    expect((await new DemoGameRepository().getQuiz(source.id))?.backgroundId).toBe('arcade-grid')
 
     const duplicate = await repository.duplicateQuiz(source.id)
     expect(duplicate.themeId).toBe('arcade')
+    expect(duplicate.backgroundId).toBe('arcade-grid')
     await repository.archiveQuiz(duplicate.id)
     expect((await repository.listArchivedQuizzes()).find((quiz) => quiz.id === duplicate.id)?.themeId).toBe('arcade')
+    expect((await repository.listArchivedQuizzes()).find((quiz) => quiz.id === duplicate.id)?.backgroundId).toBe('arcade-grid')
     await repository.restoreQuiz(duplicate.id)
     expect((await repository.getQuiz(duplicate.id))?.themeId).toBe('arcade')
+    expect((await repository.getQuiz(duplicate.id))?.backgroundId).toBe('arcade-grid')
 
     const session = await repository.launchGame(duplicate.id)
     expect((await repository.getSafeGameState(session.roomCode))?.themeId).toBe('arcade')
+    expect((await repository.getSafeGameState(session.roomCode))?.backgroundId).toBe('arcade-grid')
   })
 
   it('reports and cleans Demo IndexedDB orphans while preserving current and newly shared references', async () => {
@@ -211,6 +238,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: source.title,
       coverImagePath: inUsePath,
       themeId: source.themeId,
+      backgroundId: source.backgroundId,
       roster: source.roster,
       questions: source.questions,
     })
@@ -234,6 +262,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: other.title,
       coverImagePath: orphanPath,
       themeId: other.themeId,
+      backgroundId: other.backgroundId,
       roster: other.roster,
       questions: other.questions,
     })
@@ -250,6 +279,7 @@ describe('DemoGameRepository multi-format game state', () => {
       title: other.title,
       coverImagePath: null,
       themeId: other.themeId,
+      backgroundId: other.backgroundId,
       roster: other.roster,
       questions: other.questions,
     })

@@ -42,7 +42,7 @@ function renderEditor() {
   return render(<RouterProvider router={router} />)
 }
 
-describe('QuizEditorPage quiz cover', () => {
+describe('QuizEditorPage quiz appearance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     repositoryMocks.getQuiz.mockResolvedValue(quiz())
@@ -90,6 +90,74 @@ describe('QuizEditorPage quiz cover', () => {
     await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
     expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ themeId: 'midnight' }))
     expect(await screen.findByText('Quiz saved.')).toBeVisible()
+  })
+
+  it('shows Theme default plus exactly three accessible image backgrounds for the selected theme', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({
+      themeId: 'paper',
+      backgroundId: 'paper-collage',
+      questions: [],
+    }))
+    renderEditor()
+
+    const picker = await screen.findByRole('group', { name: 'Quiz background' })
+    expect(within(picker).getAllByRole('button')).toHaveLength(4)
+    expect(within(picker).getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(picker).getByRole('button', { name: /Collage/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picker).getByRole('button', { name: /Geometry/ })).toBeVisible()
+    expect(within(picker).getByRole('button', { name: /Notebook/ })).toBeVisible()
+    expect(within(picker).queryByRole('button', { name: /Grid/ })).not.toBeInTheDocument()
+    expect([...picker.querySelectorAll('img')].map((image) => image.getAttribute('src'))).toEqual([
+      '/backgrounds/paper-collage.webp',
+      '/backgrounds/paper-geometry.webp',
+      '/backgrounds/paper-notebook.webp',
+    ])
+  })
+
+  it('updates the audience preview and save payload when a background or Theme default is selected', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    const picker = await screen.findByRole('group', { name: 'Quiz background' })
+    await user.click(within(picker).getByRole('button', { name: /Confetti/ }))
+    const preview = screen.getByLabelText('Katwed! theme preview')
+    expect(preview).toHaveAttribute('data-quiz-background', 'katwed-confetti')
+    expect(preview.getAttribute('style')).toContain('/backgrounds/katwed-confetti.webp')
+
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({
+      themeId: 'katwed',
+      backgroundId: 'katwed-confetti',
+    }))
+
+    await user.click(within(picker).getByRole('button', { name: /Theme default/ }))
+    expect(within(picker).getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(preview).not.toHaveAttribute('data-quiz-background')
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenLastCalledWith(expect.objectContaining({ backgroundId: null }))
+  })
+
+  it('preserves a compatible background but clears it without restoration after an incompatible theme change', async () => {
+    const user = userEvent.setup()
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'arcade', backgroundId: 'arcade-grid' }))
+    renderEditor()
+
+    const themes = await screen.findByRole('group', { name: 'Quiz theme' })
+    let picker = screen.getByRole('group', { name: 'Quiz background' })
+    expect(within(picker).getByRole('button', { name: /Grid/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(themes).getByRole('button', { name: /Arcade/ }))
+    expect(within(picker).getByRole('button', { name: /Grid/ })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(within(themes).getByRole('button', { name: /Paper/ }))
+    picker = screen.getByRole('group', { name: 'Quiz background' })
+    expect(within(picker).getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picker).queryByRole('button', { name: /Grid/ })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Paper theme preview')).not.toHaveAttribute('data-quiz-background')
+
+    await user.click(within(themes).getByRole('button', { name: /Arcade/ }))
+    picker = screen.getByRole('group', { name: 'Quiz background' })
+    expect(within(picker).getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picker).getByRole('button', { name: /Grid/ })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('uploads, previews and persists a cover only through Save quiz', async () => {

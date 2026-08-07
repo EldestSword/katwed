@@ -53,6 +53,7 @@ describe('Storage Manager helpers', () => {
   it('classifies Demo blobs from all quiz media locations and protects unmanaged keys', () => {
     const quiz = structuredClone(sampleQuiz)
     quiz.coverImagePath = inUsePath
+    quiz.backgroundId = 'katwed-confetti'
     const optionPath = 'demo-image://323e4567-e89b-42d3-a456-426614174000'
     quiz.questions = [{
       ...quiz.questions[0],
@@ -69,6 +70,7 @@ describe('Storage Manager helpers', () => {
     const classification = classifyDemoInventory(objects, collectQuizImageReferences([quiz]))
 
     expect(classification.referencedPaths).toEqual([inUsePath, optionPath])
+    expect(collectQuizImageReferences([quiz]).has('/backgrounds/katwed-confetti.webp')).toBe(false)
     expect(classification.unusedPaths).toEqual([unusedPath])
     expect(classification.ignoredPaths).toEqual([protectedPath])
   })

@@ -5,6 +5,7 @@ const safeState = {
   sessionId: 'session',
   quizTitle: 'Quiz',
   themeId: 'midnight',
+  backgroundId: 'midnight-stars',
   roomCode: '123456',
   status: 'active',
   phase: 'reveal',
@@ -44,7 +45,11 @@ const safeState = {
 describe('parseSafeGameState', () => {
   it('retains supported themes and normalises unknown backend values safely', () => {
     expect(parseSafeGameState(safeState).themeId).toBe('midnight')
+    expect(parseSafeGameState(safeState).backgroundId).toBe('midnight-stars')
     expect(parseSafeGameState({ ...safeState, themeId: 'future-theme' }).themeId).toBe('katwed')
+    expect(parseSafeGameState({ ...safeState, backgroundId: undefined }).backgroundId).toBeNull()
+    expect(parseSafeGameState({ ...safeState, backgroundId: 'future-background' }).backgroundId).toBeNull()
+    expect(parseSafeGameState({ ...safeState, backgroundId: 'arcade-grid' }).backgroundId).toBeNull()
   })
 
   it('accepts normalised pinpoint reveal data only in a reveal-capable phase', () => {

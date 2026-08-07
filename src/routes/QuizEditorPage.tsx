@@ -8,9 +8,23 @@ import { validateQuestion, validateQuizSave } from '../features/quiz-editor/vali
 import { createQuestion } from '../features/questions/factories'
 import { questionTypes, questionTypeRegistry } from '../features/questions/registry'
 import { quizThemes } from '../features/themes/quizThemes'
+import {
+  backgroundsForTheme,
+  normaliseQuizBackgroundId,
+} from '../features/themes/quizBackgrounds'
+import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
-import type { ChoiceOption, Question, QuestionMedia as Media, QuestionType, Quiz, QuizThemeId, RosterMember } from '../types/domain'
+import type {
+  ChoiceOption,
+  Question,
+  QuestionMedia as Media,
+  QuestionType,
+  Quiz,
+  QuizBackgroundId,
+  QuizThemeId,
+  RosterMember,
+} from '../types/domain'
 import { normaliseYouTubeVideoId } from '../utils/youtube'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
@@ -121,6 +135,7 @@ export function QuizEditorPage() {
       title: quiz.title.trim(),
       coverImagePath: quiz.coverImagePath,
       themeId: quiz.themeId,
+      backgroundId: quiz.backgroundId,
       roster: quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder })),
       questions: quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder })),
     }
@@ -189,6 +204,7 @@ export function QuizEditorPage() {
             <article
               className="question-preview-card quiz-themed-surface"
               data-quiz-theme={quiz.themeId}
+              {...quizBackgroundSurfaceProps(quiz.backgroundId, quiz.themeId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
             ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></article>
             <div className="heading-actions">
@@ -222,7 +238,16 @@ export function QuizEditorPage() {
         <aside className="question-settings">
           <QuizThemePicker
             themeId={quiz.themeId}
-            select={(themeId) => update((current) => ({ ...current, themeId }))}
+            select={(themeId) => update((current) => ({
+              ...current,
+              themeId,
+              backgroundId: normaliseQuizBackgroundId(current.backgroundId, themeId),
+            }))}
+          />
+          <QuizBackgroundPicker
+            themeId={quiz.themeId}
+            backgroundId={quiz.backgroundId}
+            select={(backgroundId) => update((current) => ({ ...current, backgroundId }))}
           />
           <QuizCover
             coverImagePath={quiz.coverImagePath}
@@ -251,6 +276,61 @@ export function QuizEditorPage() {
       </div>
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
+  )
+}
+
+function QuizBackgroundPicker({
+  themeId,
+  backgroundId,
+  select,
+}: {
+  themeId: QuizThemeId
+  backgroundId: QuizBackgroundId | null
+  select(backgroundId: QuizBackgroundId | null): void
+}) {
+  const backgrounds = backgroundsForTheme(themeId)
+  return (
+    <fieldset className="quiz-background-picker">
+      <legend>Quiz background</legend>
+      <p>Choose Theme default or one image for this theme. Save the quiz to keep this change.</p>
+      <div className="quiz-background-grid">
+        <button
+          className="quiz-background-option"
+          type="button"
+          aria-pressed={backgroundId === null}
+          onClick={() => select(null)}
+        >
+          <span
+            className="quiz-background-option__preview quiz-themed-surface"
+            data-quiz-theme={themeId}
+            aria-hidden="true"
+          ><i /></span>
+          <span className="quiz-background-option__copy">
+            <strong>Theme default</strong>
+            <small>No image</small>
+          </span>
+          <span className="quiz-background-option__state">{backgroundId === null ? 'Selected' : 'Choose'}</span>
+        </button>
+        {backgrounds.map((background) => {
+          const selected = background.id === backgroundId
+          return (
+            <button
+              key={background.id}
+              className="quiz-background-option"
+              type="button"
+              aria-pressed={selected}
+              onClick={() => select(background.id)}
+            >
+              <span className="quiz-background-option__preview" aria-hidden="true">
+                <img src={background.assetPath} alt="" />
+              </span>
+              <span className="quiz-background-option__copy"><strong>{background.name}</strong></span>
+              <span className="quiz-background-option__state">{selected ? 'Selected' : 'Choose'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 

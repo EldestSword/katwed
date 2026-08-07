@@ -6,6 +6,7 @@ import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/dom
 import { Logo } from '../../components/AppShell'
 import { PinpointSurface } from './PinpointSurface'
 import { formatSliderValue } from './revealFormatting'
+import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -92,6 +93,7 @@ export function PresentationStage({
     <section
       className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`}
       data-quiz-theme={state.themeId}
+      {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)}
       aria-live="polite"
     >
       {state.phase === 'lobby' && (

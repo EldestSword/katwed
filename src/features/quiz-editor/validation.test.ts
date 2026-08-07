@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleQuiz } from '../../lib/demo/sampleData'
 import type { MashupQuestion } from '../../types/domain'
+import type { QuizSaveInput } from '../../services/gameRepository'
 import { validateQuestion, validateQuizSave } from './validation'
 
 const base = sampleQuiz.questions[0] as MashupQuestion
@@ -29,5 +30,19 @@ describe('quiz validation', () => {
       prefix: '', suffix: '', unitLabel: '',
     }
     expect(validateQuestion(slider, []).valid).toBe(false)
+  })
+
+  it('accepts Theme default and compatible backgrounds but rejects unknown or wrong-theme values', () => {
+    expect(validateQuizSave({ ...sampleQuiz, themeId: 'arcade', backgroundId: null })).toEqual([])
+    expect(validateQuizSave({ ...sampleQuiz, themeId: 'arcade', backgroundId: 'arcade-grid' })).toEqual([])
+    expect(validateQuizSave({
+      ...sampleQuiz,
+      backgroundId: 'future-background',
+    } as unknown as QuizSaveInput)).toContain('Choose a supported quiz background.')
+    expect(validateQuizSave({
+      ...sampleQuiz,
+      themeId: 'paper',
+      backgroundId: 'arcade-grid',
+    })).toContain('Choose a background that belongs to the selected quiz theme.')
   })
 })

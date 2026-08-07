@@ -1,6 +1,7 @@
 import type { Question, RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
+import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 
 export interface QuestionValidation {
   valid: boolean
@@ -133,6 +134,12 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   const title = input.title.trim()
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')
   if (!isQuizThemeId(input.themeId)) messages.push('Choose a supported quiz theme.')
+  if (input.backgroundId !== null) {
+    if (!isQuizBackgroundId(input.backgroundId)) messages.push('Choose a supported quiz background.')
+    else if (!isQuizBackgroundCompatible(input.backgroundId, input.themeId)) {
+      messages.push('Choose a background that belongs to the selected quiz theme.')
+    }
+  }
 
   const memberIds = new Set<string>()
   const memberNames = new Set<string>()

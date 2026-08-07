@@ -14,6 +14,7 @@ export interface QuizSaveInput {
   title: string
   coverImagePath: string | null
   themeId: Quiz['themeId']
+  backgroundId: Quiz['backgroundId']
   roster: Quiz['roster']
   questions: Quiz['questions']
 }

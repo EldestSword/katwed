@@ -78,6 +78,7 @@ export function createDuplicateQuizInput(
     title: `${source.title.slice(0, MAX_QUIZ_TITLE_LENGTH - COPY_SUFFIX.length).trimEnd()}${COPY_SUFFIX}`,
     coverImagePath: source.coverImagePath,
     themeId: source.themeId,
+    backgroundId: source.backgroundId,
     roster,
     questions,
   }

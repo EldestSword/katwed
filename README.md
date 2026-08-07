@@ -78,13 +78,15 @@ The browser lists only the authenticated host's folder. A bounded security-defin
 
 The production release applied `202608070003_storage_manager.sql` and deployed the matching frontend. Release verification confirmed the public root and host-login routes, SPA deep-link fallback, immutable deploy URL, deployed Storage Manager assets and the `/host/storage` authentication boundary. A later manual authenticated cleanup reported 2 images totalling 456.3 KB: 1 in use at 211.6 KB and 1 unused at 244.7 KB. After explicit confirmation the UI reported "1 image was removed." The refreshed report showed 1 total/in-use image at 211.6 KB and 0 unused, and the referenced image remained intact. That manual check did not attempt to manufacture a newly protected or concurrent-reference race; those revalidation paths remain covered by automated tests.
 
-### Per-quiz themes - implemented locally, pending release
+### Per-quiz themes and backgrounds - implemented locally, pending release
 
 Each quiz now selects one of six built-in audience themes: `katwed`, `midnight`, `sunset`, `arcade`, `mint` or `paper`. Katwed is the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
 
-Theme palettes are a central typed registry rendered through scoped CSS custom properties. `themeId` travels with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Covers remain separate library metadata. Duplicate preserves the selected theme alongside the existing independently remapped quiz definition.
+Each theme also offers three curated built-in 16:9 image backgrounds plus Theme default, which uses no image and preserves the existing themed surface. The editor shows only the current theme's backgrounds. Changing theme clears an incompatible selection rather than choosing a replacement. Backgrounds use trusted static assets under `public/backgrounds/`; they are not uploads, Supabase Storage objects or Storage Manager inventory.
 
-This work and its unit, component and desktop/mobile browser coverage are local only. `202608070004_quiz_themes.sql` is committed as the single pending migration and has not been applied; the matching frontend also awaits a deliberate production release. Production remains on `202608070003_storage_manager.sql` and the currently deployed frontend.
+Theme palettes and backgrounds use central typed registries rendered through scoped audience-surface CSS. `themeId` and nullable `backgroundId` travel with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Covers remain separate library metadata. Duplicate preserves both appearance choices alongside the existing independently remapped quiz definition.
+
+This work and its unit, component and desktop/mobile browser coverage are local only. `202608070004_quiz_themes.sql` and the forward `202608070005_quiz_backgrounds.sql` migration are committed in that order and remain unapplied; the matching frontend also awaits a deliberate bundled production release. Production remains on `202608070003_storage_manager.sql` and the currently deployed frontend.
 
 ### Planned
 
@@ -126,7 +128,7 @@ All names and artwork are fictional and local to the repository.
 
 Approved local background artwork can be converted into production-ready static assets with `npm run prepare:backgrounds`. Put a lowercase kebab-case PNG, JPEG or WebP source in `artwork/backgrounds-source/`; the command applies orientation, centre-crops to 16:9, limits output to 1920x1080 without upscaling, and writes a quality-82 WebP to `public/backgrounds/`. Large sources are ignored by Git, while finished WebPs are versioned. See [`artwork/README.md`](artwork/README.md) for the workflow and composition guidance.
 
-This is development tooling only. The in-app Background selector and background data model are not implemented yet.
+The 18 approved outputs are registered as three optional built-in backgrounds per quiz theme. They ship as normal static frontend assets and never enter Supabase Storage.
 
 ## Live-game routes
 
@@ -308,9 +310,12 @@ Pending production migration:
 
 ```text
 202608070004_quiz_themes.sql
+202608070005_quiz_backgrounds.sql
 ```
 
 `202608070004_quiz_themes.sql` adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and the player-safe game state, and extends the existing save function without changing question persistence, scoring or phases. It is committed and tested statically but has not been applied. Production remains through `202608070003_storage_manager.sql`.
+
+`202608070005_quiz_backgrounds.sql` assumes the theme migration has run, adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries the safe visual metadata through owner reads, saves and player-safe state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background. It is committed and tested statically but has not been applied.
 
 ### Production pgcrypto repair
 
@@ -327,6 +332,8 @@ Live quiz definitions remain in Supabase PostgreSQL. Uploaded quiz images are st
 Before upload, the browser accepts JPEG, PNG and WebP source files up to 8 MB, resizes them without upscaling so the longest edge is at most 1,600 pixels, and encodes the result as WebP at quality 0.86. Uploads to the `question-images` bucket are authenticated and owner-prefixed. Public reads allow account-free players to display current images; generated filenames must not contain answers.
 
 GitHub is not the live quiz database. It contains the application code, migrations, local demo data and documentation. Storage usage visibility and explicit orphaned-media cleanup are deployed through Storage Manager. Future storage work remains planned for further image optimisation, optional media reuse and quiz export/import.
+
+Built-in quiz backgrounds are versioned static files under `public/backgrounds/`. They are not stored in the `question-images` bucket, are not counted or classified by Storage Manager, and are never deleted with a quiz.
 
 The production archive lifecycle performs database deletion before best-effort Storage cleanup. It checks quiz covers, question media, the retained question image path and option image paths across other quizzes before returning any candidate object. Only Katwed-generated objects in the configured project's `question-images` bucket and the signed-in host's folder are eligible for automatic removal. Shared images are retained. Failed, replaced, removed or abandoned uploads may remain cleanup debt until a host reviews and explicitly removes eligible unused files through Storage Manager.
 
@@ -394,13 +401,11 @@ Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited,
 
 ### Themes and visual identity
 
-The six curated per-quiz colour themes and their presentation/player answer styling are implemented and tested locally, pending `202608070004_quiz_themes.sql` and a deliberate matching frontend release.
+The six curated per-quiz colour themes and 18 optional built-in backgrounds are implemented and tested locally, pending `202608070004_quiz_themes.sql`, `202608070005_quiz_backgrounds.sql` and a deliberate matching frontend release.
 
 Planned work:
 
 - Katwed! typography;
-- a background system;
-- presentation background images;
 - custom themes.
 
 ### Further question formats

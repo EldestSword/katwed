@@ -7,9 +7,24 @@ const userId = '123e4567-e89b-42d3-a456-426614174000'
 const imageId = '223e4567-e89b-42d3-a456-426614174000'
 
 describe('SupabaseGameRepository duplication', () => {
+  it('defensively normalises absent, unknown and wrong-theme background values from quiz reads', async () => {
+    const absent = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
+    Reflect.deleteProperty(absent, 'backgroundId')
+    const unknown = { ...structuredClone(mixedDemoQuiz), backgroundId: 'future-background' }
+    const incompatible = { ...structuredClone(mixedDemoQuiz), themeId: 'paper', backgroundId: 'arcade-grid' }
+    const rpc = vi.fn().mockResolvedValue({ data: [absent, unknown, incompatible], error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    const quizzes = await repository.listQuizzes()
+
+    expect(quizzes.map((quiz) => quiz.backgroundId)).toEqual([null, null, null])
+  })
+
   it('reads an active source and creates its remapped copy through host_save_quiz', async () => {
     const source = structuredClone(mixedDemoQuiz)
     source.coverImagePath = 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/shared-cover.webp'
+    source.themeId = 'arcade'
+    source.backgroundId = 'arcade-grid'
     const newQuizId = '323e4567-e89b-42d3-a456-426614174000'
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
       if (name === 'host_get_quiz') return { data: source, error: null }
@@ -42,6 +57,7 @@ describe('SupabaseGameRepository duplication', () => {
     const saveInput = rpc.mock.calls[1][1].p_quiz as typeof source
     expect(saveInput).not.toHaveProperty('id')
     expect(saveInput.coverImagePath).toBe(source.coverImagePath)
+    expect(saveInput.backgroundId).toBe('arcade-grid')
     expect(saveInput.questions.every((question) =>
       !source.questions.some((candidate) => candidate.id === question.id)
     )).toBe(true)
@@ -60,6 +76,7 @@ describe('SupabaseGameRepository duplication', () => {
       title: mixedDemoQuiz.title,
       coverImagePath,
       themeId: mixedDemoQuiz.themeId,
+      backgroundId: mixedDemoQuiz.backgroundId,
       roster: mixedDemoQuiz.roster,
       questions: mixedDemoQuiz.questions,
     }

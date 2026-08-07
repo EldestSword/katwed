@@ -77,6 +77,7 @@ export function HostDashboardPage() {
         title: 'Untitled quiz',
         coverImagePath: null,
         themeId: DEFAULT_QUIZ_THEME_ID,
+        backgroundId: null,
         roster: [],
         questions: [],
       })

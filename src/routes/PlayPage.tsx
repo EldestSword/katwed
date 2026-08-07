@@ -16,6 +16,7 @@ import type { PlayerSession } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
+import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -73,7 +74,11 @@ export function PlayPage() {
     : null
 
   return (
-    <main className="game-screen player-game quiz-themed-surface" data-quiz-theme={state.themeId}>
+    <main
+      className="game-screen player-game quiz-themed-surface"
+      data-quiz-theme={state.themeId}
+      {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)}
+    >
       <header className="game-bar"><Logo /><div><span className="muted">Room</span><strong>{roomCode}</strong></div><div><span className="muted">Playing as</span><strong>{currentPlayer.nickname}</strong></div></header>
       {error && <StatusMessage tone="error">Connection lost: {error}</StatusMessage>}
       {state.phase === 'lobby' && (

@@ -17,6 +17,7 @@ import { createDuplicateQuizInput } from '../../features/quiz-editor/duplicateQu
 import type { StorageCleanupResult, StorageReport } from '../../features/storage-manager/storageManager'
 import { cleanupSupabaseUnusedImages, loadSupabaseStorageReport } from '../../services/storageManager'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
+import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 
 type JsonObject = Record<string, unknown>
 
@@ -31,7 +32,12 @@ function normaliseError(error: { message: string; code?: string } | null): Repos
 }
 
 function normaliseQuiz(quiz: Quiz): Quiz {
-  return { ...quiz, themeId: normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId) }
+  const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
+  return {
+    ...quiz,
+    themeId,
+    backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
+  }
 }
 
 export class SupabaseGameRepository implements GameRepository {
@@ -103,7 +109,8 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null> {
-    return this.rpc('host_get_game', { p_session_id: sessionId })
+    const bundle = await this.rpc<{ session: GameSession; quiz: Quiz } | null>('host_get_game', { p_session_id: sessionId })
+    return bundle ? { ...bundle, quiz: normaliseQuiz(bundle.quiz) } : null
   }
 
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
