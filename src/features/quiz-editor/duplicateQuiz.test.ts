@@ -45,7 +45,7 @@ describe('createDuplicateQuizInput', () => {
     expect(input).not.toHaveProperty('archivedAt')
     expect(source).toEqual(sourceSnapshot)
     expect(new Set(input.questions.map((question) => question.type))).toEqual(
-      new Set(['single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup']),
+      new Set(['single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'typed-answer', 'mashup']),
     )
 
     const sourceMemberIds = new Set(source.roster.map((member) => member.id))

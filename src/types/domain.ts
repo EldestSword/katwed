@@ -6,6 +6,7 @@ export type QuestionType =
   | 'true-false'
   | 'slider'
   | 'pinpoint'
+  | 'typed-answer'
   | 'mashup'
 
 export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
@@ -120,6 +121,12 @@ export interface PinpointQuestion extends QuestionBase {
   targetRadius: number
 }
 
+export interface TypedAnswerQuestion extends QuestionBase {
+  type: 'typed-answer'
+  correctAnswer: string
+  acceptedAnswers: string[]
+}
+
 export interface MashupQuestion extends QuestionBase {
   type: 'mashup'
   media: Extract<QuestionMedia, { type: 'image' }>
@@ -132,6 +139,7 @@ export type Question =
   | TrueFalseQuestion
   | SliderQuestion
   | PinpointQuestion
+  | TypedAnswerQuestion
   | MashupQuestion
 
 export type PlayerAnswerPayload =
@@ -140,6 +148,7 @@ export type PlayerAnswerPayload =
   | { type: 'true-false'; value: boolean }
   | { type: 'slider'; value: number }
   | { type: 'pinpoint'; x: number; y: number }
+  | { type: 'typed-answer'; value: string }
   | { type: 'mashup'; memberIds: readonly [string, string] }
 
 export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
@@ -151,6 +160,7 @@ export type SafeQuestion =
   | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
 
 interface SafeAssignment {
@@ -201,6 +211,11 @@ export type RevealPayload =
       type: 'mashup'
       correctMemberIds: readonly [string, string]
       correctNames: readonly [string, string]
+      caption: string
+    }
+  | {
+      type: 'typed-answer'
+      correctAnswer: string
       caption: string
     }
 

@@ -79,6 +79,7 @@ export function createDuplicateQuizInput(
       case 'true-false':
       case 'slider':
       case 'pinpoint':
+      case 'typed-answer':
         return duplicate
     }
   })

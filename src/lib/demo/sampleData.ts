@@ -153,7 +153,15 @@ export const mixedDemoQuiz: Quiz = {
       quizId: mixedId,
     },
     {
-      ...common('mixed-reveal', 'single-choice', 'Which shape appears as the picture becomes clear?', 6),
+      ...common('mixed-typed', 'typed-answer', 'Name the science-fiction programme featuring the spaceship Red Dwarf.', 6),
+      type: 'typed-answer',
+      correctAnswer: 'Red Dwarf',
+      acceptedAnswers: ['The Red Dwarf'],
+      presentationChoiceVisibility: 'hide',
+      revealCaption: 'Capitalisation, spaces and punctuation do not affect Typed Answer matching.',
+    },
+    {
+      ...common('mixed-reveal', 'single-choice', 'Which shape appears as the picture becomes clear?', 7),
       type: 'single-choice',
       media: image('/demo/portrait-2.svg', 'tiles', 12),
       options: [

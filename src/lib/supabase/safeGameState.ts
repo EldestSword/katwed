@@ -35,6 +35,8 @@ function isRevealPayload(value: unknown): value is RevealPayload {
         Array.isArray(value.points) && value.points.every((point) =>
           isRecord(point) && isFiniteNumber(point.x) && point.x >= 0 && point.x <= 1 &&
           isFiniteNumber(point.y) && point.y >= 0 && point.y <= 1)
+    case 'typed-answer':
+      return typeof value.correctAnswer === 'string' && !('acceptedAnswers' in value)
     case 'mashup':
       return isStringArray(value.correctMemberIds) && value.correctMemberIds.length === 2 &&
         isStringArray(value.correctNames) && value.correctNames.length === 2
@@ -81,6 +83,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
       'targetY',
       'targetRadius',
       'correctMemberIds',
+      'correctAnswer',
+      'acceptedAnswers',
       'answerKey',
     ]
     if (forbiddenKeys.some((key) => key in safeQuestion)) {

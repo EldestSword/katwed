@@ -70,11 +70,11 @@ test('landing, joining validation and host guards work', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in to host' })).toBeVisible()
 })
 
-test('editor has six formats and persists a changed title', async ({ page }) => {
+test('editor has seven formats and persists a changed title', async ({ page }) => {
   await enterHost(page)
   const card = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
   await card.getByRole('link', { name: 'Edit' }).click()
-  for (const name of ['Single choice', 'Multiple select', 'True or false', 'Slider', 'Pinpoint', 'Mash-up']) {
+  for (const name of ['Single choice', 'Multiple select', 'True or false', 'Slider', 'Pinpoint', 'Typed answer', 'Mash-up']) {
     await expect(page.locator('.question-type-picker').getByRole('button', { name: new RegExp(name) })).toBeVisible()
   }
   const title = page.getByLabel('Quiz title')
@@ -260,7 +260,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   test.setTimeout(120_000)
   const portableQuiz = {
     format: 'katwed-quiz',
-    formatVersion: 1,
+    formatVersion: 2,
     quiz: {
       title: 'Blind Import Duel',
       quizType: 'head-to-head',
@@ -283,10 +283,11 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
         },
         {
           key: 'q2',
-          type: 'true-false',
+          type: 'typed-answer',
           assignedTo: 'jess',
           prompt: 'SECRET IMPORT QUESTION TWO',
-          correctValue: false,
+          correctAnswer: 'Red Dwarf',
+          acceptedAnswers: ['The Red Dwarf'],
         },
       ],
     },
@@ -334,9 +335,13 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
 
   await expect(jess.getByText('Your question')).toBeVisible()
   await expect(ross.getByText(/Jess’s question/)).toBeVisible()
-  await jess.getByRole('button', { name: 'False' }).click()
-  await jess.getByRole('button', { name: 'Lock in' }).click()
-  await ross.getByRole('button', { name: 'Skip play-along' }).click()
+  await jess.getByRole('textbox', { name: 'Type your answer' }).fill('red-dwarf')
+  await jess.getByRole('textbox', { name: 'Type your answer' }).press('Enter')
+  await ross.getByRole('textbox', { name: 'Type your answer' }).fill('The Red Dwarf')
+  await ross.getByRole('textbox', { name: 'Type your answer' }).press('Enter')
+  await expect(jess.getByRole('heading', { name: 'Red Dwarf' })).toBeVisible()
+  await expect(ross.getByRole('article', { name: 'Ross result' })).toContainText('Correct')
+  await expect(ross.getByRole('article', { name: 'Ross result' })).toContainText('No point')
   await expectHeadToHeadResult(jess, 'Jess', 'Official question', '✓ Correct', '+1 point')
   await ross.getByRole('button', { name: 'Show final result' }).click()
   await expect(ross.getByRole('heading', { name: 'It’s a draw!' })).toBeVisible()
@@ -351,6 +356,11 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   await page.getByRole('article', { name: 'Blind Import Duel' }).getByRole('button', { name: 'Export' }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toBe('blind-import-duel.katwed.json')
+  const exportedPath = await download.path()
+  if (!exportedPath) throw new Error('Exported quiz file was unavailable')
+  const { readFile } = await import('node:fs/promises')
+  const exported = JSON.parse(await readFile(exportedPath, 'utf8')) as { formatVersion: number }
+  expect(exported.formatVersion).toBe(2)
 })
 
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
@@ -821,6 +831,29 @@ test('controller, presentation and three players complete every mixed format', a
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await page.getByRole('button', { name: 'Next question' }).click()
 
+  const typedAnswer = playerOne.getByRole('textbox', { name: 'Type your answer' })
+  await typedAnswer.fill('red-dwarf')
+  await typedAnswer.press('Enter')
+  await playerTwo.getByRole('textbox', { name: 'Type your answer' }).fill('Star Trek')
+  await playerTwo.getByRole('button', { name: 'Lock in' }).click()
+  await revealRound(/Red Dwarf/i)
+  await expect(playerOne.getByRole('heading', { name: 'Red Dwarf' })).toBeVisible()
+  await expect(playerOne.getByText(/Capitalisation, spaces and punctuation/)).toBeVisible()
+  await page.getByRole('button', { name: 'Show leaderboard' }).click()
+  await page.getByRole('button', { name: 'Next question' }).click()
+
+  const presentationTiles = presentation.locator('.tile-cover span')
+  const playerTiles = playerOne.locator('.tile-cover span')
+  const presentationRanks = await Promise.all(Array.from({ length: 24 }, (_, index) => (
+    presentationTiles.nth(index).getAttribute('data-reveal-rank')
+  )))
+  const playerRanks = await Promise.all(Array.from({ length: 24 }, (_, index) => (
+    playerTiles.nth(index).getAttribute('data-reveal-rank')
+  )))
+  expect(presentationRanks).toHaveLength(24)
+  expect(playerRanks).toEqual(presentationRanks)
+  expect(new Set(presentationRanks).size).toBe(24)
+
   await playerOne.getByRole('button', { name: 'A portrait' }).click()
   await playerOne.getByRole('button', { name: 'Lock in' }).click()
   await revealRound(/portrait/i)
@@ -837,7 +870,7 @@ test('controller, presentation and three players complete every mixed format', a
   await expect(presentation.getByRole('heading', { name: 'Final leaderboard' })).toBeVisible()
   await expect(playerOne.getByRole('heading', { name: 'Final scores' })).toBeVisible()
   await expect(zeroScorePlayer.getByRole('heading', { name: 'Final scores' })).toBeVisible()
-  await expect(presentation.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('6,001')
+  await expect(presentation.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('7,001')
 })
 
 test('mash-up remains usable at representative mobile widths', async ({ context, page }) => {

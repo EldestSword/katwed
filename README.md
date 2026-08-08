@@ -1,12 +1,13 @@
 # Katwed!
 
-Katwed! is a live, host-led quiz platform for phones, tablets and shared screens. It supports six knowledge-scored question formats:
+Katwed! is a live, host-led quiz platform for phones, tablets and shared screens. The deployed release supports six knowledge-scored question formats, with a seventh implemented locally:
 
 - single choice;
 - multiple select;
 - true or false;
 - slider;
 - pinpoint;
+- typed answer (implemented locally, pending release);
 - the original two-person face mash-up.
 
 The mash-up rule remains strict: players select exactly two different people and score only when both are correct. Order does not matter, and partial credit is never awarded for a mash-up.
@@ -32,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608070005_quiz_backgrounds.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth.
+The production migration chain through `202608070007_head_to_head_live_play.sql` is applied to the live project. `202608080001_typed_answer.sql` is the single pending forward migration and has not been applied. A real host account exists, and host sign-in works against Supabase Auth.
 
 ### Implemented and deployed
 
@@ -90,23 +91,31 @@ The production release applied `202608070004_quiz_themes.sql` and `202608070005_
 
 Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
-### Head-to-Head live play — implemented locally, pending release
+### Head-to-Head live play
 
 Head to Head is implemented and tested locally as a quiz type, not a question type. A quiz has exactly two named competitors and assigns every existing Katwed question to one of them. Competitors claim their named slot rather than entering a nickname, both answer every question, and either may start and continue the game. The assigned competitor earns exactly one point for a correct answer; the other competitor may play along for no points or explicitly skip. Questions are untimed, reveal automatically only after both players resolve them, and finish with a two-person score and win/draw result.
 
-The editor, duplication remapping and all six question formats remain shared with Standard quizzes. Standard games retain their existing timed host-controlled question, lock, reveal, leaderboard and final-results flow. Head-to-Head presentation and controller views expose the assignment and two-person progress without giving the host Standard phase controls. Reconnect preserves the claimed slot, and safe state withholds answer correctness until reveal.
+The editor, duplication remapping and the six deployed question formats remain shared with Standard quizzes. Standard games retain their existing timed host-controlled question, lock, reveal, leaderboard and final-results flow. Head-to-Head presentation and controller views expose the assignment and two-person progress without giving the host Standard phase controls. Reconnect preserves the claimed slot, and safe state withholds answer correctness until reveal.
 
-This work is not deployed. Production remains at `202608070005_quiz_backgrounds.sql`. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending forward migrations and must be applied together, in order, during a deliberate database-first release before the matching frontend is deployed. Typed Answer remains later work.
+Head-to-Head live play and quiz import v1 are deployed with production migrations `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql`. Authenticated production UAT verified Head-to-Head reveal wording and mobile slider interaction after the follow-up frontend fix. Export was not manually exercised during that production UAT and remains covered by automated tests.
 
-### Quiz import and export — implemented locally, pending release
+### Quiz import and export
 
-Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` files using the versioned `katwed-quiz` format. The format uses deterministic file-local keys rather than database identities and carries Standard or Head-to-Head definitions, all six current question formats, people-bank and answer references, themes, backgrounds, covers and question media settings. It deliberately excludes archive state, timestamps, rooms, sessions, players, submitted answers and scores.
+Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` files using the versioned `katwed-quiz` format. The format uses deterministic file-local keys rather than database identities and carries Standard or Head-to-Head definitions, all current deployed question formats, people-bank and answer references, themes, backgrounds, covers and question media settings. It deliberately excludes archive state, timestamps, rooms, sessions, players, submitted answers and scores.
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 1 references image paths and URLs but does not embed or upload image bytes. References may therefore be shared safely within the same Katwed deployment but are not guaranteed to work in another deployment or Demo browser. See [`docs/katwed-quiz-format-v1.md`](docs/katwed-quiz-format-v1.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v1.schema.json) for the generator-facing contract.
+Version 1 import is deployed. Version 2 is implemented and tested locally, adds Typed Answer, remains backward-compatible with version 1 imports and is now the export target. Both versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v2.md`](docs/katwed-quiz-format-v2.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v2.schema.json); the [v1 documentation](docs/katwed-quiz-format-v1.md) and [v1 schema](docs/schemas/katwed-quiz-v1.schema.json) remain available for existing generators.
 
-Import/export itself requires no database migration. The feature is implemented and tested locally but has not been deployed. Production remains at `202608070005_quiz_backgrounds.sql`, with `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` still pending and unchanged. Head-to-Head files depend on those pending migrations when the complete frontend is deliberately released.
+Import/export v1 is deployed and requires no database migration. Version 2 and Typed Answer export are implemented and tested locally, pending the same deliberate database-first release as Typed Answer.
+
+### Typed Answer and deterministic tile reveal — implemented locally, pending release
+
+Typed Answer uses one primary answer plus up to 19 optional alternatives. Matching applies Unicode NFKC normalisation, lower-casing and removal of every non-letter/non-number character, then requires an exact match. It is intentionally not fuzzy. The player submits a trimmed answer of at most 120 characters; PostgreSQL repeats validation and authoritative scoring for Standard and Head-to-Head games. Only the primary answer is revealed, while alternatives remain secret answer-key data.
+
+The existing 24-tile image reveal now uses a deterministic seeded shuffle derived from the media path and authoritative question-open timestamp. Controller, presentation and player screens therefore reveal the same random-looking order across rerenders and reconnects without using render-time randomness. Timing, reduced-motion behaviour and the existing `tiles` effect ID are unchanged.
+
+Both improvements are implemented and tested locally. They require the pending `202608080001_typed_answer.sql` migration to be applied before the matching frontend is deliberately deployed. No Supabase migration or Netlify deployment was performed during implementation.
 
 ### Planned
 
@@ -140,7 +149,7 @@ Open the host area and choose **Enter demo host area**. Demo authentication and 
 Two demo quizzes are included:
 
 - **The Curious Crew** preserves the original three-question mash-up game.
-- **Katwed! Mixed Quiz** covers all six question types and a tile-based progressive image reveal.
+- **Katwed! Mixed Quiz** covers all seven question types and a deterministic tile-based progressive image reveal.
 
 All names and artwork are fictional and local to the repository.
 
@@ -198,6 +207,10 @@ Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit.
 ### Pinpoint
 
 The player selects normalised `x` and `y` coordinates on a contained image. Scoring uses Euclidean distance from a normalised target and radius, independent of rendered size. Keyboard range controls provide an alternative.
+
+### Typed answer
+
+One primary answer and up to 19 alternatives are matched exactly after Unicode NFKC normalisation, lower-casing and removal of non-letter/non-number characters. This intentionally ignores capitalisation, spaces, punctuation, apostrophes and hyphens without introducing fuzzy or spelling-correction behaviour.
 
 ### Mash-up
 
@@ -263,6 +276,7 @@ Before reveal, player-safe state omits:
 - the correct Boolean;
 - slider answer and tolerance;
 - pinpoint target and radius;
+- typed-answer primary and accepted answers;
 - mash-up member IDs;
 - reveal captions.
 
@@ -276,7 +290,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070005_quiz_backgrounds.sql` applied. `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are committed for a future deliberate release and have not been applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070007_head_to_head_live_play.sql` applied. `202608080001_typed_answer.sql` is committed as the only pending migration and has not been applied.
 
 For a new Supabase environment:
 
@@ -316,6 +330,8 @@ Applied production migrations, in order:
 202608070003_storage_manager.sql
 202608070004_quiz_themes.sql
 202608070005_quiz_backgrounds.sql
+202608070006_head_to_head_foundation.sql
+202608070007_head_to_head_live_play.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -330,9 +346,11 @@ Applied production migrations, in order:
 
 `202608070004_quiz_themes.sql` is applied immutable production history. It adds the constrained, non-null `quizzes.theme_id` definition with a backward-compatible Katwed default, returns it through owner quiz reads and player-safe game state, and extends the existing save function without changing question persistence, scoring or phases.
 
-`202608070005_quiz_backgrounds.sql` is applied immutable production history and the current production baseline. It adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries safe background metadata through owner reads, saves and player-safe game state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background.
+`202608070005_quiz_backgrounds.sql` is applied immutable production history. It adds nullable `quizzes.background_id`, constrains all 18 curated IDs to their owning themes, and carries safe background metadata through owner reads, saves and player-safe game state. Old-client inserts default to no image; updates preserve an absent compatible background but clear it if an old client changes to an incompatible theme. Explicit null clears the background.
 
-`202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are pending and must not be treated as production history until a deliberate database-first release. The immutable foundation file adds `quiz_type`, dedicated `quiz_competitors`, common question assignment metadata and its original server launch guard. The new forward migration adds competitor claims, one-resolution-per-player live play, player-authenticated start/skip/continue operations, exact Head-to-Head scoring and the extended safe game state. Release order is database first (`006`, then `007`), then the matching frontend.
+`202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are applied immutable production history. They add the Head-to-Head definition, competitor claims, one-resolution-per-player live play, player-authenticated start/skip/continue operations, exact assigned scoring and the extended safe game state.
+
+`202608080001_typed_answer.sql` is pending and unapplied. It adds the seventh question discriminator, save validation, server normalisation, authoritative Standard/Head-to-Head scoring and a reveal boundary that returns only the primary answer. A deliberate release must apply this migration before deploying the matching frontend.
 
 ### Production pgcrypto repair
 
@@ -408,7 +426,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers and Storage Manager are implemented and deployed. Head-to-Head authoring and two-player live play are implemented and tested locally, with both pending migrations and the matching frontend awaiting a deliberate database-first production release. Portable quiz import/export v1 is also implemented and tested locally over the existing save/read boundary and awaits that deliberate frontend release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images. Typed Answer remains later work.
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head and portable quiz import v1 are implemented and deployed. Portable format v2 with Typed Answer is implemented and tested locally over the existing save/read boundary and awaits a deliberate database-first production release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
 
 - tags;
 - optional media reuse;
@@ -426,9 +444,7 @@ Planned work:
 
 ### Further question formats
 
-Planned formats:
-
-- typed answer;
+Planned formats after Typed Answer:
 - ordering;
 - matching;
 - poll;

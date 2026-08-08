@@ -113,3 +113,32 @@ describe('PlayerQuestion slider', () => {
     expect(container.querySelector('.slider-answer')).not.toBeInTheDocument()
   })
 })
+
+describe('PlayerQuestion Typed Answer', () => {
+  const typedQuestion: SafeQuestion = {
+    id: 'typed', type: 'typed-answer', prompt: 'Name the programme', supportingText: '',
+    media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'hide',
+    points: 1000, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+  }
+
+  it('trims and submits meaningful text with Enter without exposing correctness', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(<PlayerQuestion question={typedQuestion} roster={[]} closesAt={closesAt} onSubmit={onSubmit} />)
+    const input = screen.getByRole('textbox', { name: 'Type your answer' })
+    expect(input).toHaveAttribute('maxlength', '120')
+    expect(input).toHaveAttribute('autocomplete', 'off')
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
+    await user.type(input, '  Red Dwarf  {Enter}')
+    expect(onSubmit).toHaveBeenCalledWith({ type: 'typed-answer', value: 'Red Dwarf' })
+    expect(await screen.findByText('Red Dwarf')).toBeInTheDocument()
+    expect(screen.queryByText(/correct/i)).not.toBeInTheDocument()
+  })
+
+  it('does not allow punctuation-only text to be submitted', async () => {
+    const user = userEvent.setup()
+    render(<PlayerQuestion question={typedQuestion} roster={[]} closesAt={closesAt} onSubmit={vi.fn()} />)
+    await user.type(screen.getByRole('textbox', { name: 'Type your answer' }), '---')
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
+  })
+})

@@ -32,6 +32,22 @@ describe('quiz validation', () => {
     expect(validateQuestion(slider, []).valid).toBe(false)
   })
 
+  it('validates Typed Answer length, meaning, limits and normalised uniqueness', () => {
+    const typed = {
+      ...base, type: 'typed-answer' as const, media: { type: 'none' as const },
+      correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
+    }
+    expect(validateQuestion(typed, []).valid).toBe(true)
+    expect(validateQuestion({ ...typed, correctAnswer: '---' }, []).messages)
+      .toContain('Every typed answer must contain at least one letter or number.')
+    expect(validateQuestion({ ...typed, acceptedAnswers: ['red-dwarf'] }, []).messages)
+      .toContain('Typed answers must be different after ignoring capitals, spaces and punctuation.')
+    expect(validateQuestion({ ...typed, acceptedAnswers: Array.from({ length: 20 }, (_, index) => `Answer ${index}`) }, []).messages)
+      .toContain('Typed Answer supports one primary answer and up to 19 alternatives.')
+    expect(validateQuestion({ ...typed, correctAnswer: 'A'.repeat(121) }, []).messages)
+      .toContain('Typed answers must be 120 characters or fewer.')
+  })
+
   it('accepts Theme default and compatible backgrounds but rejects unknown or wrong-theme values', () => {
     expect(validateQuizSave({ ...sampleQuiz, themeId: 'arcade', backgroundId: null })).toEqual([])
     expect(validateQuizSave({ ...sampleQuiz, themeId: 'arcade', backgroundId: 'arcade-grid' })).toEqual([])

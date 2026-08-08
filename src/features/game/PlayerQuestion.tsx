@@ -11,6 +11,7 @@ import { QuestionMedia } from '../../components/QuestionMedia'
 import { QuestionImage } from '../../components/QuestionImage'
 import { ImageViewer } from '../../components/ImageViewer'
 import { PinpointSurface } from './PinpointSurface'
+import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -75,6 +76,7 @@ function answerSummary(answer: PlayerAnswerPayload, question: SafeQuestion, rost
     case 'true-false': return answer.value ? 'True' : 'False'
     case 'slider': return String(answer.value)
     case 'pinpoint': return 'Location selected'
+    case 'typed-answer': return answer.value
     case 'mashup':
       return answer.memberIds.map((id) => roster.find((member) => member.id === id)?.displayName ?? id).join(' + ')
   }
@@ -114,13 +116,18 @@ export function PlayerQuestion({
     if (answer.type === 'multiple-select' && question.type === 'multiple-select') {
       return answer.optionIds.length >= question.minimumSelections && answer.optionIds.length <= question.maximumSelections
     }
+    if (answer.type === 'typed-answer') {
+      return answer.value.length <= MAX_TYPED_ANSWER_LENGTH && isMeaningfulTypedAnswer(answer.value)
+    }
     return true
   }, [answer, mashupSelection.length, question])
 
   async function lockIn() {
     const payload = question.type === 'mashup' && mashupSelection.length === 2
       ? { type: 'mashup' as const, memberIds: [mashupSelection[0], mashupSelection[1]] as const }
-      : answer
+      : answer?.type === 'typed-answer'
+        ? { ...answer, value: answer.value.trim() }
+        : answer
     if (!payload || !canSubmit || submitted || timedOut) return
     setSubmitting(true)
     setError('')
@@ -241,6 +248,28 @@ export function PlayerQuestion({
               onChange={(event) => setAnswer({ type: 'pinpoint', x: answer?.type === 'pinpoint' ? answer.x : 0.5, y: Number(event.target.value) })} /></label>
           </details>
         </div>
+      )}
+
+      {question.type === 'typed-answer' && (
+        <label className="typed-answer-input">
+          <span>Type your answer</span>
+          <input
+            type="text"
+            maxLength={MAX_TYPED_ANSWER_LENGTH}
+            value={answer?.type === 'typed-answer' ? answer.value : ''}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            onChange={(event) => setAnswer({ type: 'typed-answer', value: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void lockIn()
+              }
+            }}
+          />
+        </label>
       )}
 
       {question.type === 'mashup' && (

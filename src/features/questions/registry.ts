@@ -25,6 +25,7 @@ export const questionTypeRegistry: Record<QuestionType, QuestionTypeDefinition> 
   'true-false': definition('true-false', 'True or false', 'Decide whether a statement is true.', '↔'),
   slider: definition('slider', 'Slider', 'Place a value on a numeric scale.', '↔'),
   pinpoint: definition('pinpoint', 'Pinpoint', 'Mark a location on an image.', '⌖'),
+  'typed-answer': definition('typed-answer', 'Typed answer', 'Type a short answer.', '⌨'),
   mashup: definition('mashup', 'Mash-up', 'Identify exactly two people.', '◉'),
 }
 

@@ -75,6 +75,8 @@ function RevealResult({
         </div>
       )
     }
+    case 'typed-answer':
+      return <h2>{reveal.correctAnswer}</h2>
     case 'mashup':
       return <h2>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h2>
   }

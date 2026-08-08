@@ -14,6 +14,7 @@ import {
 } from '../features/themes/quizBackgrounds'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 import { createHeadToHeadCompetitors, nextHeadToHeadAssignment } from '../features/head-to-head/headToHead'
+import { MAX_TYPED_ANSWER_LENGTH, parseTypedAnswerAlternatives } from '../features/typed-answer/typedAnswer'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type {
@@ -590,6 +591,11 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
   if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
   if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
   if (question.type === 'pinpoint') return <fieldset><legend>Target</legend>{(['targetX', 'targetY', 'targetRadius'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" min="0" max="1" step="0.01" value={question[field]} onChange={(event) => update((current) => current.type === 'pinpoint' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  if (question.type === 'typed-answer') return <fieldset><legend>Typed answer</legend>
+    <label><span>Primary answer</span><input maxLength={MAX_TYPED_ANSWER_LENGTH} value={question.correctAnswer} onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, correctAnswer: event.target.value } : current)} /></label>
+    <label><span>Also accept</span><textarea key={question.id} rows={6} defaultValue={question.acceptedAnswers.join('\n')} placeholder="One alternative per line" onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, acceptedAnswers: parseTypedAnswerAlternatives(event.target.value) } : current)} /></label>
+    <p className="settings-note">Matching ignores capitals, spaces and punctuation. Add up to 19 alternatives, one per line. The primary answer is shown on reveal; alternatives stay hidden.</p>
+  </fieldset>
   return <fieldset><legend>Correct people</legend>{[0, 1].map((index) => <label key={index}><span>Person {index + 1}</span><select value={question.correctMemberIds[index]} onChange={(event) => update((current) => current.type === 'mashup' ? { ...current, correctMemberIds: index === 0 ? [event.target.value, current.correctMemberIds[1]] : [current.correctMemberIds[0], event.target.value] } : current)}><option value="">Choose…</option>{roster.filter((member) => member.active).map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></label>)}</fieldset>
 }
 

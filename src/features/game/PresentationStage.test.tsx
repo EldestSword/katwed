@@ -49,6 +49,34 @@ describe('PresentationStage quiz theme', () => {
     expect(stage).not.toHaveAttribute('style')
   })
 
+  it('shows only the primary Typed Answer during reveal', () => {
+    render(<PresentationStage state={{
+      ...state('reveal'),
+      currentQuestion: {
+        id: 'typed-question',
+        type: 'typed-answer',
+        prompt: 'Name the programme.',
+        supportingText: '',
+        timeLimitSeconds: 30,
+        points: 1000,
+        displayOrder: 0,
+        media: { type: 'none' },
+        mediaVisibility: 'both',
+        presentationChoiceVisibility: 'hide',
+        questionNumber: 1,
+        totalQuestions: 1,
+      },
+      reveal: {
+        type: 'typed-answer',
+        correctAnswer: 'Red Dwarf',
+        caption: '',
+      },
+    }} />)
+
+    expect(screen.getByRole('heading', { name: 'Red Dwarf' })).toBeVisible()
+    expect(screen.queryByText('The Red Dwarf')).not.toBeInTheDocument()
+  })
+
   it.each([false, true])('shows explicit Head-to-Head reveal semantics when compact is %s', (compact) => {
     const question = {
       id: 'question', type: 'true-false' as const, assignedCompetitorId: 'ross', prompt: 'True?',

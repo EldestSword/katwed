@@ -142,6 +142,8 @@ function toSafeQuestion(question: Question, questionNumber: number, totalQuestio
       }
     case 'pinpoint':
       return { ...base, type: question.type, media: question.media }
+    case 'typed-answer':
+      return { ...base, type: question.type }
     case 'mashup':
       return { ...base, type: question.type, media: question.media }
   }
@@ -200,6 +202,12 @@ function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Q
         points: answers.flatMap((answer) => answer.payload.type === 'pinpoint'
           ? [{ x: answer.payload.x, y: answer.payload.y }]
           : []),
+      }
+    case 'typed-answer':
+      return {
+        type: question.type,
+        correctAnswer: question.correctAnswer,
+        caption: question.revealCaption,
       }
     case 'mashup':
       return {

@@ -17,7 +17,8 @@ import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 
 export const KATWED_QUIZ_FORMAT = 'katwed-quiz' as const
-export const KATWED_QUIZ_FORMAT_VERSION = 1 as const
+export const KATWED_QUIZ_FORMAT_VERSION = 2 as const
+export const KATWED_QUIZ_LEGACY_FORMAT_VERSION = 1 as const
 export const KATWED_QUIZ_FILE_EXTENSION = '.katwed.json'
 export const KATWED_QUIZ_MAX_FILE_BYTES = 2 * 1024 * 1024
 
@@ -51,7 +52,7 @@ export interface PortableChoiceOptionV1 {
 
 interface PortableQuestionBaseV1 {
   key: string
-  type: Question['type']
+  type: Exclude<Question['type'], 'typed-answer'>
   assignedTo?: string | null
   prompt: string
   supportingText?: string
@@ -120,9 +121,29 @@ export interface PortableQuizV1 {
 
 export interface KatwedQuizFileV1 {
   format: typeof KATWED_QUIZ_FORMAT
-  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  formatVersion: typeof KATWED_QUIZ_LEGACY_FORMAT_VERSION
   quiz: PortableQuizV1
 }
+
+export type PortableQuestionV2 = PortableQuestionV1 | (Omit<PortableQuestionBaseV1, 'type'> & {
+  type: 'typed-answer'
+  correctAnswer: string
+  acceptedAnswers: string[]
+})
+
+export interface PortableQuizV2 extends Omit<PortableQuizV1, 'questions'> {
+  questions: PortableQuestionV2[]
+}
+
+export interface KatwedQuizFileV2 {
+  format: typeof KATWED_QUIZ_FORMAT
+  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  quiz: PortableQuizV2
+}
+
+export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2
+type PortableQuiz = PortableQuizV1 | PortableQuizV2
+type PortableQuestion = PortableQuestionV1 | PortableQuestionV2
 
 export interface QuizImportSummary {
   title: string
@@ -135,7 +156,7 @@ export interface QuizImportSummary {
 }
 
 export interface ParsedKatwedQuiz {
-  portable: KatwedQuizFileV1
+  portable: KatwedQuizFile
   input: QuizSaveInput
   summary: QuizImportSummary
 }
@@ -282,7 +303,7 @@ const commonQuestionKeys = [
   'revealCaption', 'media', 'mediaVisibility', 'presentationChoiceVisibility',
 ] as const
 
-function parseQuestion(value: unknown, index: number): PortableQuestionV1 {
+function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2): PortableQuestion {
   const subject = `Question ${index + 1}`
   const question = record(value, subject)
   const type = stringField(question, 'type', subject)
@@ -292,9 +313,11 @@ function parseQuestion(value: unknown, index: number): PortableQuestionV1 {
     'true-false': ['correctValue'],
     slider: ['minimum', 'maximum', 'step', 'correctValue', 'tolerance', 'prefix', 'suffix', 'unitLabel'],
     pinpoint: ['targetX', 'targetY', 'targetRadius'],
+    'typed-answer': ['correctAnswer', 'acceptedAnswers'],
     mashup: ['correctPersonKeys'],
   }
   if (!(type in variantKeys)) fail(`${subject} has an unsupported question type.`)
+  if (formatVersion === 1 && type === 'typed-answer') fail(`${subject} uses Typed Answer, which requires format version 2.`)
   exactKeys(question, [...commonQuestionKeys, ...variantKeys[type as Question['type']]], subject)
 
   const key = parseKey(question.key, `${subject} key`)
@@ -384,6 +407,16 @@ function parseQuestion(value: unknown, index: number): PortableQuestionV1 {
         targetRadius: numberField(question, 'targetRadius', subject),
       }
     }
+    case 'typed-answer':
+      return {
+        ...base,
+        type,
+        correctAnswer: stringField(question, 'correctAnswer', subject),
+        acceptedAnswers: arrayField(question, 'acceptedAnswers', subject).map((answer) => {
+          if (typeof answer !== 'string') fail(`${subject} accepted answers must be text.`)
+          return answer
+        }),
+      }
     case 'mashup': {
       if (base.media.type !== 'image') fail(`${subject} must use image media for Mash-up.`)
       const correctPersonKeys = arrayField(question, 'correctPersonKeys', subject).map((item) => (
@@ -399,7 +432,7 @@ function parseQuestion(value: unknown, index: number): PortableQuestionV1 {
   }
 }
 
-function parsePortableQuiz(value: unknown): PortableQuizV1 {
+function parsePortableQuiz(value: unknown, formatVersion: 1 | 2): PortableQuiz {
   const quiz = record(value, 'The quiz')
   exactKeys(quiz, ['title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions'], 'The quiz')
   const quizType = stringField(quiz, 'quizType', 'The quiz')
@@ -444,7 +477,7 @@ function parsePortableQuiz(value: unknown): PortableQuizV1 {
 
   const questionKeys = new Set<string>()
   const questions = arrayField(quiz, 'questions', 'The quiz').map((value, index) => {
-    const question = parseQuestion(value, index)
+    const question = parseQuestion(value, index, formatVersion)
     uniqueKey(question.key, questionKeys, 'Question')
     if (quizType === 'standard' && question.assignedTo !== null) fail(`Question ${index + 1} cannot be assigned in a Standard quiz.`)
     if (quizType === 'head-to-head') {
@@ -482,7 +515,7 @@ function mapOption(option: PortableChoiceOptionV1, id: string): ChoiceOption {
 }
 
 export function createQuizSaveInputFromPortable(
-  quiz: PortableQuizV1,
+  quiz: PortableQuiz,
   createId: IdFactory = () => crypto.randomUUID(),
 ): QuizSaveInput {
   const quizId = createId()
@@ -576,6 +609,13 @@ export function createQuizSaveInputFromPortable(
           targetY: question.targetY,
           targetRadius: question.targetRadius,
         }
+      case 'typed-answer':
+        return {
+          ...base,
+          type: question.type,
+          correctAnswer: question.correctAnswer,
+          acceptedAnswers: [...question.acceptedAnswers],
+        }
       case 'mashup':
         return {
           ...base,
@@ -602,7 +642,7 @@ export function createQuizSaveInputFromPortable(
   return input
 }
 
-function hasReferencedMedia(quiz: PortableQuizV1): boolean {
+function hasReferencedMedia(quiz: PortableQuiz): boolean {
   return Boolean(quiz.coverImagePath) || quiz.questions.some((question) => (
     question.media?.type === 'image' ||
     ('options' in question && question.options.some((option) => Boolean(option.imagePath)))
@@ -625,15 +665,16 @@ export function parseKatwedQuizJson(
   const file = record(value, 'The file')
   exactKeys(file, ['format', 'formatVersion', 'quiz'], 'The file')
   if (file.format !== KATWED_QUIZ_FORMAT) fail('This is not a Katwed quiz file.')
-  if (file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION) {
+  if (file.formatVersion !== KATWED_QUIZ_LEGACY_FORMAT_VERSION && file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION) {
     fail('This Katwed quiz format version is not supported.')
   }
-  const quiz = parsePortableQuiz(file.quiz)
-  const portable: KatwedQuizFileV1 = {
+  const formatVersion = file.formatVersion as 1 | 2
+  const quiz = parsePortableQuiz(file.quiz, formatVersion)
+  const portable = {
     format: KATWED_QUIZ_FORMAT,
-    formatVersion: KATWED_QUIZ_FORMAT_VERSION,
+    formatVersion,
     quiz,
-  }
+  } as KatwedQuizFile
   return {
     portable,
     input: createQuizSaveInputFromPortable(quiz, createId),
@@ -687,12 +728,12 @@ function exportOptions(options: readonly ChoiceOption[]): { options: PortableCho
   return { options: portable, keys }
 }
 
-export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV1 {
+export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV2 {
   const competitors = [...quiz.headToHeadCompetitors].sort((a, b) => a.displayOrder - b.displayOrder)
   const competitorKeys = new Map(competitors.map((competitor, index) => [competitor.id, `competitor-${index + 1}`]))
   const roster = [...quiz.roster].sort((a, b) => a.displayOrder - b.displayOrder)
   const rosterKeys = new Map(roster.map((member, index) => [member.id, `person-${index + 1}`]))
-  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV1 => {
+  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV2 => {
     const base = {
       key: `q${index + 1}`,
       assignedTo: question.assignedCompetitorId === null
@@ -754,6 +795,13 @@ export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV1 {
           targetX: question.targetX,
           targetY: question.targetY,
           targetRadius: question.targetRadius,
+        }
+      case 'typed-answer':
+        return {
+          ...base,
+          type: question.type,
+          correctAnswer: question.correctAnswer,
+          acceptedAnswers: [...question.acceptedAnswers],
         }
       case 'mashup':
         return {

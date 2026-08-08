@@ -3,6 +3,12 @@ import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 import { isQuizType } from '../head-to-head/headToHead'
+import {
+  MAX_TYPED_ANSWER_LENGTH,
+  MAX_TYPED_ANSWER_VARIANTS,
+  isMeaningfulTypedAnswer,
+  normaliseTypedAnswer,
+} from '../typed-answer/typedAnswer'
 
 export interface QuestionValidation {
   valid: boolean
@@ -112,6 +118,23 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
         messages.push('Pinpoint radius must be greater than 0 and no more than 1.')
       }
       break
+    case 'typed-answer': {
+      const answers = [question.correctAnswer, ...question.acceptedAnswers]
+      if (answers.length > MAX_TYPED_ANSWER_VARIANTS) {
+        messages.push('Typed Answer supports one primary answer and up to 19 alternatives.')
+      }
+      if (answers.some((answer) => answer.length > MAX_TYPED_ANSWER_LENGTH)) {
+        messages.push('Typed answers must be 120 characters or fewer.')
+      }
+      if (answers.some((answer) => !answer.trim() || !isMeaningfulTypedAnswer(answer))) {
+        messages.push('Every typed answer must contain at least one letter or number.')
+      }
+      const normalised = answers.map(normaliseTypedAnswer)
+      if (new Set(normalised).size !== normalised.length) {
+        messages.push('Typed answers must be different after ignoring capitals, spaces and punctuation.')
+      }
+      break
+    }
     case 'mashup': {
       const activeIds = new Set(roster.filter((member) => member.active).map((member) => member.id))
       if (

@@ -786,6 +786,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 }
 .slider-answer input { display: block; width: 100%; min-height: 48px; touch-action: pan-y; }
 .slider-answer__limits { display: flex; justify-content: space-between; }
+.typed-answer-input { display: grid; gap: .55rem; margin: 1rem 0; font-weight: 800; }
+.typed-answer-input input { width: 100%; min-height: 54px; padding: .85rem 1rem; border: 2px solid var(--border); border-radius: .8rem; background: #fff; color: var(--ink); font: inherit; font-size: 1.05rem; }
+.typed-answer-input input:focus-visible { outline: 3px solid var(--quiz-focus, var(--purple)); outline-offset: 2px; }
 .pinpoint-coordinate-surface {
   position: relative;
   width: min(100%, 58rem);

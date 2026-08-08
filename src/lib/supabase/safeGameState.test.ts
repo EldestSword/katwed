@@ -104,4 +104,25 @@ describe('parseSafeGameState', () => {
       headToHeadResults: [{ competitorId: 'ross', assigned: true, status: 'correct', pointsAwarded: 1 }],
     })).toThrow(/before the reveal/)
   })
+
+  it('accepts a primary-only Typed Answer reveal and rejects all early answer fields', () => {
+    const typed = {
+      ...safeState,
+      currentQuestion: { ...safeState.currentQuestion, type: 'typed-answer', media: { type: 'none' } },
+      reveal: { type: 'typed-answer', correctAnswer: 'Red Dwarf', caption: 'Shown at reveal' },
+    }
+    expect(parseSafeGameState(typed).reveal).toEqual(typed.reveal)
+    expect(() => parseSafeGameState({
+      ...typed,
+      reveal: { ...typed.reveal, acceptedAnswers: ['The Red Dwarf'] },
+    })).toThrow(/reveal data/)
+    for (const field of ['correctAnswer', 'acceptedAnswers']) {
+      expect(() => parseSafeGameState({
+        ...typed,
+        phase: 'question',
+        reveal: null,
+        currentQuestion: { ...typed.currentQuestion, [field]: field === 'acceptedAnswers' ? [] : 'Red Dwarf' },
+      })).toThrow(/answer key/)
+    }
+  })
 })

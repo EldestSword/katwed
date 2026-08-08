@@ -290,7 +290,7 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(screen.getByLabelText('Points')).toBeVisible()
   })
 
-  it('supports assignments for all six question formats and hides ordinary point editing', async () => {
+  it('supports assignments for all seven question formats and hides ordinary point editing', async () => {
     const source = {
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
@@ -305,11 +305,39 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(assignmentLabels).toHaveLength(source.questions.length)
     assignmentLabels.forEach((label, index) => expect(label).toContain(index % 2 ? 'Jess' : 'Ross'))
     expect(new Set(source.questions.map((question) => question.type))).toEqual(new Set([
-      'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup',
+      'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'typed-answer', 'mashup',
     ]))
     expect(screen.getByRole('group', { name: 'Question for' })).toBeVisible()
     expect(screen.queryByLabelText('Points')).not.toBeInTheDocument()
     expect(screen.getByText('Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.')).toBeVisible()
+  })
+
+  it('edits and saves a primary Typed Answer with newline-separated alternatives', async () => {
+    const user = userEvent.setup()
+    repositoryMocks.getQuiz.mockResolvedValue({
+      ...structuredClone(mixedDemoQuiz),
+      id: 'quiz-cover-test',
+    })
+    renderEditor()
+
+    await user.click(await screen.findByRole('button', { name: /Name the science-fiction programme featuring the spaceship Red Dwarf/ }))
+    const primary = screen.getByLabelText('Primary answer')
+    const alternatives = screen.getByLabelText('Also accept')
+    expect(primary).toHaveValue('Red Dwarf')
+    expect(alternatives).toHaveValue('The Red Dwarf')
+
+    await user.clear(primary)
+    await user.type(primary, 'Chris O\u2019Dowd')
+    await user.clear(alternatives)
+    await user.type(alternatives, 'Christopher O Dowd{enter}C O Dowd')
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+
+    const saved = repositoryMocks.saveQuiz.mock.calls.at(-1)?.[0] as QuizSaveInput
+    const typed = saved.questions.find((question) => question.type === 'typed-answer')
+    expect(typed).toMatchObject({
+      correctAnswer: 'Chris O\u2019Dowd',
+      acceptedAnswers: ['Christopher O Dowd', 'C O Dowd'],
+    })
   })
 
   it('preserves assignment on question duplication and alternates the next new question', async () => {

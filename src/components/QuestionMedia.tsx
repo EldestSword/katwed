@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { QuestionMedia as QuestionMediaModel } from '../types/domain'
 import { ImageViewer } from './ImageViewer'
 import { QuestionImage } from './QuestionImage'
+import { TILE_REVEAL_COUNT, createTileRevealRanks } from '../features/media/tileReveal'
 
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false)
@@ -30,6 +31,10 @@ export function QuestionMedia({
   const [viewerOpen, setViewerOpen] = useState(false)
   const reducedMotion = useReducedMotion()
   const duration = media.type === 'image' ? media.revealDurationSeconds * 1000 : 0
+  const tileRevealRanks = useMemo(
+    () => createTileRevealRanks(media.type === 'image' ? media.path : '', openedAt),
+    [media, openedAt],
+  )
   const progress = useMemo(() => {
     if (!openedAt || !duration) return 1
     return Math.max(0, Math.min(1, (now - new Date(openedAt).getTime()) / duration))
@@ -79,8 +84,13 @@ export function QuestionMedia({
       </div>
       {media.revealEffect === 'tiles' && effectiveProgress < 1 && (
         <div className="tile-cover" aria-hidden="true">
-          {Array.from({ length: 24 }, (_, index) => (
-            <span key={index} style={{ opacity: index / 24 < effectiveProgress ? 0 : 1 }} />
+          {Array.from({ length: TILE_REVEAL_COUNT }, (_, index) => (
+            <span
+              key={index}
+              data-tile-index={index}
+              data-reveal-rank={tileRevealRanks[index]}
+              style={{ opacity: tileRevealRanks[index] / TILE_REVEAL_COUNT < effectiveProgress ? 0 : 1 }}
+            />
           ))}
         </div>
       )}

@@ -24,6 +24,7 @@ function correctAnswer(question: Question): PlayerAnswerPayload {
     case 'true-false': return { type: question.type, value: question.correctValue }
     case 'slider': return { type: question.type, value: question.correctValue }
     case 'pinpoint': return { type: question.type, x: question.targetX, y: question.targetY }
+    case 'typed-answer': return { type: question.type, value: question.correctAnswer }
     case 'mashup': return { type: question.type, memberIds: question.correctMemberIds }
   }
 }
@@ -57,11 +58,11 @@ describe('DemoGameRepository multi-format game state', () => {
     const quizzes = await repository.listQuizzes()
     expect(quizzes.map((quiz) => quiz.id)).toEqual(['quiz-demo', 'quiz-mixed'])
     expect(new Set(quizzes[1].questions.map((question) => question.type))).toEqual(
-      new Set(['single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup']),
+      new Set(['single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'typed-answer', 'mashup']),
     )
   })
 
-  it('imports a Standard all-six-format definition as a fresh Active quiz and persists it across reload', async () => {
+  it('imports a Standard all-seven-format definition as a fresh Active quiz and persists it across reload', async () => {
     const repository = new DemoGameRepository()
     const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(mixedDemoQuiz)))
     const imported = await repository.saveQuiz(parsed.input)
@@ -443,7 +444,7 @@ describe('DemoGameRepository multi-format game state', () => {
     }))?.player.id).toBe(joined.player.id)
   })
 
-  it('runs a complete untimed two-player Head-to-Head game across all six question types', async () => {
+  it('runs a complete untimed two-player Head-to-Head game across all seven question types', async () => {
     const repository = new DemoGameRepository()
     const quiz = await saveHeadToHeadFixture(repository)
     const session = await repository.launchGame(quiz.id)
@@ -473,7 +474,7 @@ describe('DemoGameRepository multi-format game state', () => {
       expect(before).toMatchObject({ quizType: 'head-to-head', phase: 'question', questionClosesAt: null })
       expect(before?.currentQuestion?.assignedCompetitorId).toBe(question.assignedCompetitorId)
       expect(before?.headToHeadResults).toEqual([])
-      expect(JSON.stringify(before?.currentQuestion)).not.toMatch(/correctOptionId|correctValue|correctMemberIds|targetX/)
+      expect(JSON.stringify(before?.currentQuestion)).not.toMatch(/correctOptionId|correctValue|correctMemberIds|correctAnswer|acceptedAnswers|targetX/)
 
       await repository.submitAnswer(session.roomCode, assigned.player.id, assigned.reconnectToken, correctAnswer(question))
       expect((await repository.getSafeGameState(session.roomCode))?.phase).toBe('question')
@@ -666,7 +667,7 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.changePhase(session.id, 'start')
     await repository.submitAnswer(session.roomCode, player.player.id, player.reconnectToken, { type: 'single-choice', optionId: 'mars' })
 
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       await repository.changePhase(session.id, 'lock')
       await repository.changePhase(session.id, 'reveal')
       if (index === 0) {

@@ -68,6 +68,8 @@ export function createQuestion(type: QuestionType, quizId: string, displayOrder:
         targetY: 0.5,
         targetRadius: 0.08,
       }
+    case 'typed-answer':
+      return { ...base, type, correctAnswer: '', acceptedAnswers: [] }
     case 'mashup':
       return {
         ...base,

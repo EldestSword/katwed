@@ -75,6 +75,16 @@ describe('scoreQuestion', () => {
     expect(scoreQuestion(question, { type: 'pinpoint', x: .7, y: .5 })).toMatchObject({ correct: false })
     expect(scoreQuestion(question, { type: 'pinpoint', x: 2, y: .5 })).toMatchObject({ valid: false })
   })
+
+  it('scores Typed Answer by exact normalised primary or alternative text', () => {
+    const question: Question = {
+      ...base, type: 'typed-answer', correctAnswer: 'Chris O\u2019Dowd', acceptedAnswers: ['Christopher O Dowd'],
+    }
+    expect(scoreQuestion(question, { type: 'typed-answer', value: " chris-o'dowd " })).toMatchObject({ correct: true, points: 1000 })
+    expect(scoreQuestion(question, { type: 'typed-answer', value: 'Christopher O. Dowd' })).toMatchObject({ correct: true, points: 1000 })
+    expect(scoreQuestion(question, { type: 'typed-answer', value: 'Chris O Dow' })).toMatchObject({ correct: false, points: 0 })
+    expect(scoreQuestion(question, { type: 'typed-answer', value: '---' })).toMatchObject({ valid: false, points: 0 })
+  })
 })
 
 describe('sortLeaderboard', () => {

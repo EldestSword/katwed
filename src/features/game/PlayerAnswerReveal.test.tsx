@@ -94,4 +94,13 @@ describe('PlayerAnswerReveal', () => {
     expect(screen.getAllByText('Your pin')).toHaveLength(2)
     expect(screen.getByText('Correct area')).toBeInTheDocument()
   })
+
+  it('shows only the primary Typed Answer at reveal', () => {
+    renderReveal(
+      { type: 'typed-answer', correctAnswer: 'Red Dwarf', caption: '' },
+      { ...base, type: 'typed-answer' },
+    )
+    expect(screen.getByRole('heading', { name: 'Red Dwarf' })).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('The Red Dwarf')
+  })
 })

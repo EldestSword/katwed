@@ -9,6 +9,7 @@ import {
   parseKatwedQuizJson,
   serialiseKatwedQuiz,
   type KatwedQuizFileV1,
+  type KatwedQuizFileV2,
 } from './katwedQuizFormat'
 
 function uuidFactory() {
@@ -16,15 +17,15 @@ function uuidFactory() {
   return () => `00000000-0000-4000-8000-${String(next++).padStart(12, '0')}`
 }
 
-function standardFile(): KatwedQuizFileV1 {
+function standardFile(): KatwedQuizFileV2 {
   return structuredClone(exportQuizToPortable(mixedDemoQuiz))
 }
 
-function headToHeadFile(): KatwedQuizFileV1 {
+function headToHeadFile(): KatwedQuizFileV2 {
   return structuredClone(exportQuizToPortable(headToHeadDemoQuiz))
 }
 
-function parse(file: KatwedQuizFileV1) {
+function parse(file: KatwedQuizFileV2) {
   return parseKatwedQuizJson(JSON.stringify(file), uuidFactory())
 }
 
@@ -38,13 +39,13 @@ function quizFromInput(parsed: ReturnType<typeof parse>, id = 'new-quiz'): Quiz 
   }
 }
 
-describe('Katwed quiz portable v1 parser', () => {
+describe('Katwed quiz portable parser', () => {
   it('rejects malformed JSON, the wrong format and unsupported versions', () => {
     expect(() => parseKatwedQuizJson('{')).toThrow('not valid JSON')
     expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), format: 'another-format' }))).toThrow(
       'not a Katwed quiz file',
     )
-    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 2 }))).toThrow(
+    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 3 }))).toThrow(
       'format version is not supported',
     )
   })
@@ -56,10 +57,10 @@ describe('Katwed quiz portable v1 parser', () => {
   })
 
   it.each([
-    ['competitor', (file: KatwedQuizFileV1) => { file.quiz.competitors[1].key = file.quiz.competitors[0].key }],
-    ['people bank', (file: KatwedQuizFileV1) => { file.quiz.roster[1].key = file.quiz.roster[0].key }],
-    ['question', (file: KatwedQuizFileV1) => { file.quiz.questions[1].key = file.quiz.questions[0].key }],
-    ['option', (file: KatwedQuizFileV1) => {
+    ['competitor', (file: KatwedQuizFileV2) => { file.quiz.competitors[1].key = file.quiz.competitors[0].key }],
+    ['people bank', (file: KatwedQuizFileV2) => { file.quiz.roster[1].key = file.quiz.roster[0].key }],
+    ['question', (file: KatwedQuizFileV2) => { file.quiz.questions[1].key = file.quiz.questions[0].key }],
+    ['option', (file: KatwedQuizFileV2) => {
       const question = file.quiz.questions[0]
       if (question.type !== 'single-choice') throw new Error('Fixture changed')
       question.options[1].key = question.options[0].key
@@ -76,7 +77,7 @@ describe('Katwed quiz portable v1 parser', () => {
     expect(() => parse(invalidKey)).toThrow('1–64 letters')
 
     const invalidType = standardFile() as unknown as { quiz: { questions: Array<{ type: string }> } }
-    invalidType.quiz.questions[0].type = 'typed-answer'
+    invalidType.quiz.questions[0].type = 'future-question'
     expect(() => parseKatwedQuizJson(JSON.stringify(invalidType))).toThrow('unsupported question type')
   })
 
@@ -187,7 +188,7 @@ describe('Katwed quiz portable v1 parser', () => {
         questions: [{ key: 'q1', type: 'true-false', prompt: 'Generated prompt', correctValue: true }],
       },
     }
-    const question = parse(file).input.questions[0]
+    const question = parseKatwedQuizJson(JSON.stringify(file), uuidFactory()).input.questions[0]
     expect(question).toMatchObject({
       supportingText: '',
       timeLimitSeconds: 30,
@@ -199,6 +200,37 @@ describe('Katwed quiz portable v1 parser', () => {
     })
   })
 
+  it('continues to import a version 1 file and rejects Typed Answer in version 1', () => {
+    const legacy: KatwedQuizFileV1 = {
+      format: 'katwed-quiz',
+      formatVersion: 1,
+      quiz: {
+        title: 'Legacy quiz', quizType: 'standard', themeId: 'katwed', backgroundId: null,
+        coverImagePath: null, competitors: [], roster: [],
+        questions: [{ key: 'q1', type: 'true-false', prompt: 'Legacy?', correctValue: true }],
+      },
+    }
+    expect(parseKatwedQuizJson(JSON.stringify(legacy)).input.questions[0]).toMatchObject({ type: 'true-false' })
+    const invalid = structuredClone(legacy) as unknown as { formatVersion: 1; quiz: { questions: unknown[] } }
+    invalid.quiz.questions = [{ key: 'q1', type: 'typed-answer', prompt: 'Name it', correctAnswer: 'Katwed', acceptedAnswers: [] }]
+    expect(() => parseKatwedQuizJson(JSON.stringify(invalid))).toThrow('requires format version 2')
+  })
+
+  it('imports and exports Typed Answer only in version 2', () => {
+    const file = standardFile()
+    file.quiz.questions = [{
+      key: 'q1', type: 'typed-answer', assignedTo: null, prompt: 'Name the programme',
+      correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
+    }]
+    const parsed = parse(file)
+    expect(parsed.input.questions[0]).toMatchObject({
+      type: 'typed-answer', correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
+    })
+    const exported = exportQuizToPortable(quizFromInput(parsed))
+    expect(exported.formatVersion).toBe(2)
+    expect(exported.quiz.questions[0]).toMatchObject({ type: 'typed-answer', correctAnswer: 'Red Dwarf' })
+  })
+
   it('rejects unexpected lifecycle and answer-adjacent fields strictly', () => {
     const file = standardFile() as unknown as { quiz: Record<string, unknown> }
     file.quiz.archivedAt = '2026-08-07T00:00:00.000Z'
@@ -206,8 +238,8 @@ describe('Katwed quiz portable v1 parser', () => {
   })
 })
 
-describe('Katwed quiz portable v1 ID remapping and round trip', () => {
-  it('imports all six types with fresh IDs and correctly remapped answer references', () => {
+describe('Katwed quiz portable v2 ID remapping and round trip', () => {
+  it('imports all seven types with fresh IDs and correctly remapped answer references', () => {
     const source = standardFile()
     source.quiz.coverImagePath = 'https://media.example/shared-cover.webp'
     const singleSource = source.quiz.questions[0]
@@ -231,7 +263,7 @@ describe('Katwed quiz portable v1 ID remapping and round trip', () => {
     expect(new Set(allIds).size).toBe(allIds.length)
     expect(allIds.every((id) => /^[0-9a-f-]{36}$/i.test(id))).toBe(true)
     expect(input.questions.map((question) => question.type)).toEqual([
-      'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup', 'single-choice',
+      'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'mashup', 'typed-answer', 'single-choice',
     ])
 
     const single = input.questions[0]
@@ -289,9 +321,9 @@ describe('Katwed quiz portable v1 ID remapping and round trip', () => {
 
   it('exports deterministic portable keys without lifecycle or database identities', () => {
     const serialised = serialiseKatwedQuiz(headToHeadDemoQuiz)
-    const portable = JSON.parse(serialised) as KatwedQuizFileV1
+    const portable = JSON.parse(serialised) as KatwedQuizFileV2
     expect(portable.format).toBe('katwed-quiz')
-    expect(portable.formatVersion).toBe(1)
+    expect(portable.formatVersion).toBe(2)
     expect(portable.quiz.competitors.map((competitor) => competitor.key)).toEqual(['competitor-1', 'competitor-2'])
     expect(portable.quiz.questions[0].key).toBe('q1')
     expect(portable.quiz.questions[0].assignedTo).toBe('competitor-1')

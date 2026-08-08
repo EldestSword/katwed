@@ -4,6 +4,7 @@ import type {
   PlayerAnswerPayload,
   Question,
 } from '../types/domain'
+import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer, typedAnswerMatches } from '../features/typed-answer/typedAnswer'
 
 export type PairScore =
   | { valid: true; correct: boolean; points: 0 | 1 }
@@ -101,6 +102,13 @@ export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): 
       ) return invalid('invalid-coordinates')
       const distance = Math.hypot(payload.x - question.targetX, payload.y - question.targetY)
       const correct = distance <= question.targetRadius + Number.EPSILON
+      return { valid: true, correct, points: correct ? question.points : 0 }
+    }
+    case 'typed-answer': {
+      const payload = answer as Extract<PlayerAnswerPayload, { type: 'typed-answer' }>
+      const value = payload.value.trim()
+      if (value.length > MAX_TYPED_ANSWER_LENGTH || !isMeaningfulTypedAnswer(value)) return invalid('invalid-value')
+      const correct = typedAnswerMatches(value, question.correctAnswer, question.acceptedAnswers)
       return { valid: true, correct, points: correct ? question.points : 0 }
     }
     case 'mashup': {

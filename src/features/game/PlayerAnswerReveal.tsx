@@ -71,6 +71,8 @@ export function PlayerAnswerReveal({
         </div>
       )
     }
+    case 'typed-answer':
+      return <h1>{reveal.correctAnswer}</h1>
     case 'mashup':
       return <h1>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h1>
   }
