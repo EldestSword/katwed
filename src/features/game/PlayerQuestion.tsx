@@ -12,6 +12,7 @@ import { QuestionImage } from '../../components/QuestionImage'
 import { ImageViewer } from '../../components/ImageViewer'
 import { PinpointSurface } from './PinpointSurface'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
+import { DoubleScoreBadge } from './DoubleScoreIntro'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -158,6 +159,7 @@ export function PlayerQuestion({
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
         <span>{modeLabel ?? `Question ${question.questionNumber} of ${question.totalQuestions}`}</span>
+        {question.doubleScore && <DoubleScoreBadge />}
         {closesAt !== null && <strong className={`timer ${remaining <= 5 ? 'timer--urgent' : ''}`} aria-label={`${remaining} seconds remaining`}>{remaining}</strong>}
       </div>
       <div className="player-question__prompt">

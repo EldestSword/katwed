@@ -23,6 +23,8 @@ describe('createDuplicateQuizInput', () => {
     single.mediaVisibility = 'presentation'
     single.presentationChoiceVisibility = 'after-lock'
     single.randomiseOptions = true
+    single.speedScoringEnabled = true
+    single.doubleScore = true
     single.options[0].imagePath = 'https://media.example/shared-choice.webp'
     single.options[0].imageAlt = 'Shared answer artwork'
 
@@ -30,6 +32,10 @@ describe('createDuplicateQuizInput', () => {
     if (!multiple || multiple.type !== 'multiple-select') throw new Error('Multiple-select fixture missing')
     multiple.scoringMode = 'partial-wipeout'
     multiple.randomiseOptions = true
+
+    const sourceMashupForMedia = source.questions.find((question) => question.type === 'mashup')
+    if (!sourceMashupForMedia || sourceMashupForMedia.type !== 'mashup') throw new Error('Mash-up fixture missing')
+    sourceMashupForMedia.media.tileGridSize = 12
 
     const sourceSnapshot = structuredClone(source)
     const input = createDuplicateQuizInput(source, sequentialIds())
@@ -104,6 +110,8 @@ describe('createDuplicateQuizInput', () => {
       (id) => source.roster.find((member) => member.id === id)?.displayName,
     ))
     expect(copiedMashup.media.path).toBe(sourceMashup.media.path)
+    expect(copiedMashup.media.tileGridSize).toBe(12)
+    expect(copiedSingle).toMatchObject({ speedScoringEnabled: true, doubleScore: true })
 
     const sourceSlider = source.questions.find((question) => question.type === 'slider')
     const copiedSlider = input.questions.find((question) => question.type === 'slider')

@@ -1,6 +1,6 @@
 # Katwed quiz portable format v2
 
-Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 2 supports Standard and Head-to-Head quizzes and all seven current question types: single choice, multiple select, true or false, slider, pinpoint, typed answer and mash-up. Katwed continues to import version 1 files, but all new exports use version 2 and Typed Answer requires version 2.
+Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 2 supports Standard and Head-to-Head quizzes and all seven current question types: single choice, multiple select, true or false, slider, pinpoint, typed answer and mash-up. Katwed continues to import versions 1 and 2; new exports use version 3. Typed Answer requires version 2 or later.
 
 Exported files contain correct answers. Keep a file closed if the person importing it intends to play the quiz blind.
 

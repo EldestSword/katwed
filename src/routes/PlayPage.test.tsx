@@ -1,7 +1,7 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SafeGameState } from '../types/domain'
 import { PlayPage } from './PlayPage'
 
@@ -82,6 +82,40 @@ describe('PlayPage quiz background', () => {
     mocks.useSafeGameState.mockReturnValue({ state: gameState, loading: false, error: '', refresh: vi.fn() })
     mocks.reconnectPlayer.mockResolvedValue({ player, reconnectToken: savedSession.reconnectToken })
     mocks.setPlayerPresence.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('keeps the player question hidden until the authoritative Double Score opening', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState,
+        quizType: 'standard',
+        phase: 'question',
+        currentQuestion: {
+          id: 'double-question', type: 'true-false', prompt: 'Player question', supportingText: '',
+          timeLimitSeconds: 20, points: 1000, speedScoringEnabled: true, doubleScore: true, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+          questionNumber: 1, totalQuestions: 1,
+        },
+        questionOpenedAt: '2026-08-09T12:00:01.500Z',
+        questionClosesAt: '2026-08-09T12:00:21.500Z',
+      },
+      loading: false,
+      error: '',
+      refresh: vi.fn(),
+    })
+    renderPage()
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    expect(screen.queryByText('Player question')).not.toBeInTheDocument()
+
+    await act(async () => vi.advanceTimersByTime(1510))
+    expect(screen.getByText('Player question')).toBeVisible()
+    expect(screen.getByText('2x points')).toBeVisible()
+    expect(screen.getByLabelText('20 seconds remaining')).toBeVisible()
   })
 
   it('shows two named slots and lets either joined competitor start once both are ready', async () => {

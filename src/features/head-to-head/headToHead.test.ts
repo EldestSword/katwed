@@ -10,14 +10,31 @@ describe('Head-to-Head quiz helpers', () => {
     const questions = older.questions as Array<Record<string, unknown>>
     delete questions[0].assignedCompetitorId
     questions[1].assignedCompetitorId = 'stale-competitor'
+    delete questions[0].speedScoringEnabled
+    delete questions[0].doubleScore
 
     const normalised = normaliseQuizHeadToHead(older as unknown as typeof mixedDemoQuiz)
 
     expect(normalised.quizType).toBe('standard')
     expect(normalised.headToHeadCompetitors).toEqual([])
     expect(normalised.questions.every((question) => question.assignedCompetitorId === null)).toBe(true)
+    expect(normalised.questions[0]).toMatchObject({ speedScoringEnabled: false, doubleScore: false })
     expect(normaliseQuizHeadToHead({ ...normalised, quizType: 'future' } as unknown as typeof mixedDemoQuiz).quizType)
       .toBe('standard')
+  })
+
+  it('forces malformed Standard scoring metadata off for Head-to-Head', () => {
+    const headToHead = {
+      ...structuredClone(mixedDemoQuiz),
+      quizType: 'head-to-head' as const,
+      questions: mixedDemoQuiz.questions.map((question) => ({
+        ...structuredClone(question), speedScoringEnabled: true, doubleScore: true,
+      })),
+    }
+    const normalised = normaliseQuizHeadToHead(headToHead)
+    expect(normalised.questions.every((question) =>
+      question.speedScoringEnabled === false && question.doubleScore === false
+    )).toBe(true)
   })
 
   it('creates two stable ordered competitors and alternates only from a valid latest assignment', () => {

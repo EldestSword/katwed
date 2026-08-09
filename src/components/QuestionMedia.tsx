@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { QuestionMedia as QuestionMediaModel } from '../types/domain'
 import { ImageViewer } from './ImageViewer'
 import { QuestionImage } from './QuestionImage'
-import { TILE_REVEAL_COUNT, createTileRevealRanks } from '../features/media/tileReveal'
+import {
+  LEGACY_TILE_COLUMNS,
+  LEGACY_TILE_ROWS,
+  TILE_REVEAL_COUNT,
+  createTileRevealRanks,
+} from '../features/media/tileReveal'
 
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false)
@@ -31,9 +36,18 @@ export function QuestionMedia({
   const [viewerOpen, setViewerOpen] = useState(false)
   const reducedMotion = useReducedMotion()
   const duration = media.type === 'image' ? media.revealDurationSeconds * 1000 : 0
+  const tileColumns = media.type === 'image' && media.tileGridSize
+    ? media.tileGridSize
+    : LEGACY_TILE_COLUMNS
+  const tileRows = media.type === 'image' && media.tileGridSize
+    ? media.tileGridSize
+    : LEGACY_TILE_ROWS
+  const tileCount = media.type === 'image' && media.tileGridSize
+    ? media.tileGridSize * media.tileGridSize
+    : TILE_REVEAL_COUNT
   const tileRevealRanks = useMemo(
-    () => createTileRevealRanks(media.type === 'image' ? media.path : '', openedAt),
-    [media, openedAt],
+    () => createTileRevealRanks(media.type === 'image' ? media.path : '', openedAt, tileCount),
+    [media, openedAt, tileCount],
   )
   const progress = useMemo(() => {
     if (!openedAt || !duration) return 1
@@ -83,13 +97,17 @@ export function QuestionMedia({
         <QuestionImage path={media.path} alt={media.altText || 'Question image'} />
       </div>
       {media.revealEffect === 'tiles' && effectiveProgress < 1 && (
-        <div className="tile-cover" aria-hidden="true">
-          {Array.from({ length: TILE_REVEAL_COUNT }, (_, index) => (
+        <div
+          className="tile-cover"
+          aria-hidden="true"
+          style={{ '--tile-columns': tileColumns, '--tile-rows': tileRows } as CSSProperties}
+        >
+          {Array.from({ length: tileCount }, (_, index) => (
             <span
               key={index}
               data-tile-index={index}
               data-reveal-rank={tileRevealRanks[index]}
-              style={{ opacity: tileRevealRanks[index] / TILE_REVEAL_COUNT < effectiveProgress ? 0 : 1 }}
+              style={{ opacity: tileRevealRanks[index] / tileCount < effectiveProgress ? 0 : 1 }}
             />
           ))}
         </div>

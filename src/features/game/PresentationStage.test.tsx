@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GamePhase, SafeGameState } from '../../types/domain'
 import { PresentationStage } from './PresentationStage'
 
@@ -24,6 +24,49 @@ function state(phase: GamePhase): SafeGameState {
 }
 
 describe('PresentationStage quiz theme', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it.each([false, true])('shows the server-timed Double Score intro before the question when compact is %s', async (compact) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    const doubleState: SafeGameState = {
+      ...state('question'),
+      quizType: 'standard',
+      currentQuestion: {
+        id: 'double-question', type: 'true-false', prompt: 'Visible after the intro?', supportingText: '',
+        timeLimitSeconds: 20, points: 1000, speedScoringEnabled: true, doubleScore: true, displayOrder: 0,
+        media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+        questionNumber: 1, totalQuestions: 1,
+      },
+      questionOpenedAt: '2026-08-09T12:00:01.500Z',
+      questionClosesAt: '2026-08-09T12:00:21.500Z',
+    }
+    render(<PresentationStage state={doubleState} compact={compact} />)
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    expect(screen.queryByText('Visible after the intro?')).not.toBeInTheDocument()
+
+    await act(async () => vi.advanceTimersByTime(1510))
+    expect(screen.getByText('Visible after the intro?')).toBeVisible()
+    expect(screen.getByText('2x points')).toBeVisible()
+  })
+
+  it('does not add an intro to an ordinary Standard question', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    render(<PresentationStage state={{
+      ...state('question'), quizType: 'standard',
+      currentQuestion: {
+        id: 'ordinary-question', type: 'true-false', prompt: 'Ordinary question', supportingText: '',
+        timeLimitSeconds: 20, points: 1000, speedScoringEnabled: true, doubleScore: false, displayOrder: 0,
+        media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+        questionNumber: 1, totalQuestions: 1,
+      },
+      questionOpenedAt: '2026-08-09T12:00:00.000Z', questionClosesAt: '2026-08-09T12:00:20.000Z',
+    }} />)
+    expect(screen.getByText('Ordinary question')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'DOUBLE SCORE!' })).not.toBeInTheDocument()
+  })
+
   it.each<GamePhase>(['lobby', 'question', 'locked', 'reveal', 'leaderboard', 'finished'])(
     'keeps the selected theme on the %s phase root',
     (phase) => {
@@ -59,6 +102,8 @@ describe('PresentationStage quiz theme', () => {
         supportingText: '',
         timeLimitSeconds: 30,
         points: 1000,
+        speedScoringEnabled: false,
+        doubleScore: false,
         displayOrder: 0,
         media: { type: 'none' },
         mediaVisibility: 'both',
@@ -80,7 +125,7 @@ describe('PresentationStage quiz theme', () => {
   it.each([false, true])('shows explicit Head-to-Head reveal semantics when compact is %s', (compact) => {
     const question = {
       id: 'question', type: 'true-false' as const, assignedCompetitorId: 'ross', prompt: 'True?',
-      supportingText: '', timeLimitSeconds: 30, points: 1000, displayOrder: 0,
+      supportingText: '', timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
       media: { type: 'none' as const }, mediaVisibility: 'both' as const,
       presentationChoiceVisibility: 'show' as const, questionNumber: 1, totalQuestions: 1,
     }

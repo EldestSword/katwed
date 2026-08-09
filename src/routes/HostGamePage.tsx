@@ -8,6 +8,7 @@ import { useCountdown } from '../hooks/useCountdown'
 import { repository } from '../services/repository'
 import type { GameSession, Quiz, SafeGameState } from '../types/domain'
 import { questionTypeRegistry } from '../features/questions/registry'
+import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -23,6 +24,7 @@ export function HostGamePage() {
   const autoLocking = useRef(false)
   const navigate = useNavigate()
   const remaining = useCountdown(state?.questionClosesAt ?? null)
+  const doubleScoreIntro = useDoubleScoreIntro(state?.quizType, state?.currentQuestion ?? null, state?.questionOpenedAt ?? null)
 
   const refresh = useCallback(async () => {
     try {
@@ -107,19 +109,19 @@ export function HostGamePage() {
             <div><dt>Phase</dt><dd>{state.phase}</dd></div>
             <div><dt>Question</dt><dd>{question ? `${question.questionNumber} / ${question.totalQuestions}` : 'Not started'}</dd></div>
             <div><dt>Type</dt><dd>{question ? questionTypeRegistry[question.type].name : '—'}</dd></div>
-            <div><dt>Time</dt><dd>{headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
+            <div><dt>Time</dt><dd>{headToHead ? 'Untimed' : doubleScoreIntro ? 'Double Score intro' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
             <div><dt>Submitted</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
           </dl>
           <div className="controller-actions">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
-            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('lock')}>Close answers early</button>}
+            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('lock')}>Close answers early</button>}
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
             {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
             {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
             {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
-            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('finish')}>Finish game</button>}
+            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('finish')}>Finish game</button>}
             {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
             <button className="button button--ghost" disabled={working} type="button" onClick={() => {
               if (window.confirm('Close this room for every player?')) run('close')

@@ -1,13 +1,13 @@
 # Katwed!
 
-Katwed! is a live, host-led quiz platform for phones, tablets and shared screens. The deployed release supports six knowledge-scored question formats, with a seventh implemented locally:
+Katwed! is a live, host-led quiz platform for phones, tablets and shared screens. The deployed release supports seven knowledge-scored question formats:
 
 - single choice;
 - multiple select;
 - true or false;
 - slider;
 - pinpoint;
-- typed answer (implemented locally, pending release);
+- typed answer;
 - the original two-person face mash-up.
 
 The mash-up rule remains strict: players select exactly two different people and score only when both are correct. Order does not matter, and partial credit is never awarded for a mash-up.
@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608070007_head_to_head_live_play.sql` is applied to the live project. `202608080001_typed_answer.sql` is the single pending forward migration and has not been applied. A real host account exists, and host sign-in works against Supabase Auth.
+The production migration chain through `202608090001_fix_typed_answer_validation_trigger.sql` is applied to the live project. `202608090002_standard_scoring_and_tile_options.sql` is the single pending forward migration and has not been applied. A real host account exists, and host sign-in works against Supabase Auth.
 
 ### Implemented and deployed
 
@@ -105,17 +105,27 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 1 import is deployed. Version 2 is implemented and tested locally, adds Typed Answer, remains backward-compatible with version 1 imports and is now the export target. Both versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v2.md`](docs/katwed-quiz-format-v2.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v2.schema.json); the [v1 documentation](docs/katwed-quiz-format-v1.md) and [v1 schema](docs/schemas/katwed-quiz-v1.schema.json) remain available for existing generators.
+Version 3 is implemented and tested locally and is now the export target. It adds Standard speed scoring, Double Score and configurable tile grids while the importer remains backward-compatible with versions 1 and 2. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v3.md`](docs/katwed-quiz-format-v3.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v3.schema.json); the v1 and v2 documentation and schemas remain available for existing generators.
 
-Import/export v1 is deployed and requires no database migration. Version 2 and Typed Answer export are implemented and tested locally, pending the same deliberate database-first release as Typed Answer.
+Import/export versions 1 and 2 and Typed Answer are deployed. New version 3 exports are implemented and tested locally, pending the same deliberate database-first release as Standard scoring and tile options.
 
-### Typed Answer and deterministic tile reveal — implemented locally, pending release
+### Typed Answer and deterministic tile reveal
 
 Typed Answer uses one primary answer plus up to 19 optional alternatives. Matching applies Unicode NFKC normalisation, lower-casing and removal of every non-letter/non-number character, then requires an exact match. It is intentionally not fuzzy. The player submits a trimmed answer of at most 120 characters; PostgreSQL repeats validation and authoritative scoring for Standard and Head-to-Head games. Only the primary answer is revealed, while alternatives remain secret answer-key data.
 
 The existing 24-tile image reveal now uses a deterministic seeded shuffle derived from the media path and authoritative question-open timestamp. Controller, presentation and player screens therefore reveal the same random-looking order across rerenders and reconnects without using render-time randomness. Timing, reduced-motion behaviour and the existing `tiles` effect ID are unchanged.
 
-Both improvements are implemented and tested locally. They require the pending `202608080001_typed_answer.sql` migration to be applied before the matching frontend is deliberately deployed. No Supabase migration or Netlify deployment was performed during implementation.
+Typed Answer and deterministic 24-tile ordering are deployed. Focused authenticated production UAT confirmed saving a Typed Answer, normalised positive matching for `RED-DWARF` against `Red Dwarf`, and rejection of the deliberately wrong `RED-DWARFF` spelling.
+
+### Standard scoring, Double Score and tile grids — implemented locally, pending release
+
+New Standard questions default to speed scoring on, while existing questions and all imported v1/v2 questions remain fixed-score unless explicitly changed. Positive scores use a linear 100%-to-50% multiplier across the authoritative question window. Double Score multiplies the existing base score first, followed by speed scaling and integer flooring. Multiple Select partial-wipeout continues to determine its proportional or zero base before either modifier.
+
+Double Score questions have a shared 1.5-second server-timed introduction on player, presentation and compact controller-preview screens. The authoritative opening timestamp is placed after that notice, so the full configured timer remains available, reconnect does not restart the notice, and early answers or host Lock/Finish attempts are rejected.
+
+New tile authoring supports 6-by-6, 8-by-8, 12-by-12 and 16-by-16 grids, defaulting to 8-by-8. Existing tile media without a size retains the deployed 24-tile 6-by-4 layout. All grids keep deterministic per-opening reveal order, total reveal duration, reduced-motion behaviour and image enlargement.
+
+These features and portable format v3 are implemented and tested locally. They require the pending `202608090002_standard_scoring_and_tile_options.sql` migration before the matching frontend is deliberately deployed. Production remains on `202608090001_fix_typed_answer_validation_trigger.sql`; no migration or Netlify deployment was performed during this development package.
 
 ### Planned
 
@@ -216,7 +226,7 @@ One primary answer and up to 19 alternatives are matched exactly after Unicode N
 
 Uses the optional quiz people bank. Exactly two distinct active people must be selected. The complete pair is required and no partial mode exists.
 
-All points are non-negative integers. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. There is no speed bonus.
+All points are non-negative integers. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. Pending Standard scoring can optionally reduce positive scores from 100% to 50% according to authoritative response time; Head-to-Head remains fixed at one or zero.
 
 ## Media
 
@@ -249,7 +259,7 @@ Images support:
 - tile uncover;
 - zoom-out.
 
-Progress is calculated from the authoritative question-open timestamp and reveal duration, so open screens converge on approximately the same point. Reduced-motion preferences receive an immediate result.
+Progress is calculated from the authoritative question-open timestamp and reveal duration, so open screens converge on approximately the same point. Pending tile-grid authoring supports 6-by-6, 8-by-8, 12-by-12 and 16-by-16; omitted grid metadata retains the historical 24-tile layout. Reduced-motion preferences receive an immediate result.
 
 Images and image answer options have a separate enlargement control. The modal traps keyboard focus, closes with Escape, restores focus and uses `object-fit: contain`. Enlarging an answer image does not select it.
 
@@ -290,7 +300,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608070007_head_to_head_live_play.sql` applied. `202608080001_typed_answer.sql` is committed as the only pending migration and has not been applied.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608090001_fix_typed_answer_validation_trigger.sql` applied. `202608090002_standard_scoring_and_tile_options.sql` is committed as the only pending migration and has not been applied.
 
 For a new Supabase environment:
 
@@ -332,6 +342,9 @@ Applied production migrations, in order:
 202608070005_quiz_backgrounds.sql
 202608070006_head_to_head_foundation.sql
 202608070007_head_to_head_live_play.sql
+202608080001_typed_answer.sql
+202608090001_fix_typed_answer_validation_trigger.sql
+202608090002_standard_scoring_and_tile_options.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -350,7 +363,9 @@ Applied production migrations, in order:
 
 `202608070006_head_to_head_foundation.sql` and `202608070007_head_to_head_live_play.sql` are applied immutable production history. They add the Head-to-Head definition, competitor claims, one-resolution-per-player live play, player-authenticated start/skip/continue operations, exact assigned scoring and the extended safe game state.
 
-`202608080001_typed_answer.sql` is pending and unapplied. It adds the seventh question discriminator, save validation, server normalisation, authoritative Standard/Head-to-Head scoring and a reveal boundary that returns only the primary answer. A deliberate release must apply this migration before deploying the matching frontend.
+`202608080001_typed_answer.sql` and `202608090001_fix_typed_answer_validation_trigger.sql` are applied immutable production history. Together they add the seventh question discriminator, save validation, server normalisation, authoritative Standard/Head-to-Head scoring, a primary-answer-only reveal boundary, and the repaired seven-type validation trigger. Focused production UAT confirmed save, a positive normalised match and a negative wrong-spelling result.
+
+`202608090002_standard_scoring_and_tile_options.sql` is pending and unapplied. It adds backward-compatible false database defaults, owner/safe serialisation, authoritative Standard score modifiers, Double Score opening protection and tile-grid validation. A deliberate release must apply it before deploying the matching frontend.
 
 ### Production pgcrypto repair
 
@@ -426,7 +441,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head and portable quiz import v1 are implemented and deployed. Portable format v2 with Typed Answer is implemented and tested locally over the existing save/read boundary and awaits a deliberate database-first production release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head, Typed Answer and portable quiz formats v1/v2 are implemented and deployed. Portable format v3 with Standard scoring and tile options is implemented and tested locally and awaits a deliberate database-first production release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
 
 - tags;
 - optional media reuse;
@@ -444,7 +459,7 @@ Planned work:
 
 ### Further question formats
 
-Planned formats after Typed Answer:
+Planned further formats:
 - ordering;
 - matching;
 - poll;
@@ -465,7 +480,7 @@ Formal multi-player load testing is required before advertising larger room capa
 
 ## Current limitations
 
-- no speed bonuses;
+- Standard speed scoring and Double Score are pending production release;
 - no remote co-host;
 - no cross-device YouTube playback synchronisation;
 - no Teams integration;

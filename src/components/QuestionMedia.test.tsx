@@ -17,6 +17,34 @@ afterEach(() => {
 })
 
 describe('QuestionMedia tile reveal', () => {
+  it.each([
+    [undefined, 24, '6', '4'],
+    [6, 36, '6', '6'],
+    [8, 64, '8', '8'],
+    [12, 144, '12', '12'],
+    [16, 256, '16', '16'],
+  ] as const)('renders grid %s with %d unique tiles', (tileGridSize, count, columns, rows) => {
+    const { container } = render(<QuestionMedia media={{ ...media, tileGridSize }} openedAt={new Date().toISOString()} />)
+    const cover = container.querySelector('.tile-cover') as HTMLElement
+    const tiles = [...cover.querySelectorAll('span')]
+    expect(tiles).toHaveLength(count)
+    expect(new Set(tiles.map((tile) => tile.getAttribute('data-reveal-rank'))).size).toBe(count)
+    expect(cover.style.getPropertyValue('--tile-columns')).toBe(columns)
+    expect(cover.style.getPropertyValue('--tile-rows')).toBe(rows)
+  })
+
+  it('reveals approximately half of any configured grid at 50% duration', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:30.000Z'))
+    const { container } = render(<QuestionMedia
+      media={{ ...media, tileGridSize: 8 }}
+      openedAt="2026-08-09T12:00:00.000Z"
+    />)
+    const transparent = [...container.querySelectorAll('.tile-cover span')]
+      .filter((tile) => (tile as HTMLElement).style.opacity === '0')
+    expect(transparent).toHaveLength(32)
+  })
+
   it('keeps the same deterministic ranks while the image viewer opens and closes', async () => {
     const user = userEvent.setup()
     const { container } = render(<QuestionMedia media={media} openedAt={new Date().toISOString()} />)

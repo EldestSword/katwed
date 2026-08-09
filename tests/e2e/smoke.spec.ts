@@ -360,7 +360,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   if (!exportedPath) throw new Error('Exported quiz file was unavailable')
   const { readFile } = await import('node:fs/promises')
   const exported = JSON.parse(await readFile(exportedPath, 'utf8')) as { formatVersion: number }
-  expect(exported.formatVersion).toBe(2)
+  expect(exported.formatVersion).toBe(3)
 })
 
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
@@ -749,6 +749,62 @@ test('permanent deletion uses a disposable archived quiz and survives reload', a
   await expect(page.getByRole('article').filter({ hasText: 'Disposable release quiz' })).toHaveCount(0)
   await page.getByRole('tab', { name: /Active quizzes/ }).click()
   await expect(page.getByRole('article').filter({ hasText: 'The Curious Crew' })).toBeVisible()
+})
+
+test('Standard scoring controls, configured tiles and the Double Score intro work in Demo mode', async ({ context, page }) => {
+  test.setTimeout(90_000)
+  await enterHost(page)
+
+  const existing = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
+  await existing.getByRole('link', { name: 'Edit' }).click()
+  await page.getByLabel('Reveal effect').selectOption('tiles')
+  const grid = page.getByLabel('Tile grid')
+  await expect(grid).toBeVisible()
+  await grid.selectOption('8')
+  await page.getByLabel('Reveal duration').fill('60')
+  await expect(page.locator('.editor-preview .tile-cover span')).toHaveCount(64)
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+
+  await page.getByRole('link', { name: 'All quizzes' }).click()
+  await page.getByRole('button', { name: '+ Create quiz' }).click()
+  await page.getByLabel('Quiz title').fill('Double Score browser test')
+  await page.locator('.question-type-picker').getByRole('button', { name: /True or false/ }).click()
+  await page.getByLabel('Prompt').fill('Double Score browser question')
+  await expect(page.getByLabel('Maximum points')).toHaveValue('1000')
+  await expect(page.getByLabel('Faster answers score more')).toBeChecked()
+  const doubleScore = page.getByRole('checkbox', { name: 'Double score', exact: true })
+  await expect(doubleScore).not.toBeChecked()
+  await doubleScore.check()
+  await expect(page.getByText('Worth up to 2,000 points.')).toBeVisible()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.getByRole('link', { name: 'All quizzes' }).click()
+
+  const roomCode = await launchQuiz(page, 'Double Score browser test')
+  const presentation = await context.newPage()
+  await presentation.goto(page.url().replace('/control', '/present'))
+  const player = await joinPlayer(context, roomCode, 'Double Player')
+  await page.getByRole('button', { name: 'Start game' }).click()
+  await expect(page.getByRole('button', { name: 'Close answers early' })).toBeDisabled()
+  await expect(presentation.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+  await expect(player.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+  await expect(presentation.getByText('Double Score browser question')).toHaveCount(0)
+  await expect(player.getByText('Double Score browser question')).toHaveCount(0)
+
+  await expect(player.getByText('Double Score browser question')).toBeVisible()
+  await expect(presentation.getByText('Double Score browser question')).toBeVisible()
+  await expect(player.getByText('2x points')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Close answers early' })).toBeEnabled()
+  await player.getByRole('button', { name: 'True' }).click()
+  await player.getByRole('button', { name: 'Lock in' }).click()
+  await page.getByRole('button', { name: 'Close answers early' }).click()
+  await page.getByRole('button', { name: 'Reveal answer' }).click()
+  await page.getByRole('button', { name: 'Reveal final results' }).click()
+  await expect(player.getByRole('heading', { name: 'Final scores' })).toBeVisible()
+
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Close room' }).click()
 })
 
 test('controller, presentation and three players complete every mixed format', async ({ context, page }) => {

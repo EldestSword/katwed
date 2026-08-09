@@ -1,3 +1,4 @@
+import { TILE_GRID_SIZES } from '../../types/domain'
 import type {
   ChoiceOption,
   ImageRevealEffect,
@@ -17,7 +18,8 @@ import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 
 export const KATWED_QUIZ_FORMAT = 'katwed-quiz' as const
-export const KATWED_QUIZ_FORMAT_VERSION = 2 as const
+export const KATWED_QUIZ_FORMAT_VERSION = 3 as const
+export const KATWED_QUIZ_V2_FORMAT_VERSION = 2 as const
 export const KATWED_QUIZ_LEGACY_FORMAT_VERSION = 1 as const
 export const KATWED_QUIZ_FILE_EXTENSION = '.katwed.json'
 export const KATWED_QUIZ_MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -137,13 +139,30 @@ export interface PortableQuizV2 extends Omit<PortableQuizV1, 'questions'> {
 
 export interface KatwedQuizFileV2 {
   format: typeof KATWED_QUIZ_FORMAT
-  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  formatVersion: typeof KATWED_QUIZ_V2_FORMAT_VERSION
   quiz: PortableQuizV2
 }
 
-export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2
-type PortableQuiz = PortableQuizV1 | PortableQuizV2
-type PortableQuestion = PortableQuestionV1 | PortableQuestionV2
+type WithV3Scoring<T> = T extends unknown ? T & {
+  speedScoringEnabled?: boolean
+  doubleScore?: boolean
+} : never
+
+export type PortableQuestionV3 = WithV3Scoring<PortableQuestionV2>
+
+export interface PortableQuizV3 extends Omit<PortableQuizV2, 'questions'> {
+  questions: PortableQuestionV3[]
+}
+
+export interface KatwedQuizFileV3 {
+  format: typeof KATWED_QUIZ_FORMAT
+  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  quiz: PortableQuizV3
+}
+
+export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3
+type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3
+type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3
 
 export interface QuizImportSummary {
   title: string
@@ -251,7 +270,7 @@ function safeMediaReference(value: unknown, subject: string): string {
   return value.trim()
 }
 
-function parseMedia(value: unknown, subject: string): QuestionMedia {
+function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3): QuestionMedia {
   const media = record(value, `${subject} media`)
   const type = stringField(media, 'type', `${subject} media`)
   switch (type) {
@@ -259,16 +278,30 @@ function parseMedia(value: unknown, subject: string): QuestionMedia {
       exactKeys(media, ['type'], `${subject} media`)
       return { type }
     case 'image': {
-      exactKeys(media, ['type', 'path', 'altText', 'revealEffect', 'revealDurationSeconds'], `${subject} media`)
+      exactKeys(
+        media,
+        formatVersion === 3
+          ? ['type', 'path', 'altText', 'revealEffect', 'revealDurationSeconds', 'tileGridSize']
+          : ['type', 'path', 'altText', 'revealEffect', 'revealDurationSeconds'],
+        `${subject} media`,
+      )
       const revealEffect = stringField(media, 'revealEffect', `${subject} media`)
       if (!imageRevealEffects.has(revealEffect as ImageRevealEffect)) fail(`${subject} has an unsupported image reveal effect.`)
-      return {
+      const result: Extract<QuestionMedia, { type: 'image' }> = {
         type,
         path: safeMediaReference(media.path, `${subject} image path`),
         altText: stringField(media, 'altText', `${subject} media`),
         revealEffect: revealEffect as ImageRevealEffect,
         revealDurationSeconds: numberField(media, 'revealDurationSeconds', `${subject} media`),
       }
+      if (media.tileGridSize !== undefined) {
+        const tileGridSize = numberField(media, 'tileGridSize', `${subject} media`)
+        if (revealEffect !== 'tiles' || !TILE_GRID_SIZES.includes(tileGridSize as 6 | 8 | 12 | 16)) {
+          fail(`${subject} has an unsupported tile grid.`)
+        }
+        result.tileGridSize = tileGridSize as 6 | 8 | 12 | 16
+      }
+      return result
     }
     case 'youtube': {
       exactKeys(media, ['type', 'videoId', 'startSeconds', 'endSeconds'], `${subject} media`)
@@ -303,7 +336,7 @@ const commonQuestionKeys = [
   'revealCaption', 'media', 'mediaVisibility', 'presentationChoiceVisibility',
 ] as const
 
-function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2): PortableQuestion {
+function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3): PortableQuestion {
   const subject = `Question ${index + 1}`
   const question = record(value, subject)
   const type = stringField(question, 'type', subject)
@@ -318,7 +351,8 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2): Por
   }
   if (!(type in variantKeys)) fail(`${subject} has an unsupported question type.`)
   if (formatVersion === 1 && type === 'typed-answer') fail(`${subject} uses Typed Answer, which requires format version 2.`)
-  exactKeys(question, [...commonQuestionKeys, ...variantKeys[type as Question['type']]], subject)
+  const scoringKeys = formatVersion === 3 ? ['speedScoringEnabled', 'doubleScore'] : []
+  exactKeys(question, [...commonQuestionKeys, ...scoringKeys, ...variantKeys[type as Question['type']]], subject)
 
   const key = parseKey(question.key, `${subject} key`)
   const assignedTo = question.assignedTo === undefined || question.assignedTo === null
@@ -339,9 +373,13 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2): Por
     timeLimitSeconds: optionalNumber(question, 'timeLimitSeconds', 30, subject),
     points: optionalNumber(question, 'points', 1000, subject),
     revealCaption: optionalString(question, 'revealCaption', '', subject),
-    media: question.media === undefined ? { type: 'none' } as const : parseMedia(question.media, subject),
+    media: question.media === undefined ? { type: 'none' } as const : parseMedia(question.media, subject, formatVersion),
     mediaVisibility: mediaVisibility as MediaVisibility,
     presentationChoiceVisibility: presentationChoiceVisibility as PresentationChoiceVisibility,
+    ...(formatVersion === 3 ? {
+      speedScoringEnabled: optionalBoolean(question, 'speedScoringEnabled', false, subject),
+      doubleScore: optionalBoolean(question, 'doubleScore', false, subject),
+    } : {}),
   }
 
   switch (type) {
@@ -432,7 +470,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2): Por
   }
 }
 
-function parsePortableQuiz(value: unknown, formatVersion: 1 | 2): PortableQuiz {
+function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3): PortableQuiz {
   const quiz = record(value, 'The quiz')
   exactKeys(quiz, ['title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions'], 'The quiz')
   const quizType = stringField(quiz, 'quizType', 'The quiz')
@@ -483,6 +521,12 @@ function parsePortableQuiz(value: unknown, formatVersion: 1 | 2): PortableQuiz {
     if (quizType === 'head-to-head') {
       if (!question.assignedTo) fail(`Question ${index + 1} must be assigned to a competitor.`)
       if (!competitorKeys.has(question.assignedTo)) fail(`Question ${index + 1} has an invalid competitor assignment.`)
+      if (
+        ('speedScoringEnabled' in question && question.speedScoringEnabled) ||
+        ('doubleScore' in question && question.doubleScore)
+      ) {
+        fail(`Question ${index + 1} cannot use Standard scoring settings in Head-to-Head.`)
+      }
     }
     if (question.type === 'mashup') {
       if (question.correctPersonKeys.some((key) => !rosterKeys.has(key))) {
@@ -543,6 +587,8 @@ export function createQuizSaveInputFromPortable(
       supportingText: question.supportingText ?? '',
       timeLimitSeconds: question.timeLimitSeconds ?? 30,
       points: question.points ?? 1000,
+      speedScoringEnabled: 'speedScoringEnabled' in question ? question.speedScoringEnabled ?? false : false,
+      doubleScore: 'doubleScore' in question ? question.doubleScore ?? false : false,
       displayOrder: index,
       revealCaption: question.revealCaption ?? '',
       media: structuredClone(question.media ?? { type: 'none' } as const),
@@ -665,10 +711,14 @@ export function parseKatwedQuizJson(
   const file = record(value, 'The file')
   exactKeys(file, ['format', 'formatVersion', 'quiz'], 'The file')
   if (file.format !== KATWED_QUIZ_FORMAT) fail('This is not a Katwed quiz file.')
-  if (file.formatVersion !== KATWED_QUIZ_LEGACY_FORMAT_VERSION && file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION) {
+  if (
+    file.formatVersion !== KATWED_QUIZ_LEGACY_FORMAT_VERSION &&
+    file.formatVersion !== KATWED_QUIZ_V2_FORMAT_VERSION &&
+    file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION
+  ) {
     fail('This Katwed quiz format version is not supported.')
   }
-  const formatVersion = file.formatVersion as 1 | 2
+  const formatVersion = file.formatVersion as 1 | 2 | 3
   const quiz = parsePortableQuiz(file.quiz, formatVersion)
   const portable = {
     format: KATWED_QUIZ_FORMAT,
@@ -728,12 +778,12 @@ function exportOptions(options: readonly ChoiceOption[]): { options: PortableCho
   return { options: portable, keys }
 }
 
-export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV2 {
+export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV3 {
   const competitors = [...quiz.headToHeadCompetitors].sort((a, b) => a.displayOrder - b.displayOrder)
   const competitorKeys = new Map(competitors.map((competitor, index) => [competitor.id, `competitor-${index + 1}`]))
   const roster = [...quiz.roster].sort((a, b) => a.displayOrder - b.displayOrder)
   const rosterKeys = new Map(roster.map((member, index) => [member.id, `person-${index + 1}`]))
-  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV2 => {
+  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV3 => {
     const base = {
       key: `q${index + 1}`,
       assignedTo: question.assignedCompetitorId === null
@@ -743,6 +793,8 @@ export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV2 {
       supportingText: question.supportingText,
       timeLimitSeconds: question.timeLimitSeconds,
       points: question.points,
+      speedScoringEnabled: question.speedScoringEnabled,
+      doubleScore: question.doubleScore,
       revealCaption: question.revealCaption,
       media: structuredClone(question.media),
       mediaVisibility: question.mediaVisibility,

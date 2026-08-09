@@ -759,8 +759,15 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .question-media { position: relative; width: min(100%, 58rem); margin: 1rem auto; overflow: hidden; border-radius: 1rem; }
 .question-media__image { transition: filter .1s linear, transform .1s linear; transform-origin: center; }
 .question-media img { width: 100%; max-height: min(52vh, 38rem); object-fit: contain; display: block; }
-.tile-cover { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr); pointer-events: none; }
-.tile-cover span { background: #171b35; transition: opacity .25s ease; }
+.tile-cover { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--tile-columns, 6), minmax(0, 1fr)); grid-template-rows: repeat(var(--tile-rows, 4), minmax(0, 1fr)); gap: 0; pointer-events: none; overflow: hidden; }
+.tile-cover span { min-width: 0; min-height: 0; border: 0; background: #171b35; transition: opacity .25s ease; }
+
+.double-score-intro { display: grid; min-height: min(62vh, 34rem); place-content: center; gap: .5rem; padding: 2rem; text-align: center; }
+.double-score-intro h1 { margin: 0; font-size: clamp(3rem, 11vw, 8rem); line-height: .9; letter-spacing: -.04em; }
+.double-score-intro p { margin: 0; }
+.double-score-intro--compact { min-height: 20rem; }
+.double-score-intro--compact h1 { font-size: clamp(2.2rem, 6vw, 4rem); }
+.double-score-badge { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; padding: .25rem .65rem; background: var(--quiz-accent, #ffcc4d); color: #111827; font-size: .8em; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .enlarge-button { position: absolute; right: .5rem; bottom: .5rem; z-index: 2; border: 0; border-radius: 999px; padding: .55rem .8rem; background: #11162ddd; color: white; font: inherit; cursor: pointer; }
 .youtube-frame iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: .8rem; }
 .media-note { font-size: .8rem; margin: .3rem 0; }

@@ -13,6 +13,8 @@ const question: SafeQuestion = {
   mediaVisibility: 'both',
   presentationChoiceVisibility: 'hide',
   points: 1,
+  speedScoringEnabled: false,
+  doubleScore: false,
   displayOrder: 0,
   questionNumber: 1,
   totalQuestions: 3,
@@ -67,7 +69,7 @@ describe('PlayerQuestion image choices', () => {
     const imageQuestion: SafeQuestion = {
       id: 'image-choice', type: 'single-choice', prompt: 'Choose', supportingText: '',
       media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
-      points: 1000, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
       options: [
         { id: 'picture', label: 'Picture', imagePath: '/demo/portrait-1.svg', imageAlt: 'Fictional portrait' },
         { id: 'text', label: 'Text only' },
@@ -87,7 +89,7 @@ describe('PlayerQuestion slider', () => {
   const sliderQuestion: SafeQuestion = {
     id: 'slider', type: 'slider', prompt: 'Choose a value', supportingText: '',
     media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'hide',
-    points: 1000, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+    points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
     minimum: 0, maximum: 100, step: 5, prefix: '', suffix: '', unitLabel: 'units',
   }
 
@@ -118,7 +120,7 @@ describe('PlayerQuestion Typed Answer', () => {
   const typedQuestion: SafeQuestion = {
     id: 'typed', type: 'typed-answer', prompt: 'Name the programme', supportingText: '',
     media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'hide',
-    points: 1000, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+    points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
   }
 
   it('trims and submits meaningful text with Enter without exposing correctness', async () => {

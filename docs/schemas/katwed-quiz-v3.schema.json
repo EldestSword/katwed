@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katwed.co.uk/schemas/katwed-quiz-v3.schema.json",
+  "title": "Katwed quiz portable format v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "quiz"],
+  "properties": {
+    "format": { "const": "katwed-quiz" },
+    "formatVersion": { "const": 3 },
+    "quiz": { "$ref": "#/$defs/quiz" }
+  },
+  "$defs": {
+    "key": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$" },
+    "safeImageReference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A safe HTTPS URL, root-relative Katwed path, or same-browser demo-image reference. Runtime validation is authoritative."
+    },
+    "competitor": {
+      "type": "object", "additionalProperties": false, "required": ["key", "displayName"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 30 }
+      }
+    },
+    "rosterMember": {
+      "type": "object", "additionalProperties": false,
+      "required": ["key", "displayName", "shortName", "active"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "shortName": { "type": "string", "maxLength": 30 },
+        "active": { "type": "boolean" }
+      }
+    },
+    "option": {
+      "type": "object", "additionalProperties": false, "required": ["key", "label"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" }, "label": { "type": "string" },
+        "imagePath": { "$ref": "#/$defs/safeImageReference" }, "imageAlt": { "type": "string" }
+      }
+    },
+    "noMedia": {
+      "type": "object", "additionalProperties": false, "required": ["type"],
+      "properties": { "type": { "const": "none" } }
+    },
+    "imageMedia": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "path", "altText", "revealEffect", "revealDurationSeconds"],
+      "properties": {
+        "type": { "const": "image" }, "path": { "$ref": "#/$defs/safeImageReference" },
+        "altText": { "type": "string" },
+        "revealEffect": { "enum": ["immediate", "blur", "pixelate", "tiles", "zoom-out"] },
+        "revealDurationSeconds": { "type": "number", "minimum": 0, "maximum": 180 },
+        "tileGridSize": { "enum": [6, 8, 12, 16] }
+      },
+      "allOf": [{
+        "if": { "required": ["tileGridSize"] },
+        "then": { "properties": { "revealEffect": { "const": "tiles" } } }
+      }]
+    },
+    "youtubeMedia": {
+      "type": "object", "additionalProperties": false, "required": ["type", "videoId"],
+      "properties": {
+        "type": { "const": "youtube" },
+        "videoId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{11}$" },
+        "startSeconds": { "type": "number", "minimum": 0 },
+        "endSeconds": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "media": { "oneOf": [
+      { "$ref": "#/$defs/noMedia" }, { "$ref": "#/$defs/imageMedia" }, { "$ref": "#/$defs/youtubeMedia" }
+    ] },
+    "questionBase": {
+      "type": "object",
+      "required": ["key", "type", "prompt"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "enum": ["single-choice", "multiple-select", "true-false", "slider", "pinpoint", "typed-answer", "mashup"] },
+        "assignedTo": { "oneOf": [{ "$ref": "#/$defs/key" }, { "type": "null" }] },
+        "prompt": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "supportingText": { "type": "string", "maxLength": 1000 },
+        "timeLimitSeconds": { "type": "integer", "minimum": 5, "maximum": 300 },
+        "points": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "speedScoringEnabled": { "type": "boolean", "default": false },
+        "doubleScore": { "type": "boolean", "default": false },
+        "revealCaption": { "type": "string", "maxLength": 500 },
+        "media": { "$ref": "#/$defs/media" },
+        "mediaVisibility": { "enum": ["presentation", "players", "both"] },
+        "presentationChoiceVisibility": { "enum": ["show", "hide", "after-lock"] }
+      }
+    },
+    "choiceFields": {
+      "type": "object",
+      "required": ["options"],
+      "properties": {
+        "options": { "type": "array", "minItems": 2, "maxItems": 8, "items": { "$ref": "#/$defs/option" } },
+        "randomiseOptions": { "type": "boolean", "default": false }
+      }
+    },
+    "singleChoice": {
+      "allOf": [
+        { "$ref": "#/$defs/questionBase" }, { "$ref": "#/$defs/choiceFields" },
+        { "type": "object", "required": ["correctOptionKey"], "properties": {
+          "type": { "const": "single-choice" }, "correctOptionKey": { "$ref": "#/$defs/key" }
+        } }
+      ], "unevaluatedProperties": false
+    },
+    "multipleSelect": {
+      "allOf": [
+        { "$ref": "#/$defs/questionBase" }, { "$ref": "#/$defs/choiceFields" },
+        { "type": "object", "required": ["correctOptionKeys", "minimumSelections", "maximumSelections", "scoringMode"],
+          "properties": {
+            "type": { "const": "multiple-select" },
+            "correctOptionKeys": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+            "minimumSelections": { "type": "integer", "minimum": 1 },
+            "maximumSelections": { "type": "integer", "minimum": 1 },
+            "scoringMode": { "enum": ["exact", "partial-wipeout"] }
+          }
+        }
+      ], "unevaluatedProperties": false
+    },
+    "trueFalse": {
+      "allOf": [{ "$ref": "#/$defs/questionBase" }, {
+        "type": "object", "required": ["correctValue"],
+        "properties": { "type": { "const": "true-false" }, "correctValue": { "type": "boolean" } }
+      }], "unevaluatedProperties": false
+    },
+    "slider": {
+      "allOf": [{ "$ref": "#/$defs/questionBase" }, {
+        "type": "object", "required": ["minimum", "maximum", "step", "correctValue", "tolerance"],
+        "properties": {
+          "type": { "const": "slider" }, "minimum": { "type": "number" }, "maximum": { "type": "number" },
+          "step": { "type": "number", "exclusiveMinimum": 0 }, "correctValue": { "type": "number" },
+          "tolerance": { "type": "number", "minimum": 0 }, "prefix": { "type": "string" },
+          "suffix": { "type": "string" }, "unitLabel": { "type": "string" }
+        }
+      }], "unevaluatedProperties": false
+    },
+    "pinpoint": {
+      "allOf": [{ "$ref": "#/$defs/questionBase" }, {
+        "type": "object", "required": ["targetX", "targetY", "targetRadius"],
+        "properties": {
+          "type": { "const": "pinpoint" }, "targetX": { "type": "number", "minimum": 0, "maximum": 1 },
+          "targetY": { "type": "number", "minimum": 0, "maximum": 1 },
+          "targetRadius": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+        }
+      }], "unevaluatedProperties": false
+    },
+    "typedAnswer": {
+      "allOf": [{ "$ref": "#/$defs/questionBase" }, {
+        "type": "object", "required": ["correctAnswer", "acceptedAnswers"],
+        "properties": {
+          "type": { "const": "typed-answer" },
+          "correctAnswer": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "acceptedAnswers": { "type": "array", "maxItems": 19, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }
+        }
+      }], "unevaluatedProperties": false
+    },
+    "mashup": {
+      "allOf": [{ "$ref": "#/$defs/questionBase" }, {
+        "type": "object", "required": ["correctPersonKeys"],
+        "properties": {
+          "type": { "const": "mashup" },
+          "correctPersonKeys": { "type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } }
+        }
+      }], "unevaluatedProperties": false
+    },
+    "question": { "oneOf": [
+      { "$ref": "#/$defs/singleChoice" }, { "$ref": "#/$defs/multipleSelect" },
+      { "$ref": "#/$defs/trueFalse" }, { "$ref": "#/$defs/slider" },
+      { "$ref": "#/$defs/pinpoint" }, { "$ref": "#/$defs/typedAnswer" }, { "$ref": "#/$defs/mashup" }
+    ] },
+    "quiz": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "quizType", "themeId", "backgroundId", "coverImagePath", "competitors", "roster", "questions"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "quizType": { "enum": ["standard", "head-to-head"] },
+        "themeId": { "enum": ["katwed", "midnight", "sunset", "arcade", "mint", "paper"] },
+        "backgroundId": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+        "coverImagePath": { "oneOf": [{ "$ref": "#/$defs/safeImageReference" }, { "type": "null" }] },
+        "competitors": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/competitor" } },
+        "roster": { "type": "array", "items": { "$ref": "#/$defs/rosterMember" } },
+        "questions": { "type": "array", "items": { "$ref": "#/$defs/question" } }
+      },
+      "allOf": [
+        { "if": { "properties": { "quizType": { "const": "standard" } } },
+          "then": { "properties": { "competitors": { "maxItems": 0 } } } },
+        { "if": { "properties": { "quizType": { "const": "head-to-head" } } },
+          "then": {
+            "properties": {
+              "competitors": { "minItems": 2, "maxItems": 2 },
+              "questions": { "items": { "properties": {
+                "assignedTo": { "$ref": "#/$defs/key" },
+                "speedScoringEnabled": { "const": false }, "doubleScore": { "const": false }
+              }, "required": ["assignedTo"] } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

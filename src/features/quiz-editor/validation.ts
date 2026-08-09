@@ -1,4 +1,4 @@
-import type { Question, RosterMember } from '../../types/domain'
+import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
@@ -23,6 +23,9 @@ function validateMedia(question: Question, messages: string[]): void {
       question.media.revealDurationSeconds < 0 ||
       question.media.revealDurationSeconds > 180
     ) messages.push('Set an image reveal duration between 0 and 180 seconds.')
+    if (question.media.tileGridSize !== undefined && (
+      question.media.revealEffect !== 'tiles' || !TILE_GRID_SIZES.includes(question.media.tileGridSize)
+    )) messages.push('Choose a supported tile grid for the Tiles reveal effect.')
   }
   if (question.media.type === 'youtube') {
     if (!/^[A-Za-z0-9_-]{11}$/.test(question.media.videoId)) messages.push('Add a valid YouTube video.')
@@ -62,6 +65,9 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
   }
   if (!Number.isInteger(question.points) || question.points < 1 || question.points > 100000) {
     messages.push('Set an integer points value between 1 and 100,000.')
+  }
+  if (typeof question.speedScoringEnabled !== 'boolean' || typeof question.doubleScore !== 'boolean') {
+    messages.push('Choose valid Standard scoring settings.')
   }
   if (question.revealCaption.length > 500) messages.push('Reveal captions must be 500 characters or fewer.')
   validateMedia(question, messages)
@@ -196,6 +202,9 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   }
 
   if (input.quizType === 'head-to-head') {
+    if (input.questions.some((question) => question.speedScoringEnabled || question.doubleScore)) {
+      messages.push('Head-to-Head questions cannot use Speed Scoring or Double Score.')
+    }
     if (input.headToHeadCompetitors.length !== 2) {
       messages.push('Head-to-Head quizzes need exactly two competitors.')
     }

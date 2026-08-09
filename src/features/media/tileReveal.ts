@@ -1,4 +1,6 @@
 export const TILE_REVEAL_COUNT = 24
+export const LEGACY_TILE_COLUMNS = 6
+export const LEGACY_TILE_ROWS = 4
 
 function hashSeed(value: string): number {
   let hash = 0x811c9dc5
@@ -20,9 +22,14 @@ function seededRandom(seed: number): () => number {
   }
 }
 
-export function createTileRevealOrder(mediaPath: string, openedAt: string | null): number[] {
-  const order = Array.from({ length: TILE_REVEAL_COUNT }, (_, index) => index)
-  const random = seededRandom(hashSeed(`${mediaPath}\u0000${openedAt ?? ''}`))
+export function createTileRevealOrder(
+  mediaPath: string,
+  openedAt: string | null,
+  tileCount: number = TILE_REVEAL_COUNT,
+): number[] {
+  const order = Array.from({ length: tileCount }, (_, index) => index)
+  const countSeed = tileCount === TILE_REVEAL_COUNT ? '' : `\u0000${tileCount}`
+  const random = seededRandom(hashSeed(`${mediaPath}\u0000${openedAt ?? ''}${countSeed}`))
   for (let index = order.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1))
     ;[order[index], order[swapIndex]] = [order[swapIndex], order[index]]
@@ -30,9 +37,13 @@ export function createTileRevealOrder(mediaPath: string, openedAt: string | null
   return order
 }
 
-export function createTileRevealRanks(mediaPath: string, openedAt: string | null): number[] {
-  const ranks = Array<number>(TILE_REVEAL_COUNT)
-  createTileRevealOrder(mediaPath, openedAt).forEach((tileIndex, rank) => {
+export function createTileRevealRanks(
+  mediaPath: string,
+  openedAt: string | null,
+  tileCount: number = TILE_REVEAL_COUNT,
+): number[] {
+  const ranks = Array<number>(tileCount)
+  createTileRevealOrder(mediaPath, openedAt, tileCount).forEach((tileIndex, rank) => {
     ranks[tileIndex] = rank
   })
   return ranks

@@ -30,6 +30,10 @@ import { listDemoStoredImages, removeDemoStoredImages } from '../../services/que
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
+import {
+  calculateStandardQuestionScore,
+  standardQuestionWindow,
+} from '../../features/scoring/standardScoring'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -94,6 +98,8 @@ function safeBase(question: Question, questionNumber: number, totalQuestions: nu
     supportingText: question.supportingText,
     timeLimitSeconds: question.timeLimitSeconds,
     points: question.points,
+    speedScoringEnabled: question.speedScoringEnabled,
+    doubleScore: question.doubleScore,
     displayOrder: question.displayOrder,
     media: question.media,
     mediaVisibility: question.mediaVisibility,
@@ -688,9 +694,14 @@ export class DemoGameRepository implements GameRepository {
       const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
       const question = quiz?.questions[session.currentQuestionIndex]
       if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
+      const submittedAt = Date.now()
       if (quiz.quizType === 'standard') {
+        const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : 0
         const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
-        if (!closesAt || Date.now() > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
+        if (!openedAt || submittedAt < openedAt) {
+          throw new RepositoryError('invalid-phase', 'Wait for the question to open.')
+        }
+        if (!closesAt || submittedAt > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
       }
       if (isHeadToHeadResolved(state, session, question.id, playerId)) {
         throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
@@ -703,10 +714,13 @@ export class DemoGameRepository implements GameRepository {
       }
       const score = scoreQuestion(question, payload)
       if (!score.valid) throw new RepositoryError('invalid-selection', 'That answer is not valid for this question.')
-      const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : Date.now()
-      const responseTimeMs = Math.max(0, Date.now() - openedAt)
+      const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : submittedAt
+      const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : openedAt
+      const responseTimeMs = Math.max(0, submittedAt - openedAt)
       const assigned = quiz.quizType === 'head-to-head' && player.competitorId === question.assignedCompetitorId
-      const pointsAwarded = quiz.quizType === 'head-to-head' ? (assigned && score.correct ? 1 : 0) : score.points
+      const pointsAwarded = quiz.quizType === 'head-to-head'
+        ? (assigned && score.correct ? 1 : 0)
+        : calculateStandardQuestionScore(score.points, question, responseTimeMs, closesAt - openedAt)
       session.answers.push({
         id: uid('answer'),
         sessionId: session.id,
@@ -813,9 +827,10 @@ export class DemoGameRepository implements GameRepository {
       const openCurrentQuestion = (): void => {
         const question = quiz.questions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
+        const timingWindow = standardQuestionWindow(question, now.getTime())
         session.phase = 'question'
-        session.questionOpenedAt = now.toISOString()
-        session.questionClosesAt = new Date(now.getTime() + question.timeLimitSeconds * 1000).toISOString()
+        session.questionOpenedAt = timingWindow.openedAt
+        session.questionClosesAt = timingWindow.closesAt
       }
       switch (action) {
         case 'start':
@@ -827,6 +842,9 @@ export class DemoGameRepository implements GameRepository {
           break
         case 'lock':
           if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not currently open.')
+          if (session.questionOpenedAt && now.getTime() < new Date(session.questionOpenedAt).getTime()) {
+            throw new RepositoryError('invalid-phase', 'Wait for the Double Score intro to finish.')
+          }
           session.phase = 'locked'
           session.questionClosesAt = now.toISOString()
           break
@@ -850,6 +868,9 @@ export class DemoGameRepository implements GameRepository {
           openCurrentQuestion()
           break
         case 'finish':
+          if (session.phase === 'question' && session.questionOpenedAt && now.getTime() < new Date(session.questionOpenedAt).getTime()) {
+            throw new RepositoryError('invalid-phase', 'Wait for the Double Score intro to finish.')
+          }
           if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < quiz.questions.length) {
             throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
           }

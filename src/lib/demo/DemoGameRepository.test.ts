@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as QuestionImages from '../../services/questionImages'
 
 const demoImageMocks = vi.hoisted(() => ({
@@ -51,6 +51,82 @@ describe('DemoGameRepository multi-format game state', () => {
       deletedMediaCount: paths.length,
       failedMediaCount: 0,
     }))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('uses authoritative Demo timing for fixed and speed-scored Standard answers', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const baseQuestion = source.questions[0]
+    const saved = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      quizType: 'standard',
+      headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath,
+      themeId: source.themeId,
+      backgroundId: source.backgroundId,
+      roster: source.roster,
+      questions: [{ ...baseQuestion, timeLimitSeconds: 20, speedScoringEnabled: true, doubleScore: false }],
+    })
+    const session = await repository.launchGame(saved.id)
+    const joined = await repository.joinRoom(session.roomCode, 'Speed Player')
+    await repository.changePhase(session.id, 'start')
+    vi.setSystemTime(new Date('2026-08-09T12:00:10.000Z'))
+    await repository.submitAnswer(
+      session.roomCode,
+      joined.player.id,
+      joined.reconnectToken,
+      correctAnswer(baseQuestion),
+    )
+    expect((await repository.getHostSession(session.id))?.session.answers[0]).toMatchObject({
+      responseTimeMs: 10_000,
+      pointsAwarded: 750,
+      correct: true,
+    })
+  })
+
+  it('protects the Double Score intro and gives the question its full duration', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const question = { ...source.questions[0], timeLimitSeconds: 20, speedScoringEnabled: true, doubleScore: true }
+    const saved = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      quizType: 'standard',
+      headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath,
+      themeId: source.themeId,
+      backgroundId: source.backgroundId,
+      roster: source.roster,
+      questions: [question],
+    })
+    const session = await repository.launchGame(saved.id)
+    const joined = await repository.joinRoom(session.roomCode, 'Double Player')
+    await repository.changePhase(session.id, 'start')
+    const opened = (await repository.getHostSession(session.id))!.session
+    expect(opened.questionOpenedAt).toBe('2026-08-09T12:00:01.500Z')
+    expect(opened.questionClosesAt).toBe('2026-08-09T12:00:21.500Z')
+    await expect(repository.submitAnswer(
+      session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(question),
+    )).rejects.toThrow('Wait for the question to open.')
+    await expect(repository.changePhase(session.id, 'lock')).rejects.toThrow('Wait for the Double Score intro to finish.')
+
+    vi.setSystemTime(new Date('2026-08-09T12:00:01.500Z'))
+    await repository.submitAnswer(
+      session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(question),
+    )
+    expect((await repository.getHostSession(session.id))?.session.answers[0]).toMatchObject({
+      responseTimeMs: 0,
+      pointsAwarded: 2000,
+    })
   })
 
   it('provides both the preserved mash-up quiz and a mixed quiz', async () => {

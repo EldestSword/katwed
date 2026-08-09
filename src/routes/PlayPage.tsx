@@ -13,6 +13,8 @@ import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 import { HeadToHeadResults } from '../features/head-to-head/HeadToHeadResults'
+import { DoubleScoreIntro } from '../features/game/DoubleScoreIntro'
+import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -41,6 +43,7 @@ export function PlayPage() {
     [playerSession?.playerId, state?.players],
   )
   const currentPlayerId = currentPlayer?.id
+  const doubleScoreIntro = useDoubleScoreIntro(state?.quizType, state?.currentQuestion ?? null, state?.questionOpenedAt ?? null)
 
   useEffect(() => {
     if (!playerSession || !currentPlayerId) return
@@ -104,7 +107,8 @@ export function PlayPage() {
         <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p><strong>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} in the lobby</strong></section>
       ))}
 
-      {state.phase === 'question' && question && (resolution && !submittedAnswer ? (
+      {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro />}
+      {state.phase === 'question' && question && !doubleScoreIntro && (resolution && !submittedAnswer ? (
         <section className="player-waiting" aria-live="polite"><div className="waiting-tick" aria-hidden="true">✓</div><h2>{resolution.status === 'skipped' ? 'Question skipped' : 'Answer locked in'}</h2><p>Waiting for the other competitor.</p></section>
       ) : (
         <>

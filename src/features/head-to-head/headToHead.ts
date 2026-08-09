@@ -1,5 +1,6 @@
 import {
   QUIZ_TYPE_IDS,
+  TILE_GRID_SIZES,
   type HeadToHeadCompetitor,
   type Question,
   type Quiz,
@@ -63,11 +64,33 @@ export function normaliseQuizHeadToHead(quiz: Quiz): Quiz {
   const headToHeadCompetitors = quizType === 'head-to-head'
     ? normaliseCompetitors((quiz as { headToHeadCompetitors?: unknown }).headToHeadCompetitors, quiz.id)
     : []
-  const questions = quiz.questions.map((question): Question => ({
-    ...question,
-    assignedCompetitorId: quizType === 'head-to-head' && typeof (question as { assignedCompetitorId?: unknown }).assignedCompetitorId === 'string'
-      ? (question as { assignedCompetitorId: string }).assignedCompetitorId
-      : null,
-  }))
+  const tileGridSizes = new Set<number>(TILE_GRID_SIZES)
+  const questions = quiz.questions.map((question): Question => {
+    const rawMedia = question.media
+    const rawTileGridSize = rawMedia.type === 'image'
+      ? (rawMedia as { tileGridSize?: unknown }).tileGridSize
+      : undefined
+    const media = rawMedia.type === 'image' && rawMedia.revealEffect === 'tiles' &&
+      typeof rawTileGridSize === 'number' && tileGridSizes.has(rawTileGridSize)
+      ? { ...rawMedia, tileGridSize: rawTileGridSize as 6 | 8 | 12 | 16 }
+      : rawMedia.type === 'image'
+        ? {
+            type: rawMedia.type,
+            path: rawMedia.path,
+            altText: rawMedia.altText,
+            revealEffect: rawMedia.revealEffect,
+            revealDurationSeconds: rawMedia.revealDurationSeconds,
+          } as const
+        : rawMedia
+    return {
+      ...question,
+      speedScoringEnabled: quizType === 'standard' && (question as { speedScoringEnabled?: unknown }).speedScoringEnabled === true,
+      doubleScore: quizType === 'standard' && (question as { doubleScore?: unknown }).doubleScore === true,
+      media,
+      assignedCompetitorId: quizType === 'head-to-head' && typeof (question as { assignedCompetitorId?: unknown }).assignedCompetitorId === 'string'
+        ? (question as { assignedCompetitorId: string }).assignedCompetitorId
+        : null,
+    } as Question
+  })
   return { ...quiz, quizType, headToHeadCompetitors, questions }
 }

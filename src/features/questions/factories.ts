@@ -1,6 +1,6 @@
 import type { Question, QuestionType } from '../../types/domain'
 
-const common = (quizId: string, displayOrder: number) => ({
+const common = (quizId: string, displayOrder: number, speedScoringEnabled: boolean) => ({
   id: crypto.randomUUID(),
   quizId,
   assignedCompetitorId: null,
@@ -8,6 +8,8 @@ const common = (quizId: string, displayOrder: number) => ({
   supportingText: '',
   timeLimitSeconds: 30,
   points: 1000,
+  speedScoringEnabled,
+  doubleScore: false,
   displayOrder,
   revealCaption: '',
   media: { type: 'none' } as const,
@@ -15,8 +17,13 @@ const common = (quizId: string, displayOrder: number) => ({
   presentationChoiceVisibility: 'show' as const,
 })
 
-export function createQuestion(type: QuestionType, quizId: string, displayOrder: number): Question {
-  const base = common(quizId, displayOrder)
+export function createQuestion(
+  type: QuestionType,
+  quizId: string,
+  displayOrder: number,
+  speedScoringEnabled = true,
+): Question {
+  const base = common(quizId, displayOrder, speedScoringEnabled)
   switch (type) {
     case 'single-choice':
       return {

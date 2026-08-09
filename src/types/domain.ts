@@ -10,6 +10,8 @@ export type QuestionType =
   | 'mashup'
 
 export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
+export const TILE_GRID_SIZES = [6, 8, 12, 16] as const
+export type TileGridSize = typeof TILE_GRID_SIZES[number]
 export type MediaVisibility = 'presentation' | 'players' | 'both'
 export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
 
@@ -49,6 +51,7 @@ export type QuestionMedia =
       altText: string
       revealEffect: ImageRevealEffect
       revealDurationSeconds: number
+      tileGridSize?: TileGridSize
     }
   | {
       type: 'youtube'
@@ -72,6 +75,8 @@ interface QuestionBase {
   supportingText: string
   timeLimitSeconds: number
   points: number
+  speedScoringEnabled: boolean
+  doubleScore: boolean
   displayOrder: number
   revealCaption: string
   media: QuestionMedia

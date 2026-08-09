@@ -8,6 +8,8 @@ import { PinpointSurface } from './PinpointSurface'
 import { formatSliderValue } from './revealFormatting'
 import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
+import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
+import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -92,6 +94,7 @@ export function PresentationStage({
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
+  const doubleScoreIntro = useDoubleScoreIntro(state.quizType, question, state.questionOpenedAt)
   const competitors = state.headToHeadCompetitors ?? []
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
   return (
@@ -123,9 +126,11 @@ export function PresentationStage({
           </>}
         </div>
       )}
-      {state.phase === 'question' && question && (
+      {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro compact={compact} />}
+      {state.phase === 'question' && question && !doubleScoreIntro && (
         <div className="presentation-question">
           <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span>{headToHead ? <strong>Untimed</strong> : <strong>{remaining}</strong>}</div>
+          {!headToHead && question.doubleScore && <DoubleScoreBadge />}
           {headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}
           <h1>{question.prompt}</h1>
           {question.supportingText && <p>{question.supportingText}</p>}

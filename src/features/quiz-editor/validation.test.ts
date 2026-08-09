@@ -32,6 +32,22 @@ describe('quiz validation', () => {
     expect(validateQuestion(slider, []).valid).toBe(false)
   })
 
+  it('validates Standard scoring booleans and configured tile grids', () => {
+    const imageQuestion = {
+      ...base,
+      media: { ...base.media, revealEffect: 'tiles' as const, tileGridSize: 8 as const },
+    }
+    expect(validateQuestion(imageQuestion, sampleQuiz.roster).valid).toBe(true)
+    expect(validateQuestion({
+      ...imageQuestion,
+      media: { ...imageQuestion.media, tileGridSize: 10 as 8 },
+    }, sampleQuiz.roster).messages).toContain('Choose a supported tile grid for the Tiles reveal effect.')
+    expect(validateQuestion({
+      ...imageQuestion,
+      media: { ...imageQuestion.media, revealEffect: 'blur' as const },
+    }, sampleQuiz.roster).messages).toContain('Choose a supported tile grid for the Tiles reveal effect.')
+  })
+
   it('validates Typed Answer length, meaning, limits and normalised uniqueness', () => {
     const typed = {
       ...base, type: 'typed-answer' as const, media: { type: 'none' as const },
@@ -76,6 +92,14 @@ describe('quiz validation', () => {
       })),
     }
     expect(validateQuizSave(headToHead)).toEqual([])
+    expect(validateQuizSave({
+      ...headToHead,
+      questions: headToHead.questions.map((question, index) => ({
+        ...question,
+        speedScoringEnabled: index === 0,
+        doubleScore: index === 1,
+      })),
+    })).toContain('Head-to-Head questions cannot use Speed Scoring or Double Score.')
     expect(validateQuizSave({
       ...headToHead,
       headToHeadCompetitors: headToHead.headToHeadCompetitors.slice(0, 1),

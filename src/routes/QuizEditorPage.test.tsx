@@ -287,7 +287,39 @@ describe('QuizEditorPage quiz appearance', () => {
     await user.click(within(picker).getByRole('button', { name: /Standard/ }))
     expect(screen.queryByRole('region', { name: 'Head-to-Head competitors' })).not.toBeInTheDocument()
     expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByLabelText('Points')).toBeVisible()
+    expect(screen.getByLabelText('Maximum points')).toBeVisible()
+  })
+
+  it('shows minimal Standard scoring controls and defaults a newly authored question to speed scoring', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    expect(await screen.findByLabelText('Maximum points')).toBeVisible()
+    expect(screen.getByLabelText('Faster answers score more')).not.toBeChecked()
+    expect(screen.getByLabelText('Double score')).not.toBeChecked()
+
+    await user.click(within(document.querySelector('.question-type-picker') as HTMLElement)
+      .getByRole('button', { name: /True or false/ }))
+    expect(screen.getByLabelText('Faster answers score more')).toBeChecked()
+    expect(screen.getByLabelText('Double score')).not.toBeChecked()
+    await user.click(screen.getByLabelText('Double score'))
+    expect(screen.getByText('Worth up to 2,000 points.')).toBeVisible()
+  })
+
+  it('defaults a newly selected tile reveal to 8 by 8 and offers every supported grid', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await screen.findByLabelText('Maximum points')
+    const mediaSettings = screen.getByRole('group', { name: 'Media' })
+    await user.selectOptions(within(mediaSettings).getByLabelText('Type'), 'image')
+    await user.selectOptions(within(mediaSettings).getByLabelText('Reveal effect'), 'tiles')
+    const grid = within(mediaSettings).getByLabelText('Tile grid')
+    expect(grid).toHaveValue('8')
+    expect(within(grid).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '6 x 6 - 36 tiles',
+      '8 x 8 - 64 tiles',
+      '12 x 12 - 144 tiles',
+      '16 x 16 - 256 tiles',
+    ])
   })
 
   it('supports assignments for all seven question formats and hides ordinary point editing', async () => {
@@ -308,7 +340,9 @@ describe('QuizEditorPage quiz appearance', () => {
       'single-choice', 'multiple-select', 'true-false', 'slider', 'pinpoint', 'typed-answer', 'mashup',
     ]))
     expect(screen.getByRole('group', { name: 'Question for' })).toBeVisible()
-    expect(screen.queryByLabelText('Points')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Maximum points')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Faster answers score more')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Double score')).not.toBeInTheDocument()
     expect(screen.getByText('Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.')).toBeVisible()
   })
 

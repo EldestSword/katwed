@@ -94,7 +94,7 @@ export function QuizEditorPage() {
   function addQuestion(type: QuestionType) {
     if (!quiz) return
     const question = {
-      ...createQuestion(type, quiz.id, quiz.questions.length),
+      ...createQuestion(type, quiz.id, quiz.questions.length, quiz.quizType === 'standard'),
       assignedCompetitorId: nextHeadToHeadAssignment(quiz),
     }
     update((current) => ({ ...current, questions: [...current.questions, question] }))
@@ -171,7 +171,7 @@ export function QuizEditorPage() {
   const changeType = (type: QuestionType) => {
     if (!selected || type === selected.type) return
     if (!window.confirm('Changing type will replace this question’s type-specific answers. Continue?')) return
-    const replacement = createQuestion(type, selected.quizId, selected.displayOrder)
+    const replacement = createQuestion(type, selected.quizId, selected.displayOrder, quiz.quizType === 'standard')
     updateQuestion(() => ({
       ...replacement,
       id: selected.id,
@@ -179,6 +179,8 @@ export function QuizEditorPage() {
       supportingText: selected.supportingText,
       timeLimitSeconds: selected.timeLimitSeconds,
       points: selected.points,
+      speedScoringEnabled: selected.speedScoringEnabled,
+      doubleScore: selected.doubleScore,
       assignedCompetitorId: selected.assignedCompetitorId,
       revealCaption: selected.revealCaption,
     }))
@@ -191,7 +193,12 @@ export function QuizEditorPage() {
         ...current,
         quizType,
         headToHeadCompetitors: createHeadToHeadCompetitors(current.id),
-        questions: current.questions.map((question) => ({ ...question, assignedCompetitorId: null })),
+        questions: current.questions.map((question) => ({
+          ...question,
+          assignedCompetitorId: null,
+          speedScoringEnabled: false,
+          doubleScore: false,
+        })),
       }))
       return
     }
@@ -312,8 +319,14 @@ export function QuizEditorPage() {
             />}
             <div className="two-columns">
               <label><span>Timer</span><input type="number" min="5" max="300" value={selected.timeLimitSeconds} onChange={(event) => updateQuestion((question) => ({ ...question, timeLimitSeconds: number(event.target.value) }))} /></label>
-              {quiz.quizType === 'standard' && <label><span>Points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>}
+              {quiz.quizType === 'standard' && <label><span>Maximum points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>}
             </div>
+            {quiz.quizType === 'standard' && <fieldset className="standard-scoring-settings"><legend>Standard scoring</legend>
+              <label><input type="checkbox" checked={selected.speedScoringEnabled} onChange={(event) => updateQuestion((question) => ({ ...question, speedScoringEnabled: event.target.checked }))} /> Faster answers score more</label>
+              <p className="settings-note">Correct answers earn between 100% and 50% of the available points as the timer runs down.</p>
+              <label><input type="checkbox" checked={selected.doubleScore} onChange={(event) => updateQuestion((question) => ({ ...question, doubleScore: event.target.checked }))} /> Double score</label>
+              {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
+            </fieldset>}
             {quiz.quizType === 'head-to-head' && <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
             <MediaSettings question={selected} update={updateQuestion} upload={upload} />
             <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
@@ -552,7 +565,24 @@ function MediaSettings({ question, update, upload }: { question: Question; updat
     {question.media.type === 'image' && <>
       <label className="button button--secondary">Choose image<input className="sr-only" type="file" accept={KATWED_IMAGE_ACCEPT} onChange={(event) => void upload(event.target.files?.[0])} /></label>
       <label><span>Alt text</span><input value={question.media.altText} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, altText: event.target.value } } : current)} /></label>
-      <label><span>Reveal effect</span><select value={question.media.revealEffect} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealEffect: event.target.value as Extract<Media, { type: 'image' }>['revealEffect'] } } : current)}><option value="immediate">Immediate</option><option value="blur">Blur to clear</option><option value="pixelate">Pixelated to clear</option><option value="tiles">Tile uncover</option><option value="zoom-out">Zoom out</option></select></label>
+      <label><span>Reveal effect</span><select value={question.media.revealEffect} onChange={(event) => update((current) => {
+        if (current.media.type !== 'image') return current
+        const revealEffect = event.target.value as Extract<Media, { type: 'image' }>['revealEffect']
+        const media = revealEffect === 'tiles'
+          ? { ...current.media, revealEffect, tileGridSize: current.media.revealEffect === 'tiles' ? current.media.tileGridSize : 8 as const }
+          : {
+              type: 'image' as const,
+              path: current.media.path,
+              altText: current.media.altText,
+              revealEffect,
+              revealDurationSeconds: current.media.revealDurationSeconds,
+            }
+        return { ...current, media }
+      })}><option value="immediate">Immediate</option><option value="blur">Blur to clear</option><option value="pixelate">Pixelated to clear</option><option value="tiles">Tile uncover</option><option value="zoom-out">Zoom out</option></select></label>
+      {question.media.revealEffect === 'tiles' && <label><span>Tile grid</span><select aria-label="Tile grid" value={question.media.tileGridSize ?? ''} onChange={(event) => update((current) => current.media.type === 'image' && current.media.revealEffect === 'tiles' ? { ...current, media: { ...current.media, tileGridSize: Number(event.target.value) as 6 | 8 | 12 | 16 } } : current)}>
+        {question.media.tileGridSize === undefined && <option value="">Legacy 6 x 4 - 24 tiles</option>}
+        <option value="6">6 x 6 - 36 tiles</option><option value="8">8 x 8 - 64 tiles</option><option value="12">12 x 12 - 144 tiles</option><option value="16">16 x 16 - 256 tiles</option>
+      </select></label>}
       <label><span>Reveal duration</span><input type="number" min="0" max="180" value={question.media.revealDurationSeconds} onChange={(event) => update((current) => current.media.type === 'image' ? { ...current, media: { ...current.media, revealDurationSeconds: number(event.target.value) } } : current)} /></label>
     </>}
     {question.media.type === 'youtube' && <>

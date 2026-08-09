@@ -9,6 +9,8 @@ const base = {
   supportingText: '',
   timeLimitSeconds: 30,
   points: 1000,
+  speedScoringEnabled: false,
+  doubleScore: false,
   displayOrder: 0,
   media: { type: 'none' as const },
   mediaVisibility: 'both' as const,
