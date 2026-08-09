@@ -829,6 +829,9 @@ test('controller, presentation and three players complete every mixed format', a
     await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
     await page.getByRole('button', { name: 'Reveal answer' }).click()
     await expect(presentation.getByText(expectedReveal).first()).toBeVisible()
+    await expect(presentation.getByRole('group', { name: 'Correct answer' })).toBeVisible()
+    await expect(page.locator('.controller-preview').getByRole('group', { name: 'Correct answer' })).toBeVisible()
+    await expect(playerOne.getByRole('group', { name: 'Correct answer' })).toBeVisible()
   }
 
   await playerOne.getByRole('button', { name: 'Mars' }).click()

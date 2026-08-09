@@ -23,12 +23,17 @@ function renderReveal(reveal: RevealPayload, question: SafeQuestion) {
   return render(<PlayerAnswerReveal reveal={reveal} question={question} submittedAnswer={null} />)
 }
 
+function expectAnswerCard() {
+  expect(screen.getByRole('group', { name: 'Correct answer' })).toHaveClass('reveal-answer-card')
+}
+
 describe('PlayerAnswerReveal', () => {
   it('shows the Mars option itself instead of presentation-only placeholder copy', () => {
     renderReveal(
       { type: 'single-choice', correctOptionId: 'mars', caption: '', optionCounts: {} },
       { ...base, type: 'single-choice', options: [{ id: 'mars', label: 'Mars' }, { id: 'venus', label: 'Venus' }], randomiseOptions: false },
     )
+    expectAnswerCard()
     expect(screen.getByRole('heading', { name: 'Mars' })).toBeInTheDocument()
     expect(screen.queryByText(/shared presentation/i)).not.toBeInTheDocument()
   })
@@ -43,6 +48,7 @@ describe('PlayerAnswerReveal', () => {
         ], minimumSelections: 3, maximumSelections: 3, randomiseOptions: false,
       },
     )
+    expectAnswerCard()
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Red', 'Green', 'Blue'])
     expect(screen.getByText('The complete set was required.')).toBeInTheDocument()
   })
@@ -55,6 +61,7 @@ describe('PlayerAnswerReveal', () => {
         submittedAnswer={null}
       />,
     )
+    expectAnswerCard()
     expect(screen.getByRole('heading', { name: 'False' })).toBeInTheDocument()
 
     rerender(
@@ -64,6 +71,7 @@ describe('PlayerAnswerReveal', () => {
         submittedAnswer={null}
       />,
     )
+    expectAnswerCard()
     expect(screen.getByRole('heading', { name: '£20 million' })).toBeInTheDocument()
     expect(screen.getByText('Accepted range: £18 million–£22 million')).toBeInTheDocument()
 
@@ -77,6 +85,7 @@ describe('PlayerAnswerReveal', () => {
         submittedAnswer={null}
       />,
     )
+    expectAnswerCard()
     expect(screen.getByRole('heading')).toHaveTextContent('Alex + Bailey')
   })
 
@@ -91,6 +100,7 @@ describe('PlayerAnswerReveal', () => {
         submittedAnswer={{ type: 'pinpoint', x: .25, y: .75 }}
       />,
     )
+    expectAnswerCard()
     expect(await screen.findByTestId('pinpoint-player-marker')).toBeInTheDocument()
     expect(screen.getByTestId('pinpoint-correct-target')).toBeInTheDocument()
     expect(screen.getAllByText('Your pin')).toHaveLength(2)
@@ -102,6 +112,7 @@ describe('PlayerAnswerReveal', () => {
       { type: 'typed-answer', correctAnswer: 'Red Dwarf', caption: '' },
       { ...base, type: 'typed-answer' },
     )
+    expectAnswerCard()
     expect(screen.getByRole('heading', { name: 'Red Dwarf' })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('The Red Dwarf')
   })

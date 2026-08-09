@@ -520,6 +520,27 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .reveal-state { padding: 2.5rem 1rem 4rem; text-align: center; }
 .reveal-state h1 span, .host-reveal h1 span { color: var(--coral); }
 .reveal-state img { width: min(100%, 560px); margin: 1.5rem auto; border: 5px solid var(--purple); border-radius: 24px; }
+.reveal-answer-card {
+  display: grid;
+  width: fit-content;
+  max-width: min(100%, 52rem);
+  gap: .55rem;
+  margin: .75rem auto 1rem;
+  padding: clamp(1rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.75rem);
+  overflow-wrap: anywhere;
+  color: var(--quiz-text);
+  border: 2px solid var(--quiz-border);
+  border-radius: clamp(1rem, 2vw, 1.5rem);
+  background: var(--quiz-surface);
+  box-shadow: var(--quiz-shadow);
+}
+.reveal-answer-card > :last-child { margin-bottom: 0; }
+.reveal-answer-card h1,
+.reveal-answer-card h2 { margin: 0; color: inherit; }
+.reveal-answer-card h1 span,
+.reveal-answer-card h2 span { color: var(--quiz-accent); }
+.reveal-answer-card ul { margin: 0; padding-left: 1.4em; text-align: left; }
+.reveal-answer-card p { color: inherit; }
 .score-pill { display: inline-block; }
 .leaderboard { max-width: 650px; margin: 1.5rem auto; padding: 0; list-style: none; display: grid; gap: .65rem; counter-reset: none; }
 .leaderboard li { min-height: 58px; padding: .7rem 1rem; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: .7rem; border: 2px solid var(--line); border-radius: 14px; text-align: left; background: #fff; }
@@ -1060,7 +1081,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .player-game .slider-answer input { accent-color: var(--quiz-progress); }
 .player-game .locked-pair span,
 .player-game .score-pill { color: var(--quiz-text); border-color: var(--quiz-accent); background: var(--quiz-surface-secondary); }
-.player-game .reveal-state h1 span { color: var(--quiz-accent-secondary); }
+.player-game .reveal-state h1 span { color: var(--quiz-accent); }
 .player-game .reveal-state img { border-color: var(--quiz-accent); }
 .player-game .leaderboard li {
   color: var(--quiz-text);
@@ -1078,7 +1099,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 .presentation-stage h1 { color: var(--quiz-stage-text); }
 .presentation-stage .eyebrow { color: var(--quiz-stage-eyebrow); }
 .presentation-stage .big-icon { color: var(--quiz-feature-text); background: var(--quiz-feature-accent); }
-.presentation-stage .presentation-reveal h2 span { color: var(--quiz-stage-eyebrow); }
+.presentation-stage .presentation-reveal h2 span { color: var(--quiz-accent); }
 .presentation-room-code { color: var(--quiz-room-accent); }
 .presentation-lobby > p,
 .presentation-question > p,
@@ -1119,6 +1140,24 @@ input:hover, select:hover, textarea:hover { border-color: var(--purple); }
 }
 .presentation-stage .leaderboard--presentation .leaderboard__points { color: var(--quiz-text); }
 .presentation-stage .empty-note { color: var(--quiz-stage-muted); }
+.presentation-stage .reveal-answer-card {
+  max-width: min(90vw, 64rem);
+  color: var(--quiz-text);
+  border-color: var(--quiz-border);
+  background: var(--quiz-surface);
+  box-shadow: var(--quiz-shadow);
+}
+.presentation-stage .reveal-answer-card h2 { font-size: clamp(2.2rem, 5vw, 5.5rem); line-height: 1.05; }
+.presentation-stage .presentation-correct-set > p { margin-bottom: .15rem; font-weight: 900; }
+.presentation-stage .presentation-correct-set li { font-size: clamp(1.35rem, 2.5vw, 2.8rem); font-weight: 900; }
+.presentation-stage--compact .reveal-answer-card {
+  margin: .35rem auto .55rem;
+  padding: .65rem .9rem;
+  border-width: 1px;
+  border-radius: .7rem;
+}
+.presentation-stage--compact .reveal-answer-card h2 { font-size: clamp(1rem, 3vw, 2.25rem); }
+.presentation-stage--compact .presentation-correct-set li { font-size: clamp(.75rem, 1.8vw, 1.3rem); }
 
 .question-preview-card.quiz-themed-surface {
   color: var(--quiz-stage-text);

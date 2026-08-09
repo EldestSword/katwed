@@ -118,8 +118,44 @@ describe('PresentationStage quiz theme', () => {
       },
     }} />)
 
+    expect(screen.getByRole('group', { name: 'Correct answer' })).toHaveClass('reveal-answer-card')
     expect(screen.getByRole('heading', { name: 'Red Dwarf' })).toBeVisible()
     expect(screen.queryByText('The Red Dwarf')).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('protects a Mash-up answer in the full and compact reveal when compact is %s', (compact) => {
+    render(<PresentationStage compact={compact} state={{
+      ...state('reveal'),
+      currentQuestion: {
+        id: 'mashup-question', type: 'mashup', prompt: 'Who is in the mash-up?', supportingText: '',
+        timeLimitSeconds: 30, points: 1, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+        media: { type: 'image', path: '/portrait.svg', altText: 'Portrait', revealEffect: 'immediate', revealDurationSeconds: 0 },
+        mediaVisibility: 'both', presentationChoiceVisibility: 'show', questionNumber: 1, totalQuestions: 1,
+      },
+      reveal: { type: 'mashup', correctMemberIds: ['ross', 'carol'], correctNames: ['Ross', 'Carol'], caption: '' },
+    }} />)
+
+    expect(screen.getByRole('group', { name: 'Correct answer' })).toHaveClass('reveal-answer-card')
+    expect(screen.getByRole('heading', { name: 'Ross + Carol' })).toBeVisible()
+  })
+
+  it('keeps the complete Multiple Select answer structured inside the answer card', () => {
+    render(<PresentationStage state={{
+      ...state('reveal'),
+      currentQuestion: {
+        id: 'multiple-question', type: 'multiple-select', prompt: 'Choose every colour.', supportingText: '',
+        timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+        media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+        questionNumber: 1, totalQuestions: 1, options: [
+          { id: 'red', label: 'Red' }, { id: 'green', label: 'Green' }, { id: 'blue', label: 'Blue' },
+        ], minimumSelections: 2, maximumSelections: 2, randomiseOptions: false,
+      },
+      reveal: { type: 'multiple-select', correctOptionIds: ['red', 'blue'], scoringMode: 'exact', caption: '', optionCounts: {} },
+    }} />)
+
+    const card = screen.getByRole('group', { name: 'Correct answer' })
+    expect(within(card).getByText('Complete correct set')).toBeVisible()
+    expect(within(card).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Red', 'Blue'])
   })
 
   it.each([false, true])('shows explicit Head-to-Head reveal semantics when compact is %s', (compact) => {

@@ -10,6 +10,7 @@ import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
 import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
 import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
+import { RevealAnswerCard } from './RevealAnswerCard'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -41,26 +42,30 @@ function RevealResult({
       const option = question.type === 'single-choice'
         ? question.options.find((candidate) => candidate.id === reveal.correctOptionId)
         : null
-      return <><h2>{option?.label ?? 'Correct option'}</h2><div className="result-bars">{question.type === 'single-choice' && question.options.map((candidate) =>
+      return <><RevealAnswerCard><h2>{option?.label ?? 'Correct option'}</h2></RevealAnswerCard><div className="result-bars">{question.type === 'single-choice' && question.options.map((candidate) =>
         <div key={candidate.id}><span>{candidate.label}</span><strong>{reveal.optionCounts[candidate.id] ?? 0}</strong></div>)}</div></>
     }
-    case 'multiple-select':
-      return <><h2>{question.type === 'multiple-select'
-        ? question.options.filter((option) => reveal.correctOptionIds.includes(option.id)).map((option) => option.label).join(' + ')
-        : 'Correct set'}</h2></>
+    case 'multiple-select': {
+      const labels = question.type === 'multiple-select'
+        ? question.options.filter((option) => reveal.correctOptionIds.includes(option.id)).map((option) => option.label)
+        : []
+      return <RevealAnswerCard className="presentation-correct-set">{labels.length > 0
+        ? <><p>Complete correct set</p><ul>{labels.map((label) => <li key={label}>{label}</li>)}</ul></>
+        : <h2>Correct set</h2>}</RevealAnswerCard>
+    }
     case 'true-false':
-      return <><h2>{reveal.correctValue ? 'True' : 'False'}</h2><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
+      return <><RevealAnswerCard><h2>{reveal.correctValue ? 'True' : 'False'}</h2></RevealAnswerCard><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
     case 'slider':
       return question.type === 'slider'
-        ? <><h2>{formatSliderValue(reveal.correctValue, question)}</h2><p>{reveal.tolerance > 0
+        ? <RevealAnswerCard><h2>{formatSliderValue(reveal.correctValue, question)}</h2><p>{reveal.tolerance > 0
           ? `Accepted range: ${formatSliderValue(reveal.correctValue - reveal.tolerance, question)}–${formatSliderValue(reveal.correctValue + reveal.tolerance, question)}`
-          : 'Exact value required'}</p></>
-        : <h2>{reveal.correctValue}</h2>
+          : 'Exact value required'}</p></RevealAnswerCard>
+        : <RevealAnswerCard><h2>{reveal.correctValue}</h2></RevealAnswerCard>
     case 'pinpoint': {
       if (question.type !== 'pinpoint') return null
       return (
         <div className="presentation-pinpoint-reveal">
-          <h2>The correct target area is highlighted on the image.</h2>
+          <RevealAnswerCard><h2>The correct target area is highlighted on the image.</h2></RevealAnswerCard>
           <PinpointSurface
             path={question.media.path}
             alt={question.media.altText}
@@ -78,9 +83,9 @@ function RevealResult({
       )
     }
     case 'typed-answer':
-      return <h2>{reveal.correctAnswer}</h2>
+      return <RevealAnswerCard><h2>{reveal.correctAnswer}</h2></RevealAnswerCard>
     case 'mashup':
-      return <h2>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h2>
+      return <RevealAnswerCard><h2>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h2></RevealAnswerCard>
   }
 }
 
