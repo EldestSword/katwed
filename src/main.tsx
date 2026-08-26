@@ -12,6 +12,7 @@ import './styles/design-system.css'
 import './styles/live-game.css'
 import './styles/presentation.css'
 import './styles/player.css'
+import './styles/backstage.css'
 
 const router = createBrowserRouter([
   {

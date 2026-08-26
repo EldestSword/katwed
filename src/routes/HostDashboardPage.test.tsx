@@ -8,6 +8,7 @@ import { sampleQuiz } from '../lib/demo/sampleData'
 import type { Quiz } from '../types/domain'
 import { HostDashboardPage } from './HostDashboardPage'
 import { exportQuizToPortable } from '../features/quiz-transfer/katwedQuizFormat'
+import { AppShell } from '../components/AppShell'
 
 const repositoryMocks = vi.hoisted(() => ({
   listQuizzes: vi.fn(),
@@ -74,7 +75,7 @@ function renderDashboard() {
     <MemoryRouter initialEntries={['/host']}>
       <AuthProvider>
         <Routes>
-          <Route path="/host" element={<HostDashboardPage />} />
+          <Route path="/host" element={<AppShell><HostDashboardPage /></AppShell>} />
           <Route path="/host/quizzes/:quizId/edit" element={<CopyEditorDestination />} />
         </Routes>
       </AuthProvider>
@@ -218,7 +219,7 @@ describe('HostDashboardPage quiz library', () => {
     repositoryMocks.listArchivedQuizzes.mockResolvedValue([])
     renderDashboard()
 
-    expect(await screen.findByRole('heading', { name: 'No active quizzes' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Your quiz library is ready' })).toBeVisible()
     await user.click(screen.getByRole('tab', { name: 'Archived quizzes 0' }))
     expect(screen.getByRole('heading', { name: 'No archived quizzes' })).toBeVisible()
   })
@@ -230,6 +231,7 @@ describe('HostDashboardPage quiz library', () => {
     const activeCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
     expect(within(activeCard).getByRole('button', { name: 'Launch game' })).toBeVisible()
     expect(within(activeCard).getByRole('link', { name: 'Edit' })).toBeVisible()
+    await user.click(within(activeCard).getByLabelText('More actions for Friday Team Quiz'))
     expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
     expect(within(activeCard).getByRole('button', { name: 'Export' })).toBeVisible()
     expect(within(activeCard).getByRole('button', { name: 'Archive' })).toBeVisible()
@@ -260,6 +262,7 @@ describe('HostDashboardPage quiz library', () => {
     expect(within(activeCard).getByText('Head to Head')).toBeVisible()
     const launch = within(activeCard).getByRole('button', { name: 'Launch game' })
     expect(launch).toBeEnabled()
+    await user.click(within(activeCard).getByLabelText('More actions for Friday Team Quiz'))
     expect(within(activeCard).getByRole('button', { name: 'Duplicate' })).toBeVisible()
 
     await user.click(screen.getByRole('tab', { name: 'Archived quizzes 1' }))
@@ -275,6 +278,7 @@ describe('HostDashboardPage quiz library', () => {
     renderDashboard()
 
     const sourceCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    await user.click(within(sourceCard).getByLabelText('More actions for Friday Team Quiz'))
     const duplicateButton = within(sourceCard).getByRole('button', { name: 'Duplicate' })
     await user.click(duplicateButton)
     expect(duplicateButton).toBeDisabled()
@@ -337,7 +341,7 @@ describe('HostDashboardPage quiz library', () => {
     expect(repositoryMocks.saveQuiz.mock.calls[0][0]).not.toHaveProperty('id')
     expect(await screen.findByText('Imported Blind Ross vs Jess: 3 questions.')).toBeVisible()
     expect(screen.getByRole('article', { name: 'Blind Ross vs Jess' })).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Quizzes' })).toBeVisible()
     expect(screen.queryByText(/Editing copy/)).not.toBeInTheDocument()
   })
 
@@ -386,7 +390,9 @@ describe('HostDashboardPage quiz library', () => {
     renderDashboard()
 
     expect(await screen.findByRole('note')).toHaveTextContent('Export files contain the quiz’s correct answers')
-    await user.click(within(screen.getByRole('article', { name: 'Friday Team Quiz' })).getByRole('button', { name: 'Export' }))
+    const activeCard = screen.getByRole('article', { name: 'Friday Team Quiz' })
+    await user.click(within(activeCard).getByLabelText('More actions for Friday Team Quiz'))
+    await user.click(within(activeCard).getByRole('button', { name: 'Export' }))
     expect(repositoryMocks.getQuiz).toHaveBeenCalledWith('active-friday')
     expect(downloads).toEqual(['friday-team-quiz.katwed.json'])
     expect(screen.getByText('Exported Friday Team Quiz. The file contains the quiz’s correct answers.')).toBeVisible()

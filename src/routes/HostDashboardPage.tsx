@@ -17,6 +17,8 @@ import {
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
+import { quizThemes } from '../features/themes/quizThemes'
+import { getQuizBackground } from '../features/themes/quizBackgrounds'
 import { CLASSIC_ANSWER_COLOURS } from '../features/answer-palettes/answerPalettes'
 import { DEFAULT_QUIZ_TYPE } from '../features/head-to-head/headToHead'
 import {
@@ -248,11 +250,9 @@ export function HostDashboardPage() {
 
   return (
     <main className="host-page">
-      <header className="page-heading">
-        <div><p className="eyebrow">Host headquarters</p><h1>Your quizzes</h1><p>Welcome, {user?.email ?? 'host'}.</p></div>
+      <header className="page-heading dashboard-heading">
+        <div><p className="eyebrow">Quiz library</p><h1>Quizzes</h1><p>Create, edit and run your Katwed games.</p></div>
         <div className="heading-actions">
-          <Link className="button button--ghost" to="/host/design-system">Visual lab</Link>
-          <Link className="button button--secondary" to="/host/storage">Storage</Link>
           <button className="button button--secondary" type="button" onClick={() => importInputRef.current?.click()}>
             Import quiz
           </button>
@@ -267,7 +267,7 @@ export function HostDashboardPage() {
           <button className="button button--primary" type="button" disabled={creating} onClick={() => void createQuiz()}>
             {creating ? 'Creating…' : '+ Create quiz'}
           </button>
-          <button className="button button--ghost" type="button" onClick={() => void signOut()}>Sign out</button>
+          <button className="button button--ghost dashboard-sign-out" type="button" onClick={() => void signOut()} title={user?.email ?? undefined}>Sign out</button>
         </div>
       </header>
       <div className="library-tabs" role="tablist" aria-label="Quiz library">
@@ -327,6 +327,8 @@ export function HostDashboardPage() {
           const lastEdited = formatLastEdited(quiz.updatedAt)
           const titleId = `quiz-${quiz.id}-title`
           const coverFallback = <span>{quiz.questions.length}</span>
+          const theme = quizThemes.find((candidate) => candidate.id === quiz.themeId)
+          const background = getQuizBackground(quiz.backgroundId)
 
           return (
             <article
@@ -334,7 +336,7 @@ export function HostDashboardPage() {
               className={`quiz-card${view === 'archived' ? ' quiz-card--archived' : ''}`}
               key={quiz.id}
             >
-              <div className="quiz-card__art" aria-hidden="true">
+              <div className="quiz-card__art" data-theme={quiz.themeId} aria-hidden="true">
                 {quiz.coverImagePath ? (
                   <StoredImage
                     reference={quiz.coverImagePath}
@@ -346,9 +348,8 @@ export function HostDashboardPage() {
                 ) : coverFallback}
               </div>
               <div className="quiz-card__body">
-                <h2 id={titleId}>{quiz.title}</h2>
-                {quiz.quizType === 'head-to-head' && <span className="quiz-type-badge">Head to Head</span>}
-                <p>{quiz.roster.filter((member) => member.active).length} people in bank · {quiz.questions.length} questions</p>
+                <div className="quiz-card__title-row"><h2 id={titleId}>{quiz.title}</h2><span className="quiz-type-badge">{quiz.quizType === 'head-to-head' ? 'Head to Head' : 'Standard'}</span></div>
+                <p>{quiz.questions.length} {quiz.questions.length === 1 ? 'question' : 'questions'} · {theme?.name ?? 'Katwed!'}{background ? ` / ${background.name}` : ''}</p>
                 {lastEdited.dateTime ? (
                   <time className="quiz-card__metadata" dateTime={lastEdited.dateTime} title={lastEdited.title}>
                     {lastEdited.label}
@@ -367,25 +368,11 @@ export function HostDashboardPage() {
                       {activeSessionIds[quiz.id] ? 'Resume game' : 'Launch game'}
                     </button>
                     <Link className="button button--secondary" to={`/host/quizzes/${quiz.id}/edit`}>Edit</Link>
-                    <button
-                      className="button button--secondary"
-                      type="button"
-                      disabled={workingQuizId === quiz.id}
-                      onClick={() => void duplicate(quiz)}
-                    >{workingQuizId === quiz.id ? 'Duplicating...' : 'Duplicate'}</button>
-                    <button
-                      className="button button--secondary"
-                      type="button"
-                      disabled={exportingQuizId === quiz.id}
-                      onClick={() => void exportQuiz(quiz)}
-                    >{exportingQuizId === quiz.id ? 'Exporting…' : 'Export'}</button>
-                    <button
-                      className="button button--ghost"
-                      type="button"
-                      disabled={Boolean(activeSessionIds[quiz.id]) || workingQuizId === quiz.id}
-                      title={activeSessionIds[quiz.id] ? 'Close the active game before archiving this quiz.' : undefined}
-                      onClick={() => void archive(quiz)}
-                    >Archive</button>
+                    <details className="quiz-card-menu"><summary aria-label={`More actions for ${quiz.title}`}>•••</summary><div>
+                      <button type="button" disabled={workingQuizId === quiz.id} onClick={() => void duplicate(quiz)}>{workingQuizId === quiz.id ? 'Duplicating…' : 'Duplicate'}</button>
+                      <button type="button" disabled={exportingQuizId === quiz.id} onClick={() => void exportQuiz(quiz)}>{exportingQuizId === quiz.id ? 'Exporting…' : 'Export'}</button>
+                      <button type="button" disabled={Boolean(activeSessionIds[quiz.id]) || workingQuizId === quiz.id} title={activeSessionIds[quiz.id] ? 'Close the active game before archiving this quiz.' : undefined} onClick={() => void archive(quiz)}>Archive</button>
+                    </div></details>
                   </div>
                 ) : (
                   <div className="card-actions">
@@ -412,8 +399,10 @@ export function HostDashboardPage() {
               </>
             ) : (
               <>
-                <h2>{view === 'active' ? 'No active quizzes' : 'No archived quizzes'}</h2>
-                <p>{view === 'active' ? 'Create a quiz or restore one from the archive.' : 'Archived quizzes will appear here.'}</p>
+                <span className="empty-card__motif" aria-hidden="true">K!</span>
+                <h2>{view === 'active' ? 'Your quiz library is ready' : 'No archived quizzes'}</h2>
+                <p>{view === 'active' ? 'Create your first quiz or import a Katwed quiz file.' : 'Quizzes you archive will stay safely available here.'}</p>
+                {view === 'active' && <button className="button button--primary" type="button" disabled={creating} onClick={() => void createQuiz()}>Create quiz</button>}
               </>
             )}
           </div>

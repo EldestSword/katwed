@@ -143,6 +143,10 @@ Shared game primitives now cover positional answer tiles, eight non-colour SVG m
 
 Authenticated hosts can review the system at `/host/design-system` (also linked as **Visual lab** from the host dashboard). The lab changes local specimen state only: it does not save quiz data, call scoring operations or expose answer keys. It demonstrates every theme, positional marker and core state at desktop and mobile widths. This pass adds no database migration and does not change deployment settings.
 
+### Host/backstage visual language, pass 3
+
+Authenticated host routes use a compact neutral application shell and a dedicated `backstage.css` layer. The quiz library presents saved quizzes as creative projects, the editor uses a dense authoring workspace with modal question creation and honest Presentation/Player previews, Quiz Settings uses section navigation and visual pickers, and the Controller uses phase-led production-console hierarchy. Login, Storage and the Design System lab share the same host surfaces. Live Presentation and Player behaviour remains governed by Pass 2. See [`docs/backstage-visual-language.md`](docs/backstage-visual-language.md).
+
 ### Live-game visual language, pass 2
 
 The Presentation is composed as a long-distance **stage**, while the Player is a compact **contestant control pad** designed for quick phone input. Lobby join information, semantic question layouts, submission status, Locked, reveal, scoreboard and final-results compositions now have distinct hierarchy without changing the safe-state, option-ordering, scoring, deadline or host-gated reveal contracts. Shared live primitives are documented in the protected visual lab.

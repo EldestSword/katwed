@@ -19,14 +19,14 @@ describe('route security', () => {
 
   it('redirects an unauthenticated user away from host management', async () => {
     render(<MemoryRouter initialEntries={['/host/storage']}><AuthProvider><App /></AuthProvider></MemoryRouter>)
-    expect(await screen.findByRole('heading', { name: 'Sign in to host' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Host your quiz' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Storage' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Your quizzes' })).not.toBeInTheDocument()
   })
 
   it('keeps the visual lab behind host authentication', async () => {
     render(<MemoryRouter initialEntries={['/host/design-system']}><AuthProvider><App /></AuthProvider></MemoryRouter>)
-    expect(await screen.findByRole('heading', { name: 'Sign in to host' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Host your quiz' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Katwed! design system' })).not.toBeInTheDocument()
   })
 
