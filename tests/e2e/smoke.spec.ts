@@ -110,7 +110,7 @@ async function expectHeadToHeadResult(
 
 test('landing, joining validation and host guards work', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /live team quiz/i })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Host' })).toHaveAttribute('href', '/host')
+  await expect(page.getByRole('link', { name: 'Host', exact: true })).toHaveAttribute('href', '/host')
   await page.getByRole('button', { name: 'Join game' }).click()
   await expect(page.getByRole('alert')).toHaveText('Enter the six-digit room code.')
   await expect(page.getByLabel('Room code')).toHaveAttribute('aria-invalid', 'true')
@@ -153,7 +153,7 @@ test('public entry and recovery routes remain usable at phone widths', async ({ 
     expect(joinButtonBox.height).toBeGreaterThanOrEqual(44)
 
     await page.goto('/join')
-    await expect(page.getByRole('heading', { name: 'Join the room' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Enter your game' })).toBeVisible()
     const joinGeometry = await page.evaluate(() => {
       const browser = globalThis as unknown as BrowserEvaluationGlobal
       return {
