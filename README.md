@@ -153,9 +153,15 @@ The Presentation is composed as a long-distance **stage**, while the Player is a
 
 See [`docs/live-game-visual-language.md`](docs/live-game-visual-language.md) for phase composition, answer and reveal language, responsive behaviour, motion, accessibility and theme guidance.
 
-### Planned
+### Public experience and whole-product cohesion, pass 4
 
-The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap).
+The final visual polish pass connects Katwed's public entry, loading and recovery states to the established live stage and neutral backstage environments. It preserves the Hotfix 3.1 Presentation, compact-preview and responsive Player geometry while aligning public navigation, form validation, authentication transitions, status feedback, mobile first actions and designed edge states.
+
+See [`docs/visual-language.md`](docs/visual-language.md) for the concise four-pass relationship between the shared design system, live stage, backstage tools and public experience.
+
+### Next work
+
+Remaining product work includes the deliberately separate audio pass, further question formats, library/storage extensions and formal multi-player load testing. These items are described in [Roadmap](#roadmap); Pass 4 does not add audio controls or placeholders.
 
 Demo mode remains the quickest credential-free way to explore the platform locally.
 

@@ -4,6 +4,7 @@
 .player-game .game-bar .brand-mark { font-size: clamp(1.65rem, 7vw, 2.3rem); }
 .player-game .game-bar > div span { font-size: .65rem; }
 .player-game .game-bar > div strong { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-game > .status-message { width: min(calc(100% - 1.5rem), 52rem); margin: .75rem auto 0; }
 
 .player-question { width: min(100%, 52rem); padding: clamp(.75rem, 2vw, 1.25rem) clamp(.75rem, 3vw, 1.25rem) calc(6rem + env(safe-area-inset-bottom)); }
 .question-meta { min-height: 4rem; margin: 0 0 .65rem; padding: .45rem .55rem .45rem .75rem; gap: .5rem; border: 1px solid var(--quiz-border); border-radius: var(--radius-lg); background: var(--quiz-surface); box-shadow: var(--quiz-shadow); }

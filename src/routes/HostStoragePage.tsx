@@ -90,7 +90,7 @@ export function HostStoragePage() {
           <p>Uploaded images for this Katwed account.</p>
         </div>
         <div className="heading-actions">
-          <Link className="button button--secondary" to="/host">Your quizzes</Link>
+          <Link className="button button--secondary" to="/host">Back to quizzes</Link>
           <button
             className="button button--ghost"
             type="button"

@@ -47,13 +47,13 @@ export function HostLoginPage() {
             Supabase is not configured. Add the two Supabase environment variables, or explicitly enable demo mode during local development.
           </StatusMessage>
         )}
-        <form onSubmit={(event) => void submit(event)}>
+        <form onSubmit={(event) => void submit(event)} noValidate>
           <label htmlFor="email">Email address</label>
-          <input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <input id="email" type="email" autoComplete="email" value={email} aria-invalid={Boolean(error)} aria-describedby={error ? 'host-login-error' : undefined} onChange={(event) => { setEmail(event.target.value); setError('') }} />
           <label htmlFor="password">Password</label>
-          <input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          {error && <StatusMessage tone="error">{error}</StatusMessage>}
-          <button className="button button--primary button--wide" type="submit" disabled={submitting || !config.supabaseConfigured}>
+          <input id="password" type="password" autoComplete="current-password" value={password} aria-invalid={Boolean(error)} aria-describedby={error ? 'host-login-error' : undefined} onChange={(event) => { setPassword(event.target.value); setError('') }} />
+          {error && <StatusMessage id="host-login-error" tone="error">{error}</StatusMessage>}
+          <button className="button button--primary button--wide" type="submit" aria-busy={submitting} disabled={submitting || !config.supabaseConfigured}>
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>

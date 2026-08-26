@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { Logo } from '../components/AppShell'
 import { PresentationStage } from '../features/game/PresentationStage'
 import { repository } from '../services/repository'
 import type { SafeGameState } from '../types/domain'
@@ -44,6 +45,6 @@ export function PresentationPage() {
   }, [])
 
   if (loading) return <LoadingScreen message="Opening the presentation…" />
-  if (!state) return <main className="centred-screen"><h1>Presentation unavailable</h1><p>{error}</p><Link to="/host">Back to quizzes</Link></main>
+  if (!state) return <main className="centred-screen recovery-screen"><Logo /><p className="eyebrow">Shared screen unavailable</p><h1>Presentation unavailable</h1><p>{error}</p><Link className="button button--primary" to="/host">Back to quizzes</Link></main>
   return <main className={`presentation-page ${cursorHidden ? 'cursor-hidden' : ''}`}><PresentationStage state={state} /></main>
 }

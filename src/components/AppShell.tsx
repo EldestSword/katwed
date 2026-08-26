@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../features/auth/AuthProvider'
 import { config } from '../lib/config'
 
 export function Logo() {
@@ -8,11 +9,20 @@ export function Logo() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
+  const { loading, user } = useAuth()
   const activeGame = location.pathname.startsWith('/play/') || location.pathname.startsWith('/host/game/')
-  const hostArea = location.pathname.startsWith('/host') && location.pathname !== '/host/login' && !activeGame
+  const protectedHostRoute = location.pathname.startsWith('/host') && location.pathname !== '/host/login'
+  const hostArea = protectedHostRoute && Boolean(user) && !activeGame
+  const authPending = protectedHostRoute && (loading || !user)
+  const shellClasses = [
+    'app-shell',
+    hostArea && 'app-shell--host',
+    activeGame && 'app-shell--game',
+    authPending && 'app-shell--auth-pending',
+  ].filter(Boolean).join(' ')
   return (
-    <div className={`app-shell${hostArea ? ' app-shell--host' : ''}`}>
-      {!activeGame && (
+    <div className={shellClasses}>
+      {!activeGame && !authPending && (
         <header className={hostArea ? 'host-shell-header' : 'site-header'}>
           <Link to={hostArea ? '/host' : '/'} className="brand-link"><Logo /></Link>
           <nav aria-label={hostArea ? 'Host navigation' : 'Main navigation'}>
@@ -21,8 +31,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link to="/host/storage" aria-current={location.pathname === '/host/storage' ? 'page' : undefined}>Storage</Link>
               <Link to="/host/design-system" aria-current={location.pathname === '/host/design-system' ? 'page' : undefined}>Visual lab</Link>
             </> : <>
-              <Link to="/join">Join</Link>
-              <Link to="/host">Host</Link>
+              <Link to="/join" aria-current={location.pathname === '/join' ? 'page' : undefined}>Join</Link>
+              <Link to="/host" aria-current={location.pathname === '/host/login' ? 'page' : undefined}>Host</Link>
             </>}
           </nav>
         </header>

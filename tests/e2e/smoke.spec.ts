@@ -24,7 +24,7 @@ interface BrowserEvaluationRect {
 
 interface BrowserEvaluationGlobal {
   getComputedStyle(element: unknown): BrowserComputedStyle
-  document: { documentElement: { scrollWidth: number } }
+  document: { documentElement: { clientWidth: number; scrollWidth: number } }
   innerWidth: number
 }
 
@@ -110,12 +110,70 @@ async function expectHeadToHeadResult(
 
 test('landing, joining validation and host guards work', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /live team quiz/i })).toBeVisible()
-  await page.goto('/join?room=999999')
-  await page.getByLabel('Nickname').fill('Browser Player')
+  await expect(page.getByRole('link', { name: 'Host' })).toHaveAttribute('href', '/host')
   await page.getByRole('button', { name: 'Join game' }).click()
-  await expect(page.getByText('We could not find that room.')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveText('Enter the six-digit room code.')
+  await expect(page.getByLabel('Room code')).toHaveAttribute('aria-invalid', 'true')
+  await page.goto('/join?room=999999')
+  await expect(page.getByText(/We could not find an open room with that code/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Join game' })).toBeDisabled()
+  await expect(page.getByRole('link', { name: 'Join' })).toHaveAttribute('aria-current', 'page')
+  await page.goto('/not-a-katwed-route')
+  await expect(page.getByRole('heading', { name: 'This page does not ring a bell' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Join a game' })).toHaveAttribute('href', '/join')
   await page.goto('/host/game/not-a-session/present')
   await expect(page.getByRole('heading', { name: 'Host your quiz' })).toBeVisible()
+})
+
+test('public entry and recovery routes remain usable at phone widths', async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+
+    const landingGeometry = await page.evaluate(() => {
+      const browser = globalThis as unknown as BrowserEvaluationGlobal
+      return {
+        clientWidth: browser.document.documentElement.clientWidth,
+        scrollWidth: browser.document.documentElement.scrollWidth,
+      }
+    })
+    expect(landingGeometry.scrollWidth).toBeLessThanOrEqual(landingGeometry.clientWidth)
+
+    const roomCode = page.getByLabel('Room code')
+    const joinButton = page.getByRole('button', { name: 'Join game' })
+    await expect(roomCode).toBeVisible()
+    await expect(joinButton).toBeVisible()
+    const joinButtonBox = await joinButton.boundingBox()
+    if (!joinButtonBox) throw new Error('Landing join action was not visible')
+    expect(joinButtonBox.height).toBeGreaterThanOrEqual(44)
+
+    await page.goto('/join')
+    await expect(page.getByRole('heading', { name: 'Join the room' })).toBeVisible()
+    const joinGeometry = await page.evaluate(() => {
+      const browser = globalThis as unknown as BrowserEvaluationGlobal
+      return {
+        clientWidth: browser.document.documentElement.clientWidth,
+        scrollWidth: browser.document.documentElement.scrollWidth,
+      }
+    })
+    expect(joinGeometry.scrollWidth).toBeLessThanOrEqual(joinGeometry.clientWidth)
+
+    await page.goto('/not-a-katwed-route')
+    await expect(page.getByRole('link', { name: 'Back home' })).toBeVisible()
+    const recoveryGeometry = await page.evaluate(() => {
+      const browser = globalThis as unknown as BrowserEvaluationGlobal
+      return {
+        clientWidth: browser.document.documentElement.clientWidth,
+        scrollWidth: browser.document.documentElement.scrollWidth,
+      }
+    })
+    expect(recoveryGeometry.scrollWidth).toBeLessThanOrEqual(recoveryGeometry.clientWidth)
+  }
 })
 
 test('editor has seven formats and persists a changed title', async ({ page }) => {
@@ -776,7 +834,7 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await expect(summary('Unused')).toContainText('0 images')
   await expect(page.getByRole('heading', { name: 'No unused images' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Your quizzes' }).click()
+  await page.getByRole('link', { name: 'Back to quizzes' }).click()
   await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
   await quizCard.getByRole('link', { name: 'Edit' }).click()
   settings = await openQuizSettings(page, 'Appearance')
