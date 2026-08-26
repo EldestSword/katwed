@@ -270,7 +270,6 @@ export function HostDashboardPage() {
           <button className="button button--ghost dashboard-sign-out" type="button" onClick={() => void signOut()} title={user?.email ?? undefined}>Sign out</button>
         </div>
       </header>
-      <nav className="sr-only" aria-label="Host shortcuts"><Link to="/host/storage">Storage</Link><Link to="/host/design-system">Visual lab</Link></nav>
       <div className="library-tabs" role="tablist" aria-label="Quiz library">
         <button type="button" role="tab" aria-selected={view === 'active'} onClick={() => setView('active')}>
           Active quizzes <span>{activeQuizzes.length}</span>

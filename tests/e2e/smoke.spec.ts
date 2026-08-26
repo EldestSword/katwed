@@ -169,9 +169,15 @@ test('custom answer colours stay aligned and Standard locks only after all four 
       }
     })
   ))
-  const playerSnapshot = await optionSnapshot(players[0], '.answer-choice[data-option-id]')
-  const presentationSnapshot = await optionSnapshot(presentation, '.presentation-options [data-option-id]')
-  const controllerSnapshot = await optionSnapshot(page, '.controller-preview .presentation-options [data-option-id]')
+  const playerOptions = '.answer-choice[data-option-id]'
+  const presentationOptions = '.presentation-options [data-option-id]'
+  const controllerOptions = '.controller-preview .presentation-options [data-option-id]'
+  await expect(players[0].locator(playerOptions)).toHaveCount(4)
+  await expect(presentation.locator(presentationOptions)).toHaveCount(4)
+  await expect(page.locator(controllerOptions)).toHaveCount(4)
+  const playerSnapshot = await optionSnapshot(players[0], playerOptions)
+  const presentationSnapshot = await optionSnapshot(presentation, presentationOptions)
+  const controllerSnapshot = await optionSnapshot(page, controllerOptions)
   expect(playerSnapshot).toEqual(presentationSnapshot)
   expect(playerSnapshot).toEqual(controllerSnapshot)
   expect(playerSnapshot[0]).toMatchObject({ background: 'rgb(253, 253, 253)', colour: 'rgb(17, 24, 39)' })
@@ -253,6 +259,8 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await jess.goto(`/join?room=${roomCode}`)
   await expect(jess.getByRole('button', { name: /Ross — joined/ })).toBeDisabled()
   await jess.getByRole('button', { name: 'Jess' }).click()
+  await expect(jess).toHaveURL(new RegExp(`/play/${roomCode}$`))
+  await expect(jess.getByText('You are playing as Jess.')).toBeVisible()
   await jess.reload()
   await expect(jess.getByText(/You are playing as/)).toContainText('Jess')
   await expect(ross.getByRole('button', { name: 'Start game' })).toBeEnabled()
@@ -693,7 +701,7 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
     has: page.getByRole('heading', { name: 'Storage lifecycle quiz', exact: true }),
   })
   await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
-  await page.getByRole('link', { name: 'Storage' }).click()
+  await page.getByRole('navigation', { name: 'Host navigation' }).getByRole('link', { name: 'Storage' }).click()
   await expect(page).toHaveURL(/\/host\/storage$/)
 
   const summary = (label: string) => page.locator('.storage-summary-card').filter({

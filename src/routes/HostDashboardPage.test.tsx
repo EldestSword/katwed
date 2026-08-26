@@ -8,6 +8,7 @@ import { sampleQuiz } from '../lib/demo/sampleData'
 import type { Quiz } from '../types/domain'
 import { HostDashboardPage } from './HostDashboardPage'
 import { exportQuizToPortable } from '../features/quiz-transfer/katwedQuizFormat'
+import { AppShell } from '../components/AppShell'
 
 const repositoryMocks = vi.hoisted(() => ({
   listQuizzes: vi.fn(),
@@ -74,7 +75,7 @@ function renderDashboard() {
     <MemoryRouter initialEntries={['/host']}>
       <AuthProvider>
         <Routes>
-          <Route path="/host" element={<HostDashboardPage />} />
+          <Route path="/host" element={<AppShell><HostDashboardPage /></AppShell>} />
           <Route path="/host/quizzes/:quizId/edit" element={<CopyEditorDestination />} />
         </Routes>
       </AuthProvider>
