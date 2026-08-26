@@ -153,6 +153,36 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(await repository.getActiveSessionForQuiz(imported.id)).toBeNull()
   })
 
+  it('persists custom answer palettes through save, safe state and reload', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const customAnswerColours = [
+      '#102030', '#203040', '#304050', '#405060',
+      '#506070', '#607080', '#708090', '#8090A0',
+    ] as const
+    const saved = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      quizType: source.quizType,
+      headToHeadCompetitors: source.headToHeadCompetitors,
+      coverImagePath: source.coverImagePath,
+      themeId: source.themeId,
+      backgroundId: source.backgroundId,
+      answerPaletteId: 'custom',
+      customAnswerColours,
+      roster: source.roster,
+      questions: source.questions,
+    })
+    const session = await repository.launchGame(saved.id)
+
+    expect(await new DemoGameRepository().getQuiz(saved.id)).toMatchObject({
+      answerPaletteId: 'custom', customAnswerColours,
+    })
+    expect(await repository.getSafeGameState(session.roomCode)).toMatchObject({
+      answerPaletteId: 'custom', customAnswerColours,
+    })
+  })
+
   it('imports a Head-to-Head definition with fresh competitors and remapped assignments', async () => {
     const repository = new DemoGameRepository()
     const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(headToHeadDemoQuiz)))

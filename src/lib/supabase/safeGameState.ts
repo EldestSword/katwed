@@ -2,6 +2,7 @@ import type { RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
+import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -93,8 +94,10 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const themeId = normaliseQuizThemeId(value.themeId)
+  const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
   return {
     ...value,
+    ...answerPalette,
     quizType: normaliseQuizType(value.quizType),
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],

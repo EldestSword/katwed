@@ -30,6 +30,7 @@ import { listDemoStoredImages, removeDemoStoredImages } from '../../services/que
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
+import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import {
   calculateStandardQuestionScore,
   standardQuestionWindow,
@@ -69,8 +70,13 @@ function normaliseState(state: DemoState): DemoState {
     headToHeadSkips: state.headToHeadSkips ?? [],
     quizzes: state.quizzes.map((quiz) => {
       const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
+      const answerPalette = normaliseAnswerPalette(
+        (quiz as { answerPaletteId?: unknown }).answerPaletteId,
+        (quiz as { customAnswerColours?: unknown }).customAnswerColours,
+      )
       return normaliseQuizHeadToHead({
         ...quiz,
+        ...answerPalette,
         coverImagePath: quiz.coverImagePath ?? null,
         themeId,
         backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
@@ -288,6 +294,10 @@ export class DemoGameRepository implements GameRepository {
       const now = new Date().toISOString()
       const existing = input.id ? state.quizzes.find((quiz) => quiz.id === input.id) : undefined
       const quizId = existing?.id ?? uid('quiz')
+      const answerPalette = normaliseAnswerPalette(
+        input.answerPaletteId ?? existing?.answerPaletteId,
+        input.customAnswerColours ?? existing?.customAnswerColours,
+      )
       const quiz: Quiz = {
         id: quizId,
         title: input.title.trim() || 'Untitled quiz',
@@ -301,6 +311,7 @@ export class DemoGameRepository implements GameRepository {
         coverImagePath: input.coverImagePath?.trim() || null,
         themeId: input.themeId,
         backgroundId: input.backgroundId,
+        ...answerPalette,
         roster: input.roster.map((member, index) => ({
           ...member,
           id: member.id || uid('member'),
@@ -621,6 +632,8 @@ export class DemoGameRepository implements GameRepository {
       quizType: quiz.quizType,
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
+      answerPaletteId: quiz.answerPaletteId,
+      customAnswerColours: quiz.customAnswerColours,
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,

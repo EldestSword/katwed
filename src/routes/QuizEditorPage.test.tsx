@@ -58,6 +58,11 @@ function renderEditor() {
   return render(<RouterProvider router={router} />)
 }
 
+async function openQuizSettings(user = userEvent.setup()) {
+  await user.click(await screen.findByRole('button', { name: 'Quiz settings' }))
+  return screen.findByRole('dialog', { name: 'Quiz settings' })
+}
+
 describe('QuizEditorPage quiz appearance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,9 +77,54 @@ describe('QuizEditorPage quiz appearance', () => {
     imageMocks.uploadQuizCover.mockResolvedValue('https://media.example/new-cover.webp')
   })
 
+  it('opens accessible quiz-wide settings while keeping the question sidebar focused', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await screen.findByRole('heading', { name: 'Question settings' })
+    const sidebar = document.querySelector('.question-settings') as HTMLElement
+    expect(within(sidebar).queryByText('Quiz type')).not.toBeInTheDocument()
+    expect(within(sidebar).queryByText('Quiz theme')).not.toBeInTheDocument()
+    expect(within(sidebar).getByText('Question')).toBeVisible()
+    expect(within(sidebar).getByText('Answers')).toBeVisible()
+    expect(within(sidebar).getByText('Scoring')).toBeVisible()
+    expect(within(sidebar).getByText('Media & presentation')).toBeVisible()
+
+    const dialog = await openQuizSettings(user)
+    expect(within(dialog).getByRole('group', { name: 'Quiz type' })).toBeVisible()
+    expect(within(dialog).getByRole('group', { name: 'Quiz theme' })).toBeVisible()
+    expect(within(dialog).getByRole('group', { name: 'Quiz background' })).toBeVisible()
+    expect(within(dialog).getByRole('region', { name: 'Quiz cover' })).toBeVisible()
+    expect(within(dialog).getByRole('group', { name: 'Answer palette' })).toBeVisible()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Quiz settings' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quiz settings' })).toHaveFocus()
+  })
+
+  it('previews and saves a quiz-wide custom answer palette through the dirty workflow', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const dialog = await openQuizSettings(user)
+    await user.click(within(dialog).getByRole('button', { name: /Custom/ }))
+    const firstHex = within(dialog).getByLabelText('Colour 1 hex')
+    await user.clear(firstHex)
+    await user.type(firstHex, '#FFFFFF')
+    expect(screen.getByText('Unsaved changes')).toBeVisible()
+    expect(within(dialog).getByLabelText('Answer palette preview').firstElementChild).toHaveStyle({
+      backgroundColor: '#FFFFFF',
+      color: '#111827',
+    })
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }))
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({
+      answerPaletteId: 'custom',
+      customAnswerColours: expect.arrayContaining(['#FFFFFF']),
+    }))
+  })
+
   it('shows cover controls even when the quiz has no questions', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [] }))
     renderEditor()
+    await openQuizSettings()
 
     const section = await screen.findByRole('region', { name: 'Quiz cover' })
     expect(within(section).getByText('No cover selected')).toBeVisible()
@@ -84,6 +134,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('shows all six themes and marks the persisted theme without relying on colour alone', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'paper', questions: [] }))
     renderEditor()
+    await openQuizSettings()
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
     expect(within(themes).getAllByRole('button')).toHaveLength(6)
@@ -94,6 +145,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('updates the preview immediately and saves a newly selected theme', async () => {
     const user = userEvent.setup()
     renderEditor()
+    await openQuizSettings(user)
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
     expect(within(themes).getByRole('button', { name: /Katwed!/ })).toHaveAttribute('aria-pressed', 'true')
@@ -115,6 +167,7 @@ describe('QuizEditorPage quiz appearance', () => {
       questions: [],
     }))
     renderEditor()
+    await openQuizSettings()
 
     const picker = await screen.findByRole('group', { name: 'Quiz background' })
     expect(within(picker).getAllByRole('button')).toHaveLength(4)
@@ -133,6 +186,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('updates the audience preview and save payload when a background or Theme default is selected', async () => {
     const user = userEvent.setup()
     renderEditor()
+    await openQuizSettings(user)
 
     const picker = await screen.findByRole('group', { name: 'Quiz background' })
     await user.click(within(picker).getByRole('button', { name: /Confetti/ }))
@@ -157,6 +211,7 @@ describe('QuizEditorPage quiz appearance', () => {
     const user = userEvent.setup()
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'arcade', backgroundId: 'arcade-grid' }))
     renderEditor()
+    await openQuizSettings(user)
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
     let picker = screen.getByRole('group', { name: 'Quiz background' })
@@ -179,6 +234,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('uploads, previews and persists a cover only through Save quiz', async () => {
     const user = userEvent.setup()
     renderEditor()
+    await openQuizSettings(user)
 
     const file = new File(['cover'], 'cover.png', { type: 'image/png' })
     const section = await screen.findByRole('region', { name: 'Quiz cover' })
@@ -204,6 +260,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ coverImagePath: 'https://media.example/original-cover.webp' }))
     imageMocks.uploadQuizCover.mockRejectedValueOnce(new Error('The image format is not supported.'))
     renderEditor()
+    await openQuizSettings(user)
 
     const section = await screen.findByRole('region', { name: 'Quiz cover' })
     expect(section.querySelector('img')).toHaveAttribute('src', 'https://media.example/original-cover.webp')
@@ -220,6 +277,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ coverImagePath: 'https://media.example/original-cover.webp' }))
     imageMocks.uploadQuizCover.mockResolvedValueOnce('https://media.example/replacement-cover.webp')
     renderEditor()
+    await openQuizSettings(user)
 
     const section = await screen.findByRole('region', { name: 'Quiz cover' })
     await user.upload(
@@ -239,6 +297,7 @@ describe('QuizEditorPage quiz appearance', () => {
     const user = userEvent.setup()
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ coverImagePath: 'https://media.example/original-cover.webp' }))
     renderEditor()
+    await openQuizSettings(user)
 
     const section = await screen.findByRole('region', { name: 'Quiz cover' })
     await user.click(within(section).getByRole('button', { name: 'Remove cover' }))
@@ -254,6 +313,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('defaults to Standard and creates two stable blank competitors when Head to Head is chosen', async () => {
     const user = userEvent.setup()
     renderEditor()
+    await openQuizSettings(user)
 
     const picker = await screen.findByRole('group', { name: 'Quiz type' })
     expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
@@ -278,6 +338,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     renderEditor()
+    await openQuizSettings(user)
 
     const picker = await screen.findByRole('group', { name: 'Quiz type' })
     await user.click(within(picker).getByRole('button', { name: /Standard/ }))
@@ -287,12 +348,14 @@ describe('QuizEditorPage quiz appearance', () => {
     await user.click(within(picker).getByRole('button', { name: /Standard/ }))
     expect(screen.queryByRole('region', { name: 'Head-to-Head competitors' })).not.toBeInTheDocument()
     expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByText('Scoring'))
     expect(screen.getByLabelText('Maximum points')).toBeVisible()
   })
 
   it('shows minimal Standard scoring controls and defaults a newly authored question to speed scoring', async () => {
     const user = userEvent.setup()
     renderEditor()
+    await user.click(await screen.findByText('Scoring'))
     expect(await screen.findByLabelText('Maximum points')).toBeVisible()
     expect(screen.getByLabelText('Faster answers score more')).not.toBeChecked()
     expect(screen.getByLabelText('Double score')).not.toBeChecked()
@@ -308,7 +371,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('defaults a newly selected tile reveal to 8 by 8 and offers every supported grid', async () => {
     const user = userEvent.setup()
     renderEditor()
-    await screen.findByLabelText('Maximum points')
+    await user.click(await screen.findByText('Media & presentation'))
     const mediaSettings = screen.getByRole('group', { name: 'Media' })
     await user.selectOptions(within(mediaSettings).getByLabelText('Type'), 'image')
     await user.selectOptions(within(mediaSettings).getByLabelText('Reveal effect'), 'tiles')
@@ -323,6 +386,7 @@ describe('QuizEditorPage quiz appearance', () => {
   })
 
   it('supports assignments for all seven question formats and hides ordinary point editing', async () => {
+    const user = userEvent.setup()
     const source = {
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
@@ -331,7 +395,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz(source))
     renderEditor()
 
-    await screen.findByRole('region', { name: 'Head-to-Head competitors' })
+    await screen.findByRole('heading', { name: 'Question settings' })
     const navigator = document.querySelector('.question-navigator')!
     const assignmentLabels = [...navigator.querySelectorAll('ol small')].map((item) => item.textContent ?? '')
     expect(assignmentLabels).toHaveLength(source.questions.length)
@@ -343,6 +407,7 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(screen.queryByLabelText('Maximum points')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Faster answers score more')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Double score')).not.toBeInTheDocument()
+    await user.click(screen.getByText('Scoring'))
     expect(screen.getByText('Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.')).toBeVisible()
   })
 
@@ -380,7 +445,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(source)
     renderEditor()
 
-    await screen.findByRole('region', { name: 'Head-to-Head competitors' })
+    await screen.findByRole('heading', { name: 'Question settings' })
     await user.click(screen.getByRole('button', { name: 'Duplicate' }))
     await user.click(within(document.querySelector('.question-type-picker') as HTMLElement).getByRole('button', { name: /True or false/ }))
     await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])

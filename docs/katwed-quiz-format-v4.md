@@ -1,21 +1,26 @@
-# Katwed quiz portable format v3
+# Katwed quiz portable format v4
 
-Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 3 supports Standard and Head-to-Head quizzes, all seven question types, Standard speed scoring, Double Score, and configurable tile grids. It is retained for compatibility; new exports use version 4 and the importer continues to accept versions 1-3.
+Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 4 supports Standard and Head-to-Head quizzes, all seven question types, Standard speed scoring, Double Score, configurable tile grids, and quiz-wide positional answer palettes. New exports use version 4. The importer continues to accept versions 1, 2 and 3.
 
-Exported files contain correct answers. Keep a file closed if the person importing it intends to play the quiz blind. The machine-readable companion is [`schemas/katwed-quiz-v3.schema.json`](schemas/katwed-quiz-v3.schema.json). Runtime import remains authoritative for cross-references, safe media references, theme/background compatibility, Typed Answer normalisation, and normal quiz-save validation.
+Exported files contain correct answers. Keep a file closed if the person importing it intends to play the quiz blind. The machine-readable companion is [`schemas/katwed-quiz-v4.schema.json`](schemas/katwed-quiz-v3.schema.json). Runtime import remains authoritative for cross-references, safe media references, theme/background compatibility, Typed Answer normalisation, and normal quiz-save validation.
 
 ## Envelope
 
 ```json
 {
   "format": "katwed-quiz",
-  "formatVersion": 3,
+  "formatVersion": 4,
   "quiz": {
     "title": "Friday quiz",
     "quizType": "standard",
     "themeId": "katwed",
     "backgroundId": null,
     "coverImagePath": null,
+    "answerPaletteId": "classic",
+    "customAnswerColours": [
+      "#C62828", "#1565C0", "#2E7D32", "#F9A825",
+      "#7B1FA2", "#00838F", "#EF6C00", "#455A64"
+    ],
     "competitors": [],
     "roster": [],
     "questions": []
@@ -70,7 +75,15 @@ Katwed scores Standard questions in this order:
 
 The speed curve runs linearly from 100% at opening to 50% at the deadline. A 1,000-point question therefore awards 1,000 immediately, 750 halfway, and 500 at the deadline. With Double Score it awards 2,000, 1,500, and 1,000 respectively. PostgreSQL calculates trusted production scores from its authoritative opening, closing, and submission timestamps.
 
-Double Score questions use a fixed 1.5-second server-timed introduction before the question opens. That introduction does not consume question time and is not configurable in version 3.
+Double Score questions use a fixed 1.5-second server-timed introduction before the question opens. That introduction does not consume question time and is not configurable in version 4.
+
+## Positional answer palettes
+
+Every version 4 quiz requires `answerPaletteId` and `customAnswerColours`. The palette ID is one of `classic`, `katwed`, `festive`, `tropical`, `summer`, `sports`, `arcade`, `neon`, `pastel`, `retro`, `ocean`, `forest`, `galaxy`, `sunset`, `autumn`, `winter`, `halloween`, or `custom`.
+
+`customAnswerColours` is always an array of exactly eight uppercase six-digit hexadecimal colours matching `#[0-9A-F]{6}`. It is retained even when a preset is selected, so switching back to Custom does not discard the authored values. Options take colours by their final displayed position after the shared deterministic ordering step. True is position 1 and False is position 2. Colours 5-8 support questions with more than four choices.
+
+Text colour is not stored in the file. Each audience surface calculates it from the chosen background using the WCAG 2.x relative-luminance contrast ratio and selects whichever of controlled near-black (`#111827`) or white (`#FFFFFF`) gives the higher contrast.
 
 ## Media and tile grids
 
@@ -107,4 +120,5 @@ Options contain `key`, `label`, and optional `imagePath`/`imageAlt`. Roster entr
 
 The dashboard limits files to 2 MB, rejects unknown fields and executable/inline media schemes, and shows only spoiler-safe metadata before confirmation. It never displays prompts or answers in that preview and never uploads images during import.
 
-Version 1 remains documented in [`katwed-quiz-format-v1.md`](katwed-quiz-format-v1.md), and version 2 in [`katwed-quiz-format-v2.md`](katwed-quiz-format-v2.md). V1/V2 imports receive fixed scoring (`speedScoringEnabled: false`, `doubleScore: false`) and retain legacy tiles where no grid is present. V1-V3 imports receive the Classic answer palette. Version 4 is documented in [`katwed-quiz-format-v4.md`](katwed-quiz-format-v4.md) and is the current export target.
+Version 1 remains documented in [`katwed-quiz-format-v1.md`](katwed-quiz-format-v1.md), version 2 in [`katwed-quiz-format-v2.md`](katwed-quiz-format-v2.md), and version 3 in [`katwed-quiz-format-v3.md`](katwed-quiz-format-v3.md). V1/V2 imports receive fixed scoring (`speedScoringEnabled: false`, `doubleScore: false`) and retain legacy tiles where no grid is present. V1-V3 imports receive the Classic answer palette. Version 4 is the only export target after this implementation.
+

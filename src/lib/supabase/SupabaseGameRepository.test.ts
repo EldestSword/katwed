@@ -35,6 +35,22 @@ describe('SupabaseGameRepository duplication', () => {
     expect(quiz.questions.every((question) => question.assignedCompetitorId === null)).toBe(true)
   })
 
+  it('normalises older or malformed palette reads to Classic', async () => {
+    const older = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
+    delete older.answerPaletteId
+    delete older.customAnswerColours
+    const malformed = { ...structuredClone(mixedDemoQuiz), answerPaletteId: 'custom', customAnswerColours: ['red'] }
+    const rpc = vi.fn().mockResolvedValue({ data: [older, malformed], error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    const quizzes = await repository.listQuizzes()
+    expect(quizzes.map((quiz) => quiz.answerPaletteId)).toEqual(['classic', 'custom'])
+    expect(quizzes.map((quiz) => quiz.customAnswerColours)).toEqual([
+      mixedDemoQuiz.customAnswerColours,
+      mixedDemoQuiz.customAnswerColours,
+    ])
+  })
+
   it('reads an active source and creates its remapped copy through host_save_quiz', async () => {
     const source = structuredClone(mixedDemoQuiz)
     source.coverImagePath = 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/shared-cover.webp'

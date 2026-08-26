@@ -17,6 +17,8 @@ function quiz(overrides: Partial<Quiz> & Pick<Quiz, 'id' | 'title'>): Quiz {
     coverImagePath: null,
     themeId: 'katwed',
     backgroundId: null,
+    answerPaletteId: 'classic',
+    customAnswerColours: ['#C62828', '#1565C0', '#2E7D32', '#F9A825', '#7B1FA2', '#00838F', '#EF6C00', '#455A64'],
     archivedAt: null,
     createdAt: '2026-01-01T12:00:00.000Z',
     updatedAt: '2026-01-01T12:00:00.000Z',

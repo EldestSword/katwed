@@ -11,19 +11,29 @@ import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
 import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
 import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
 import { RevealAnswerCard } from './RevealAnswerCard'
+import { orderedQuestionOptions, optionPosition } from '../questions/optionOrdering'
+import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
     (question.presentationChoiceVisibility === 'after-lock' && phase !== 'question')
 }
 
-function PresentationChoices({ question, phase }: { question: SafeQuestion; phase: SafeGameState['phase'] }) {
+function PresentationChoices({
+  question,
+  phase,
+  colours,
+}: {
+  question: SafeQuestion
+  phase: SafeGameState['phase']
+  colours: readonly string[]
+}) {
   if (!choicesVisible(question, phase)) return null
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
-    return <div className="presentation-options">{question.options.map((option) => <div key={option.id}>{option.label}</div>)}</div>
+    return <div className="presentation-options">{orderedQuestionOptions(question).map((option, position) => <div className="answer-colour-tile" style={answerColourStyle(colours, position)} data-option-id={option.id} key={option.id}>{option.label}</div>)}</div>
   }
   if (question.type === 'true-false') {
-    return <div className="presentation-options"><div>True</div><div>False</div></div>
+    return <div className="presentation-options"><div className="answer-colour-tile" style={answerColourStyle(colours, 0)}>True</div><div className="answer-colour-tile" style={answerColourStyle(colours, 1)}>False</div></div>
   }
   return null
 }
@@ -32,29 +42,32 @@ function RevealResult({
   reveal,
   question,
   compact,
+  colours,
 }: {
   reveal: RevealPayload
   question: SafeQuestion
   compact: boolean
+  colours: readonly string[]
 }) {
   switch (reveal.type) {
     case 'single-choice': {
       const option = question.type === 'single-choice'
         ? question.options.find((candidate) => candidate.id === reveal.correctOptionId)
         : null
-      return <><RevealAnswerCard><h2>{option?.label ?? 'Correct option'}</h2></RevealAnswerCard><div className="result-bars">{question.type === 'single-choice' && question.options.map((candidate) =>
-        <div key={candidate.id}><span>{candidate.label}</span><strong>{reveal.optionCounts[candidate.id] ?? 0}</strong></div>)}</div></>
+      const correctPosition = question.type === 'single-choice' ? optionPosition(question, reveal.correctOptionId) : -1
+      return <><RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(colours, Math.max(0, correctPosition))}><h2>{option?.label ?? 'Correct option'}</h2></RevealAnswerCard><div className="result-bars">{question.type === 'single-choice' && orderedQuestionOptions(question).map((candidate, position) =>
+        <div className="answer-colour-result" style={answerColourStyle(colours, position)} data-option-id={candidate.id} key={candidate.id}><span>{candidate.label}</span><strong>{reveal.optionCounts[candidate.id] ?? 0}</strong></div>)}</div></>
     }
     case 'multiple-select': {
       const labels = question.type === 'multiple-select'
-        ? question.options.filter((option) => reveal.correctOptionIds.includes(option.id)).map((option) => option.label)
+        ? orderedQuestionOptions(question).filter((option) => reveal.correctOptionIds.includes(option.id))
         : []
       return <RevealAnswerCard className="presentation-correct-set">{labels.length > 0
-        ? <><p>Complete correct set</p><ul>{labels.map((label) => <li key={label}>{label}</li>)}</ul></>
+        ? <><p>Complete correct set</p><ul>{labels.map((option) => <li className="answer-colour-result" style={answerColourStyle(colours, optionPosition(question as Extract<SafeQuestion, { type: 'multiple-select' }>, option.id))} key={option.id}>{option.label}</li>)}</ul></>
         : <h2>Correct set</h2>}</RevealAnswerCard>
     }
     case 'true-false':
-      return <><RevealAnswerCard><h2>{reveal.correctValue ? 'True' : 'False'}</h2></RevealAnswerCard><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
+      return <><RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(colours, reveal.correctValue ? 0 : 1)}><h2>{reveal.correctValue ? 'True' : 'False'}</h2></RevealAnswerCard><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
     case 'slider':
       return question.type === 'slider'
         ? <RevealAnswerCard><h2>{formatSliderValue(reveal.correctValue, question)}</h2><p>{reveal.tolerance > 0
@@ -101,6 +114,7 @@ export function PresentationStage({
   const headToHead = state.quizType === 'head-to-head'
   const doubleScoreIntro = useDoubleScoreIntro(state.quizType, question, state.questionOpenedAt)
   const competitors = state.headToHeadCompetitors ?? []
+  const answerColours = resolveAnswerColours(state.answerPaletteId, state.customAnswerColours)
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
   return (
     <section
@@ -142,7 +156,7 @@ export function PresentationStage({
           {(question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
             <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
           )}
-          <PresentationChoices question={question} phase={state.phase} />
+          <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
           <p>{state.submittedCount} of {state.players.length} {headToHead ? 'responses resolved' : 'answers submitted'}</p>
         </div>
       )}
@@ -155,7 +169,7 @@ export function PresentationStage({
           {question.type !== 'pinpoint' && (question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
             <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
           )}
-          <RevealResult reveal={state.reveal} question={question} compact={compact} />
+          <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead && <><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></>}
         </div>

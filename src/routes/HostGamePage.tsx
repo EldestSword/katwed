@@ -9,6 +9,7 @@ import { repository } from '../services/repository'
 import type { GameSession, Quiz, SafeGameState } from '../types/domain'
 import { questionTypeRegistry } from '../features/questions/registry'
 import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
+import { shouldAutoLockStandardQuestion } from '../features/game/autoLock'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -21,7 +22,7 @@ export function HostGamePage() {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const actionInFlight = useRef(false)
-  const autoLocking = useRef(false)
+  const autoLockAttempt = useRef<string | null>(null)
   const navigate = useNavigate()
   const remaining = useCountdown(state?.questionClosesAt ?? null)
   const doubleScoreIntro = useDoubleScoreIntro(state?.quizType, state?.currentQuestion ?? null, state?.questionOpenedAt ?? null)
@@ -62,7 +63,6 @@ export function HostGamePage() {
     } finally {
       actionInFlight.current = false
       setWorking(false)
-      if (kind === 'lock') autoLocking.current = false
     }
   }, [navigate, refresh, sessionId])
 
@@ -70,11 +70,22 @@ export function HostGamePage() {
     const deadlineReached = state?.questionClosesAt
       ? Date.now() >= new Date(state.questionClosesAt).getTime()
       : false
-    if (state?.phase === 'question' && remaining === 0 && deadlineReached && !autoLocking.current) {
-      autoLocking.current = true
+    const questionId = state?.currentQuestion?.id ?? null
+    if (state?.phase !== 'question' || !questionId) {
+      autoLockAttempt.current = null
+      return
+    }
+    if (shouldAutoLockStandardQuestion({
+      quizType: state.quizType,
+      phase: state.phase,
+      submittedCount: state.submittedCount,
+      joinedPlayerCount: state.players.length,
+      deadlineReached: remaining === 0 && deadlineReached,
+    }) && autoLockAttempt.current !== questionId) {
+      autoLockAttempt.current = questionId
       void action('lock')
     }
-  }, [action, remaining, state?.phase, state?.questionClosesAt])
+  }, [action, remaining, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.submittedCount])
 
   if (loading) return <LoadingScreen message="Preparing the game controller…" />
   if (!session || !quiz || !state) {
@@ -116,7 +127,7 @@ export function HostGamePage() {
           <div className="controller-actions">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
-            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('lock')}>Close answers early</button>}
+            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('lock')}>Close answers now</button>}
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
             {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
             {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}

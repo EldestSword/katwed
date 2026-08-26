@@ -18,6 +18,8 @@ export interface QuizSaveInput {
   coverImagePath: string | null
   themeId: Quiz['themeId']
   backgroundId: Quiz['backgroundId']
+  answerPaletteId?: Quiz['answerPaletteId']
+  customAnswerColours?: Quiz['customAnswerColours']
   roster: Quiz['roster']
   questions: Quiz['questions']
 }

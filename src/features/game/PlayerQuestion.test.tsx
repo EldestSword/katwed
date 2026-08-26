@@ -144,3 +144,32 @@ describe('PlayerQuestion Typed Answer', () => {
     expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
   })
 })
+
+describe('PlayerQuestion answer palettes', () => {
+  const colours = ['#FFFFFF', '#071326', '#FFFF00', '#00FFFF', '#C62828', '#1565C0', '#2E7D32', '#F9A825'] as const
+
+  it('assigns True and False palette positions without implying correctness', () => {
+    const question: SafeQuestion = {
+      id: 'boolean', type: 'true-false', prompt: 'True or false?', supportingText: '',
+      media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+    }
+    render(<PlayerQuestion question={question} roster={[]} closesAt={null} answerPaletteId="custom" customAnswerColours={colours} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'True' })).toHaveStyle({ backgroundColor: '#FFFFFF', color: '#111827' })
+    expect(screen.getByRole('button', { name: 'False' })).toHaveStyle({ backgroundColor: '#071326', color: '#FFFFFF' })
+  })
+
+  it('supports all eight positional colours', () => {
+    const question: SafeQuestion = {
+      id: 'eight-options', type: 'single-choice', prompt: 'Choose', supportingText: '',
+      media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30, randomiseOptions: false,
+      options: colours.map((_, index) => ({ id: `option-${index + 1}`, label: `Option ${index + 1}` })),
+    }
+    const { container } = render(<PlayerQuestion question={question} roster={[]} closesAt={null} answerPaletteId="custom" customAnswerColours={colours} onSubmit={vi.fn()} />)
+    expect([...container.querySelectorAll<HTMLElement>('[data-option-id]')].map((tile) => tile.style.backgroundColor))
+      .toHaveLength(8)
+  })
+})

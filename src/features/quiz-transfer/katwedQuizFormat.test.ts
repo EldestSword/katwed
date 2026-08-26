@@ -11,6 +11,7 @@ import {
   type KatwedQuizFileV1,
   type KatwedQuizFileV2,
   type KatwedQuizFileV3,
+  type KatwedQuizFileV4,
 } from './katwedQuizFormat'
 
 function uuidFactory() {
@@ -18,15 +19,15 @@ function uuidFactory() {
   return () => `00000000-0000-4000-8000-${String(next++).padStart(12, '0')}`
 }
 
-function standardFile(): KatwedQuizFileV3 {
+function standardFile(): KatwedQuizFileV4 {
   return structuredClone(exportQuizToPortable(mixedDemoQuiz))
 }
 
-function headToHeadFile(): KatwedQuizFileV3 {
+function headToHeadFile(): KatwedQuizFileV4 {
   return structuredClone(exportQuizToPortable(headToHeadDemoQuiz))
 }
 
-function parse(file: KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3) {
+function parse(file: KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4) {
   return parseKatwedQuizJson(JSON.stringify(file), uuidFactory())
 }
 
@@ -34,6 +35,8 @@ function quizFromInput(parsed: ReturnType<typeof parse>, id = 'new-quiz'): Quiz 
   return {
     id,
     ...structuredClone(parsed.input),
+    answerPaletteId: parsed.input.answerPaletteId ?? 'classic',
+    customAnswerColours: parsed.input.customAnswerColours ?? mixedDemoQuiz.customAnswerColours,
     archivedAt: null,
     createdAt: '2026-08-07T18:00:00.000Z',
     updatedAt: '2026-08-07T18:00:00.000Z',
@@ -46,7 +49,7 @@ describe('Katwed quiz portable parser', () => {
     expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), format: 'another-format' }))).toThrow(
       'not a Katwed quiz file',
     )
-    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 4 }))).toThrow(
+    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 5 }))).toThrow(
       'format version is not supported',
     )
   })
@@ -58,10 +61,10 @@ describe('Katwed quiz portable parser', () => {
   })
 
   it.each([
-    ['competitor', (file: KatwedQuizFileV3) => { file.quiz.competitors[1].key = file.quiz.competitors[0].key }],
-    ['people bank', (file: KatwedQuizFileV3) => { file.quiz.roster[1].key = file.quiz.roster[0].key }],
-    ['question', (file: KatwedQuizFileV3) => { file.quiz.questions[1].key = file.quiz.questions[0].key }],
-    ['option', (file: KatwedQuizFileV3) => {
+    ['competitor', (file: KatwedQuizFileV4) => { file.quiz.competitors[1].key = file.quiz.competitors[0].key }],
+    ['people bank', (file: KatwedQuizFileV4) => { file.quiz.roster[1].key = file.quiz.roster[0].key }],
+    ['question', (file: KatwedQuizFileV4) => { file.quiz.questions[1].key = file.quiz.questions[0].key }],
+    ['option', (file: KatwedQuizFileV4) => {
       const question = file.quiz.questions[0]
       if (question.type !== 'single-choice') throw new Error('Fixture changed')
       question.options[1].key = question.options[0].key
@@ -232,7 +235,7 @@ describe('Katwed quiz portable parser', () => {
       type: 'typed-answer', correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
     })
     const exported = exportQuizToPortable(quizFromInput(parsed))
-    expect(exported.formatVersion).toBe(3)
+    expect(exported.formatVersion).toBe(4)
     expect(exported.quiz.questions[0]).toMatchObject({ type: 'typed-answer', correctAnswer: 'Red Dwarf' })
   })
 
@@ -240,9 +243,11 @@ describe('Katwed quiz portable parser', () => {
     const current = standardFile()
     const raw = current as unknown as {
       formatVersion: number
-      quiz: { questions: Array<Record<string, unknown> & { media?: Record<string, unknown> }> }
+      quiz: Record<string, unknown> & { questions: Array<Record<string, unknown> & { media?: Record<string, unknown> }> }
     }
     raw.formatVersion = 2
+    delete raw.quiz.answerPaletteId
+    delete raw.quiz.customAnswerColours
     for (const question of raw.quiz.questions) {
       delete question.speedScoringEnabled
       delete question.doubleScore
@@ -258,8 +263,18 @@ describe('Katwed quiz portable parser', () => {
     expect(imported.media).toEqual(imageQuestion.media)
   })
 
-  it('imports and round trips version 3 scoring settings and tile grids', () => {
+  it('imports version 3 scoring and tile settings with the Classic palette default', () => {
     const file = standardFile()
+    const legacy = file as unknown as {
+      formatVersion: number
+      quiz: Omit<KatwedQuizFileV4['quiz'], 'answerPaletteId' | 'customAnswerColours'> & {
+        answerPaletteId?: KatwedQuizFileV4['quiz']['answerPaletteId']
+        customAnswerColours?: KatwedQuizFileV4['quiz']['customAnswerColours']
+      }
+    }
+    legacy.formatVersion = 3
+    delete legacy.quiz.answerPaletteId
+    delete legacy.quiz.customAnswerColours
     const question = file.quiz.questions[0]
     question.speedScoringEnabled = true
     question.doubleScore = true
@@ -273,7 +288,33 @@ describe('Katwed quiz portable parser', () => {
       doubleScore: true,
       media: { revealEffect: 'tiles', tileGridSize: 16 },
     })
-    expect(exportQuizToPortable(quizFromInput(parsed))).toEqual(file)
+    expect(parsed.input.answerPaletteId).toBe('classic')
+    expect(parsed.input.customAnswerColours).toEqual(mixedDemoQuiz.customAnswerColours)
+    expect(exportQuizToPortable(quizFromInput(parsed))).toMatchObject({
+      formatVersion: 4,
+      quiz: {
+        answerPaletteId: 'classic',
+        customAnswerColours: mixedDemoQuiz.customAnswerColours,
+      },
+    })
+  })
+
+  it('round trips version 4 custom answer colours and rejects malformed palettes', () => {
+    const file = standardFile()
+    file.quiz.answerPaletteId = 'custom'
+    file.quiz.customAnswerColours = [
+      '#102030', '#203040', '#304050', '#405060',
+      '#506070', '#607080', '#708090', '#8090A0',
+    ]
+    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+
+    const unsupported = standardFile() as unknown as { quiz: { answerPaletteId: string } }
+    unsupported.quiz.answerPaletteId = 'future-palette'
+    expect(() => parseKatwedQuizJson(JSON.stringify(unsupported))).toThrow('unsupported answer palette')
+
+    const malformed = standardFile() as unknown as { quiz: { customAnswerColours: string[] } }
+    malformed.quiz.customAnswerColours = ['#123456', '#ABCDEF']
+    expect(() => parseKatwedQuizJson(JSON.stringify(malformed))).toThrow('exactly eight valid')
   })
 
   it('rejects Standard scoring settings on Head-to-Head questions', () => {
@@ -395,9 +436,9 @@ describe('Katwed quiz portable v2 ID remapping and round trip', () => {
 
   it('exports deterministic portable keys without lifecycle or database identities', () => {
     const serialised = serialiseKatwedQuiz(headToHeadDemoQuiz)
-    const portable = JSON.parse(serialised) as KatwedQuizFileV3
+    const portable = JSON.parse(serialised) as KatwedQuizFileV4
     expect(portable.format).toBe('katwed-quiz')
-    expect(portable.formatVersion).toBe(3)
+    expect(portable.formatVersion).toBe(4)
     expect(portable.quiz.competitors.map((competitor) => competitor.key)).toEqual(['competitor-1', 'competitor-2'])
     expect(portable.quiz.questions[0].key).toBe('q1')
     expect(portable.quiz.questions[0].assignedTo).toBe('competitor-1')

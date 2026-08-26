@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GamePhase, SafeGameState } from '../../types/domain'
 import { PresentationStage } from './PresentationStage'
+import { PlayerQuestion } from './PlayerQuestion'
 
 function state(phase: GamePhase): SafeGameState {
   return {
@@ -65,6 +66,41 @@ describe('PresentationStage quiz theme', () => {
     }} />)
     expect(screen.getByText('Ordinary question')).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'DOUBLE SCORE!' })).not.toBeInTheDocument()
+  })
+
+  it('keeps randomised option order and positional colours identical on player, presentation and results', () => {
+    const options = [
+      { id: 'paris', label: 'Paris' }, { id: 'london', label: 'London' },
+      { id: 'rome', label: 'Rome' }, { id: 'berlin', label: 'Berlin' },
+    ]
+    const currentQuestion = {
+      id: 'shared-order-question', type: 'single-choice' as const, prompt: 'Capital?', supportingText: '',
+      timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      media: { type: 'none' as const }, mediaVisibility: 'both' as const,
+      presentationChoiceVisibility: 'show' as const, questionNumber: 1, totalQuestions: 1,
+      options, randomiseOptions: true,
+    }
+    const customAnswerColours = ['#FFFFFF', '#071326', '#FFFF00', '#00FFFF', '#C62828', '#1565C0', '#2E7D32', '#F9A825'] as const
+    const questionState = {
+      ...state('question'), currentQuestion, answerPaletteId: 'custom' as const, customAnswerColours,
+    }
+    const presentation = render(<PresentationStage state={questionState} />)
+    render(<PlayerQuestion question={currentQuestion} roster={[]} closesAt={null}
+      answerPaletteId="custom" customAnswerColours={customAnswerColours} onSubmit={vi.fn()} />)
+
+    const ids = (selector: string) => [...document.querySelectorAll<HTMLElement>(selector)].map((element) => element.dataset.optionId)
+    const presentationIds = ids('.presentation-options [data-option-id]')
+    expect(ids('.player-question [data-option-id]')).toEqual(presentationIds)
+    expect(presentationIds).not.toEqual(options.map((option) => option.id))
+    const playerTiles = [...document.querySelectorAll<HTMLElement>('.player-question [data-option-id]')]
+    const presentationTiles = [...document.querySelectorAll<HTMLElement>('.presentation-options [data-option-id]')]
+    expect(playerTiles.map((tile) => tile.style.backgroundColor)).toEqual(presentationTiles.map((tile) => tile.style.backgroundColor))
+
+    presentation.rerender(<PresentationStage state={{
+      ...questionState, phase: 'reveal',
+      reveal: { type: 'single-choice', correctOptionId: 'paris', caption: '', optionCounts: {} },
+    }} />)
+    expect(ids('.result-bars [data-option-id]')).toEqual(presentationIds)
   })
 
   it.each<GamePhase>(['lobby', 'question', 'locked', 'reveal', 'leaderboard', 'finished'])(

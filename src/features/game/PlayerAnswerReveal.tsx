@@ -1,34 +1,42 @@
-import type { PlayerAnswerPayload, RevealPayload, SafeQuestion } from '../../types/domain'
+import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RevealPayload, SafeQuestion } from '../../types/domain'
 import { PinpointSurface } from './PinpointSurface'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
+import { orderedQuestionOptions, optionPosition } from '../questions/optionOrdering'
+import { CLASSIC_ANSWER_COLOURS, answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 
 export function PlayerAnswerReveal({
   reveal,
   question,
   submittedAnswer,
+  answerPaletteId = 'classic',
+  customAnswerColours = CLASSIC_ANSWER_COLOURS,
 }: {
   reveal: RevealPayload
   question: SafeQuestion
   submittedAnswer: PlayerAnswerPayload | null
+  answerPaletteId?: AnswerPaletteId
+  customAnswerColours?: AnswerColourTuple
 }) {
+  const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   switch (reveal.type) {
     case 'single-choice': {
       const label = question.type === 'single-choice'
         ? question.options.find((option) => option.id === reveal.correctOptionId)?.label
         : null
-      return <RevealAnswerCard><h1>{label ?? 'Correct option unavailable'}</h1></RevealAnswerCard>
+      const position = question.type === 'single-choice' ? optionPosition(question, reveal.correctOptionId) : -1
+      return <RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(answerColours, Math.max(0, position))}><h1>{label ?? 'Correct option unavailable'}</h1></RevealAnswerCard>
     }
     case 'multiple-select': {
       const labels = question.type === 'multiple-select'
-        ? question.options
+        ? orderedQuestionOptions(question)
           .filter((option) => reveal.correctOptionIds.includes(option.id))
-          .map((option) => option.label)
+          .map((option, index) => ({ option, position: optionPosition(question, option.id), index }))
         : []
       return (
         <RevealAnswerCard className="player-correct-set">
           <h1>Complete correct set</h1>
-          <ul>{labels.map((label) => <li key={label}>{label}</li>)}</ul>
+          <ul>{labels.map(({ option, position }) => <li className="answer-colour-result" style={answerColourStyle(answerColours, position)} key={option.id}>{option.label}</li>)}</ul>
           <p>{reveal.scoringMode === 'exact'
             ? 'The complete set was required.'
             : 'Partial credit was available, but any incorrect option wiped out the score.'}</p>
@@ -36,7 +44,7 @@ export function PlayerAnswerReveal({
       )
     }
     case 'true-false':
-      return <RevealAnswerCard><h1>{reveal.correctValue ? 'True' : 'False'}</h1></RevealAnswerCard>
+      return <RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(answerColours, reveal.correctValue ? 0 : 1)}><h1>{reveal.correctValue ? 'True' : 'False'}</h1></RevealAnswerCard>
     case 'slider': {
       if (question.type !== 'slider') return <RevealAnswerCard><h1>{reveal.correctValue}</h1></RevealAnswerCard>
       const correct = formatSliderValue(reveal.correctValue, question)

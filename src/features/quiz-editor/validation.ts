@@ -3,6 +3,7 @@ import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 import { isQuizType } from '../head-to-head/headToHead'
+import { isAnswerColourTuple, isAnswerPaletteId } from '../answer-palettes/answerPalettes'
 import {
   MAX_TYPED_ANSWER_LENGTH,
   MAX_TYPED_ANSWER_VARIANTS,
@@ -165,6 +166,10 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   if (!isQuizType(input.quizType)) messages.push('Choose a supported quiz type.')
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')
   if (!isQuizThemeId(input.themeId)) messages.push('Choose a supported quiz theme.')
+  if (input.answerPaletteId !== undefined && !isAnswerPaletteId(input.answerPaletteId)) messages.push('Choose a supported answer palette.')
+  if (input.customAnswerColours !== undefined && !isAnswerColourTuple(input.customAnswerColours)) {
+    messages.push('Set all eight custom answer colours using six-digit hexadecimal values.')
+  }
   if (input.backgroundId !== null) {
     if (!isQuizBackgroundId(input.backgroundId)) messages.push('Choose a supported quiz background.')
     else if (!isQuizBackgroundCompatible(input.backgroundId, input.themeId)) {

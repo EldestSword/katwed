@@ -1,4 +1,5 @@
 import type { Question, Quiz, QuestionMedia } from '../../types/domain'
+import { CLASSIC_ANSWER_COLOURS } from '../../features/answer-palettes/answerPalettes'
 
 const quizId = 'quiz-demo'
 const rosterNames = ['Alex', 'Bailey', 'Casey', 'Drew', 'Ellis', 'Frankie', 'Morgan']
@@ -43,6 +44,8 @@ export const sampleQuiz: Quiz = {
   coverImagePath: null,
   themeId: 'katwed',
   backgroundId: null,
+  answerPaletteId: 'classic',
+  customAnswerColours: CLASSIC_ANSWER_COLOURS,
   archivedAt: null,
   createdAt: '2026-01-01T12:00:00.000Z',
   updatedAt: '2026-01-01T12:00:00.000Z',
@@ -88,6 +91,8 @@ export const mixedDemoQuiz: Quiz = {
   coverImagePath: null,
   themeId: 'katwed',
   backgroundId: null,
+  answerPaletteId: 'classic',
+  customAnswerColours: CLASSIC_ANSWER_COLOURS,
   archivedAt: null,
   createdAt: '2026-07-31T12:00:00.000Z',
   updatedAt: '2026-07-31T12:00:00.000Z',

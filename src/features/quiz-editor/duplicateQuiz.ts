@@ -91,6 +91,8 @@ export function createDuplicateQuizInput(
     coverImagePath: source.coverImagePath,
     themeId: source.themeId,
     backgroundId: source.backgroundId,
+    answerPaletteId: source.answerPaletteId,
+    customAnswerColours: [...source.customAnswerColours] as QuizSaveInput['customAnswerColours'],
     roster,
     questions,
   }

@@ -17,6 +17,7 @@ import {
 import { repository } from '../services/repository'
 import type { Quiz } from '../types/domain'
 import { DEFAULT_QUIZ_THEME_ID } from '../features/themes/quizThemes'
+import { CLASSIC_ANSWER_COLOURS } from '../features/answer-palettes/answerPalettes'
 import { DEFAULT_QUIZ_TYPE } from '../features/head-to-head/headToHead'
 import {
   KATWED_QUIZ_FILE_EXTENSION,
@@ -91,8 +92,10 @@ export function HostDashboardPage() {
         quizType: DEFAULT_QUIZ_TYPE,
         headToHeadCompetitors: [],
         coverImagePath: null,
-        themeId: DEFAULT_QUIZ_THEME_ID,
-        backgroundId: null,
+      themeId: DEFAULT_QUIZ_THEME_ID,
+      backgroundId: null,
+      answerPaletteId: 'classic',
+      customAnswerColours: CLASSIC_ANSWER_COLOURS,
         roster: [],
         questions: [],
       })

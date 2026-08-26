@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCountdown } from '../../hooks/useCountdown'
 import type {
+  AnswerColourTuple,
+  AnswerPaletteId,
   ChoiceOption,
   PlayerAnswerPayload,
   RosterMember,
@@ -13,6 +15,12 @@ import { ImageViewer } from '../../components/ImageViewer'
 import { PinpointSurface } from './PinpointSurface'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
+import { orderedQuestionOptions } from '../questions/optionOrdering'
+import {
+  CLASSIC_ANSWER_COLOURS,
+  answerColourStyle,
+  resolveAnswerColours,
+} from '../answer-palettes/answerPalettes'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -21,30 +29,27 @@ interface PlayerQuestionProps {
   openedAt?: string | null
   initialAnswer?: PlayerAnswerPayload | null
   modeLabel?: string
+  answerPaletteId?: AnswerPaletteId
+  customAnswerColours?: AnswerColourTuple
   onSubmit(payload: PlayerAnswerPayload): Promise<void>
-}
-
-function stableOptions(options: ChoiceOption[], randomise: boolean, seed: string): ChoiceOption[] {
-  if (!randomise) return options
-  return [...options].sort((left, right) => {
-    const score = (value: string) => [...`${seed}${value}`].reduce((total, character) =>
-      ((total * 31) + character.charCodeAt(0)) | 0, 0)
-    return score(left.id) - score(right.id)
-  })
 }
 
 function ChoiceCard({
   option,
   selected,
+  position,
+  colours,
   onSelect,
 }: {
   option: ChoiceOption
   selected: boolean
+  position: number
+  colours: readonly string[]
   onSelect(): void
 }) {
   const [enlarged, setEnlarged] = useState(false)
   return (
-    <button className={`answer-choice ${selected ? 'is-selected' : ''}`} type="button" aria-pressed={selected} onClick={onSelect}>
+    <button className={`answer-choice answer-colour-tile ${selected ? 'is-selected' : ''}`} data-option-id={option.id} style={answerColourStyle(colours, position)} type="button" aria-pressed={selected} onClick={onSelect}>
       {option.imagePath && <QuestionImage path={option.imagePath} alt={option.imageAlt || option.label || 'Answer option image'} />}
       <span>{option.label}</span>
       {option.imagePath && (
@@ -90,6 +95,8 @@ export function PlayerQuestion({
   openedAt = null,
   initialAnswer = null,
   modeLabel,
+  answerPaletteId = 'classic',
+  customAnswerColours = CLASSIC_ANSWER_COLOURS,
   onSubmit,
 }: PlayerQuestionProps) {
   const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
@@ -102,6 +109,7 @@ export function PlayerQuestion({
   const [limitMessage, setLimitMessage] = useState('')
   const remaining = useCountdown(closesAt)
   const timedOut = closesAt !== null && remaining <= 0
+  const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
 
   useEffect(() => {
     setAnswer(initialAnswer)
@@ -172,11 +180,13 @@ export function PlayerQuestion({
 
       {question.type === 'single-choice' && (
         <div className="answer-grid" role="group" aria-label="Choose one answer">
-          {stableOptions(question.options, question.randomiseOptions, question.id).map((option) => (
+          {orderedQuestionOptions(question).map((option, position) => (
             <ChoiceCard
               key={option.id}
               option={option}
               selected={answer?.type === 'single-choice' && answer.optionId === option.id}
+              position={position}
+              colours={answerColours}
               onSelect={() => setAnswer({ type: 'single-choice', optionId: option.id })}
             />
           ))}
@@ -189,10 +199,10 @@ export function PlayerQuestion({
             ? question.minimumSelections
             : `${question.minimumSelections}–${question.maximumSelections}`} options.</p>
           <div className="answer-grid" role="group" aria-label="Choose all applicable answers">
-            {stableOptions(question.options, question.randomiseOptions, question.id).map((option) => {
+            {orderedQuestionOptions(question).map((option, position) => {
               const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
               return (
-                <ChoiceCard key={option.id} option={option} selected={selected.includes(option.id)} onSelect={() => {
+                <ChoiceCard key={option.id} option={option} selected={selected.includes(option.id)} position={position} colours={answerColours} onSelect={() => {
                   setLimitMessage('')
                   if (selected.includes(option.id)) {
                     setAnswer({ type: 'multiple-select', optionIds: selected.filter((id) => id !== option.id) })
@@ -211,7 +221,8 @@ export function PlayerQuestion({
       {question.type === 'true-false' && (
         <div className="boolean-grid" role="group" aria-label="True or false">
           {[true, false].map((value) => (
-            <button key={String(value)} type="button" className={`boolean-choice ${answer?.type === 'true-false' && answer.value === value ? 'is-selected' : ''}`}
+            <button key={String(value)} type="button" className={`boolean-choice answer-colour-tile ${answer?.type === 'true-false' && answer.value === value ? 'is-selected' : ''}`}
+              style={answerColourStyle(answerColours, value ? 0 : 1)}
               aria-pressed={answer?.type === 'true-false' && answer.value === value}
               onClick={() => setAnswer({ type: 'true-false', value })}>{value ? 'True' : 'False'}</button>
           ))}

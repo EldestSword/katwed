@@ -43,6 +43,29 @@ export const QUIZ_BACKGROUND_IDS = [
 ] as const
 export type QuizBackgroundId = typeof QUIZ_BACKGROUND_IDS[number]
 
+export const ANSWER_PALETTE_IDS = [
+  'classic',
+  'katwed',
+  'festive',
+  'tropical',
+  'summer',
+  'sports',
+  'arcade',
+  'neon',
+  'pastel',
+  'retro',
+  'ocean',
+  'forest',
+  'galaxy',
+  'sunset',
+  'autumn',
+  'winter',
+  'halloween',
+  'custom',
+] as const
+export type AnswerPaletteId = typeof ANSWER_PALETTE_IDS[number]
+export type AnswerColourTuple = readonly [string, string, string, string, string, string, string, string]
+
 export type QuestionMedia =
   | { type: 'none' }
   | {
@@ -248,6 +271,8 @@ export interface Quiz {
   coverImagePath: string | null
   themeId: QuizThemeId
   backgroundId: QuizBackgroundId | null
+  answerPaletteId: AnswerPaletteId
+  customAnswerColours: AnswerColourTuple
   roster: RosterMember[]
   questions: Question[]
   archivedAt: string | null
@@ -310,6 +335,8 @@ export interface SafeGameState {
   quizType?: QuizType
   themeId: QuizThemeId
   backgroundId: QuizBackgroundId | null
+  answerPaletteId?: AnswerPaletteId
+  customAnswerColours?: AnswerColourTuple
   roomCode: string
   status: SessionStatus
   phase: GamePhase

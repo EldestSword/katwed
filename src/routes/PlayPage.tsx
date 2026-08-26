@@ -117,6 +117,7 @@ export function PlayPage() {
             <strong>{assigned ? '1 point for a correct answer' : 'Play along — correct answers score 0 points'}</strong>
           </section>}
           <PlayerQuestion question={question} roster={state.roster} closesAt={headToHead ? null : state.questionClosesAt}
+            answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours}
             openedAt={state.questionOpenedAt} initialAnswer={submittedAnswer}
             modeLabel={headToHead ? `Question ${question.questionNumber} of ${question.totalQuestions} · Untimed` : undefined}
             onSubmit={async (payload) => {
@@ -135,7 +136,8 @@ export function PlayPage() {
       {state.phase === 'locked' && <section className="game-state-card" aria-live="polite"><div className="big-icon" aria-hidden="true">🔒</div><h1>Answers locked</h1><p>The host is about to reveal the answer.</p></section>}
       {state.phase === 'reveal' && state.reveal && question && (
         <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
-          <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer} />
+          <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer}
+            answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
           {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead ? <>

@@ -20,6 +20,7 @@ import { cleanupSupabaseUnusedImages, loadSupabaseStorageReport } from '../../se
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
+import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 
 type JsonObject = Record<string, unknown>
 
@@ -35,8 +36,13 @@ function normaliseError(error: { message: string; code?: string } | null): Repos
 
 function normaliseQuiz(quiz: Quiz): Quiz {
   const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
+  const answerPalette = normaliseAnswerPalette(
+    (quiz as { answerPaletteId?: unknown }).answerPaletteId,
+    (quiz as { customAnswerColours?: unknown }).customAnswerColours,
+  )
   return normaliseQuizHeadToHead({
     ...quiz,
+    ...answerPalette,
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
   })

@@ -5,10 +5,13 @@ interface BrowserComputedStyle {
   overscrollBehaviorX: string
   paddingLeft: string
   paddingRight: string
+  backgroundColor: string
+  color: string
 }
 
 interface BrowserEvaluationElement {
   closest(selector: string): unknown
+  getAttribute(name: string): string | null
 }
 
 interface BrowserEvaluationGlobal {
@@ -26,6 +29,13 @@ async function enterHost(page: Page) {
   await page.goto('/host/login')
   await page.getByRole('button', { name: 'Enter demo host area' }).click()
   await expect(page.getByRole('heading', { name: 'Your quizzes' })).toBeVisible()
+}
+
+async function openQuizSettings(page: Page) {
+  await page.getByRole('button', { name: 'Quiz settings' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Quiz settings' })
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 async function joinPlayer(context: BrowserContext, roomCode: string, nickname: string) {
@@ -85,18 +95,83 @@ test('editor has seven formats and persists a changed title', async ({ page }) =
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('custom answer colours stay aligned and Standard locks only after all four players submit', async ({ context, page }) => {
+  test.setTimeout(90_000)
+  await enterHost(page)
+  await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('link', { name: 'Edit' }).click()
+  let settings = await openQuizSettings(page)
+  const palette = settings.getByRole('group', { name: 'Answer palette' })
+  await palette.getByRole('button', { name: /^Custom/ }).click()
+  await settings.getByLabel('Colour 1 hex').fill('#FDFDFD')
+  await settings.getByLabel('Colour 2 hex').fill('#101010')
+  await settings.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+
+  await page.reload()
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('group', { name: 'Answer palette' }).getByRole('button', { name: /^Custom/ }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await expect(settings.getByLabel('Colour 1 hex')).toHaveValue('#FDFDFD')
+  await expect(settings.getByLabel('Colour 2 hex')).toHaveValue('#101010')
+  await settings.getByRole('button', { name: 'Done' }).click()
+
+  await page.goto('/host')
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const presentation = await context.newPage()
+  await presentation.goto(page.url().replace('/control', '/present'))
+  const players = []
+  for (const nickname of ['Palette One', 'Palette Two', 'Palette Three', 'Palette Four']) {
+    players.push(await joinPlayer(context, roomCode, nickname))
+  }
+  await page.getByRole('button', { name: 'Start game' }).click()
+
+  const optionSnapshot = (surface: Page, selector: string) => surface.locator(selector).evaluateAll((elements) => (
+    elements.map((element) => {
+      const style = (globalThis as unknown as BrowserEvaluationGlobal).getComputedStyle(element)
+      const browserElement = element as unknown as BrowserEvaluationElement
+      return {
+        id: browserElement.getAttribute('data-option-id'),
+        background: style.backgroundColor,
+        colour: style.color,
+      }
+    })
+  ))
+  const playerSnapshot = await optionSnapshot(players[0], '.answer-choice[data-option-id]')
+  const presentationSnapshot = await optionSnapshot(presentation, '.presentation-options [data-option-id]')
+  const controllerSnapshot = await optionSnapshot(page, '.controller-preview .presentation-options [data-option-id]')
+  expect(playerSnapshot).toEqual(presentationSnapshot)
+  expect(playerSnapshot).toEqual(controllerSnapshot)
+  expect(playerSnapshot[0]).toMatchObject({ background: 'rgb(253, 253, 253)', colour: 'rgb(17, 24, 39)' })
+  expect(playerSnapshot[1]).toMatchObject({ background: 'rgb(16, 16, 16)', colour: 'rgb(255, 255, 255)' })
+
+  for (const player of players.slice(0, 3)) {
+    await player.locator('.answer-choice[data-option-id]').first().click()
+    await player.getByRole('button', { name: 'Lock in' }).click()
+  }
+  await expect(page.getByRole('button', { name: 'Close answers now' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reveal answer' })).toHaveCount(0)
+
+  await players[3].locator('.answer-choice[data-option-id]').first().click()
+  await players[3].getByRole('button', { name: 'Lock in' }).click()
+  await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Close answers now' })).toHaveCount(0)
+})
+
 test('Head-to-Head authoring and a true two-player untimed game work end to end', async ({ context, page }) => {
   test.setTimeout(120_000)
   await enterHost(page)
   await page.getByRole('button', { name: '+ Create quiz' }).click()
   await page.getByLabel('Quiz title').fill('Head-to-Head foundation test')
 
-  const typePicker = page.getByRole('group', { name: 'Quiz type' })
+  let settings = await openQuizSettings(page)
+  const typePicker = settings.getByRole('group', { name: 'Quiz type' })
   await expect(typePicker.getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
   await typePicker.getByRole('button', { name: /Head to Head/ }).click()
-  const setup = page.getByRole('region', { name: 'Head-to-Head competitors' })
+  let setup = settings.getByRole('region', { name: 'Head-to-Head competitors' })
   await setup.getByLabel('Competitor 1').fill('Ross')
   await setup.getByLabel('Competitor 2').fill('Jess')
+  await settings.getByRole('button', { name: 'Done' }).click()
 
   const addQuestion = page.locator('.question-type-picker').getByRole('button', { name: /True or false/ })
   await addQuestion.click()
@@ -108,13 +183,17 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await expect(page.getByRole('group', { name: 'Question for' }).getByRole('button', { name: 'Ross' }))
     .toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Points')).toHaveCount(0)
+  await page.getByText('Scoring', { exact: true }).click()
   await expect(page.getByText(/Head-to-Head uses 1 point/)).toBeVisible()
 
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.reload()
+  settings = await openQuizSettings(page)
+  setup = settings.getByRole('region', { name: 'Head-to-Head competitors' })
   await expect(setup.getByLabel('Competitor 1')).toHaveValue('Ross')
   await expect(setup.getByLabel('Competitor 2')).toHaveValue('Jess')
+  await settings.getByRole('button', { name: 'Done' }).click()
   await expect(page.locator('.question-navigator')).toContainText('Ross')
   await expect(page.locator('.question-navigator')).toContainText('Jess')
 
@@ -240,20 +319,24 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   const finishedCard = page.getByRole('article', { name: 'Head-to-Head foundation test' })
   await finishedCard.getByRole('button', { name: 'Duplicate' }).click()
   await expect(page.getByLabel('Quiz title')).toHaveValue('Head-to-Head foundation test (Copy)')
-  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' }).getByLabel('Competitor 1')).toHaveValue('Ross')
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('region', { name: 'Head-to-Head competitors' }).getByLabel('Competitor 1')).toHaveValue('Ross')
   await expect(page.locator('.question-navigator')).toContainText('Ross')
   await expect(page.locator('.question-navigator')).toContainText('Jess')
 
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }).click()
-  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+  await settings.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }).click()
+  await expect(settings.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+  await settings.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('group', { name: 'Question for' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }))
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('group', { name: 'Quiz type' }).getByRole('button', { name: /Standard/ }))
     .toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+  await expect(settings.getByRole('region', { name: 'Head-to-Head competitors' })).toHaveCount(0)
+  await settings.getByRole('button', { name: 'Done' }).click()
 })
 
 test('a blind Head-to-Head file imports, plays with remapped answers and exports again', async ({ context, page }) => {
@@ -360,7 +443,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   if (!exportedPath) throw new Error('Exported quiz file was unavailable')
   const { readFile } = await import('node:fs/promises')
   const exported = JSON.parse(await readFile(exportedPath, 'utf8')) as { formatVersion: number }
-  expect(exported.formatVersion).toBe(3)
+  expect(exported.formatVersion).toBe(4)
 })
 
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
@@ -370,8 +453,9 @@ test('quiz themes persist through duplication and audience game phases', async (
 
   const sourceCard = page.getByRole('article', { name: 'The Curious Crew' })
   await sourceCard.getByRole('link', { name: 'Edit' }).click()
-  const themePicker = page.getByRole('group', { name: 'Quiz theme' })
-  let backgroundPicker = page.getByRole('group', { name: 'Quiz background' })
+  let settings = await openQuizSettings(page)
+  const themePicker = settings.getByRole('group', { name: 'Quiz theme' })
+  let backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
   await expect(themePicker.getByRole('button')).toHaveCount(6)
   await expect(backgroundPicker.getByRole('button')).toHaveCount(4)
   await expect(backgroundPicker.getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
@@ -386,7 +470,7 @@ test('quiz themes persist through duplication and audience game phases', async (
     expect(optionBox.x + optionBox.width).toBeLessThanOrEqual(themeGridBox.x + themeGridBox.width + 1)
   }
   await themePicker.getByRole('button', { name: /Arcade/ }).click()
-  backgroundPicker = page.getByRole('group', { name: 'Quiz background' })
+  backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
   await expect(backgroundPicker.getByRole('button', { name: /Circuit/ })).toBeVisible()
   await expect(backgroundPicker.getByRole('button', { name: /Grid/ })).toBeVisible()
   await expect(backgroundPicker.getByRole('button', { name: /Neon/ })).toBeVisible()
@@ -396,32 +480,37 @@ test('quiz themes persist through duplication and audience game phases', async (
   await expect(preview).toHaveAttribute('data-quiz-background', 'arcade-grid')
   await expect(preview).toHaveCSS('background-image', /arcade-grid\.webp/)
   await themePicker.getByRole('button', { name: /Paper/ }).click()
-  backgroundPicker = page.getByRole('group', { name: 'Quiz background' })
+  backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
   await expect(backgroundPicker.getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Paper theme preview')).not.toHaveAttribute('data-quiz-background')
   await themePicker.getByRole('button', { name: /Arcade/ }).click()
-  backgroundPicker = page.getByRole('group', { name: 'Quiz background' })
+  backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
   await expect(backgroundPicker.getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
   await backgroundPicker.getByRole('button', { name: /Grid/ }).click()
   const previewBackground = await preview.evaluate<string, void>(
     "element => window.getComputedStyle(element).getPropertyValue('--quiz-bg').trim()",
   )
   expect(previewBackground).not.toBe('')
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
     .toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Grid/ }))
+  await expect(settings.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Grid/ }))
     .toHaveAttribute('aria-pressed', 'true')
+  await settings.getByRole('button', { name: 'Done' }).click()
 
   await page.goto('/host')
   await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('button', { name: 'Duplicate' }).click()
   await expect(page.getByLabel('Quiz title')).toHaveValue('The Curious Crew (Copy)')
-  await expect(page.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Arcade/ }))
     .toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Grid/ }))
+  await expect(settings.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Grid/ }))
     .toHaveAttribute('aria-pressed', 'true')
+  await settings.getByRole('button', { name: 'Done' }).click()
 
   await page.goto('/host')
   const roomCode = await launchQuiz(page, 'The Curious Crew (Copy)')
@@ -445,7 +534,7 @@ test('quiz themes persist through duplication and audience game phases', async (
   await player.getByRole('button', { name: 'Alex' }).click()
   await player.getByRole('button', { name: 'Bailey' }).click()
   await player.getByRole('button', { name: 'Lock in' }).click()
-  await page.getByRole('button', { name: 'Close answers early' }).click()
+  await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
   await expect(player.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
   await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
   await page.getByRole('button', { name: 'Reveal answer' }).click()
@@ -462,10 +551,12 @@ test('quiz themes persist through duplication and audience game phases', async (
 
   await page.goto('/host')
   await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('link', { name: 'Edit' }).click()
-  await page.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Paper/ }).click()
-  const paperBackgrounds = page.getByRole('group', { name: 'Quiz background' })
+  settings = await openQuizSettings(page)
+  await settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Paper/ }).click()
+  const paperBackgrounds = settings.getByRole('group', { name: 'Quiz background' })
   await paperBackgrounds.getByRole('button', { name: /Collage/ }).click()
   await expect(page.getByLabel('Paper theme preview')).toHaveAttribute('data-quiz-background', 'paper-collage')
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.goto('/host')
@@ -487,7 +578,8 @@ test('quiz covers persist across the library lifecycle and remain independent af
   await page.getByRole('button', { name: '+ Create quiz' }).click()
   await page.getByLabel('Quiz title').fill('Cover lifecycle quiz')
 
-  const coverSection = page.getByRole('region', { name: 'Quiz cover' })
+  let settings = await openQuizSettings(page)
+  let coverSection = settings.getByRole('region', { name: 'Quiz cover' })
   await expect(coverSection.getByText('No cover selected')).toBeVisible()
   await coverSection.getByLabel('Choose cover').setInputFiles({
     name: 'cover.png',
@@ -499,6 +591,7 @@ test('quiz covers persist across the library lifecycle and remain independent af
   })
   await expect(coverSection.locator('img')).toBeVisible()
   await expect(page.getByText('Unsaved changes')).toBeVisible()
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.goto('/host')
@@ -509,13 +602,18 @@ test('quiz covers persist across the library lifecycle and remain independent af
   await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
 
   await card('Cover lifecycle quiz').getByRole('link', { name: 'Edit' }).click()
-  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.goto('/host')
   await card('Cover lifecycle quiz').getByRole('button', { name: 'Duplicate' }).click()
 
   await expect(page.getByLabel('Quiz title')).toHaveValue('Cover lifecycle quiz (Copy)')
-  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
-  await page.getByRole('region', { name: 'Quiz cover' }).getByRole('button', { name: 'Remove cover' }).click()
+  settings = await openQuizSettings(page)
+  coverSection = settings.getByRole('region', { name: 'Quiz cover' })
+  await expect(coverSection.locator('img')).toBeVisible()
+  await coverSection.getByRole('button', { name: 'Remove cover' }).click()
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.goto('/host')
@@ -545,13 +643,18 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await enterHost(page)
   await page.getByRole('button', { name: '+ Create quiz' }).click()
   await page.getByLabel('Quiz title').fill('Storage lifecycle quiz')
-  const cover = page.getByRole('region', { name: 'Quiz cover' })
+  let settings = await openQuizSettings(page)
+  let cover = settings.getByRole('region', { name: 'Quiz cover' })
   await cover.getByLabel('Choose cover').setInputFiles({ ...image, name: 'cover-a.png' })
   await expect(cover.locator('img')).toBeVisible()
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
 
+  settings = await openQuizSettings(page)
+  cover = settings.getByRole('region', { name: 'Quiz cover' })
   await cover.getByLabel('Replace cover').setInputFiles({ ...image, name: 'cover-b.png' })
+  await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.goto('/host')
@@ -586,7 +689,9 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await page.getByRole('link', { name: 'Your quizzes' }).click()
   await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
   await quizCard.getByRole('link', { name: 'Edit' }).click()
-  await expect(page.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  settings = await openQuizSettings(page)
+  await expect(settings.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
+  await settings.getByRole('button', { name: 'Done' }).click()
 })
 
 test('quiz library search, sorting and last-edited details work across views', async ({ page }) => {
@@ -757,6 +862,7 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
 
   const existing = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
   await existing.getByRole('link', { name: 'Edit' }).click()
+  await page.getByText('Media & presentation').click()
   await page.getByLabel('Reveal effect').selectOption('tiles')
   const grid = page.getByLabel('Tile grid')
   await expect(grid).toBeVisible()
@@ -771,6 +877,7 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
   await page.getByLabel('Quiz title').fill('Double Score browser test')
   await page.locator('.question-type-picker').getByRole('button', { name: /True or false/ }).click()
   await page.getByLabel('Prompt').fill('Double Score browser question')
+  await page.getByText('Scoring', { exact: true }).click()
   await expect(page.getByLabel('Maximum points')).toHaveValue('1000')
   await expect(page.getByLabel('Faster answers score more')).toBeChecked()
   const doubleScore = page.getByRole('checkbox', { name: 'Double score', exact: true })
@@ -786,7 +893,7 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
   await presentation.goto(page.url().replace('/control', '/present'))
   const player = await joinPlayer(context, roomCode, 'Double Player')
   await page.getByRole('button', { name: 'Start game' }).click()
-  await expect(page.getByRole('button', { name: 'Close answers early' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Close answers now' })).toBeDisabled()
   await expect(presentation.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
   await expect(player.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
   await expect(presentation.getByText('Double Score browser question')).toHaveCount(0)
@@ -795,10 +902,10 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
   await expect(player.getByText('Double Score browser question')).toBeVisible()
   await expect(presentation.getByText('Double Score browser question')).toBeVisible()
   await expect(player.getByText('2x points')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Close answers early' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Close answers now' })).toBeEnabled()
   await player.getByRole('button', { name: 'True' }).click()
   await player.getByRole('button', { name: 'Lock in' }).click()
-  await page.getByRole('button', { name: 'Close answers early' }).click()
+  await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
   await page.getByRole('button', { name: 'Reveal answer' }).click()
   await page.getByRole('button', { name: 'Reveal final results' }).click()
   await expect(player.getByRole('heading', { name: 'Final scores' })).toBeVisible()
@@ -823,7 +930,7 @@ test('controller, presentation and three players complete every mixed format', a
   await page.getByRole('button', { name: 'Start game' }).click()
 
   async function revealRound(expectedReveal: RegExp) {
-    const closeAnswers = page.getByRole('button', { name: 'Close answers early' })
+    const closeAnswers = page.getByRole('button', { name: 'Close answers now' })
     if (await closeAnswers.isVisible()) await closeAnswers.click()
     await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
     await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()

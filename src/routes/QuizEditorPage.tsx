@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { QuestionMedia } from '../components/QuestionMedia'
@@ -18,6 +19,8 @@ import { MAX_TYPED_ANSWER_LENGTH, parseTypedAnswerAlternatives } from '../featur
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type {
+  AnswerColourTuple,
+  AnswerPaletteId,
   ChoiceOption,
   Question,
   QuestionMedia as Media,
@@ -29,6 +32,15 @@ import type {
   RosterMember,
 } from '../types/domain'
 import { normaliseYouTubeVideoId } from '../utils/youtube'
+import {
+  CLASSIC_ANSWER_COLOURS,
+  answerColourStyle,
+  answerPalettes,
+  isAnswerColourTuple,
+  resolveAnswerColours,
+} from '../features/answer-palettes/answerPalettes'
+import { normaliseHexColour } from '../features/answer-palettes/colourContrast'
+import { orderedQuestionOptions } from '../features/questions/optionOrdering'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction
@@ -50,9 +62,11 @@ export function QuizEditorPage() {
   const [saving, setSaving] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [quizSettingsOpen, setQuizSettingsOpen] = useState(false)
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
   const navigate = useNavigate()
   const blocker = useBlocker(dirty)
+  const closeQuizSettings = useCallback(() => setQuizSettingsOpen(false), [])
 
   useEffect(() => {
     void repository.getQuiz(quizId).then((value) => {
@@ -147,6 +161,8 @@ export function QuizEditorPage() {
       coverImagePath: quiz.coverImagePath,
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
+      answerPaletteId: quiz.answerPaletteId,
+      customAnswerColours: quiz.customAnswerColours,
       roster: quiz.roster.map((member, displayOrder) => ({ ...member, displayOrder })),
       questions: quiz.questions.map((question, displayOrder) => ({ ...question, displayOrder })),
     }
@@ -226,7 +242,7 @@ export function QuizEditorPage() {
     <main className="editor-page editor-page--three-panel">
       <header className="editor-toolbar">
         <div><Link className="text-link" to="/host">← All quizzes</Link><input className="title-input" aria-label="Quiz title" value={quiz.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></div>
-        <div className="heading-actions">{dirty && <span className="unsaved-dot">Unsaved changes</span>}<button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save quiz'}</button></div>
+        <div className="heading-actions">{dirty && <span className="unsaved-dot">Unsaved changes</span>}<button className="button button--secondary" type="button" onClick={() => setQuizSettingsOpen(true)}>Quiz settings</button><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save quiz'}</button></div>
       </header>
       {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
       <div className="editor-workspace">
@@ -256,7 +272,7 @@ export function QuizEditorPage() {
               data-quiz-theme={quiz.themeId}
               {...quizBackgroundSurfaceProps(quiz.backgroundId, quiz.themeId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
-            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></article>
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /><EditorAnswerPreview question={selected} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
                 const duplicate = structuredClone(selected)
@@ -286,61 +302,182 @@ export function QuizEditorPage() {
         </section>
 
         <aside className="question-settings">
-          <QuizTypePicker quizType={quiz.quizType} select={changeQuizType} />
-          {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
-          <QuizThemePicker
-            themeId={quiz.themeId}
-            select={(themeId) => update((current) => ({
-              ...current,
-              themeId,
-              backgroundId: normaliseQuizBackgroundId(current.backgroundId, themeId),
-            }))}
-          />
-          <QuizBackgroundPicker
-            themeId={quiz.themeId}
-            backgroundId={quiz.backgroundId}
-            select={(backgroundId) => update((current) => ({ ...current, backgroundId }))}
-          />
-          <QuizCover
-            coverImagePath={quiz.coverImagePath}
-            uploading={coverUploading}
-            upload={uploadCover}
-            remove={() => update((current) => ({ ...current, coverImagePath: null }))}
-          />
           {selected && <>
             <h2>Question settings</h2>
-            <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
-            <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
-            <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
-            {quiz.quizType === 'head-to-head' && <QuestionCompetitorPicker
-              question={selected}
-              competitors={quiz.headToHeadCompetitors}
-              select={(assignedCompetitorId) => updateQuestion((question) => ({ ...question, assignedCompetitorId }))}
-            />}
-            <div className="two-columns">
+            <details className="question-settings-group" open><summary>Question</summary><div>
+              <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
+              <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
+              <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
+              {quiz.quizType === 'head-to-head' && <QuestionCompetitorPicker question={selected} competitors={quiz.headToHeadCompetitors} select={(assignedCompetitorId) => updateQuestion((question) => ({ ...question, assignedCompetitorId }))} />}
               <label><span>Timer</span><input type="number" min="5" max="300" value={selected.timeLimitSeconds} onChange={(event) => updateQuestion((question) => ({ ...question, timeLimitSeconds: number(event.target.value) }))} /></label>
-              {quiz.quizType === 'standard' && <label><span>Maximum points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>}
-            </div>
-            {quiz.quizType === 'standard' && <fieldset className="standard-scoring-settings"><legend>Standard scoring</legend>
-              <label><input type="checkbox" checked={selected.speedScoringEnabled} onChange={(event) => updateQuestion((question) => ({ ...question, speedScoringEnabled: event.target.checked }))} /> Faster answers score more</label>
-              <p className="settings-note">Correct answers earn between 100% and 50% of the available points as the timer runs down.</p>
-              <label><input type="checkbox" checked={selected.doubleScore} onChange={(event) => updateQuestion((question) => ({ ...question, doubleScore: event.target.checked }))} /> Double score</label>
-              {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
-            </fieldset>}
-            {quiz.quizType === 'head-to-head' && <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
-            <MediaSettings question={selected} update={updateQuestion} upload={upload} />
-            <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
-            <label><span>Choices on presentation</span><select value={selected.presentationChoiceVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, presentationChoiceVisibility: event.target.value as Question['presentationChoiceVisibility'] }))}><option value="show">Show choices</option><option value="hide">Hide choices</option><option value="after-lock">Reveal after answers close</option></select></label>
-            <TypeSettings question={selected} roster={quiz.roster} update={updateQuestion} />
-            <label><span>Reveal caption</span><textarea rows={2} value={selected.revealCaption} onChange={(event) => updateQuestion((question) => ({ ...question, revealCaption: event.target.value }))} /></label>
+            </div></details>
+            <details className="question-settings-group" open><summary>Answers</summary><div><TypeSettings question={selected} roster={quiz.roster} update={updateQuestion} /></div></details>
+            <details className="question-settings-group"><summary>Scoring</summary><div>
+              {quiz.quizType === 'standard' ? <>
+                <label><span>Maximum points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>
+                <fieldset className="standard-scoring-settings"><legend>Standard scoring</legend>
+                  <label><input type="checkbox" checked={selected.speedScoringEnabled} onChange={(event) => updateQuestion((question) => ({ ...question, speedScoringEnabled: event.target.checked }))} /> Faster answers score more</label>
+                  <p className="settings-note">Correct answers earn between 100% and 50% of the available points as the timer runs down.</p>
+                  <label><input type="checkbox" checked={selected.doubleScore} onChange={(event) => updateQuestion((question) => ({ ...question, doubleScore: event.target.checked }))} /> Double score</label>
+                  {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
+                </fieldset>
+              </> : <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
+            </div></details>
+            <details className="question-settings-group"><summary>Media &amp; presentation</summary><div>
+              <MediaSettings question={selected} update={updateQuestion} upload={upload} />
+              <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
+              <label><span>Choices on presentation</span><select value={selected.presentationChoiceVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, presentationChoiceVisibility: event.target.value as Question['presentationChoiceVisibility'] }))}><option value="show">Show choices</option><option value="hide">Hide choices</option><option value="after-lock">Reveal after answers close</option></select></label>
+              <label><span>Reveal caption</span><textarea rows={2} value={selected.revealCaption} onChange={(event) => updateQuestion((question) => ({ ...question, revealCaption: event.target.value }))} /></label>
+            </div></details>
             {validation && !validation.valid && <ul className="validation-list">{validation.messages.map((item) => <li key={item}>{item}</li>)}</ul>}
           </>}
           <PeopleBank quiz={quiz} update={update} />
         </aside>
       </div>
+      {quizSettingsOpen && <QuizSettingsDialog quiz={quiz} update={update} close={closeQuizSettings} changeQuizType={changeQuizType} coverUploading={coverUploading} uploadCover={uploadCover} />}
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
   )
+}
+
+function QuizSettingsDialog({
+  quiz,
+  update,
+  close,
+  changeQuizType,
+  coverUploading,
+  uploadCover,
+}: {
+  quiz: Quiz
+  update(updater: (quiz: Quiz) => Quiz): void
+  close(): void
+  changeQuizType(quizType: QuizType): void
+  coverUploading: boolean
+  uploadCover(file: File | undefined): Promise<void>
+}) {
+  const dialog = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const root = dialog.current
+    root?.querySelector<HTMLButtonElement>('.quiz-settings-dialog__close')?.focus()
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key !== 'Tab' || !root) return
+      const focusable = [...root.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, summary, [href], [tabindex]:not([tabindex="-1"])',
+      )].filter((element) => !element.hasAttribute('disabled'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', keydown)
+    return () => {
+      document.removeEventListener('keydown', keydown)
+      previous?.focus()
+    }
+  }, [close])
+
+  return createPortal(
+    <div className="quiz-settings-overlay">
+      <div className="quiz-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="quiz-settings-heading" ref={dialog}>
+        <header>
+          <div><p className="eyebrow">Quiz-wide configuration</p><h1 id="quiz-settings-heading">Quiz settings</h1></div>
+          <button className="button button--secondary quiz-settings-dialog__close" type="button" onClick={close}>Close</button>
+        </header>
+        <p>Changes apply immediately to this draft and use the ordinary Save quiz workflow.</p>
+        <details className="quiz-settings-section" open>
+          <summary>Game</summary>
+          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} />
+            {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
+          </div>
+        </details>
+        <details className="quiz-settings-section" open>
+          <summary>Appearance</summary>
+          <div>
+            <QuizThemePicker themeId={quiz.themeId} select={(themeId) => update((current) => ({
+              ...current,
+              themeId,
+              backgroundId: normaliseQuizBackgroundId(current.backgroundId, themeId),
+            }))} />
+            <QuizBackgroundPicker themeId={quiz.themeId} backgroundId={quiz.backgroundId} select={(backgroundId) => update((current) => ({ ...current, backgroundId }))} />
+            <QuizCover coverImagePath={quiz.coverImagePath} uploading={coverUploading} upload={uploadCover} remove={() => update((current) => ({ ...current, coverImagePath: null }))} />
+          </div>
+        </details>
+        <details className="quiz-settings-section" open>
+          <summary>Answer colours</summary>
+          <div><AnswerPalettePicker quiz={quiz} update={update} /></div>
+        </details>
+        <footer><button className="button button--primary" type="button" onClick={close}>Done</button></footer>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function AnswerPalettePicker({ quiz, update }: { quiz: Quiz; update(updater: (quiz: Quiz) => Quiz): void }) {
+  const colours = resolveAnswerColours(quiz.answerPaletteId, quiz.customAnswerColours)
+  const setCustomColour = (position: number, value: string) => update((current) => {
+    const customAnswerColours = [...current.customAnswerColours]
+    customAnswerColours[position] = value
+    return { ...current, customAnswerColours: customAnswerColours as unknown as AnswerColourTuple }
+  })
+
+  return (
+    <fieldset className="answer-palette-picker">
+      <legend>Answer palette</legend>
+      <p>Colours follow the final answer position, including after randomisation.</p>
+      <div className="answer-palette-grid">
+        {[...answerPalettes, { id: 'custom' as const, name: 'Custom', description: 'Choose all eight answer colours.', colours: quiz.customAnswerColours }].map((palette) => (
+          <button key={palette.id} type="button" aria-pressed={quiz.answerPaletteId === palette.id} onClick={() => update((current) => ({ ...current, answerPaletteId: palette.id }))}>
+            <span className="answer-palette-swatches" aria-hidden="true">{palette.colours.slice(0, 4).map((colour, index) => <i key={`${colour}-${index}`} style={{ backgroundColor: normaliseHexColour(colour) ?? '#000000' }} />)}</span>
+            <span><strong>{palette.name}</strong><small>{palette.description}</small></span>
+            <em>{quiz.answerPaletteId === palette.id ? 'Selected' : 'Choose'}</em>
+          </button>
+        ))}
+      </div>
+      <div className="answer-palette-preview" aria-label="Answer palette preview">
+        {colours.slice(0, 8).map((colour, index) => <span key={`${colour}-${index}`} style={answerColourStyle(colours, index)}>{index + 1}</span>)}
+      </div>
+      {quiz.answerPaletteId === 'custom' && <div className="custom-answer-colours">
+        <h3>Primary colours</h3>
+        <div className="custom-answer-colour-grid">{quiz.customAnswerColours.slice(0, 4).map((colour, index) => <CustomColourControl key={index} colour={colour} position={index} update={setCustomColour} />)}</div>
+        <details><summary>Additional colours 5–8</summary><div className="custom-answer-colour-grid">{quiz.customAnswerColours.slice(4).map((colour, index) => <CustomColourControl key={index + 4} colour={colour} position={index + 4} update={setCustomColour} />)}</div></details>
+        {!isAnswerColourTuple(quiz.customAnswerColours) && <StatusMessage tone="error">Use a six-digit hexadecimal value for every custom colour before saving.</StatusMessage>}
+        <button className="button button--secondary" type="button" onClick={() => update((current) => ({ ...current, answerPaletteId: 'classic', customAnswerColours: [...CLASSIC_ANSWER_COLOURS] as AnswerColourTuple }))}>Reset to Classic</button>
+      </div>}
+    </fieldset>
+  )
+}
+
+function CustomColourControl({ colour, position, update }: { colour: string; position: number; update(position: number, colour: string): void }) {
+  const valid = normaliseHexColour(colour)
+  return <label className="custom-answer-colour"><span>Colour {position + 1}</span><span className="custom-answer-colour__inputs">
+    <input type="color" aria-label={`Colour ${position + 1} picker`} value={valid ?? '#000000'} onChange={(event) => update(position, event.target.value.toUpperCase())} />
+    <input aria-label={`Colour ${position + 1} hex`} aria-invalid={!valid} value={colour} maxLength={7} onChange={(event) => update(position, event.target.value.toUpperCase())} />
+    <i aria-hidden="true" style={valid ? answerColourStyle([valid], 0) : undefined}>{position + 1}</i>
+  </span></label>
+}
+
+function EditorAnswerPreview({ question, answerPaletteId, customAnswerColours }: { question: Question; answerPaletteId: AnswerPaletteId; customAnswerColours: AnswerColourTuple }) {
+  const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
+  const options = question.type === 'single-choice' || question.type === 'multiple-select'
+    ? orderedQuestionOptions(question)
+    : question.type === 'true-false'
+      ? [{ id: 'true', label: 'True' }, { id: 'false', label: 'False' }]
+      : colours.slice(0, 4).map((_, index) => ({ id: `colour-${index + 1}`, label: `Answer ${index + 1}` }))
+  return <div className="editor-answer-preview" aria-label="Answer colour preview">{options.map((option, position) => <span className="answer-colour-tile" data-option-id={option.id} style={answerColourStyle(colours, position)} key={option.id}>{option.label}</span>)}</div>
 }
 
 function QuizTypePicker({ quizType, select }: { quizType: QuizType; select(quizType: QuizType): void }) {
@@ -615,6 +752,7 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
       return current
     })
     return <fieldset><legend>Answer options</legend>{question.options.map((option) => <div className="option-editor" key={option.id}><input type={question.type === 'single-choice' ? 'radio' : 'checkbox'} name={`correct-${question.id}`} checked={question.type === 'single-choice' ? question.correctOptionId === option.id : question.correctOptionIds.includes(option.id)} aria-label={`Mark ${option.label} correct`} onChange={() => toggleCorrect(option.id)} /><div><input value={option.label} aria-label="Option label" onChange={(event) => update((current) => 'options' in current ? { ...current, options: current.options.map((candidate) => candidate.id === option.id ? { ...candidate, label: event.target.value } : candidate) } : current)} /><input value={option.imagePath ?? ''} aria-label="Option image path" placeholder="Optional uploaded image path" onChange={(event) => update((current) => 'options' in current ? { ...current, options: current.options.map((candidate) => candidate.id === option.id ? { ...candidate, imagePath: event.target.value || undefined } : candidate) } : current)} /></div><button type="button" onClick={() => update((current) => 'options' in current ? { ...current, options: current.options.filter((candidate) => candidate.id !== option.id) } : current)}>Remove</button></div>)}<button type="button" className="button button--secondary" disabled={question.options.length >= 8} onClick={() => update((current) => 'options' in current ? { ...current, options: [...current.options, { id: crypto.randomUUID(), label: `Option ${current.options.length + 1}` } as ChoiceOption] } : current)}>Add option</button>
+      <label><input type="checkbox" checked={question.randomiseOptions} onChange={(event) => update((current) => current.type === 'single-choice' || current.type === 'multiple-select' ? { ...current, randomiseOptions: event.target.checked } : current)} /> Randomise options</label>
       {question.type === 'multiple-select' && <><div className="two-columns"><label><span>Minimum</span><input type="number" min="1" value={question.minimumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, minimumSelections: number(event.target.value) } : current)} /></label><label><span>Maximum</span><input type="number" min="1" value={question.maximumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, maximumSelections: number(event.target.value) } : current)} /></label></div><label><span>Scoring</span><select value={question.scoringMode} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, scoringMode: event.target.value as 'exact' | 'partial-wipeout' } : current)}><option value="exact">Exact set</option><option value="partial-wipeout">Partial, wrong answer wipes out</option></select></label></>}
     </fieldset>
   }

@@ -15,6 +15,8 @@ describe('createDuplicateQuizInput', () => {
     source.coverImagePath = 'https://media.example/shared-cover.webp'
     source.themeId = 'arcade'
     source.backgroundId = 'arcade-grid'
+    source.answerPaletteId = 'custom'
+    source.customAnswerColours = ['#FFFFFF', '#071326', '#FFFF00', '#00FFFF', '#C62828', '#1565C0', '#2E7D32', '#F9A825']
     source.archivedAt = '2026-08-07T12:00:00.000Z'
 
     const single = source.questions.find((question) => question.type === 'single-choice')
@@ -45,6 +47,8 @@ describe('createDuplicateQuizInput', () => {
       coverImagePath: 'https://media.example/shared-cover.webp',
       themeId: 'arcade',
       backgroundId: 'arcade-grid',
+      answerPaletteId: 'custom',
+      customAnswerColours: source.customAnswerColours,
     })
     expect(input.coverImagePath).toBe(source.coverImagePath)
     expect(input).not.toHaveProperty('id')

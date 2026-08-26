@@ -1,6 +1,8 @@
 import { TILE_GRID_SIZES } from '../../types/domain'
 import type {
   ChoiceOption,
+  AnswerColourTuple,
+  AnswerPaletteId,
   ImageRevealEffect,
   MediaVisibility,
   PresentationChoiceVisibility,
@@ -16,9 +18,15 @@ import { validateQuizSave } from '../quiz-editor/validation'
 import { isQuizType } from '../head-to-head/headToHead'
 import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
+import {
+  CLASSIC_ANSWER_COLOURS,
+  isAnswerColourTuple,
+  isAnswerPaletteId,
+} from '../answer-palettes/answerPalettes'
 
 export const KATWED_QUIZ_FORMAT = 'katwed-quiz' as const
-export const KATWED_QUIZ_FORMAT_VERSION = 3 as const
+export const KATWED_QUIZ_FORMAT_VERSION = 4 as const
+export const KATWED_QUIZ_V3_FORMAT_VERSION = 3 as const
 export const KATWED_QUIZ_V2_FORMAT_VERSION = 2 as const
 export const KATWED_QUIZ_LEGACY_FORMAT_VERSION = 1 as const
 export const KATWED_QUIZ_FILE_EXTENSION = '.katwed.json'
@@ -156,12 +164,23 @@ export interface PortableQuizV3 extends Omit<PortableQuizV2, 'questions'> {
 
 export interface KatwedQuizFileV3 {
   format: typeof KATWED_QUIZ_FORMAT
-  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  formatVersion: typeof KATWED_QUIZ_V3_FORMAT_VERSION
   quiz: PortableQuizV3
 }
 
-export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3
-type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3
+export interface PortableQuizV4 extends PortableQuizV3 {
+  answerPaletteId: AnswerPaletteId
+  customAnswerColours: AnswerColourTuple
+}
+
+export interface KatwedQuizFileV4 {
+  format: typeof KATWED_QUIZ_FORMAT
+  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  quiz: PortableQuizV4
+}
+
+export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4
+type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3 | PortableQuizV4
 type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3
 
 export interface QuizImportSummary {
@@ -171,6 +190,7 @@ export interface QuizImportSummary {
   competitorNames: string[]
   themeId: QuizThemeId
   backgroundId: QuizBackgroundId | null
+  answerPaletteId: AnswerPaletteId
   hasReferencedMedia: boolean
 }
 
@@ -270,7 +290,7 @@ function safeMediaReference(value: unknown, subject: string): string {
   return value.trim()
 }
 
-function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3): QuestionMedia {
+function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3 | 4): QuestionMedia {
   const media = record(value, `${subject} media`)
   const type = stringField(media, 'type', `${subject} media`)
   switch (type) {
@@ -280,7 +300,7 @@ function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3): 
     case 'image': {
       exactKeys(
         media,
-        formatVersion === 3
+        formatVersion >= 3
           ? ['type', 'path', 'altText', 'revealEffect', 'revealDurationSeconds', 'tileGridSize']
           : ['type', 'path', 'altText', 'revealEffect', 'revealDurationSeconds'],
         `${subject} media`,
@@ -336,7 +356,7 @@ const commonQuestionKeys = [
   'revealCaption', 'media', 'mediaVisibility', 'presentationChoiceVisibility',
 ] as const
 
-function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3): PortableQuestion {
+function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 | 4): PortableQuestion {
   const subject = `Question ${index + 1}`
   const question = record(value, subject)
   const type = stringField(question, 'type', subject)
@@ -351,7 +371,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3):
   }
   if (!(type in variantKeys)) fail(`${subject} has an unsupported question type.`)
   if (formatVersion === 1 && type === 'typed-answer') fail(`${subject} uses Typed Answer, which requires format version 2.`)
-  const scoringKeys = formatVersion === 3 ? ['speedScoringEnabled', 'doubleScore'] : []
+  const scoringKeys = formatVersion >= 3 ? ['speedScoringEnabled', 'doubleScore'] : []
   exactKeys(question, [...commonQuestionKeys, ...scoringKeys, ...variantKeys[type as Question['type']]], subject)
 
   const key = parseKey(question.key, `${subject} key`)
@@ -376,7 +396,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3):
     media: question.media === undefined ? { type: 'none' } as const : parseMedia(question.media, subject, formatVersion),
     mediaVisibility: mediaVisibility as MediaVisibility,
     presentationChoiceVisibility: presentationChoiceVisibility as PresentationChoiceVisibility,
-    ...(formatVersion === 3 ? {
+    ...(formatVersion >= 3 ? {
       speedScoringEnabled: optionalBoolean(question, 'speedScoringEnabled', false, subject),
       doubleScore: optionalBoolean(question, 'doubleScore', false, subject),
     } : {}),
@@ -470,9 +490,12 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3):
   }
 }
 
-function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3): PortableQuiz {
+function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4): PortableQuizV4 {
   const quiz = record(value, 'The quiz')
-  exactKeys(quiz, ['title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions'], 'The quiz')
+  exactKeys(quiz, [
+    'title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions',
+    ...(formatVersion === 4 ? ['answerPaletteId', 'customAnswerColours'] : []),
+  ], 'The quiz')
   const quizType = stringField(quiz, 'quizType', 'The quiz')
   if (!isQuizType(quizType)) fail('The quiz has an unsupported quiz type.')
   const themeId = stringField(quiz, 'themeId', 'The quiz')
@@ -485,6 +508,16 @@ function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3): PortableQu
   const coverImagePath = quiz.coverImagePath === null
     ? null
     : safeMediaReference(quiz.coverImagePath, 'The quiz cover image path')
+  const answerPaletteId = formatVersion === 4
+    ? stringField(quiz, 'answerPaletteId', 'The quiz')
+    : 'classic'
+  if (!isAnswerPaletteId(answerPaletteId)) fail('The quiz has an unsupported answer palette.')
+  const customAnswerColours = formatVersion === 4
+    ? arrayField(quiz, 'customAnswerColours', 'The quiz')
+    : [...CLASSIC_ANSWER_COLOURS]
+  if (!isAnswerColourTuple(customAnswerColours)) {
+    fail('The quiz must include exactly eight valid six-digit custom answer colours.')
+  }
 
   const competitorKeys = new Set<string>()
   const competitors = arrayField(quiz, 'competitors', 'The quiz').map((value, index): PortableCompetitorV1 => {
@@ -545,6 +578,8 @@ function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3): PortableQu
     themeId,
     backgroundId: background,
     coverImagePath,
+    answerPaletteId,
+    customAnswerColours,
     competitors,
     roster,
     questions,
@@ -680,6 +715,8 @@ export function createQuizSaveInputFromPortable(
     coverImagePath: quiz.coverImagePath,
     themeId: quiz.themeId,
     backgroundId: quiz.backgroundId,
+    answerPaletteId: 'answerPaletteId' in quiz ? quiz.answerPaletteId : 'classic',
+    customAnswerColours: 'customAnswerColours' in quiz ? quiz.customAnswerColours : CLASSIC_ANSWER_COLOURS,
     roster,
     questions,
   }
@@ -714,11 +751,12 @@ export function parseKatwedQuizJson(
   if (
     file.formatVersion !== KATWED_QUIZ_LEGACY_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_V2_FORMAT_VERSION &&
+    file.formatVersion !== KATWED_QUIZ_V3_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION
   ) {
     fail('This Katwed quiz format version is not supported.')
   }
-  const formatVersion = file.formatVersion as 1 | 2 | 3
+  const formatVersion = file.formatVersion as 1 | 2 | 3 | 4
   const quiz = parsePortableQuiz(file.quiz, formatVersion)
   const portable = {
     format: KATWED_QUIZ_FORMAT,
@@ -735,6 +773,7 @@ export function parseKatwedQuizJson(
       competitorNames: quiz.competitors.map((competitor) => competitor.displayName),
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
+      answerPaletteId: quiz.answerPaletteId,
       hasReferencedMedia: hasReferencedMedia(quiz),
     },
   }
@@ -778,7 +817,7 @@ function exportOptions(options: readonly ChoiceOption[]): { options: PortableCho
   return { options: portable, keys }
 }
 
-export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV3 {
+export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV4 {
   const competitors = [...quiz.headToHeadCompetitors].sort((a, b) => a.displayOrder - b.displayOrder)
   const competitorKeys = new Map(competitors.map((competitor, index) => [competitor.id, `competitor-${index + 1}`]))
   const roster = [...quiz.roster].sort((a, b) => a.displayOrder - b.displayOrder)
@@ -874,6 +913,8 @@ export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV3 {
       quizType: quiz.quizType,
       themeId: quiz.themeId,
       backgroundId: quiz.backgroundId,
+      answerPaletteId: quiz.answerPaletteId,
+      customAnswerColours: [...quiz.customAnswerColours] as unknown as AnswerColourTuple,
       coverImagePath: quiz.coverImagePath,
       competitors: competitors.map((competitor) => ({
         key: requiredReference(competitorKeys, competitor.id, 'a competitor key'),

@@ -1,6 +1,7 @@
 import { getQuizBackground } from '../themes/quizBackgrounds'
 import { quizThemes } from '../themes/quizThemes'
 import type { QuizImportSummary } from './katwedQuizFormat'
+import { getAnswerPaletteDefinition } from '../answer-palettes/answerPalettes'
 
 interface QuizImportPreviewProps {
   summary: QuizImportSummary
@@ -39,6 +40,7 @@ export function QuizImportPreview({
           <dt>Background</dt>
           <dd>{summary.backgroundId ? getQuizBackground(summary.backgroundId)?.name : 'Theme default'}</dd>
         </div>
+        <div><dt>Answer palette</dt><dd>{summary.answerPaletteId === 'custom' ? 'Custom' : getAnswerPaletteDefinition(summary.answerPaletteId)?.name ?? 'Classic'}</dd></div>
         <div><dt>Referenced images</dt><dd>{summary.hasReferencedMedia ? 'Present' : 'None'}</dd></div>
       </dl>
       <p>This preview hides questions and answers. Importing always creates a new Active quiz.</p>

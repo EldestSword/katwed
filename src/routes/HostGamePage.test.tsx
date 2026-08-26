@@ -1,0 +1,100 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mixedDemoQuiz } from '../lib/demo/sampleData'
+import type { GameSession, Player, SafeGameState } from '../types/domain'
+import { HostGamePage } from './HostGamePage'
+
+const repositoryMocks = vi.hoisted(() => ({
+  getHostSession: vi.fn(),
+  getSafeGameState: vi.fn(),
+  changePhase: vi.fn(),
+  subscribe: vi.fn(),
+}))
+
+vi.mock('../services/repository', () => ({ repository: repositoryMocks }))
+
+const players: Player[] = Array.from({ length: 4 }, (_, index) => ({
+  id: `player-${index + 1}`, sessionId: 'session', nickname: `Player ${index + 1}`,
+  connected: index !== 3, joinedAt: '2026-08-26T12:00:00.000Z', totalScore: 0,
+  correctAnswerCount: 0, totalCorrectResponseMs: 0,
+}))
+
+const session: GameSession = {
+  id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'question',
+  currentQuestionIndex: 0, questionOpenedAt: '2026-08-26T12:00:00.000Z',
+  questionClosesAt: '2026-08-26T12:01:00.000Z', startedAt: '2026-08-26T12:00:00.000Z',
+  endedAt: null, players, answers: [],
+}
+
+function state(overrides: Partial<SafeGameState> = {}): SafeGameState {
+  return {
+    sessionId: 'session', quizTitle: mixedDemoQuiz.title, quizType: 'standard', themeId: 'katwed',
+    backgroundId: null, answerPaletteId: 'classic', customAnswerColours: mixedDemoQuiz.customAnswerColours,
+    roomCode: '123456', status: 'active', phase: 'question', currentQuestion: {
+      id: 'question', type: 'true-false', prompt: 'True?', supportingText: '', timeLimitSeconds: 60,
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+      questionNumber: 1, totalQuestions: 2,
+    }, roster: [], players, submittedCount: 3, leaderboard: [], reveal: null,
+    questionOpenedAt: '2026-08-26T12:00:00.000Z', questionClosesAt: '2099-08-26T12:01:00.000Z',
+    ...overrides,
+  }
+}
+
+function renderController(current: SafeGameState) {
+  repositoryMocks.getSafeGameState.mockResolvedValue(current)
+  const router = createMemoryRouter([
+    { path: '/host/game/:sessionId/control', element: <HostGamePage /> },
+    { path: '/host', element: <h1>Dashboard</h1> },
+  ], { initialEntries: ['/host/game/session/control'] })
+  return render(<RouterProvider router={router} />)
+}
+
+describe('HostGamePage Standard auto-lock', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    repositoryMocks.getHostSession.mockResolvedValue({ session, quiz: mixedDemoQuiz })
+    repositoryMocks.changePhase.mockResolvedValue(undefined)
+    repositoryMocks.subscribe.mockReturnValue(() => undefined)
+  })
+
+  it('does not lock at 3 of 4, including when the unanswered player is disconnected', async () => {
+    renderController(state({ submittedCount: 3, players }))
+    expect(await screen.findByRole('button', { name: 'Close answers now' })).toBeEnabled()
+    await waitFor(() => expect(repositoryMocks.changePhase).not.toHaveBeenCalled())
+  })
+
+  it('locks once when all joined players have submitted', async () => {
+    renderController(state({ submittedCount: 4 }))
+    await waitFor(() => expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock'))
+    await new Promise((resolve) => window.setTimeout(resolve, 20))
+    expect(repositoryMocks.changePhase).toHaveBeenCalledTimes(1)
+  })
+
+  it('never auto-locks an empty room', async () => {
+    renderController(state({ submittedCount: 0, players: [] }))
+    await screen.findByRole('button', { name: 'Close answers now' })
+    expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
+  })
+
+  it('keeps the manual close action available before everyone submits', async () => {
+    const user = userEvent.setup()
+    renderController(state({ submittedCount: 2 }))
+    await user.click(await screen.findByRole('button', { name: 'Close answers now' }))
+    expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock')
+  })
+
+  it('retains timer-expiry locking', async () => {
+    renderController(state({ submittedCount: 1, questionClosesAt: '2020-01-01T00:00:00.000Z' }))
+    await waitFor(() => expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock'))
+  })
+
+  it('does not add host auto-locking to Head-to-Head', async () => {
+    renderController(state({ quizType: 'head-to-head', submittedCount: 4, questionClosesAt: null }))
+    expect(await screen.findByText(/progression is controlled by the two competitors/i)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Close answers now' })).not.toBeInTheDocument()
+    expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
+  })
+})
