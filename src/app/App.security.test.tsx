@@ -20,6 +20,7 @@ describe('route security', () => {
   it('redirects an unauthenticated user away from host management', async () => {
     render(<MemoryRouter initialEntries={['/host/storage']}><AuthProvider><App /></AuthProvider></MemoryRouter>)
     expect(await screen.findByRole('heading', { name: 'Host your quiz' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Host navigation' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Storage' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Your quizzes' })).not.toBeInTheDocument()
   })

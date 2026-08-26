@@ -29,7 +29,7 @@ export function LandingPage() {
             <div className="room-entry__row">
               <input id="landing-room" className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
                 value={roomCode} onChange={(event) => { setRoomCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
-                placeholder="123456" aria-describedby={error ? 'landing-error' : undefined} />
+                placeholder="123456" aria-invalid={Boolean(error)} aria-describedby={error ? 'landing-error' : undefined} />
               <button className="button button--primary" type="submit">Join game</button>
             </div>
             {error && <p id="landing-error" className="field-error" role="alert">{error}</p>}

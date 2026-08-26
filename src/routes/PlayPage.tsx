@@ -65,10 +65,11 @@ export function PlayPage() {
 
   if (loading || reconnecting) return <LoadingScreen message="Rejoining the room…" />
   if (!state || state.status === 'closed') {
-    return <main className="centred-screen"><Logo /><h1>{state?.status === 'closed' ? 'This room has closed' : 'Room not found'}</h1><p>The code may be wrong or the game may have expired.</p><Link className="button button--primary" to="/join">Try another code</Link></main>
+    const roomClosed = state?.status === 'closed'
+    return <main className="centred-screen recovery-screen"><Logo /><p className="eyebrow">Game unavailable</p><h1>{roomClosed ? 'This room has closed' : 'Room not found'}</h1><p>{roomClosed ? 'The host has ended this game. Ask them for a new room code to play again.' : 'Check the six-digit code and try again.'}</p><Link className="button button--primary" to="/join">Try another code</Link></main>
   }
   if (!playerSession || !currentPlayer) {
-    return <main className="centred-screen"><Logo /><h1>Join this room first</h1><p>{reconnectError || 'We need to identify you before you can play.'}</p><Link className="button button--primary" to={`/join?room=${roomCode}`}>Join room {roomCode}</Link></main>
+    return <main className="centred-screen recovery-screen"><Logo /><p className="eyebrow">Player identity needed</p><h1>Join this room first</h1><p>{reconnectError || 'Enter your nickname so Katwed knows who is playing.'}</p><Link className="button button--primary" to={`/join?room=${roomCode}`}>Join room {roomCode}</Link></main>
   }
 
   const question = state.currentQuestion

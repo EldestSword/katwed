@@ -15,23 +15,38 @@ export function JoinPage() {
   const [recoverableName, setRecoverableName] = useState('')
   const [roomInfo, setRoomInfo] = useState<RoomJoinInfo | null>(null)
   const [checkingRoom, setCheckingRoom] = useState(false)
+  const [roomCheckComplete, setRoomCheckComplete] = useState(false)
+  const [roomCheckFailed, setRoomCheckFailed] = useState(false)
+  const [errorField, setErrorField] = useState<'room' | 'nickname' | 'form' | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     if (roomCode.length !== 6) {
       setRecoverableName('')
       setRoomInfo(null)
+      setRoomCheckComplete(false)
+      setRoomCheckFailed(false)
+      setCheckingRoom(false)
       return
     }
     setRecoverableName(loadPlayerSession(roomCode)?.nickname ?? '')
     let cancelled = false
     setCheckingRoom(true)
+    setRoomInfo(null)
+    setRoomCheckComplete(false)
+    setRoomCheckFailed(false)
     void repository.getRoomJoinInfo(roomCode).then((info) => {
       if (!cancelled) setRoomInfo(info)
     }).catch(() => {
-      if (!cancelled) setRoomInfo(null)
+      if (!cancelled) {
+        setRoomInfo(null)
+        setRoomCheckFailed(true)
+      }
     }).finally(() => {
-      if (!cancelled) setCheckingRoom(false)
+      if (!cancelled) {
+        setCheckingRoom(false)
+        setRoomCheckComplete(true)
+      }
     })
     return () => { cancelled = true }
   }, [roomCode])
@@ -49,14 +64,25 @@ export function JoinPage() {
 
   async function join(event: FormEvent) {
     event.preventDefault()
-    if (roomCode.length !== 6) return setError('Enter a six-digit room code.')
-    if (!nickname.trim()) return setError('Enter the nickname your teammates will recognise.')
-    if (nickname.trim().length > 30) return setError('Keep your nickname to 30 characters or fewer.')
+    if (roomCode.length !== 6) {
+      setErrorField('room')
+      return setError('Enter a six-digit room code.')
+    }
+    if (!nickname.trim()) {
+      setErrorField('nickname')
+      return setError('Enter the nickname your teammates will recognise.')
+    }
+    if (nickname.trim().length > 30) {
+      setErrorField('nickname')
+      return setError('Keep your nickname to 30 characters or fewer.')
+    }
     setSubmitting(true)
     setError('')
+    setErrorField(null)
     try {
       await storeAndPlay(await repository.joinRoom(roomCode, nickname))
     } catch (reason) {
+      setErrorField('form')
       if (reason instanceof RepositoryError) setError(reason.message)
       else setError('We could not join the game. Check your connection and try again.')
     } finally {
@@ -67,9 +93,11 @@ export function JoinPage() {
   async function joinCompetitor(competitorId: string) {
     setSubmitting(true)
     setError('')
+    setErrorField(null)
     try {
       await storeAndPlay(await repository.joinHeadToHeadRoom(roomCode, competitorId))
     } catch (reason) {
+      setErrorField('form')
       setError(reason instanceof RepositoryError ? reason.message : 'We could not claim that competitor. Try again.')
       setRoomInfo(await repository.getRoomJoinInfo(roomCode).catch(() => null))
     } finally {
@@ -85,11 +113,13 @@ export function JoinPage() {
       const result = await repository.reconnectPlayer(saved)
       if (!result) {
         setRecoverableName('')
+        setErrorField('form')
         setError('That saved player session has expired. Join again.')
         return
       }
       await navigate(`/play/${roomCode}`)
     } catch {
+      setErrorField('form')
       setError('We could not restore that player session just now.')
     } finally {
       setSubmitting(false)
@@ -97,6 +127,13 @@ export function JoinPage() {
   }
 
   const isHeadToHead = roomInfo?.quizType === 'head-to-head'
+  const roomClosed = roomInfo?.status === 'closed'
+  const gameStarted = Boolean(roomInfo && roomInfo.status === 'active' && roomInfo.phase !== 'lobby')
+  const roomNotFound = roomCode.length === 6 && roomCheckComplete && !roomCheckFailed && !roomInfo
+  const roomBlocked = Boolean(roomClosed || gameStarted || roomNotFound)
+  const roomStatusId = checkingRoom || roomInfo || roomNotFound || roomCheckFailed ? 'join-room-status' : undefined
+  const roomError = errorField === 'room' || roomBlocked
+  const nicknameError = errorField === 'nickname'
 
   return (
     <main className="form-page">
@@ -113,9 +150,14 @@ export function JoinPage() {
         <form onSubmit={(event) => void join(event)} noValidate>
           <label htmlFor="join-room">Room code</label>
           <input id="join-room" className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-            value={roomCode} onChange={(event) => { setRoomCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
-            placeholder="123456" />
-          {checkingRoom && <p className="muted">Checking room…</p>}
+            value={roomCode} onChange={(event) => { setRoomCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); setErrorField(null) }}
+            placeholder="123456" aria-invalid={roomError} aria-describedby={[roomStatusId, errorField === 'room' ? 'join-error' : ''].filter(Boolean).join(' ') || undefined} />
+          {checkingRoom && <p className="room-check-status" id="join-room-status" role="status"><span aria-hidden="true" />Checking room…</p>}
+          {!checkingRoom && roomInfo && !roomBlocked && <div className="room-context" id="join-room-status" role="status"><span>Room found</span><strong>{roomInfo.quizTitle}</strong></div>}
+          {!checkingRoom && roomNotFound && <StatusMessage id="join-room-status" tone="error">We could not find an open room with that code. Check the six digits and try again.</StatusMessage>}
+          {!checkingRoom && roomClosed && <StatusMessage id="join-room-status" tone="error">This room has closed. Ask the host for a new code.</StatusMessage>}
+          {!checkingRoom && gameStarted && <StatusMessage id="join-room-status" tone="error">This game has already started. Ask the host before trying another code.</StatusMessage>}
+          {!checkingRoom && roomCheckFailed && <StatusMessage id="join-room-status">Room details are unavailable just now. You can still try joining.</StatusMessage>}
           {isHeadToHead ? (
             <fieldset className="head-to-head-join">
               <legend>Who are you?</legend>
@@ -124,7 +166,7 @@ export function JoinPage() {
                 {roomInfo.headToHeadCompetitors.map((competitor) => (
                   <button
                     className="button button--primary"
-                    disabled={submitting || competitor.claimed || roomInfo.phase !== 'lobby'}
+                    disabled={submitting || competitor.claimed || roomInfo.status !== 'active' || roomInfo.phase !== 'lobby'}
                     key={competitor.competitorId}
                     onClick={() => void joinCompetitor(competitor.competitorId)}
                     type="button"
@@ -138,13 +180,15 @@ export function JoinPage() {
             <>
               <label htmlFor="nickname">Nickname</label>
               <input id="nickname" autoComplete="nickname" maxLength={30} value={nickname}
-                onChange={(event) => { setNickname(event.target.value); setError('') }} placeholder="e.g. Quizzy Lizzy" />
-              <button className="button button--primary button--wide" disabled={submitting} type="submit">
+                onChange={(event) => { setNickname(event.target.value); setError(''); setErrorField(null) }} placeholder="e.g. Quizzy Lizzy"
+                aria-invalid={nicknameError} aria-describedby={["nickname-help", errorField === 'nickname' ? 'join-error' : ''].filter(Boolean).join(' ')} />
+              <p className="field-help" id="nickname-help">Up to 30 characters.</p>
+              <button className="button button--primary button--wide" aria-busy={submitting} disabled={submitting || roomBlocked} type="submit">
                 {submitting ? 'Joining…' : 'Join game'}
               </button>
             </>
           )}
-          {error && <StatusMessage tone="error">{error}</StatusMessage>}
+          {error && <StatusMessage id="join-error" tone="error">{error}</StatusMessage>}
         </form>
         <Link className="text-link" to="/">← Back home</Link>
       </div>
