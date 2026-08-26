@@ -15,6 +15,8 @@ import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSur
 import { HeadToHeadResults } from '../features/head-to-head/HeadToHeadResults'
 import { DoubleScoreIntro } from '../features/game/DoubleScoreIntro'
 import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
+import { PlayerSubmissionSummary } from '../features/game/PlayerSubmissionSummary'
+import { FinalResults, HeadToHeadFinal } from '../features/game/FinalResults'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -109,7 +111,7 @@ export function PlayPage() {
 
       {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro />}
       {state.phase === 'question' && question && !doubleScoreIntro && (resolution && !submittedAnswer ? (
-        <section className="player-waiting" aria-live="polite"><div className="waiting-tick" aria-hidden="true">✓</div><h2>{resolution.status === 'skipped' ? 'Question skipped' : 'Answer locked in'}</h2><p>Waiting for the other competitor.</p></section>
+        <section className="player-waiting" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Head-to-Head</p><h2>{resolution.status === 'skipped' ? 'Question skipped' : 'Answer locked'}</h2></div></div><p className="player-waiting__next">Waiting for the other competitor…</p></section>
       ) : (
         <>
           {headToHead && <section className={`head-to-head-assignment ${assigned ? 'is-assigned' : 'is-play-along'}`}>
@@ -133,11 +135,11 @@ export function PlayPage() {
         </>
       ))}
 
-      {state.phase === 'locked' && <section className="game-state-card" aria-live="polite"><div className="big-icon" aria-hidden="true">🔒</div><h1>Answers locked</h1><p>The host is about to reveal the answer.</p></section>}
+      {state.phase === 'locked' && <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}<p className="player-waiting__next">Waiting for the reveal…</p></section>}
       {state.phase === 'reveal' && state.reveal && question && (
         <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
           <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer}
-            answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
+            roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
           {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead ? <>
@@ -150,9 +152,7 @@ export function PlayPage() {
         </section>
       )}
       {state.phase === 'leaderboard' && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} currentPlayerId={currentPlayer.id} /><p>Waiting for the next question…</p></section>}
-      {state.phase === 'finished' && (headToHead ? (
-        <section className="game-state-card finished-state"><p className="eyebrow">Head-to-Head complete</p><h1>{competitors[0]?.totalScore === competitors[1]?.totalScore ? 'It’s a draw!' : `${[...competitors].sort((a, b) => b.totalScore - a.totalScore)[0]?.displayName} wins!`}</h1><HeadToHeadScoreboard competitors={competitors} /><Link className="button button--secondary" to="/">Leave game</Link></section>
-      ) : <section className="game-state-card finished-state"><p className="eyebrow">Quiz complete</p><h1>Final scores</h1><Leaderboard entries={state.leaderboard} currentPlayerId={currentPlayer.id} /><Link className="button button--secondary" to="/">Leave game</Link></section>)}
+      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : <FinalResults entries={state.leaderboard} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
     </main>
   )
 }

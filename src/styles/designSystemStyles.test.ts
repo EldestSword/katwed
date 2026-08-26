@@ -20,4 +20,15 @@ describe('design system CSS foundations', () => {
     expect(css).toContain('scroll-behavior: auto !important')
     expect(`${typography}\n${css}`).not.toMatch(/https?:\/\//)
   })
+
+  it('keeps live stage and player layouts split with reduced-motion fallbacks', () => {
+    const shared = readFileSync(resolve('src/styles/live-game.css'), 'utf8')
+    const presentation = readFileSync(resolve('src/styles/presentation.css'), 'utf8')
+    const player = readFileSync(resolve('src/styles/player.css'), 'utf8')
+    expect(shared).toContain('.submission-status')
+    expect(presentation).toContain('[data-composition="media-and-answers"]')
+    expect(presentation).toContain('.presentation-stage--compact')
+    expect(player).toContain('.player-waiting')
+    expect(`${shared}\n${presentation}\n${player}`).toMatch(/@media \(prefers-reduced-motion: reduce\)/)
+  })
 })

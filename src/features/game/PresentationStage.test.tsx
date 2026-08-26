@@ -100,7 +100,7 @@ describe('PresentationStage quiz theme', () => {
       ...questionState, phase: 'reveal',
       reveal: { type: 'single-choice', correctOptionId: 'paris', caption: '', optionCounts: {} },
     }} />)
-    expect(ids('.result-bars [data-option-id]')).toEqual(presentationIds)
+    expect(ids('.presentation-reveal-grid > [data-option-id]')).toEqual(presentationIds)
   })
 
   it.each<GamePhase>(['lobby', 'question', 'locked', 'reveal', 'leaderboard', 'finished'])(
@@ -126,6 +126,66 @@ describe('PresentationStage quiz theme', () => {
     const stage = container.querySelector('.presentation-stage')
     expect(stage).not.toHaveAttribute('data-quiz-background')
     expect(stage).not.toHaveAttribute('style')
+  })
+
+  it('renders the standard lobby join hierarchy, QR code, player count and joined names', () => {
+    const players = ['Debs', 'Roger'].map((nickname, index) => ({
+      id: `player-${index}`, sessionId: 'session', nickname, connected: true,
+      joinedAt: '2026-08-26T08:00:00.000Z', totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0,
+    }))
+    const { container } = render(<PresentationStage state={{ ...state('lobby'), players }} />)
+
+    expect(screen.getByLabelText('Room code 123456')).toHaveTextContent('123456')
+    expect(container.querySelector('.presentation-qr-panel svg')).toBeInTheDocument()
+    expect(screen.getByLabelText('2 players joined')).toBeVisible()
+    expect(screen.getByText('Debs')).toBeVisible()
+    expect(screen.getByText('Roger')).toBeVisible()
+  })
+
+  it('keeps the Head-to-Head lobby as two balanced competitor slots with status', () => {
+    render(<PresentationStage state={{
+      ...state('lobby'), quizType: 'head-to-head',
+      headToHeadCompetitors: [
+        { competitorId: 'deb', displayName: 'Deb', displayOrder: 0, claimed: true, connected: true, playerId: 'one', totalScore: 0, correctAnswerCount: 0 },
+        { competitorId: 'roger', displayName: 'Roger', displayOrder: 1, claimed: false, connected: false, playerId: null, totalScore: 0, correctAnswerCount: 0 },
+      ],
+    }} />)
+
+    expect(screen.getByRole('article', { name: 'Competitor 1: Deb' })).toHaveTextContent('Ready')
+    expect(screen.getByRole('article', { name: 'Competitor 2: Roger' })).toHaveTextContent('Waiting')
+  })
+
+  it('integrates progress, timer, prompt, supporting text and submitted count in the question stage', () => {
+    const players = ['Debs', 'Roger'].map((nickname, index) => ({
+      id: `player-${index}`, sessionId: 'session', nickname, connected: true,
+      joinedAt: '2026-08-26T08:00:00.000Z', totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0,
+    }))
+    render(<PresentationStage state={{
+      ...state('question'), players, submittedCount: 1,
+      currentQuestion: {
+        id: 'question', type: 'true-false', prompt: 'Is this the prompt?', supportingText: 'A quieter clue.',
+        timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+        media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show', questionNumber: 4, totalQuestions: 9,
+      },
+      questionClosesAt: new Date(Date.now() + 20_000).toISOString(),
+    }} />)
+
+    expect(screen.getByText('Question 4 of 9', { selector: '[aria-hidden="true"]' })).toBeVisible()
+    expect(screen.getByRole('timer')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Is this the prompt?' })).toBeVisible()
+    expect(screen.getByText('A quieter clue.')).toBeVisible()
+    expect(screen.getByRole('status', { name: '1 of 2 answered' })).toBeVisible()
+  })
+
+  it('uses a reveal-gated Locked transition without exposing an answer', () => {
+    render(<PresentationStage state={{ ...state('locked'), currentQuestion: {
+      id: 'locked', type: 'typed-answer', prompt: 'Secret answer?', supportingText: '', timeLimitSeconds: 30,
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0, media: { type: 'none' },
+      mediaVisibility: 'both', presentationChoiceVisibility: 'hide', questionNumber: 2, totalQuestions: 5,
+    } }} />)
+    expect(screen.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
+    expect(screen.getByText('Ready for the reveal')).toBeVisible()
+    expect(screen.queryByText(/correct answer/i)).not.toBeInTheDocument()
   })
 
   it('shows only the primary Typed Answer during reveal', () => {
@@ -175,7 +235,7 @@ describe('PresentationStage quiz theme', () => {
     expect(screen.getByRole('heading', { name: 'Ross + Carol' })).toBeVisible()
   })
 
-  it('keeps the complete Multiple Select answer structured inside the answer card', () => {
+  it('keeps the complete Multiple Select answer structured across the reveal grid', () => {
     render(<PresentationStage state={{
       ...state('reveal'),
       currentQuestion: {
@@ -189,9 +249,9 @@ describe('PresentationStage quiz theme', () => {
       reveal: { type: 'multiple-select', correctOptionIds: ['red', 'blue'], scoringMode: 'exact', caption: '', optionCounts: {} },
     }} />)
 
-    const card = screen.getByRole('group', { name: 'Correct answer' })
-    expect(within(card).getByText('Complete correct set')).toBeVisible()
-    expect(within(card).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Red', 'Blue'])
+    expect(screen.getByRole('article', { name: /Red: correct answer/ })).toBeVisible()
+    expect(screen.getByRole('article', { name: /Blue: correct answer/ })).toBeVisible()
+    expect(screen.getByRole('article', { name: /Green: not a correct answer/ })).toBeVisible()
   })
 
   it.each([false, true])('shows explicit Head-to-Head reveal semantics when compact is %s', (compact) => {

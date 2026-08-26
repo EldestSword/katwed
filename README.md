@@ -143,6 +143,12 @@ Shared game primitives now cover positional answer tiles, eight non-colour SVG m
 
 Authenticated hosts can review the system at `/host/design-system` (also linked as **Visual lab** from the host dashboard). The lab changes local specimen state only: it does not save quiz data, call scoring operations or expose answer keys. It demonstrates every theme, positional marker and core state at desktop and mobile widths. This pass adds no database migration and does not change deployment settings.
 
+### Live-game visual language, pass 2
+
+The Presentation is composed as a long-distance **stage**, while the Player is a compact **contestant control pad** designed for quick phone input. Lobby join information, semantic question layouts, submission status, Locked, reveal, scoreboard and final-results compositions now have distinct hierarchy without changing the safe-state, option-ordering, scoring, deadline or host-gated reveal contracts. Shared live primitives are documented in the protected visual lab.
+
+See [`docs/live-game-visual-language.md`](docs/live-game-visual-language.md) for phase composition, answer and reveal language, responsive behaviour, motion, accessibility and theme guidance.
+
 ### Planned
 
 The next phase continues quiz-library and storage management alongside broader visual identity work, further question formats, and formal multi-player load testing. These items are described in [Roadmap](#roadmap).

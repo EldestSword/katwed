@@ -9,6 +9,9 @@ import './styles/tokens.css'
 import './styles/typography.css'
 import './styles/primitives.css'
 import './styles/design-system.css'
+import './styles/live-game.css'
+import './styles/presentation.css'
+import './styles/player.css'
 
 const router = createBrowserRouter([
   {

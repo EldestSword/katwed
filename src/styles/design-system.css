@@ -38,6 +38,13 @@ form.design-system-specimen label:has(input[type="checkbox"]) { display: flex; a
 .design-system-motion { padding: clamp(1rem, 3vw, 2rem); display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, .7fr); align-items: center; gap: var(--space-8); }
 .design-system-motion__samples { min-height: 8rem; padding: var(--space-5); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-5); border-radius: var(--radius-lg); background: var(--surface-subtle); }
 .design-system-shimmer { padding: var(--space-3) var(--space-4); border-radius: var(--radius-round); color: var(--purple-dark); background-image: linear-gradient(90deg, #eee8f5 25%, #fff 50%, #eee8f5 75%); font-weight: 850; }
+.design-system-live-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.design-system-live-grid .submission-status { margin-block: var(--space-4); color: var(--text-strong); background: var(--surface-subtle); }
+.design-system-live-grid .submission-status__track { background: var(--border-subtle); }
+.design-system-lobby-tiles { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; }
+.design-system-lobby-tiles .lobby-player-tile { max-width: 15rem; color: var(--text-strong); border-color: var(--border-subtle); background: var(--surface-subtle); }
+.design-system-reveal-grid { display: grid; gap: var(--space-3); }
+.design-system-reveal-grid .reveal-answer-tile__meta { color: var(--text-strong); }
 
 @media (max-width: 980px) {
   .design-system-controls { grid-template-columns: repeat(3, 1fr); }
@@ -52,6 +59,7 @@ form.design-system-specimen label:has(input[type="checkbox"]) { display: flex; a
   .design-system-section__heading { align-items: start; flex-direction: column; }
   .design-system-controls,
   .design-system-columns,
+  .design-system-live-grid,
   .design-system-motion { grid-template-columns: 1fr; }
   .design-system-controls > div { grid-column: auto; }
   .design-system-stage__intro { grid-template-columns: 1fr auto; }

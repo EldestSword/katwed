@@ -4,6 +4,7 @@ import { AnswerTile, type AnswerTileState } from '../components/design-system/An
 import { BrandBang } from '../components/design-system/BrandBang'
 import { GameBadge, type GameBadgeTone } from '../components/design-system/GameBadge'
 import { GameTimer } from '../components/design-system/GameTimer'
+import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionStatus } from '../components/design-system/LiveGamePrimitives'
 import { ImageViewer } from '../components/ImageViewer'
 import { answerColourStyle, answerPalettes, resolveAnswerColours } from '../features/answer-palettes/answerPalettes'
 import { backgroundsForTheme } from '../features/themes/quizBackgrounds'
@@ -55,7 +56,7 @@ export function DesignSystemPage() {
         <div>
           <p className="eyebrow">Protected host visual lab</p>
           <h1>Katwed! design system</h1>
-          <p>Reusable foundations and game primitives for review before the full screen redesign.</p>
+          <p>Reusable foundations and live-game primitives for the Katwed stage and contestant control pad.</p>
         </div>
         <div className="heading-actions"><BrandBang /><Link className="button button--secondary" to="/host">Back to quizzes</Link></div>
       </header>
@@ -104,6 +105,22 @@ export function DesignSystemPage() {
               <div className="design-system-theme-card__swatches" aria-label={`${theme.name} key colours`}>{theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }}><span className="sr-only">{colour}</span></i>)}</div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="design-system-section design-system-live-primitives" aria-labelledby="live-primitives-heading">
+        <div className="design-system-section__heading"><div><p className="eyebrow">Live game language</p><h2 id="live-primitives-heading">Stage status and reveals</h2></div><p>Compact broadcast information, calm lobby arrivals and colour-independent answer payoff.</p></div>
+        <div className="design-system-live-grid">
+          <article className="surface surface--raised design-system-specimen">
+            <h3>Question status</h3>
+            <div className="design-system-row"><QuestionProgressBadge questionNumber={7} totalQuestions={20} /><GameBadge tone="accent">2x points</GameBadge></div>
+            <SubmissionStatus submitted={6} total={8} />
+            <ul className="design-system-lobby-tiles"><LobbyPlayerTile>Debs</LobbyPlayerTile><LobbyPlayerTile>Roger with a very long name</LobbyPlayerTile><LobbyPlayerTile connected={false}>Carol</LobbyPlayerTile></ul>
+          </article>
+          <article className="surface surface--raised design-system-specimen">
+            <h3>Reveal answers</h3>
+            <div className="design-system-reveal-grid"><RevealAnswerTile label="Paris" position={0} style={answerColourStyle(colours, 0)} correct responseCount={5} /><RevealAnswerTile label="London" position={1} style={answerColourStyle(colours, 1)} correct={false} responseCount={2} /></div>
+          </article>
         </div>
       </section>
 

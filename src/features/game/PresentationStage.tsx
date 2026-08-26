@@ -1,116 +1,123 @@
+import type { CSSProperties } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import { Logo } from '../../components/AppShell'
 import { Leaderboard } from '../../components/Leaderboard'
 import { QuestionMedia } from '../../components/QuestionMedia'
-import { useCountdown } from '../../hooks/useCountdown'
-import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
-import { Logo } from '../../components/AppShell'
-import { PinpointSurface } from './PinpointSurface'
-import { formatSliderValue } from './revealFormatting'
-import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
-import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
-import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
-import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
-import { RevealAnswerCard } from './RevealAnswerCard'
-import { orderedQuestionOptions, optionPosition } from '../questions/optionOrdering'
-import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
+import { GameBadge } from '../../components/design-system/GameBadge'
 import { GameTimer } from '../../components/design-system/GameTimer'
+import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionStatus } from '../../components/design-system/LiveGamePrimitives'
+import { useCountdown } from '../../hooks/useCountdown'
+import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
+import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
+import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
+import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
+import { orderedQuestionOptions } from '../questions/optionOrdering'
+import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
+import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
+import { FinalResults, HeadToHeadFinal } from './FinalResults'
+import { PinpointSurface } from './PinpointSurface'
+import { RevealAnswerCard } from './RevealAnswerCard'
+import { formatSliderValue } from './revealFormatting'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
     (question.presentationChoiceVisibility === 'after-lock' && phase !== 'question')
 }
 
-function PresentationChoices({
-  question,
-  phase,
-  colours,
-}: {
-  question: SafeQuestion
-  phase: SafeGameState['phase']
-  colours: readonly string[]
-}) {
+function questionComposition(question: SafeQuestion, showMedia: boolean, showChoices: boolean): string {
+  if (question.type === 'pinpoint' || question.type === 'mashup') return 'media-focus'
+  if (showMedia && showChoices) return 'media-and-answers'
+  if (showMedia) return 'media-only'
+  if (showChoices) return 'answers-only'
+  return 'prompt-only'
+}
+
+function PresentationChoices({ question, phase, colours }: { question: SafeQuestion; phase: SafeGameState['phase']; colours: readonly string[] }) {
   if (!choicesVisible(question, phase)) return null
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
-    return <div className="presentation-options">{orderedQuestionOptions(question).map((option, position) => <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, position)} optionId={option.id} position={position} label={option.label} key={option.id} />)}</div>
+    const options = orderedQuestionOptions(question)
+    return (
+      <div className="presentation-options" data-option-count={options.length}>
+        {options.map((option, position) => <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, position)} optionId={option.id} position={position} label={option.label} key={option.id} />)}
+      </div>
+    )
   }
   if (question.type === 'true-false') {
-    return <div className="presentation-options"><AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 0)} position={0} label="True" /><AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 1)} position={1} label="False" /></div>
+    return (
+      <div className="presentation-options presentation-options--boolean" data-option-count="2">
+        <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 0)} position={0} label="True" />
+        <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 1)} position={1} label="False" />
+      </div>
+    )
   }
   return null
 }
 
-function RevealResult({
-  reveal,
-  question,
-  compact,
-  colours,
-}: {
-  reveal: RevealPayload
-  question: SafeQuestion
-  compact: boolean
-  colours: readonly string[]
-}) {
+function SliderContext({ question }: { question: Extract<SafeQuestion, { type: 'slider' }> }) {
+  return (
+    <div className="presentation-slider-context" aria-label={`Range from ${formatSliderValue(question.minimum, question)} to ${formatSliderValue(question.maximum, question)}`}>
+      <span>{formatSliderValue(question.minimum, question)}</span><i aria-hidden="true" /><span>{formatSliderValue(question.maximum, question)}</span>
+    </div>
+  )
+}
+
+function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPayload; question: SafeQuestion; compact: boolean; colours: readonly string[] }) {
   switch (reveal.type) {
     case 'single-choice': {
-      const option = question.type === 'single-choice'
-        ? question.options.find((candidate) => candidate.id === reveal.correctOptionId)
-        : null
-      const correctPosition = question.type === 'single-choice' ? optionPosition(question, reveal.correctOptionId) : -1
-      return <><RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(colours, Math.max(0, correctPosition))}><h2>{option?.label ?? 'Correct option'}</h2></RevealAnswerCard><div className="result-bars">{question.type === 'single-choice' && orderedQuestionOptions(question).map((candidate, position) =>
-        <div className="answer-colour-result" style={answerColourStyle(colours, position)} data-option-id={candidate.id} key={candidate.id}><span>{candidate.label}</span><strong>{reveal.optionCounts[candidate.id] ?? 0}</strong></div>)}</div></>
+      const options = question.type === 'single-choice' ? orderedQuestionOptions(question) : []
+      return <div className="presentation-reveal-grid" data-option-count={options.length}>{options.map((option, position) => <RevealAnswerTile label={option.label} position={position} optionId={option.id} style={answerColourStyle(colours, position)} correct={option.id === reveal.correctOptionId} responseCount={reveal.optionCounts[option.id] ?? 0} key={option.id} />)}</div>
     }
     case 'multiple-select': {
-      const labels = question.type === 'multiple-select'
-        ? orderedQuestionOptions(question).filter((option) => reveal.correctOptionIds.includes(option.id))
-        : []
-      return <RevealAnswerCard className="presentation-correct-set">{labels.length > 0
-        ? <><p>Complete correct set</p><ul>{labels.map((option) => <li className="answer-colour-result" style={answerColourStyle(colours, optionPosition(question as Extract<SafeQuestion, { type: 'multiple-select' }>, option.id))} key={option.id}>{option.label}</li>)}</ul></>
-        : <h2>Correct set</h2>}</RevealAnswerCard>
+      const options = question.type === 'multiple-select' ? orderedQuestionOptions(question) : []
+      return <div className="presentation-reveal-grid" data-option-count={options.length}>{options.map((option, position) => <RevealAnswerTile label={option.label} position={position} optionId={option.id} style={answerColourStyle(colours, position)} correct={reveal.correctOptionIds.includes(option.id)} responseCount={reveal.optionCounts[option.id] ?? 0} key={option.id} />)}</div>
     }
     case 'true-false':
-      return <><RevealAnswerCard className="answer-colour-reveal" style={answerColourStyle(colours, reveal.correctValue ? 0 : 1)}><h2>{reveal.correctValue ? 'True' : 'False'}</h2></RevealAnswerCard><p>{reveal.counts.true} True · {reveal.counts.false} False</p></>
-    case 'slider':
-      return question.type === 'slider'
-        ? <RevealAnswerCard><h2>{formatSliderValue(reveal.correctValue, question)}</h2><p>{reveal.tolerance > 0
-          ? `Accepted range: ${formatSliderValue(reveal.correctValue - reveal.tolerance, question)}–${formatSliderValue(reveal.correctValue + reveal.tolerance, question)}`
-          : 'Exact value required'}</p></RevealAnswerCard>
-        : <RevealAnswerCard><h2>{reveal.correctValue}</h2></RevealAnswerCard>
-    case 'pinpoint': {
-      if (question.type !== 'pinpoint') return null
+      return <div className="presentation-reveal-grid presentation-reveal-grid--boolean" data-option-count="2">{[true, false].map((value, position) => <RevealAnswerTile label={value ? 'True' : 'False'} position={position} style={answerColourStyle(colours, position)} correct={value === reveal.correctValue} responseCount={value ? reveal.counts.true : reveal.counts.false} key={String(value)} />)}</div>
+    case 'slider': {
+      if (question.type !== 'slider') return <RevealAnswerCard><h2>{reveal.correctValue}</h2></RevealAnswerCard>
+      const range = Math.max(1, question.maximum - question.minimum)
+      const left = ((reveal.correctValue - reveal.tolerance - question.minimum) / range) * 100
+      const width = (reveal.tolerance * 2 / range) * 100
       return (
-        <div className="presentation-pinpoint-reveal">
-          <RevealAnswerCard><h2>The correct target area is highlighted on the image.</h2></RevealAnswerCard>
-          <PinpointSurface
-            path={question.media.path}
-            alt={question.media.altText}
-            mode="presentation-reveal"
-            markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))}
-            target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }}
-            allowEnlarge={!compact}
-          />
-          <div className="pinpoint-legend" aria-label="Pinpoint answer legend">
-            <span><i className="pinpoint-key pinpoint-key--response" />Player answers</span>
-            <span><i className="pinpoint-key pinpoint-key--target" />Correct area</span>
-          </div>
-          <p className="sr-only">The correct target location has been displayed.</p>
-        </div>
+        <RevealAnswerCard className="slider-reveal-card">
+          <p>Correct value</p><h2>{formatSliderValue(reveal.correctValue, question)}</h2>
+          <div className="slider-reveal-range" style={{ '--accepted-left': `${Math.max(0, left)}%`, '--accepted-width': `${Math.min(100, width)}%` } as CSSProperties} aria-hidden="true"><i /></div>
+          <p>{reveal.tolerance > 0 ? `Accepted range: ${formatSliderValue(reveal.correctValue - reveal.tolerance, question)}–${formatSliderValue(reveal.correctValue + reveal.tolerance, question)}` : 'Exact value required'}</p>
+        </RevealAnswerCard>
       )
     }
+    case 'pinpoint':
+      return question.type === 'pinpoint' ? (
+        <div className="presentation-pinpoint-reveal">
+          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} allowEnlarge={!compact} />
+          <div className="pinpoint-legend" aria-label="Pinpoint answer legend"><span><i className="pinpoint-key pinpoint-key--response" />Player answers</span><span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div>
+          <p className="sr-only">The correct target location has been displayed.</p>
+        </div>
+      ) : null
     case 'typed-answer':
-      return <RevealAnswerCard><h2>{reveal.correctAnswer}</h2></RevealAnswerCard>
+      return <RevealAnswerCard className="typed-reveal-card"><p>Correct answer</p><h2>{reveal.correctAnswer}</h2></RevealAnswerCard>
     case 'mashup':
-      return <RevealAnswerCard><h2>{reveal.correctNames[0]} <span>+</span> {reveal.correctNames[1]}</h2></RevealAnswerCard>
+      return <RevealAnswerCard className="mashup-reveal-card"><p>Correct pair</p><h2><strong>{reveal.correctNames[0]}</strong><span>+</span><strong>{reveal.correctNames[1]}</strong></h2></RevealAnswerCard>
   }
 }
 
-export function PresentationStage({
-  state,
-  compact = false,
-}: {
-  state: SafeGameState
-  compact?: boolean
-}) {
+function StageHeader({ question, compact, remaining, headToHead, showTimer = true }: { question: SafeQuestion; compact: boolean; remaining: number; headToHead: boolean; showTimer?: boolean }) {
+  return (
+    <header className="presentation-question__header">
+      <div><QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />{!headToHead && question.doubleScore && <DoubleScoreBadge />}</div>
+      {headToHead ? (
+        <GameBadge tone="neutral" large={!compact}>Untimed</GameBadge>
+      ) : showTimer ? (
+        <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} compact={compact} />
+      ) : (
+        <GameBadge tone="success" large={!compact}>Revealed</GameBadge>
+      )}
+    </header>
+  )
+}
+
+export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
@@ -118,72 +125,63 @@ export function PresentationStage({
   const competitors = state.headToHeadCompetitors ?? []
   const answerColours = resolveAnswerColours(state.answerPaletteId, state.customAnswerColours)
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
+  const showMedia = Boolean(question && question.media.type !== 'none' && (question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both'))
+  const showChoices = Boolean(question && choicesVisible(question, state.phase))
+  const composition = question ? questionComposition(question, showMedia, showChoices) : undefined
+
   return (
-    <section
-      className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`}
-      data-quiz-theme={state.themeId}
-      {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)}
-      aria-live="polite"
-    >
+    <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-quiz-theme={state.themeId} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)} aria-live="polite">
       {state.phase === 'lobby' && (
-        <div className="presentation-lobby">
-          <Logo />
-          <h1>{state.quizTitle}</h1>
-          <p>Join at {window.location.host}</p>
-          <strong className="presentation-room-code">{state.roomCode}</strong>
-          <div className="presentation-qr-panel">
-            <QRCodeSVG
-              value={joinUrl}
-              size={compact ? 90 : 220}
-              level="M"
-              bgColor="#ffffff"
-              fgColor="#111827"
-              title="QR code for joining this Katwed room"
-            />
+        <div className={`presentation-lobby ${headToHead ? 'presentation-lobby--head-to-head' : ''}`}>
+          <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">Lobby</GameBadge></header>
+          <div className="presentation-lobby__join">
+            <p className="eyebrow">The show is about to start</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
+            <strong className="presentation-room-code" aria-label={`Room code ${state.roomCode}`}>{state.roomCode}</strong>
+            <div className="presentation-lobby__join-tools"><div className="presentation-qr-panel"><QRCodeSVG value={joinUrl} size={compact ? 76 : 250} level="M" bgColor="#ffffff" fgColor="#111827" title="QR code for joining this Katwed room" /></div><p>Scan or visit<br /><strong>{window.location.host}</strong></p></div>
           </div>
-          {headToHead ? <div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.claimed ? (competitor.connected ? 'Ready' : 'Joined') : 'Waiting to join'}</span></div>)}</div> : <>
-            <p>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} joined</p>
-            <ul>{state.players.slice(0, compact ? 5 : 16).map((player) => <li key={player.id}>{player.nickname}</li>)}</ul>
-          </>}
+          {headToHead ? (
+            <div className="presentation-lobby__players head-to-head-lobby-stage">
+              <p className="eyebrow">Two competitors</p>
+              <div className="head-to-head-lobby-stage__slots">{competitors.map((competitor, index) => <article className={competitor.claimed ? 'is-joined' : 'is-waiting'} aria-label={`Competitor ${index + 1}: ${competitor.displayName}`} key={competitor.competitorId}><span>Competitor {index + 1}</span><strong>{competitor.displayName}</strong><GameBadge tone={competitor.connected ? 'success' : competitor.claimed ? 'warning' : 'neutral'}>{competitor.claimed ? (competitor.connected ? 'Ready' : 'Joined') : 'Waiting'}</GameBadge></article>)}</div>
+            </div>
+          ) : (
+            <div className="presentation-lobby__players">
+              <div className="presentation-lobby__player-heading"><div><p className="eyebrow">Contestants</p><h2>Players joined</h2></div><strong aria-label={`${state.players.length} players joined`}>{state.players.length}</strong></div>
+              {state.players.length > 0 ? <ul className="lobby-player-grid">{state.players.slice(0, compact ? 6 : 24).map((player) => <LobbyPlayerTile connected={player.connected} key={player.id}>{player.nickname}</LobbyPlayerTile>)}</ul> : <p className="presentation-lobby__empty">Waiting for the first player…</p>}
+            </div>
+          )}
         </div>
       )}
+
       {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro compact={compact} />}
       {state.phase === 'question' && question && !doubleScoreIntro && (
         <div className="presentation-question">
-          <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span>{headToHead ? <strong>Untimed</strong> : <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} compact={compact} />}</div>
-          {!headToHead && question.doubleScore && <DoubleScoreBadge />}
-          {headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}
-          <h1>{question.prompt}</h1>
-          {question.supportingText && <p>{question.supportingText}</p>}
-          {(question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
-            <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
-          )}
-          <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
-          <p>{state.submittedCount} of {state.players.length} {headToHead ? 'responses resolved' : 'answers submitted'}</p>
+          <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
+          <div className="presentation-question__body">
+            <div className="presentation-question__copy">{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
+            {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
+            {question.type === 'slider' && <SliderContext question={question} />}
+            <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
+          </div>
+          <footer className="presentation-question__footer"><SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} /></footer>
         </div>
       )}
-      {state.phase === 'locked' && (
-        <div className="presentation-centre"><div className="big-icon" aria-hidden="true">🔒</div><h1>Answers locked</h1><p>The reveal is coming up.</p></div>
-      )}
+
+      {state.phase === 'locked' && <div className="presentation-locked">{question && <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />}<div className="presentation-locked__mark" aria-hidden="true"><span>!</span></div><p className="eyebrow">Submissions closed</p><h1>Answers locked</h1><p>Ready for the reveal</p></div>}
+
       {state.phase === 'reveal' && state.reveal && question && (
         <div className="presentation-reveal">
-          <p className="eyebrow">Correct answer</p>
-          {question.type !== 'pinpoint' && (question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both') && (
-            <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} />
-          )}
+          <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} showTimer={false} />
+          <div className="presentation-reveal__copy"><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
+          {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
           <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
-          {state.reveal.caption && <p>{state.reveal.caption}</p>}
-          {headToHead && <><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></>}
+          {state.reveal.caption && <aside className="reveal-caption"><span>More to know</span><p>{state.reveal.caption}</p></aside>}
+          {headToHead && <div className="presentation-reveal__head-to-head"><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>}
         </div>
       )}
-      {state.phase === 'leaderboard' && (
-        <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
-      )}
-      {state.phase === 'finished' && (headToHead ? (
-        <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Head-to-Head complete</p><h1>{competitors[0]?.totalScore === competitors[1]?.totalScore ? 'It’s a draw!' : `${[...competitors].sort((a, b) => b.totalScore - a.totalScore)[0]?.displayName} wins!`}</h1><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>
-      ) : (
-        <div className="presentation-leaderboard presentation-finished"><p className="eyebrow">Final standings</p><h1>Final leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>
-      ))}
+
+      {state.phase === 'leaderboard' && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>}
+      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : <FinalResults entries={state.leaderboard} variant="presentation" />)}
     </section>
   )
 }

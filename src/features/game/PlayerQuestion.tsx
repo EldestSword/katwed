@@ -13,7 +13,9 @@ import { QuestionMedia } from '../../components/QuestionMedia'
 import { ImageViewer } from '../../components/ImageViewer'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import { GameTimer } from '../../components/design-system/GameTimer'
+import { QuestionProgressBadge } from '../../components/design-system/LiveGamePrimitives'
 import { PinpointSurface } from './PinpointSurface'
+import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
 import { orderedQuestionOptions } from '../questions/optionOrdering'
@@ -66,25 +68,6 @@ function ChoiceCard({
       {enlarged && option.imagePath && <ImageViewer path={option.imagePath} alt={option.imageAlt || option.label} onClose={() => setEnlarged(false)} />}
     </>
   )
-}
-
-function answerSummary(answer: PlayerAnswerPayload, question: SafeQuestion, roster: RosterMember[]): string {
-  switch (answer.type) {
-    case 'single-choice':
-      return question.type === 'single-choice'
-        ? question.options.find((option) => option.id === answer.optionId)?.label ?? 'Selected option'
-        : 'Selected option'
-    case 'multiple-select':
-      return question.type === 'multiple-select'
-        ? answer.optionIds.map((id) => question.options.find((option) => option.id === id)?.label ?? id).join(', ')
-        : 'Selected options'
-    case 'true-false': return answer.value ? 'True' : 'False'
-    case 'slider': return String(answer.value)
-    case 'pinpoint': return 'Location selected'
-    case 'typed-answer': return answer.value
-    case 'mashup':
-      return answer.memberIds.map((id) => roster.find((member) => member.id === id)?.displayName ?? id).join(' + ')
-  }
 }
 
 export function PlayerQuestion({
@@ -153,10 +136,9 @@ export function PlayerQuestion({
   if (submitted && answer) {
     return (
       <section className="player-waiting" aria-live="polite">
-        <div className="waiting-tick" aria-hidden="true">✓</div>
-        <h2>Answer locked in</h2>
-        <p>Your answer is safely tucked away. The result will appear after the reveal.</p>
-        <strong>{answerSummary(answer, question, roster)}</strong>
+        <div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h2>Answer locked</h2></div></div>
+        <PlayerSubmissionSummary answer={answer} question={question} roster={roster} answerPaletteId={answerPaletteId} customAnswerColours={customAnswerColours} />
+        <p className="player-waiting__next">Waiting for the reveal…</p>
       </section>
     )
   }
@@ -165,7 +147,7 @@ export function PlayerQuestion({
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
-        <span>{modeLabel ?? `Question ${question.questionNumber} of ${question.totalQuestions}`}</span>
+        {modeLabel ? <span>{modeLabel}</span> : <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact />}
         {question.doubleScore && <DoubleScoreBadge />}
         {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
       </div>
@@ -194,9 +176,10 @@ export function PlayerQuestion({
 
       {question.type === 'multiple-select' && (
         <>
-          <p className="selection-guidance">Select {question.minimumSelections === question.maximumSelections
-            ? question.minimumSelections
-            : `${question.minimumSelections}–${question.maximumSelections}`} options.</p>
+          <div className="selection-guidance">
+            <span>Select {question.minimumSelections === question.maximumSelections ? question.minimumSelections : `${question.minimumSelections}–${question.maximumSelections}`} options</span>
+            <strong>{answer?.type === 'multiple-select' ? answer.optionIds.length : 0} / {question.maximumSelections} selected</strong>
+          </div>
           <div className="answer-grid" role="group" aria-label="Choose all applicable answers">
             {orderedQuestionOptions(question).map((option, position) => {
               const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
@@ -234,14 +217,15 @@ export function PlayerQuestion({
 
       {question.type === 'slider' && (
         <div className="slider-answer">
-          <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix} {question.unitLabel}</output>
+          <p className="eyebrow">Your value</p>
+          <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix}{question.unitLabel ? ` ${question.unitLabel}` : ''}</output>
           <div className="slider-answer__interaction">
             <input type="range" min={question.minimum} max={question.maximum} step={question.step}
               value={answer?.type === 'slider' ? answer.value : question.minimum}
               aria-label={question.unitLabel || 'Answer value'}
               onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
           </div>
-          <div className="slider-answer__limits"><span>{question.minimum}</span><span>{question.maximum}</span></div>
+          <div className="slider-answer__limits"><span><small>Minimum</small>{question.prefix}{question.minimum}{question.suffix}</span><span><small>Maximum</small>{question.prefix}{question.maximum}{question.suffix}</span></div>
         </div>
       )}
 
@@ -290,7 +274,7 @@ export function PlayerQuestion({
 
       {question.type === 'mashup' && (
         <>
-          <div className="selection-heading"><h2>Select exactly 2 people</h2></div>
+          <div className="selection-heading"><div><p className="eyebrow">Exact pair required</p><h2>Select exactly 2 people</h2></div><strong className="selection-count">{mashupSelection.length} / 2</strong></div>
           <div className="roster-grid" role="group" aria-label="People bank">
             {roster.map((member) => {
               const selected = mashupSelection
@@ -321,7 +305,7 @@ export function PlayerQuestion({
         {timedOut && <StatusMessage tone="error">Time is up. Waiting for the reveal.</StatusMessage>}
         {error && <StatusMessage tone="error">{error}</StatusMessage>}
       </div>
-      <button className="button button--primary button--wide lock-button" type="button"
+      <button className="button button--primary button--wide button--large lock-button" type="button" aria-busy={submitting}
         disabled={!canSubmit || submitted || submitting || timedOut}
         onClick={() => void lockIn()}>{submitting ? 'Submitting…' : 'Lock in'}</button>
     </section>

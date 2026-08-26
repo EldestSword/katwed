@@ -234,7 +234,7 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   await expect(jess.getByRole('button', { name: 'Skip play-along' })).toBeVisible()
   await ross.getByRole('button', { name: 'True' }).click()
   await ross.getByRole('button', { name: 'Lock in' }).click()
-  await expect(ross.getByText('Answer locked in')).toBeVisible()
+  await expect(ross.getByText('Answer locked')).toBeVisible()
   await jess.getByRole('button', { name: 'False' }).click()
   await jess.getByRole('button', { name: 'Lock in' }).click()
   await expectHeadToHeadResult(ross, 'Ross', 'Official question', '✓ Correct', '+1 point')
@@ -535,7 +535,7 @@ test('quiz themes persist through duplication and audience game phases', async (
   await player.getByRole('button', { name: 'Bailey' }).click()
   await player.getByRole('button', { name: 'Lock in' }).click()
   await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
-  await expect(player.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
+  await expect(player.getByRole('heading', { name: 'Answer locked' })).toBeVisible()
   await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
   await page.getByRole('button', { name: 'Reveal answer' }).click()
   await expect(player.locator('.reveal-state')).toBeVisible()
@@ -908,7 +908,7 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
   await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
   await page.getByRole('button', { name: 'Reveal answer' }).click()
   await page.getByRole('button', { name: 'Reveal final results' }).click()
-  await expect(player.getByRole('heading', { name: 'Final scores' })).toBeVisible()
+  await expect(player.locator('.final-results')).toBeVisible()
 
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Close room' }).click()
@@ -927,7 +927,13 @@ test('controller, presentation and three players complete every mixed format', a
   const playerTwo = await joinPlayer(context, roomCode, 'Riley')
   const zeroScorePlayer = await joinPlayer(context, roomCode, 'A Long Zero Score Player')
   await expect(page.getByText('3 / 3').first()).toBeVisible()
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
+    await presentation.setViewportSize(viewport)
+    expect(await presentation.evaluate<boolean>('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
+  }
+  await playerOne.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Start game' }).click()
+  await expect(playerOne.getByRole('button', { name: 'Mars' })).toBeVisible()
 
   async function revealRound(expectedReveal: RegExp) {
     const closeAnswers = page.getByRole('button', { name: 'Close answers now' })
@@ -935,9 +941,9 @@ test('controller, presentation and three players complete every mixed format', a
     await expect(page.getByRole('button', { name: 'Reveal answer' })).toBeVisible()
     await expect(presentation.getByRole('heading', { name: 'Answers locked' })).toBeVisible()
     await page.getByRole('button', { name: 'Reveal answer' }).click()
-    await expect(presentation.getByText(expectedReveal).first()).toBeVisible()
-    await expect(presentation.getByRole('group', { name: 'Correct answer' })).toBeVisible()
-    await expect(page.locator('.controller-preview').getByRole('group', { name: 'Correct answer' })).toBeVisible()
+    await expect(presentation.locator('.presentation-reveal')).toContainText(expectedReveal)
+    await expect(presentation.locator('.presentation-reveal-grid, .reveal-answer-card, .presentation-pinpoint-reveal').first()).toBeVisible()
+    await expect(page.locator('.controller-preview').locator('.presentation-reveal-grid, .reveal-answer-card, .presentation-pinpoint-reveal').first()).toBeVisible()
     await expect(playerOne.getByRole('group', { name: 'Correct answer' })).toBeVisible()
   }
 
@@ -958,9 +964,10 @@ test('controller, presentation and three players complete every mixed format', a
   for (const option of ['Red', 'Green', 'Blue']) await playerOne.getByRole('button', { name: option }).click()
   await playerOne.getByRole('button', { name: 'Lock in' }).click()
   await revealRound(/Red.*Green.*Blue/)
-  await expect(playerOne.getByText('Red', { exact: true })).toBeVisible()
-  await expect(playerOne.getByText('Green', { exact: true })).toBeVisible()
-  await expect(playerOne.getByText('Blue', { exact: true })).toBeVisible()
+  const correctSet = playerOne.getByRole('group', { name: 'Correct answer' })
+  await expect(correctSet.getByText('Red', { exact: true })).toBeVisible()
+  await expect(correctSet.getByText('Green', { exact: true })).toBeVisible()
+  await expect(correctSet.getByText('Blue', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await page.getByRole('button', { name: 'Next question' }).click()
 
@@ -1033,10 +1040,11 @@ test('controller, presentation and three players complete every mixed format', a
   await expect(page.getByRole('button', { name: 'Show leaderboard' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Finish game' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Reveal final results' }).click()
-  await expect(presentation.getByRole('heading', { name: 'Final leaderboard' })).toBeVisible()
-  await expect(playerOne.getByRole('heading', { name: 'Final scores' })).toBeVisible()
-  await expect(zeroScorePlayer.getByRole('heading', { name: 'Final scores' })).toBeVisible()
-  await expect(presentation.locator('.leaderboard li').filter({ hasText: 'Quinn' })).toContainText('7,001')
+  await expect(presentation.locator('.final-results')).toBeVisible()
+  await expect(presentation.getByRole('list', { name: 'Top final positions' })).toBeVisible()
+  await expect(playerOne.locator('.final-results')).toBeVisible()
+  await expect(zeroScorePlayer.locator('.final-results')).toBeVisible()
+  await expect(presentation.locator('.final-podium li').filter({ hasText: 'Quinn' })).toContainText('7,001')
 })
 
 test('mash-up remains usable at representative mobile widths', async ({ context, page }) => {
@@ -1045,8 +1053,8 @@ test('mash-up remains usable at representative mobile widths', async ({ context,
   const player = await joinPlayer(context, roomCode, 'Mobile Player')
   await page.getByRole('button', { name: 'Start game' }).click()
   await expect(player.getByRole('heading', { name: 'Select exactly 2 people' })).toBeVisible()
-  for (const width of [320, 375, 390, 430]) {
-    await player.setViewportSize({ width, height: 760 })
+  for (const width of [320, 360, 375, 390, 430]) {
+    await player.setViewportSize({ width, height: width === 390 ? 844 : 800 })
     const bodyBox = await player.locator('body').boundingBox()
     expect(bodyBox?.width).toBeLessThanOrEqual(width)
     await expect(player.getByRole('button', { name: 'Lock in' })).toBeVisible()

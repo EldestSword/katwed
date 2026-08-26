@@ -15,6 +15,7 @@ describe('Leaderboard variants', () => {
     expect(screen.getByText('3,000 points')).toBeInTheDocument()
     expect(screen.getByText('Zero Player')).toBeInTheDocument()
     expect(screen.getByText('0 points')).toBeInTheDocument()
+    expect(container.querySelector('[data-rank="1"]')).toHaveClass('is-top-rank')
   })
 
   it('keeps the player leaderboard on its original variant', () => {

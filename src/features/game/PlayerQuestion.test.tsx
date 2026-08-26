@@ -55,7 +55,7 @@ describe('PlayerQuestion mash-up', () => {
     await user.click(screen.getByRole('button', { name: 'Alex' }))
     await user.click(screen.getByRole('button', { name: 'Bailey' }))
     await user.click(screen.getByRole('button', { name: 'Lock in' }))
-    expect(await screen.findByRole('heading', { name: 'Answer locked in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Answer locked' })).toBeInTheDocument()
     expect(onSubmit).toHaveBeenCalledWith({ type: 'mashup', memberIds: ['alex', 'bailey'] })
     rerender(<PlayerQuestion question={question} roster={roster} closesAt={closesAt}
       initialAnswer={{ type: 'mashup', memberIds: ['bailey', 'alex'] }} onSubmit={vi.fn()} />)

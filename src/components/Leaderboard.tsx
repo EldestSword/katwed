@@ -13,7 +13,7 @@ export function Leaderboard({
   return (
     <ol className={`leaderboard leaderboard--${variant}`} aria-label="Leaderboard" data-variant={variant}>
       {entries.map((entry) => (
-        <li key={entry.playerId} className={entry.playerId === currentPlayerId ? 'is-current' : ''}>
+        <li key={entry.playerId} data-rank={entry.rank} className={`leaderboard__entry ${entry.rank <= 3 ? 'is-top-rank' : ''} ${entry.playerId === currentPlayerId ? 'is-current' : ''}`.trim()}>
           <span className="leaderboard__rank">{entry.rank}</span>
           <strong className="leaderboard__name">{entry.nickname}</strong>
           <span className="leaderboard__points">{entry.totalScore.toLocaleString()} {entry.totalScore === 1 ? 'point' : 'points'}</span>
