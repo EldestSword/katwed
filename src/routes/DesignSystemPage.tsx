@@ -138,6 +138,11 @@ export function DesignSystemPage() {
         </div>
       </section>
 
+      <section className="design-system-section design-system-columns" aria-labelledby="backstage-heading">
+        <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Pass 3 · Backstage</p><h2 id="backstage-heading">Professional host primitives</h2><div className="backstage-lab-row is-selected"><b>07</b><span><strong>Which of these launched first?</strong><small>Multiple select · Ross</small></span></div><div className="backstage-lab-row"><b>08</b><span><strong>Name both people</strong><small>Mash-up · Jess</small></span></div></div>
+        <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Production status</p><h2>Phase-led controls</h2><div className="backstage-lab-stats"><span><small>Time</small><strong>14s</strong></span><span><small>Answered</small><strong>6 / 8</strong></span><span><small>Connected</small><strong>8 / 8</strong></span></div><button className="button button--primary button--wide" type="button">Reveal answer</button></div>
+      </section>
+
       <section className="design-system-section design-system-columns" aria-labelledby="foundation-heading">
         <div className="surface design-system-specimen">
           <p className="eyebrow">Type scale</p><h2 id="foundation-heading">Typography</h2><p className="design-system-display">Play loud. Host clearly.</p><h3>Display and section headings use Bricolage Grotesque.</h3><p>Utility copy and controls use the system UI stack for crisp, dependable reading at every size.</p><small>Small metadata remains legible and never carries meaning by colour alone.</small>

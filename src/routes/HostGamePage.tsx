@@ -104,7 +104,7 @@ export function HostGamePage() {
     <main className="controller-page">
       <header className="controller-bar">
         <Logo />
-        <div><span>{quiz.title}</span><strong>Room {session.roomCode}</strong></div>
+        <div><span>{quiz.title}</span><strong>Room <b>{session.roomCode}</b></strong></div>
         <GameBadge tone={state.phase === 'reveal' || state.phase === 'finished' ? 'success' : state.phase === 'locked' ? 'warning' : 'info'} className={`phase-badge phase-badge--${state.phase}`}>{state.phase}</GameBadge>
         <button className="button button--primary" type="button" onClick={() =>
           window.open(`/host/game/${session.id}/present`, 'katwed-presentation', 'noopener')
@@ -112,18 +112,16 @@ export function HostGamePage() {
       </header>
       {error && <StatusMessage tone="error">{error}</StatusMessage>}
       <div className="controller-grid">
-        <section className="controller-preview" aria-label="Presentation preview">
-          <PresentationStage state={state} compact />
+        <section className="controller-preview-wrap" aria-label="Presentation preview">
+          <header><span>Presentation preview</span><small>Live output</small></header>
+          <div className="controller-preview"><PresentationStage state={state} compact /></div>
         </section>
         <aside className="controller-panel">
-          <h1>Game controller</h1>
+          <div className="controller-panel__heading"><div><p className="eyebrow">Current state</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
           <dl className="controller-stats">
-            <div><dt>Phase</dt><dd>{state.phase}</dd></div>
-            <div><dt>Question</dt><dd>{question ? `${question.questionNumber} / ${question.totalQuestions}` : 'Not started'}</dd></div>
-            <div><dt>Type</dt><dd>{question ? questionTypeRegistry[question.type].name : '—'}</dd></div>
-            <div><dt>Time</dt><dd>{headToHead ? 'Untimed' : doubleScoreIntro ? 'Double Score intro' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
+            <div><dt>Time</dt><dd>{headToHead ? 'Untimed' : doubleScoreIntro ? 'Intro' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
+            <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
-            <div><dt>Submitted</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
           </dl>
           <div className="controller-actions">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
@@ -139,14 +137,15 @@ export function HostGamePage() {
               if (window.confirm('Close this room for every player?')) run('close')
             }}>Close room</button>
           </div>
-          <section>
-            <h2>Players</h2>
+          <section className="controller-monitor">
+            <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
             <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>
           </section>
-          <section>
-            <h2>Up next</h2>
-            <p>{upcoming ? `${questionTypeRegistry[upcoming.type].name}: ${upcoming.prompt}` : 'Final leaderboard'}</p>
-            {upcoming && upcoming.media.type !== 'none' && <small>Media: {upcoming.media.type}</small>}
+          <section className="controller-up-next">
+            <p className="eyebrow">Up next</p>
+            <h2>{upcoming ? `Question ${currentIndex + 2}` : 'Final results'}</h2>
+            <p>{upcoming ? upcoming.prompt : 'The final scoreboard and podium.'}</p>
+            {upcoming && <small>{questionTypeRegistry[upcoming.type].name}{upcoming.media.type !== 'none' ? ` · Media: ${upcoming.media.type}` : ''}</small>}
           </section>
         </aside>
       </div>

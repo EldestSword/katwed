@@ -63,6 +63,8 @@ export function QuizEditorPage() {
   const [coverUploading, setCoverUploading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [quizSettingsOpen, setQuizSettingsOpen] = useState(false)
+  const [addQuestionOpen, setAddQuestionOpen] = useState(false)
+  const [previewMode, setPreviewMode] = useState<'presentation' | 'player'>('presentation')
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
   const navigate = useNavigate()
   const blocker = useBlocker(dirty)
@@ -113,6 +115,7 @@ export function QuizEditorPage() {
     }
     update((current) => ({ ...current, questions: [...current.questions, question] }))
     setSelectedId(question.id)
+    setAddQuestionOpen(false)
   }
 
   async function upload(file: File | undefined) {
@@ -241,16 +244,13 @@ export function QuizEditorPage() {
   return (
     <main className="editor-page editor-page--three-panel">
       <header className="editor-toolbar">
-        <div><Link className="text-link" to="/host">← All quizzes</Link><input className="title-input" aria-label="Quiz title" value={quiz.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></div>
-        <div className="heading-actions">{dirty && <span className="unsaved-dot">Unsaved changes</span>}<button className="button button--secondary" type="button" onClick={() => setQuizSettingsOpen(true)}>Quiz settings</button><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save quiz'}</button></div>
+        <div className="editor-toolbar__identity"><Link className="text-link" to="/host">← Quizzes</Link><input className="title-input" aria-label="Quiz title" value={quiz.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></div>
+        <div className="heading-actions"><span className={`save-state${dirty ? ' save-state--dirty' : ''}`} role="status">{dirty ? 'Unsaved changes' : 'All changes saved'}</span><button className="button button--secondary" type="button" onClick={() => setQuizSettingsOpen(true)}>Quiz settings</button><button className="button button--primary" type="button" disabled={saving || !dirty} onClick={() => void save()}>{saving ? 'Saving…' : 'Save quiz'}</button></div>
       </header>
       {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
       <div className="editor-workspace">
         <aside className="question-navigator">
-          <h2>Questions</h2>
-          <div className="question-type-picker">
-            {questionTypes.map((definition) => <button key={definition.type} type="button" onClick={() => addQuestion(definition.type)}><span>{definition.icon}</span><strong>{definition.name}</strong><small>{definition.description}</small></button>)}
-          </div>
+          <div className="question-navigator__header"><div><p className="eyebrow">Structure</p><h2>Questions <span>{quiz.questions.length}</span></h2></div><button className="button button--primary button--compact" type="button" onClick={() => setAddQuestionOpen(true)}>+ Add</button></div>
           <ol>
             {quiz.questions.map((question, index) => <li key={question.id}>
               <button className={question.id === selectedId ? 'is-selected' : ''} type="button" onClick={() => setSelectedId(question.id)}>
@@ -266,13 +266,15 @@ export function QuizEditorPage() {
 
         <section className="editor-preview">
           {selected ? <>
-            <div className="preview-tabs"><span>Presentation preview</span><span>Player preview</span></div>
+            <div className="preview-tabs" role="tablist" aria-label="Preview mode"><button type="button" role="tab" aria-selected={previewMode === 'presentation'} onClick={() => setPreviewMode('presentation')}>Presentation</button><button type="button" role="tab" aria-selected={previewMode === 'player'} onClick={() => setPreviewMode('player')}>Player</button></div>
+            <div className={`preview-frame preview-frame--${previewMode}`}>
             <article
               className="question-preview-card quiz-themed-surface"
               data-quiz-theme={quiz.themeId}
               {...quizBackgroundSurfaceProps(quiz.backgroundId, quiz.themeId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
             ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /><EditorAnswerPreview question={selected} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
+            </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
                 const duplicate = structuredClone(selected)
@@ -298,12 +300,12 @@ export function QuizEditorPage() {
                 setSelectedId(quiz.questions[index + 1]?.id ?? quiz.questions[index - 1]?.id ?? '')
               }}>Delete</button>
             </div>
-          </> : <div className="empty-card"><h2>Add a question</h2><p>Choose one of the six supported formats.</p></div>}
+          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from seven purpose-built question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
         </section>
 
         <aside className="question-settings">
           {selected && <>
-            <h2>Question settings</h2>
+            <h2 className="sr-only">Question settings</h2><div className="question-settings__heading"><p className="eyebrow">Selected question</p><h2>Question {quiz.questions.findIndex((item) => item.id === selected.id) + 1}</h2><span>{questionTypeRegistry[selected.type].name}</span></div>
             <details className="question-settings-group" open><summary>Question</summary><div>
               <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
               <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
@@ -335,9 +337,27 @@ export function QuizEditorPage() {
         </aside>
       </div>
       {quizSettingsOpen && <QuizSettingsDialog quiz={quiz} update={update} close={closeQuizSettings} changeQuizType={changeQuizType} coverUploading={coverUploading} uploadCover={uploadCover} />}
+      {addQuestionOpen && <AddQuestionDialog close={() => setAddQuestionOpen(false)} add={addQuestion} />}
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
   )
+}
+
+function AddQuestionDialog({ close, add }: { close(): void; add(type: QuestionType): void }) {
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    root.current?.querySelector<HTMLButtonElement>('.question-type-dialog__grid button')?.focus()
+    const keydown = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+    document.addEventListener('keydown', keydown)
+    return () => { document.removeEventListener('keydown', keydown); previous?.focus() }
+  }, [close])
+  return createPortal(<div className="quiz-settings-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}>
+    <div className="question-type-dialog" role="dialog" aria-modal="true" aria-labelledby="add-question-heading" ref={root}>
+      <header><div><p className="eyebrow">Question library</p><h1 id="add-question-heading">Add question</h1><p>Pick a format. You can change it later.</p></div><button className="button button--ghost" type="button" onClick={close} aria-label="Close add question">Close</button></header>
+      <div className="question-type-dialog__grid">{questionTypes.map((definition) => <button key={definition.type} type="button" onClick={() => add(definition.type)}><span aria-hidden="true">{definition.icon}</span><strong>{definition.name}</strong><small>{definition.description}</small><i aria-hidden="true">→</i></button>)}</div>
+    </div>
+  </div>, document.body)
 }
 
 function QuizSettingsDialog({
@@ -356,6 +376,7 @@ function QuizSettingsDialog({
   uploadCover(file: File | undefined): Promise<void>
 }) {
   const dialog = useRef<HTMLDivElement>(null)
+  const [section, setSection] = useState<'game' | 'appearance' | 'colours'>('game')
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -396,15 +417,22 @@ function QuizSettingsDialog({
           <div><p className="eyebrow">Quiz-wide configuration</p><h1 id="quiz-settings-heading">Quiz settings</h1></div>
           <button className="button button--secondary quiz-settings-dialog__close" type="button" onClick={close}>Close</button>
         </header>
-        <p>Changes apply immediately to this draft and use the ordinary Save quiz workflow.</p>
-        <details className="quiz-settings-section" open>
-          <summary>Game</summary>
+        <p className="quiz-settings-dialog__intro">Configure the whole quiz. Changes remain in this draft until you save.</p>
+        <div className="quiz-settings-layout">
+          <nav className="quiz-settings-nav" aria-label="Quiz settings sections">
+            <button type="button" aria-current={section === 'game' ? 'page' : undefined} onClick={() => setSection('game')}><strong>Game</strong><span>Mode and competitors</span></button>
+            <button type="button" aria-current={section === 'appearance' ? 'page' : undefined} onClick={() => setSection('appearance')}><strong>Appearance</strong><span>Theme, background and cover</span></button>
+            <button type="button" aria-current={section === 'colours' ? 'page' : undefined} onClick={() => setSection('colours')}><strong>Answer colours</strong><span>Palette and custom colours</span></button>
+          </nav>
+          <div className="quiz-settings-content">
+        {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
+          <header><p className="eyebrow">Game</p><h2 id="settings-game-heading">Choose how this quiz plays</h2></header>
           <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} />
             {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           </div>
-        </details>
-        <details className="quiz-settings-section" open>
-          <summary>Appearance</summary>
+        </section>}
+        {section === 'appearance' && <section className="quiz-settings-section" aria-labelledby="settings-appearance-heading">
+          <header><p className="eyebrow">Appearance</p><h2 id="settings-appearance-heading">Define the quiz identity</h2></header>
           <div>
             <QuizThemePicker themeId={quiz.themeId} select={(themeId) => update((current) => ({
               ...current,
@@ -414,11 +442,13 @@ function QuizSettingsDialog({
             <QuizBackgroundPicker themeId={quiz.themeId} backgroundId={quiz.backgroundId} select={(backgroundId) => update((current) => ({ ...current, backgroundId }))} />
             <QuizCover coverImagePath={quiz.coverImagePath} uploading={coverUploading} upload={uploadCover} remove={() => update((current) => ({ ...current, coverImagePath: null }))} />
           </div>
-        </details>
-        <details className="quiz-settings-section" open>
-          <summary>Answer colours</summary>
+        </section>}
+        {section === 'colours' && <section className="quiz-settings-section" aria-labelledby="settings-colours-heading">
+          <header><p className="eyebrow">Answer colours</p><h2 id="settings-colours-heading">Choose the contestant palette</h2></header>
           <div><AnswerPalettePicker quiz={quiz} update={update} /></div>
-        </details>
+        </section>}
+          </div>
+        </div>
         <footer><button className="button button--primary" type="button" onClick={close}>Done</button></footer>
       </div>
     </div>,
@@ -596,7 +626,7 @@ function QuizBackgroundPicker({
               onClick={() => select(background.id)}
             >
               <span className="quiz-background-option__preview" aria-hidden="true">
-                <img src={background.assetPath} alt="" />
+                <img src={background.assetPath} alt="" loading="lazy" />
               </span>
               <span className="quiz-background-option__copy"><strong>{background.name}</strong></span>
               <span className="quiz-background-option__state">{selected ? 'Selected' : 'Choose'}</span>

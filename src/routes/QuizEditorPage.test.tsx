@@ -58,9 +58,11 @@ function renderEditor() {
   return render(<RouterProvider router={router} />)
 }
 
-async function openQuizSettings(user = userEvent.setup()) {
+async function openQuizSettings(user = userEvent.setup(), section: 'Game' | 'Appearance' | 'Answer colours' = 'Appearance') {
   await user.click(await screen.findByRole('button', { name: 'Quiz settings' }))
-  return screen.findByRole('dialog', { name: 'Quiz settings' })
+  const dialog = await screen.findByRole('dialog', { name: 'Quiz settings' })
+  await user.click(within(dialog).getByRole('button', { name: new RegExp(`^${section}`) }))
+  return dialog
 }
 
 describe('QuizEditorPage quiz appearance', () => {
@@ -90,10 +92,12 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(within(sidebar).getByText('Media & presentation')).toBeVisible()
 
     const dialog = await openQuizSettings(user)
-    expect(within(dialog).getByRole('group', { name: 'Quiz type' })).toBeVisible()
     expect(within(dialog).getByRole('group', { name: 'Quiz theme' })).toBeVisible()
     expect(within(dialog).getByRole('group', { name: 'Quiz background' })).toBeVisible()
     expect(within(dialog).getByRole('region', { name: 'Quiz cover' })).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: /^Game/ }))
+    expect(within(dialog).getByRole('group', { name: 'Quiz type' })).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: /^Answer colours/ }))
     expect(within(dialog).getByRole('group', { name: 'Answer palette' })).toBeVisible()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Quiz settings' })).not.toBeInTheDocument()
@@ -103,7 +107,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('previews and saves a quiz-wide custom answer palette through the dirty workflow', async () => {
     const user = userEvent.setup()
     renderEditor()
-    const dialog = await openQuizSettings(user)
+    const dialog = await openQuizSettings(user, 'Answer colours')
     await user.click(within(dialog).getByRole('button', { name: /Custom/ }))
     const firstHex = within(dialog).getByLabelText('Colour 1 hex')
     await user.clear(firstHex)
@@ -313,7 +317,7 @@ describe('QuizEditorPage quiz appearance', () => {
   it('defaults to Standard and creates two stable blank competitors when Head to Head is chosen', async () => {
     const user = userEvent.setup()
     renderEditor()
-    await openQuizSettings(user)
+    await openQuizSettings(user, 'Game')
 
     const picker = await screen.findByRole('group', { name: 'Quiz type' })
     expect(within(picker).getByRole('button', { name: /Standard/ })).toHaveAttribute('aria-pressed', 'true')
@@ -338,7 +342,7 @@ describe('QuizEditorPage quiz appearance', () => {
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     renderEditor()
-    await openQuizSettings(user)
+    await openQuizSettings(user, 'Game')
 
     const picker = await screen.findByRole('group', { name: 'Quiz type' })
     await user.click(within(picker).getByRole('button', { name: /Standard/ }))
@@ -360,8 +364,8 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(screen.getByLabelText('Faster answers score more')).not.toBeChecked()
     expect(screen.getByLabelText('Double score')).not.toBeChecked()
 
-    await user.click(within(document.querySelector('.question-type-picker') as HTMLElement)
-      .getByRole('button', { name: /True or false/ }))
+    await user.click(screen.getByRole('button', { name: '+ Add' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Add question' })).getByRole('button', { name: /True or false/ }))
     expect(screen.getByLabelText('Faster answers score more')).toBeChecked()
     expect(screen.getByLabelText('Double score')).not.toBeChecked()
     await user.click(screen.getByLabelText('Double score'))
@@ -447,7 +451,8 @@ describe('QuizEditorPage quiz appearance', () => {
 
     await screen.findByRole('heading', { name: 'Question settings' })
     await user.click(screen.getByRole('button', { name: 'Duplicate' }))
-    await user.click(within(document.querySelector('.question-type-picker') as HTMLElement).getByRole('button', { name: /True or false/ }))
+    await user.click(screen.getByRole('button', { name: '+ Add' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Add question' })).getByRole('button', { name: /True or false/ }))
     await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
 
     const saved = repositoryMocks.saveQuiz.mock.calls.at(-1)?.[0] as QuizSaveInput

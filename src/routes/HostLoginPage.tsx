@@ -39,9 +39,9 @@ export function HostLoginPage() {
   return (
     <main className="form-page">
       <div className="form-card">
-        <p className="eyebrow">Host headquarters</p>
-        <h1>Sign in to host</h1>
-        <p>Quiz management is kept separate from player screens.</p>
+        <p className="eyebrow">Katwed backstage</p>
+        <h1>Host your quiz</h1>
+        <p>Sign in to create, prepare and run your games.</p>
         {!config.supabaseConfigured && !config.demoMode && (
           <StatusMessage tone="error">
             Supabase is not configured. Add the two Supabase environment variables, or explicitly enable demo mode during local development.
