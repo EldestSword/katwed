@@ -5,6 +5,10 @@ import { App } from './app/App'
 import { AppErrorBoundary } from './app/AppErrorBoundary'
 import { AuthProvider } from './features/auth/AuthProvider'
 import './styles/global.css'
+import './styles/tokens.css'
+import './styles/typography.css'
+import './styles/primitives.css'
+import './styles/design-system.css'
 
 const router = createBrowserRouter([
   {

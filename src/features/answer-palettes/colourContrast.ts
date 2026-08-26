@@ -1,5 +1,6 @@
 export const DARK_ANSWER_TEXT = '#111827'
 export const LIGHT_ANSWER_TEXT = '#FFFFFF'
+const MAXIMUM_CONTRAST_DARK_ANSWER_TEXT = '#000000'
 
 export function normaliseHexColour(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -45,5 +46,6 @@ export function getContrastingTextColour(backgroundHex: string): string | null {
   if (!background) return null
   const darkRatio = contrastRatio(background, DARK_ANSWER_TEXT) ?? 0
   const lightRatio = contrastRatio(background, LIGHT_ANSWER_TEXT) ?? 0
+  if (Math.max(darkRatio, lightRatio) < 4.5) return MAXIMUM_CONTRAST_DARK_ANSWER_TEXT
   return darkRatio >= lightRatio ? DARK_ANSWER_TEXT : LIGHT_ANSWER_TEXT
 }

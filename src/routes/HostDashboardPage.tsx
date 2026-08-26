@@ -251,6 +251,7 @@ export function HostDashboardPage() {
       <header className="page-heading">
         <div><p className="eyebrow">Host headquarters</p><h1>Your quizzes</h1><p>Welcome, {user?.email ?? 'host'}.</p></div>
         <div className="heading-actions">
+          <Link className="button button--ghost" to="/host/design-system">Visual lab</Link>
           <Link className="button button--secondary" to="/host/storage">Storage</Link>
           <button className="button button--secondary" type="button" onClick={() => importInputRef.current?.click()}>
             Import quiz

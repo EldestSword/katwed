@@ -1,3 +1,5 @@
+import { GameBadge } from '../../components/design-system/GameBadge'
+
 export function DoubleScoreIntro({ compact = false }: { compact?: boolean }) {
   return (
     <section className={`double-score-intro ${compact ? 'double-score-intro--compact' : ''}`} aria-live="polite">
@@ -9,5 +11,5 @@ export function DoubleScoreIntro({ compact = false }: { compact?: boolean }) {
 }
 
 export function DoubleScoreBadge() {
-  return <span className="double-score-badge">2x points</span>
+  return <GameBadge tone="accent" large className="double-score-badge">2x points</GameBadge>
 }

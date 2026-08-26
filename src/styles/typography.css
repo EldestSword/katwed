@@ -1,0 +1,75 @@
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+html {
+  font-family: var(--font-ui);
+  font-size: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+h1,
+h2,
+h3,
+.brand-mark,
+.display-type {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 92;
+  text-wrap: balance;
+}
+
+h1 {
+  font-weight: 760;
+  letter-spacing: -.045em;
+  line-height: .98;
+}
+
+h2,
+h3 {
+  font-weight: 720;
+  letter-spacing: -.025em;
+  line-height: 1.08;
+}
+
+p,
+li,
+label,
+input,
+select,
+textarea,
+button {
+  line-height: 1.45;
+}
+
+.eyebrow {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.brand-mark {
+  font-weight: 780;
+  letter-spacing: -.055em;
+}
+
+.brand-mark .brand-mark__kat { color: var(--purple); }
+.brand-mark .brand-mark__wed { color: var(--coral); }
+.brand-mark .brand-bang { color: var(--yellow); display: inline-block; transform: rotate(5deg); transform-origin: bottom center; }
+.quiz-themed-surface .brand-mark .brand-mark__kat { color: var(--quiz-stage-text); }
+.quiz-themed-surface .brand-mark .brand-mark__wed { color: var(--quiz-stage-eyebrow); }
+.quiz-themed-surface .brand-mark .brand-bang { color: var(--quiz-feature-accent); }

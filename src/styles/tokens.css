@@ -1,0 +1,82 @@
+:root {
+  /* Type */
+  --font-display: "Bricolage Grotesque Variable", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --text-xs: .75rem;
+  --text-sm: .875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: clamp(1.25rem, 2vw, 1.5rem);
+  --text-2xl: clamp(1.65rem, 4vw, 2.4rem);
+  --text-display: clamp(2.4rem, 7vw, 5.6rem);
+
+  /* Space: a compact 4px-based scale for host, player and presentation layouts. */
+  --space-0: 0;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* Shape and depth */
+  --radius-xs: .45rem;
+  --radius-sm: .7rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.4rem;
+  --radius-xl: 1.8rem;
+  --radius-round: 999px;
+  --shadow-raised: 0 .75rem 2rem rgba(45, 23, 80, .12);
+  --shadow-floating: 0 1.5rem 4rem rgba(25, 14, 48, .22);
+  --shadow-tactile: 0 .35rem 0 var(--purple-dark);
+
+  /* Semantic app colour */
+  --surface-canvas: var(--paper);
+  --surface-raised: var(--white);
+  --surface-subtle: #f5f0fa;
+  --text-strong: var(--ink);
+  --text-muted: var(--muted);
+  --border-subtle: var(--line);
+  --action-primary: var(--purple);
+  --action-primary-hover: #673598;
+  --action-danger: #a51d44;
+  --action-danger-dark: #68102b;
+  --focus-ring: #0086a8;
+  --focus-offset: #fff;
+  --status-info-bg: #eefbff;
+  --status-info-text: #164e63;
+  --status-success-bg: #e7fbf4;
+  --status-success-text: #075f4a;
+  --status-warning-bg: #fff5cf;
+  --status-warning-text: #6b4900;
+  --status-danger-bg: #fff0f4;
+  --status-danger-text: #6f1130;
+
+  /* Motion */
+  --motion-instant: 80ms;
+  --motion-fast: 150ms;
+  --motion-base: 240ms;
+  --motion-slow: 420ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-bounce: cubic-bezier(.2, 1.45, .4, 1);
+}
+
+/* Theme-scoped aliases let primitives stay semantic while retaining every
+   established quiz palette and background. */
+[data-quiz-theme] {
+  --stage-canvas: var(--quiz-stage-bg);
+  --stage-surface: var(--quiz-stage-surface);
+  --stage-text: var(--quiz-stage-text);
+  --stage-muted: var(--quiz-stage-muted);
+  --stage-border: var(--quiz-stage-border);
+  --stage-accent: var(--quiz-accent);
+  --stage-accent-text: var(--quiz-accent-text);
+  --stage-shadow: var(--quiz-shadow);
+  --answer-selected-ring: var(--quiz-accent);
+  --answer-focus-ring: var(--quiz-feature-accent);
+}

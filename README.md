@@ -133,7 +133,15 @@ Quiz-wide configuration now opens from **Quiz settings** in an accessible modal,
 
 Standard rooms close answers automatically once every joined player has submitted, using the same authoritative lock transition as the timer and the host's **Close answers now** action. Joined-player count deliberately includes disconnected players, so a missing device cannot cause a premature close and the host retains the manual override. Empty rooms never auto-lock and Head-to-Head behaviour is unchanged.
 
-Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Custom palette. Colours are assigned by final displayed answer position after the shared deterministic option ordering; True uses position 1 and False position 2. Player, presentation, controller preview, reveal and suitable result surfaces share that mapping. Text uses the WCAG relative-luminance contrast ratio to choose controlled near-black or white rather than storing arbitrary text colours. Duplicate, Demo/Supabase save and load, safe live state, and portable format v4 preserve the configuration.
+Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Custom palette. Colours are assigned by final displayed answer position after the shared deterministic option ordering; True uses position 1 and False position 2. Player, presentation, controller preview, reveal and suitable result surfaces share that mapping. Text uses the WCAG relative-luminance contrast ratio to choose controlled near-black or white, with pure black reserved for the narrow colour range where neither preferred foreground reaches AA. Duplicate, Demo/Supabase save and load, safe live state, and portable format v4 preserve the configuration.
+
+### Visual design system, pass 1
+
+The first visual redesign pass establishes reusable foundations without redesigning complete screens. Bricolage Grotesque is bundled locally through `@fontsource-variable/bricolage-grotesque`; there are no runtime font requests to third-party services. Semantic CSS is split into tokens, typography, primitives and visual-lab layout under `src/styles/`, while the existing `global.css` remains the screen-layout layer until later redesign passes.
+
+Shared game primitives now cover positional answer tiles, eight non-colour SVG markers, selected/disabled/locked/correct/incorrect states, image answers, status badges, circular timers, button hierarchy, focus treatment, form controls, surfaces and reduced-motion behaviour. The player and presentation choice/timer paths use the shared primitives while retaining the established safe-state, scoring, deadline, theme, background and answer-palette contracts.
+
+Authenticated hosts can review the system at `/host/design-system` (also linked as **Visual lab** from the host dashboard). The lab changes local specimen state only: it does not save quiz data, call scoring operations or expose answer keys. It demonstrates every theme, positional marker and core state at desktop and mobile widths. This pass adds no database migration and does not change deployment settings.
 
 ### Planned
 

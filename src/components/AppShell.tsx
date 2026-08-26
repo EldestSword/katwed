@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { config } from '../lib/config'
 
 export function Logo() {
-  return <span className="brand-mark" aria-label="Katwed!">Kat<span>wed!</span></span>
+  return <span className="brand-mark" aria-label="Katwed!"><span className="brand-mark__kat">Kat</span><span className="brand-mark__wed">wed</span><span className="brand-bang" aria-hidden="true">!</span></span>
 }
 
 export function AppShell({ children }: { children: ReactNode }) {

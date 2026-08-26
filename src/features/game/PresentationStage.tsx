@@ -13,6 +13,8 @@ import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { orderedQuestionOptions, optionPosition } from '../questions/optionOrdering'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
+import { AnswerTile } from '../../components/design-system/AnswerTile'
+import { GameTimer } from '../../components/design-system/GameTimer'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -30,10 +32,10 @@ function PresentationChoices({
 }) {
   if (!choicesVisible(question, phase)) return null
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
-    return <div className="presentation-options">{orderedQuestionOptions(question).map((option, position) => <div className="answer-colour-tile" style={answerColourStyle(colours, position)} data-option-id={option.id} key={option.id}>{option.label}</div>)}</div>
+    return <div className="presentation-options">{orderedQuestionOptions(question).map((option, position) => <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, position)} optionId={option.id} position={position} label={option.label} key={option.id} />)}</div>
   }
   if (question.type === 'true-false') {
-    return <div className="presentation-options"><div className="answer-colour-tile" style={answerColourStyle(colours, 0)}>True</div><div className="answer-colour-tile" style={answerColourStyle(colours, 1)}>False</div></div>
+    return <div className="presentation-options"><AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 0)} position={0} label="True" /><AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, 1)} position={1} label="False" /></div>
   }
   return null
 }
@@ -148,7 +150,7 @@ export function PresentationStage({
       {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro compact={compact} />}
       {state.phase === 'question' && question && !doubleScoreIntro && (
         <div className="presentation-question">
-          <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span>{headToHead ? <strong>Untimed</strong> : <strong>{remaining}</strong>}</div>
+          <div className="presentation-question__header"><span>Question {question.questionNumber} of {question.totalQuestions}</span>{headToHead ? <strong>Untimed</strong> : <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} compact={compact} />}</div>
           {!headToHead && question.doubleScore && <DoubleScoreBadge />}
           {headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}
           <h1>{question.prompt}</h1>

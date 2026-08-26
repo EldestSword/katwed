@@ -10,8 +10,9 @@ import type {
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
-import { QuestionImage } from '../../components/QuestionImage'
 import { ImageViewer } from '../../components/ImageViewer'
+import { AnswerTile } from '../../components/design-system/AnswerTile'
+import { GameTimer } from '../../components/design-system/GameTimer'
 import { PinpointSurface } from './PinpointSurface'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
@@ -49,23 +50,21 @@ function ChoiceCard({
 }) {
   const [enlarged, setEnlarged] = useState(false)
   return (
-    <button className={`answer-choice answer-colour-tile ${selected ? 'is-selected' : ''}`} data-option-id={option.id} style={answerColourStyle(colours, position)} type="button" aria-pressed={selected} onClick={onSelect}>
-      {option.imagePath && <QuestionImage path={option.imagePath} alt={option.imageAlt || option.label || 'Answer option image'} />}
-      <span>{option.label}</span>
-      {option.imagePath && (
-        <span className="enlarge-button" role="button" tabIndex={0} onClick={(event) => {
-          event.stopPropagation()
-          setEnlarged(true)
-        }} onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            event.stopPropagation()
-            setEnlarged(true)
-          }
-        }}>Enlarge</span>
-      )}
+    <>
+      <AnswerTile
+        className="answer-choice answer-colour-tile"
+        optionId={option.id}
+        position={position}
+        label={option.label}
+        accessibleLabel={option.label}
+        image={option.imagePath ? { path: option.imagePath, alt: option.imageAlt || option.label || 'Answer option image' } : undefined}
+        selected={selected}
+        style={answerColourStyle(colours, position)}
+        onSelect={onSelect}
+        onEnlarge={option.imagePath ? () => setEnlarged(true) : undefined}
+      />
       {enlarged && option.imagePath && <ImageViewer path={option.imagePath} alt={option.imageAlt || option.label} onClose={() => setEnlarged(false)} />}
-    </button>
+    </>
   )
 }
 
@@ -168,7 +167,7 @@ export function PlayerQuestion({
       <div className="question-meta">
         <span>{modeLabel ?? `Question ${question.questionNumber} of ${question.totalQuestions}`}</span>
         {question.doubleScore && <DoubleScoreBadge />}
-        {closesAt !== null && <strong className={`timer ${remaining <= 5 ? 'timer--urgent' : ''}`} aria-label={`${remaining} seconds remaining`}>{remaining}</strong>}
+        {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
       </div>
       <div className="player-question__prompt">
         <h1 id="question-instruction">{question.prompt}</h1>
@@ -220,12 +219,16 @@ export function PlayerQuestion({
 
       {question.type === 'true-false' && (
         <div className="boolean-grid" role="group" aria-label="True or false">
-          {[true, false].map((value) => (
-            <button key={String(value)} type="button" className={`boolean-choice answer-colour-tile ${answer?.type === 'true-false' && answer.value === value ? 'is-selected' : ''}`}
-              style={answerColourStyle(answerColours, value ? 0 : 1)}
-              aria-pressed={answer?.type === 'true-false' && answer.value === value}
-              onClick={() => setAnswer({ type: 'true-false', value })}>{value ? 'True' : 'False'}</button>
-          ))}
+          {[true, false].map((value, position) => <AnswerTile
+            key={String(value)}
+            className="boolean-choice answer-colour-tile"
+            position={position}
+            label={value ? 'True' : 'False'}
+            accessibleLabel={value ? 'True' : 'False'}
+            selected={answer?.type === 'true-false' && answer.value === value}
+            style={answerColourStyle(answerColours, position)}
+            onSelect={() => setAnswer({ type: 'true-false', value })}
+          />)}
         </div>
       )}
 

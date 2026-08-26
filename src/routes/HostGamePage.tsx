@@ -10,6 +10,7 @@ import type { GameSession, Quiz, SafeGameState } from '../types/domain'
 import { questionTypeRegistry } from '../features/questions/registry'
 import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
 import { shouldAutoLockStandardQuestion } from '../features/game/autoLock'
+import { GameBadge } from '../components/design-system/GameBadge'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -104,7 +105,7 @@ export function HostGamePage() {
       <header className="controller-bar">
         <Logo />
         <div><span>{quiz.title}</span><strong>Room {session.roomCode}</strong></div>
-        <span className={`phase-badge phase-badge--${state.phase}`}>{state.phase}</span>
+        <GameBadge tone={state.phase === 'reveal' || state.phase === 'finished' ? 'success' : state.phase === 'locked' ? 'warning' : 'info'} className={`phase-badge phase-badge--${state.phase}`}>{state.phase}</GameBadge>
         <button className="button button--primary" type="button" onClick={() =>
           window.open(`/host/game/${session.id}/present`, 'katwed-presentation', 'noopener')
         }>Open presentation window</button>

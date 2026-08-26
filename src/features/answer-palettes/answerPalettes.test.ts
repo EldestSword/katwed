@@ -9,6 +9,7 @@ import {
   normaliseAnswerPalette,
   resolveAnswerColours,
 } from './answerPalettes'
+import { contrastRatio, getContrastingTextColour } from './colourContrast'
 
 describe('answer palettes', () => {
   it('registers every requested preset with exactly eight validated colours', () => {
@@ -40,5 +41,15 @@ describe('answer palettes', () => {
     expect(resolveAnswerColours('custom', custom)).toEqual(custom)
     expect(answerColourAt(custom, 8)).toBe(custom[0])
     expect(answerColourAt(custom, 17)).toBe(custom[1])
+  })
+
+  it('keeps every preset tile at WCAG AA text contrast', () => {
+    for (const palette of answerPalettes) {
+      for (const colour of palette.colours) {
+        const foreground = getContrastingTextColour(colour)
+        expect(foreground, `${palette.name} ${colour}`).not.toBeNull()
+        expect(contrastRatio(colour, foreground!), `${palette.name} ${colour}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 })

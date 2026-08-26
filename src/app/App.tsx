@@ -14,6 +14,7 @@ const QuizEditorPage = lazy(() => import('../routes/QuizEditorPage').then((modul
 const HostGamePage = lazy(() => import('../routes/HostGamePage').then((module) => ({ default: module.HostGamePage })))
 const PresentationPage = lazy(() => import('../routes/PresentationPage').then((module) => ({ default: module.PresentationPage })))
 const NotFoundPage = lazy(() => import('../routes/NotFoundPage').then((module) => ({ default: module.NotFoundPage })))
+const DesignSystemPage = lazy(() => import('../routes/DesignSystemPage').then((module) => ({ default: module.DesignSystemPage })))
 
 export function App() {
   return (
@@ -27,6 +28,7 @@ export function App() {
           <Route element={<RequireHost />}>
             <Route path="/host" element={<HostDashboardPage />} />
             <Route path="/host/storage" element={<HostStoragePage />} />
+            <Route path="/host/design-system" element={<DesignSystemPage />} />
             <Route path="/host/quizzes/:quizId/edit" element={<QuizEditorPage />} />
             <Route path="/host/game/:sessionId" element={<Navigate to="control" replace />} />
             <Route path="/host/game/:sessionId/control" element={<HostGamePage />} />
