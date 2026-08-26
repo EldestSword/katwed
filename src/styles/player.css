@@ -17,8 +17,14 @@
 .player-question > .question-media img { max-height: min(36vh, 20rem); object-fit: contain; }
 
 .player-question .answer-grid { grid-template-columns: 1fr; gap: .7rem; }
+.player-question .answer-grid[data-option-count="2"],
+.player-question .answer-grid[data-option-count="3"],
+.player-question .answer-grid[data-option-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.player-question .answer-grid[data-option-count="3"] > :last-child { grid-column: 1 / -1; }
 .player-question .answer-tile { border-radius: var(--radius-md); }
-.player-question .answer-tile__select { min-height: 4.9rem; padding: .8rem .9rem; font-size: clamp(1rem, 4.2vw, 1.3rem); }
+.player-question .answer-grid .answer-tile { height: 100%; }
+.player-question .answer-tile__select { min-height: 5.75rem; height: 100%; padding: .85rem .8rem; gap: .65rem; font-size: clamp(.96rem, 4vw, 1.25rem); line-height: 1.22; }
+.player-question .answer-tile__label { min-width: 0; overflow-wrap: anywhere; }
 .player-question .answer-tile:active:not(.is-disabled) { transform: translateY(.2rem); box-shadow: 0 .1rem 0 color-mix(in srgb, #000 42%, transparent); }
 .player-question .answer-tile__image { aspect-ratio: 16 / 8; }
 .player-question .answer-tile__image img { object-fit: contain; }
@@ -113,6 +119,13 @@
 .head-to-head-final--player .head-to-head-final__competitors { width: 100%; gap: .55rem; }
 .head-to-head-final--player .head-to-head-final__competitors article { min-height: 9rem; padding: .75rem; }
 
+@media (min-width: 440px) {
+  .player-question .answer-grid[data-option-count="5"],
+  .player-question .answer-grid[data-option-count="6"],
+  .player-question .answer-grid[data-option-count="7"],
+  .player-question .answer-grid[data-option-count="8"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (min-width: 560px) {
   .player-question .answer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .submission-summary__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -123,6 +136,8 @@
   .player-game .game-bar > div strong { max-width: 7.5rem; }
   .question-meta { padding-left: .55rem; }
   .question-meta .game-badge { font-size: .65rem; }
+  .player-question .answer-tile__select { min-height: 5.5rem; padding-inline: .65rem; gap: .5rem; }
+  .player-question .answer-grid .position-marker { width: 2rem; height: 2rem; }
   .player-question .boolean-grid .answer-tile__select { min-height: 6.4rem; }
   .roster-grid { grid-template-columns: 1fr; }
   .selection-guidance { align-items: flex-start; flex-direction: column; }

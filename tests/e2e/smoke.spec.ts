@@ -12,6 +12,14 @@ interface BrowserComputedStyle {
 interface BrowserEvaluationElement {
   closest(selector: string): unknown
   getAttribute(name: string): string | null
+  getBoundingClientRect(): BrowserEvaluationRect
+}
+
+interface BrowserEvaluationRect {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 interface BrowserEvaluationGlobal {
@@ -127,6 +135,40 @@ test('editor has seven formats and persists a changed title', async ({ page }) =
   await expect(page.getByLabel('Quiz title')).toHaveValue('A Persisted Curious Crew')
 })
 
+test('editor media and narrow Player previews preserve useful proportions', async ({ page }) => {
+  await enterHost(page)
+  await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('link', { name: 'Edit' }).click()
+
+  const preview = page.getByLabel('Katwed! theme preview')
+  await expect(preview).toHaveAttribute('data-preview-audience', 'presentation')
+  const previewImage = preview.locator('.editor-preview__media img')
+  await expect(previewImage).toHaveCSS('object-fit', 'contain')
+  const presentationMedia = await preview.locator('.editor-preview__media').boundingBox()
+  if (!presentationMedia) throw new Error('Presentation preview media was not visible')
+  expect(presentationMedia.height).toBeGreaterThanOrEqual(120)
+
+  await page.getByRole('tab', { name: 'Player' }).click()
+  await expect(preview).toHaveAttribute('data-preview-audience', 'player')
+  await expect(preview.locator('.editor-answer-preview')).toHaveCount(0)
+  const playerMedia = await preview.locator('.editor-preview__media').boundingBox()
+  if (!playerMedia) throw new Error('Player preview media was not visible')
+  expect(playerMedia.height).toBeGreaterThanOrEqual(160)
+
+  await page.goto('/host')
+  await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('link', { name: 'Edit' }).click()
+  await page.getByRole('tab', { name: 'Player' }).click()
+  const previewAnswers = page.getByLabel('Answer colour preview')
+  await expect(previewAnswers).toHaveAttribute('data-option-count', '4')
+  const positions = await previewAnswers.locator(':scope > span').evaluateAll((elements) => elements.map((element) => {
+    const rect = (element as unknown as BrowserEvaluationElement).getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  }))
+  expect(positions).toHaveLength(4)
+  expect(Math.abs(positions[0].y - positions[1].y)).toBeLessThan(2)
+  expect(Math.abs(positions[0].x - positions[2].x)).toBeLessThan(2)
+  expect(positions.every((position) => position.width >= 120 && position.height >= 72)).toBe(true)
+})
+
 test('custom answer colours stay aligned and Standard locks only after all four players submit', async ({ context, page }) => {
   test.setTimeout(90_000)
   await enterHost(page)
@@ -158,6 +200,8 @@ test('custom answer colours stay aligned and Standard locks only after all four 
   }
   await page.getByRole('button', { name: 'Start game' }).click()
 
+  await players[0].setViewportSize({ width: 390, height: 844 })
+
   const optionSnapshot = (surface: Page, selector: string) => surface.locator(selector).evaluateAll((elements) => (
     elements.map((element) => {
       const style = (globalThis as unknown as BrowserEvaluationGlobal).getComputedStyle(element)
@@ -182,6 +226,13 @@ test('custom answer colours stay aligned and Standard locks only after all four 
   expect(playerSnapshot).toEqual(controllerSnapshot)
   expect(playerSnapshot[0]).toMatchObject({ background: 'rgb(253, 253, 253)', colour: 'rgb(17, 24, 39)' })
   expect(playerSnapshot[1]).toMatchObject({ background: 'rgb(16, 16, 16)', colour: 'rgb(255, 255, 255)' })
+  const playerTilePositions = await players[0].locator(playerOptions).evaluateAll((elements) => elements.map((element) => {
+    const rect = (element as unknown as BrowserEvaluationElement).getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  }))
+  expect(Math.abs(playerTilePositions[0].y - playerTilePositions[1].y)).toBeLessThan(2)
+  expect(Math.abs(playerTilePositions[0].x - playerTilePositions[2].x)).toBeLessThan(2)
+  expect(playerTilePositions.every((position) => position.width >= 150 && position.height >= 88)).toBe(true)
 
   for (const player of players.slice(0, 3)) {
     await player.locator('.answer-choice[data-option-id]').first().click()

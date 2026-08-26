@@ -19,27 +19,28 @@
 .presentation-reveal,
 .presentation-leaderboard { box-sizing: border-box; width: 100%; min-height: calc(100vh - clamp(2rem, 5vw, 5rem)); }
 
-.presentation-lobby { display: grid; grid-template: auto 1fr / minmax(0, .92fr) minmax(24rem, 1.08fr); gap: clamp(1rem, 2.4vw, 2.5rem); align-items: stretch; text-align: left; }
+.presentation-lobby { display: grid; grid-template: auto 1fr / minmax(0, .98fr) minmax(24rem, 1.02fr); gap: clamp(1rem, 2.4vw, 2.5rem); align-items: stretch; text-align: left; }
 .presentation-lobby__brand { grid-column: 1 / -1; min-height: 3rem; display: flex; align-items: center; justify-content: space-between; }
 .presentation-lobby__brand .brand-mark { font-size: clamp(2.2rem, 4vw, 4rem); }
 .presentation-lobby__join,
 .presentation-lobby__players { min-width: 0; padding: clamp(1.25rem, 2.6vw, 2.75rem); border: 2px solid var(--quiz-stage-border); border-radius: var(--radius-xl); background: var(--quiz-stage-surface); box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, .28); backdrop-filter: blur(5px); }
 .presentation-lobby__join { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 .presentation-lobby__join .eyebrow { margin-bottom: .2rem; }
-.presentation-lobby__join h1 { max-width: 15ch; margin: 0 0 .5rem; font-size: clamp(1.8rem, 3.4vw, 3.8rem); }
-.presentation-lobby__instruction { margin: .75rem 0 0; color: var(--quiz-stage-muted); font-size: clamp(.85rem, 1.2vw, 1.1rem); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
-.presentation-room-code { display: block; margin: .02em 0 .1em; font-family: var(--font-display); font-size: clamp(4.4rem, 9.5vw, 10rem); font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: .055em; line-height: .86; text-wrap: nowrap; }
+.presentation-lobby__join h1 { max-width: 15ch; margin: 0 0 .5rem; font-size: clamp(2rem, 3.6vw, 4.1rem); }
+.presentation-lobby__instruction { margin: .75rem 0 0; color: var(--quiz-stage-muted); font-size: clamp(1rem, 1.35vw, 1.25rem); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.presentation-room-code { display: block; margin: .02em 0 .12em; font-family: var(--font-display); font-size: clamp(5rem, 10.5vw, 12rem); font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: .055em; line-height: .84; text-wrap: nowrap; }
 .presentation-lobby__join-tools { display: flex; align-items: center; gap: clamp(1rem, 2vw, 2rem); }
-.presentation-lobby__join-tools > p { color: var(--quiz-stage-muted); font-size: clamp(.9rem, 1.35vw, 1.25rem); line-height: 1.5; }
+.presentation-lobby__join-tools > p { color: var(--quiz-stage-muted); font-size: clamp(1rem, 1.45vw, 1.35rem); line-height: 1.5; }
 .presentation-lobby__join-tools > p strong { color: var(--quiz-stage-text); }
 .presentation-qr-panel { margin: .6rem 0 0; padding: clamp(.5rem, .8vw, .8rem); }
+.presentation-qr-panel svg { width: clamp(15.5rem, 28vh, 18.75rem); height: auto; }
 .presentation-lobby__players { display: flex; min-height: 0; flex-direction: column; }
 .presentation-lobby__player-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--quiz-stage-border); }
 .presentation-lobby__player-heading p, .presentation-lobby__player-heading h2 { margin: 0; }
-.presentation-lobby__player-heading h2 { font-size: clamp(1.6rem, 2.5vw, 2.7rem); }
-.presentation-lobby__player-heading > strong { width: clamp(3.5rem, 6vw, 5.5rem); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--quiz-accent-text); background: var(--quiz-accent); font-family: var(--font-display); font-size: clamp(1.7rem, 3vw, 3rem); }
-.lobby-player-grid { margin: 1.25rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: clamp(.5rem, .8vw, .8rem); overflow: hidden; list-style: none; }
-.presentation-lobby__empty { margin: auto; color: var(--quiz-stage-muted); font-size: clamp(1.1rem, 1.8vw, 1.6rem); }
+.presentation-lobby__player-heading h2 { font-size: clamp(1.9rem, 2.8vw, 3rem); }
+.presentation-lobby__player-heading > strong { width: clamp(4rem, 6.5vw, 6rem); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: var(--quiz-accent-text); background: var(--quiz-accent); font-family: var(--font-display); font-size: clamp(2rem, 3.2vw, 3.25rem); }
+.lobby-player-grid { margin: 1.25rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(3.35rem, auto); align-content: start; gap: clamp(.6rem, .9vw, .9rem); overflow: hidden; font-size: clamp(.95rem, 1.2vw, 1.15rem); list-style: none; }
+.presentation-lobby__empty { margin: auto; color: var(--quiz-stage-muted); font-size: clamp(1.25rem, 1.9vw, 1.75rem); }
 .presentation-lobby--head-to-head { grid-template-columns: minmax(0, .82fr) minmax(28rem, 1.18fr); }
 .head-to-head-lobby-stage { justify-content: center; }
 .head-to-head-lobby-stage__slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(.8rem, 2vw, 1.5rem); }
@@ -125,7 +126,7 @@
 .presentation-stage .leaderboard--presentation li.is-top-rank { min-height: clamp(3.8rem, 7vh, 5.6rem); border-color: var(--quiz-room-accent); }
 .presentation-stage .leaderboard__points { font-weight: 900; }
 
-.presentation-stage--compact { width: 100%; min-height: 100%; aspect-ratio: 16 / 9; padding: .65rem; font-size: .55rem; }
+.presentation-stage--compact { width: 100%; min-height: 100%; aspect-ratio: 16 / 9; overflow: hidden; padding: .65rem; font-size: .68rem; }
 .presentation-stage--compact::after { display: none; }
 .presentation-stage--compact .presentation-lobby,
 .presentation-stage--compact .presentation-question,
@@ -134,39 +135,59 @@
 .presentation-stage--compact .presentation-leaderboard,
 .presentation-stage--compact .final-results,
 .presentation-stage--compact .head-to-head-final { min-height: 100%; }
-.presentation-stage--compact .presentation-lobby { grid-template: auto 1fr / .95fr 1.05fr; gap: .45rem; }
+.presentation-stage--compact .presentation-lobby { grid-template: auto 1fr / .98fr 1.02fr; gap: .45rem; }
 .presentation-stage--compact .presentation-lobby__brand { min-height: 1rem; }
 .presentation-stage--compact .presentation-lobby__brand .brand-mark { font-size: 1.2rem; }
 .presentation-stage--compact .presentation-lobby__join,
 .presentation-stage--compact .presentation-lobby__players { padding: .55rem; border-width: 1px; border-radius: .55rem; backdrop-filter: none; }
-.presentation-stage--compact .presentation-lobby__join h1 { font-size: 1rem; }
-.presentation-stage--compact .presentation-room-code { font-size: 2.3rem; }
+.presentation-stage--compact .presentation-lobby__join h1 { margin-bottom: .2rem; font-size: 1.15rem; }
+.presentation-stage--compact .presentation-lobby__instruction { margin-top: .25rem; font-size: .52rem; }
+.presentation-stage--compact .presentation-room-code { font-size: 2.65rem; }
 .presentation-stage--compact .presentation-lobby__join-tools { gap: .5rem; }
 .presentation-stage--compact .presentation-lobby__join-tools p { display: none; }
 .presentation-stage--compact .presentation-qr-panel { padding: .25rem; border-width: 1px; border-radius: .35rem; }
-.presentation-stage--compact .presentation-lobby__player-heading h2 { font-size: .85rem; }
-.presentation-stage--compact .presentation-lobby__player-heading > strong { width: 1.5rem; font-size: .75rem; }
+.presentation-stage--compact .presentation-qr-panel svg { width: 4.75rem; height: auto; }
+.presentation-stage--compact .presentation-lobby__player-heading { padding-bottom: .4rem; }
+.presentation-stage--compact .presentation-lobby__player-heading h2 { font-size: 1rem; }
+.presentation-stage--compact .presentation-lobby__player-heading > strong { width: 1.75rem; font-size: .88rem; }
 .presentation-stage--compact .lobby-player-grid { margin-top: .45rem; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
-.presentation-stage--compact .lobby-player-tile { min-height: 1.2rem; padding: .2rem .35rem; gap: .25rem; box-shadow: none; }
+.presentation-stage--compact .lobby-player-tile { min-height: 1.45rem; padding: .25rem .4rem; gap: .3rem; font-size: .62rem; box-shadow: none; }
 .presentation-stage--compact .lobby-player-tile__signal { width: .3rem; border-width: 1px; }
+.presentation-stage--compact .head-to-head-lobby-stage__slots { gap: .4rem; }
+.presentation-stage--compact .head-to-head-lobby-stage__slots article { min-height: 7rem; padding: .45rem; gap: .35rem; border-width: 1px; border-radius: .5rem; }
+.presentation-stage--compact .head-to-head-lobby-stage__slots article > span { font-size: .46rem; }
+.presentation-stage--compact .head-to-head-lobby-stage__slots article > strong { font-size: 1rem; }
 .presentation-stage--compact .presentation-question { gap: .3rem; }
 .presentation-stage--compact .presentation-question__header { min-height: 1.6rem; }
 .presentation-stage--compact .presentation-question__header .game-timer { width: 1.8rem; }
-.presentation-stage--compact .presentation-question__copy h1 { font-size: clamp(.85rem, 2.6vw, 1.35rem); }
-.presentation-stage--compact .presentation-question__copy > p { margin-top: .15rem; font-size: .55rem; }
+.presentation-stage--compact .presentation-question__copy h1 { font-size: clamp(1.05rem, 2.8vw, 1.55rem); }
+.presentation-stage--compact .presentation-question__copy > p { margin-top: .15rem; font-size: .65rem; }
 .presentation-stage--compact .presentation-question__body { gap: .35rem; }
+.presentation-stage--compact[data-composition="media-and-answers"] .presentation-question__body { grid-template-columns: minmax(0, 1.08fr) minmax(10rem, .92fr); }
 .presentation-stage--compact .presentation-question__media .question-media,
 .presentation-stage--compact .presentation-question__media .question-media img { max-height: 8.5rem; border-width: 1px; border-radius: .45rem; }
 .presentation-stage--compact .presentation-options { gap: .3rem; }
-.presentation-stage--compact .presentation-options .answer-tile--static { min-height: 1.65rem; padding: .25rem .35rem; gap: .3rem; font-size: .55rem; }
+.presentation-stage--compact .presentation-options .answer-tile--static { min-height: 1.9rem; padding: .3rem .4rem; gap: .35rem; font-size: .68rem; line-height: 1.15; }
 .presentation-stage--compact .presentation-options .answer-tile { --answer-tile-marker-size: .9rem; border-radius: .4rem; box-shadow: 0 .12rem 0 rgba(0, 0, 0, .35); }
-.presentation-stage--compact .submission-status { min-width: 10rem; min-height: 1.2rem; padding: .18rem .35rem; grid-template-columns: 3rem auto auto; gap: .3rem; font-size: .42rem; }
-.presentation-stage--compact .presentation-reveal__copy h1 { font-size: .85rem; }
+.presentation-stage--compact .submission-status { min-width: 11rem; min-height: 1.35rem; padding: .2rem .4rem; grid-template-columns: 3.5rem auto auto; gap: .35rem; font-size: .5rem; }
+.presentation-stage--compact .presentation-locked__mark { width: 3.25rem; margin: .45rem; border-width: .3rem; }
+.presentation-stage--compact .presentation-locked__mark span { font-size: 2.5rem; }
+.presentation-stage--compact .presentation-locked h1 { font-size: 2.35rem; }
+.presentation-stage--compact .presentation-locked > p:last-child { font-size: .72rem; }
+.presentation-stage--compact .presentation-reveal__copy h1 { font-size: 1.05rem; }
 .presentation-stage--compact .presentation-reveal-grid { gap: .25rem; }
 .presentation-stage--compact .reveal-answer-tile .answer-tile { --answer-tile-marker-size: .8rem; }
-.presentation-stage--compact .reveal-answer-tile .answer-tile--static { min-height: 1.4rem; padding: .2rem .3rem; gap: .25rem; font-size: .48rem; }
-.presentation-stage--compact .reveal-answer-tile__meta { padding: .12rem .25rem; font-size: .35rem; }
-.presentation-stage--compact .reveal-caption { padding: .25rem .4rem; }
+.presentation-stage--compact .reveal-answer-tile .answer-tile--static { min-height: 1.65rem; padding: .25rem .35rem; gap: .3rem; font-size: .6rem; }
+.presentation-stage--compact .reveal-answer-tile__meta { padding: .14rem .3rem; font-size: .44rem; }
+.presentation-stage--compact .reveal-caption { padding: .3rem .45rem; font-size: .54rem; }
+.presentation-stage--compact .presentation-leaderboard > .eyebrow { font-size: .58rem; }
+.presentation-stage--compact .presentation-leaderboard > h1 { margin: .05rem 0 .2rem; font-size: 1.75rem; }
+.presentation-stage--compact .leaderboard--presentation { width: 96%; margin: .2rem auto; gap: .2rem; }
+.presentation-stage--compact .leaderboard--presentation li { min-height: 2rem; grid-template-columns: 1.55rem minmax(0, 1fr) minmax(4.8rem, auto); gap: .45rem; padding: .22rem .45rem; border-width: 1px; border-radius: .4rem; font-size: .72rem; line-height: 1.12; box-shadow: 0 .14rem .35rem rgba(0, 0, 0, .25); }
+.presentation-stage--compact .leaderboard--presentation li.is-top-rank { min-height: 2.15rem; }
+.presentation-stage--compact .leaderboard--presentation .leaderboard__rank { width: 1.35rem; height: 1.35rem; font-size: .62rem; }
+.presentation-stage--compact .leaderboard--presentation .leaderboard__name { font-size: .76rem; }
+.presentation-stage--compact .leaderboard--presentation .leaderboard__points { font-size: .68rem; }
 .presentation-stage--compact .final-results__celebration { display: none; }
 .presentation-stage--compact .final-podium { margin: .35rem; gap: .3rem; }
 .presentation-stage--compact .final-podium li { min-height: 3.5rem; padding: .3rem; border-radius: .45rem .45rem .2rem .2rem; }

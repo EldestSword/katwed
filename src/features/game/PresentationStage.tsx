@@ -137,7 +137,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
           <div className="presentation-lobby__join">
             <p className="eyebrow">The show is about to start</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
             <strong className="presentation-room-code" aria-label={`Room code ${state.roomCode}`}>{state.roomCode}</strong>
-            <div className="presentation-lobby__join-tools"><div className="presentation-qr-panel"><QRCodeSVG value={joinUrl} size={compact ? 76 : 250} level="M" bgColor="#ffffff" fgColor="#111827" title="QR code for joining this Katwed room" /></div><p>Scan or visit<br /><strong>{window.location.host}</strong></p></div>
+            <div className="presentation-lobby__join-tools"><div className="presentation-qr-panel"><QRCodeSVG value={joinUrl} size={compact ? 92 : 300} level="M" bgColor="#ffffff" fgColor="#111827" title="QR code for joining this Katwed room" /></div><p>Scan or visit<br /><strong>{window.location.host}</strong></p></div>
           </div>
           {headToHead ? (
             <div className="presentation-lobby__players head-to-head-lobby-stage">
@@ -180,7 +180,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'leaderboard' && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} variant="presentation" /></div>}
+      {state.phase === 'leaderboard' && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={compact ? state.leaderboard.slice(0, 6) : state.leaderboard} variant="presentation" /></div>}
       {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : <FinalResults entries={state.leaderboard} variant="presentation" />)}
     </section>
   )

@@ -148,6 +148,18 @@ describe('PlayerQuestion Typed Answer', () => {
 describe('PlayerQuestion answer palettes', () => {
   const colours = ['#FFFFFF', '#071326', '#FFFF00', '#00FFFF', '#C62828', '#1565C0', '#2E7D32', '#F9A825'] as const
 
+  it.each([2, 3, 4, 5, 8])('exposes an option count for the responsive %s-answer layout', (optionCount) => {
+    const choiceQuestion: SafeQuestion = {
+      id: `choice-${optionCount}`, type: 'single-choice', prompt: 'Choose', supportingText: '',
+      media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+      points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30, randomiseOptions: false,
+      options: Array.from({ length: optionCount }, (_, index) => ({ id: `option-${index + 1}`, label: `Option ${index + 1}` })),
+    }
+    const { container } = render(<PlayerQuestion question={choiceQuestion} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(container.querySelector('.player-question .answer-grid')).toHaveAttribute('data-option-count', String(optionCount))
+  })
+
   it('assigns True and False palette positions without implying correctness', () => {
     const question: SafeQuestion = {
       id: 'boolean', type: 'true-false', prompt: 'True or false?', supportingText: '',

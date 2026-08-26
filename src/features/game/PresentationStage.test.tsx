@@ -136,7 +136,7 @@ describe('PresentationStage quiz theme', () => {
     const { container } = render(<PresentationStage state={{ ...state('lobby'), players }} />)
 
     expect(screen.getByLabelText('Room code 123456')).toHaveTextContent('123456')
-    expect(container.querySelector('.presentation-qr-panel svg')).toBeInTheDocument()
+    expect(container.querySelector('.presentation-qr-panel svg')).toHaveAttribute('width', '300')
     expect(screen.getByLabelText('2 players joined')).toBeVisible()
     expect(screen.getByText('Debs')).toBeVisible()
     expect(screen.getByText('Roger')).toBeVisible()
@@ -153,6 +153,24 @@ describe('PresentationStage quiz theme', () => {
 
     expect(screen.getByRole('article', { name: 'Competitor 1: Deb' })).toHaveTextContent('Ready')
     expect(screen.getByRole('article', { name: 'Competitor 2: Roger' })).toHaveTextContent('Waiting')
+  })
+
+  it('keeps the full leaderboard complete while the compact monitor shows a legible top six', () => {
+    const leaderboard = Array.from({ length: 9 }, (_, index) => ({
+      playerId: `player-${index + 1}`,
+      nickname: `Player ${index + 1}`,
+      rank: index + 1,
+      totalScore: 900 - (index * 50),
+      correctAnswerCount: 9 - index,
+      totalCorrectResponseMs: (index + 1) * 1000,
+    }))
+    const full = render(<PresentationStage state={{ ...state('leaderboard'), leaderboard }} />)
+    expect(within(screen.getByRole('list', { name: 'Leaderboard' })).getAllByRole('listitem')).toHaveLength(9)
+
+    full.rerender(<PresentationStage compact state={{ ...state('leaderboard'), leaderboard }} />)
+    expect(within(screen.getByRole('list', { name: 'Leaderboard' })).getAllByRole('listitem')).toHaveLength(6)
+    expect(screen.getByText('Player 6')).toBeVisible()
+    expect(screen.queryByText('Player 7')).not.toBeInTheDocument()
   })
 
   it('integrates progress, timer, prompt, supporting text and submitted count in the question stage', () => {
