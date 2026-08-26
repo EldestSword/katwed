@@ -270,10 +270,11 @@ export function QuizEditorPage() {
             <div className={`preview-frame preview-frame--${previewMode}`}>
             <article
               className="question-preview-card quiz-themed-surface"
+              data-preview-audience={previewMode}
               data-quiz-theme={quiz.themeId}
               {...quizBackgroundSurfaceProps(quiz.backgroundId, quiz.themeId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
-            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}<QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /><EditorAnswerPreview question={selected} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
@@ -500,14 +501,43 @@ function CustomColourControl({ colour, position, update }: { colour: string; pos
   </span></label>
 }
 
-function EditorAnswerPreview({ question, answerPaletteId, customAnswerColours }: { question: Question; answerPaletteId: AnswerPaletteId; customAnswerColours: AnswerColourTuple }) {
+function previewShowsMedia(question: Question, previewMode: 'presentation' | 'player'): boolean {
+  if (question.media.type === 'none') return false
+  return question.mediaVisibility === 'both' || question.mediaVisibility === (previewMode === 'presentation' ? 'presentation' : 'players')
+}
+
+function EditorAnswerPreview({
+  question,
+  previewMode,
+  answerPaletteId,
+  customAnswerColours,
+}: {
+  question: Question
+  previewMode: 'presentation' | 'player'
+  answerPaletteId: AnswerPaletteId
+  customAnswerColours: AnswerColourTuple
+}) {
   const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   const options = question.type === 'single-choice' || question.type === 'multiple-select'
     ? orderedQuestionOptions(question)
     : question.type === 'true-false'
       ? [{ id: 'true', label: 'True' }, { id: 'false', label: 'False' }]
-      : colours.slice(0, 4).map((_, index) => ({ id: `colour-${index + 1}`, label: `Answer ${index + 1}` }))
-  return <div className="editor-answer-preview" aria-label="Answer colour preview">{options.map((option, position) => <span className="answer-colour-tile" data-option-id={option.id} style={answerColourStyle(colours, position)} key={option.id}>{option.label}</span>)}</div>
+      : []
+
+  if (options.length > 0) {
+    const choicesHidden = previewMode === 'presentation' && question.presentationChoiceVisibility !== 'show'
+    if (choicesHidden) return <p className="editor-preview__context">Choices are hidden on the Presentation during the question.</p>
+    return <div className="editor-answer-preview" aria-label="Answer colour preview" data-option-count={options.length}>{options.map((option, position) => <span className="answer-colour-tile" data-option-id={option.id} style={answerColourStyle(colours, position)} key={option.id}>{option.label}</span>)}</div>
+  }
+
+  const context = question.type === 'slider'
+    ? `Range from ${question.minimum} to ${question.maximum}`
+    : question.type === 'typed-answer'
+      ? 'Players type their answer'
+      : question.type === 'pinpoint'
+        ? 'Players tap the correct place on the image'
+        : 'Players select two people on their device'
+  return <p className="editor-preview__context">{context}</p>
 }
 
 function QuizTypePicker({ quizType, select }: { quizType: QuizType; select(quizType: QuizType): void }) {

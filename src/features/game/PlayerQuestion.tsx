@@ -160,7 +160,7 @@ export function PlayerQuestion({
       )}
 
       {question.type === 'single-choice' && (
-        <div className="answer-grid" role="group" aria-label="Choose one answer">
+        <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (
             <ChoiceCard
               key={option.id}
@@ -180,7 +180,7 @@ export function PlayerQuestion({
             <span>Select {question.minimumSelections === question.maximumSelections ? question.minimumSelections : `${question.minimumSelections}–${question.maximumSelections}`} options</span>
             <strong>{answer?.type === 'multiple-select' ? answer.optionIds.length : 0} / {question.maximumSelections} selected</strong>
           </div>
-          <div className="answer-grid" role="group" aria-label="Choose all applicable answers">
+          <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose all applicable answers">
             {orderedQuestionOptions(question).map((option, position) => {
               const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
               return (

@@ -164,6 +164,31 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(await screen.findByText('Quiz saved.')).toBeVisible()
   })
 
+  it('keeps question media contained and identifies the selected preview audience', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    const preview = await screen.findByLabelText('Katwed! theme preview')
+    expect(preview).toHaveAttribute('data-preview-audience', 'presentation')
+    expect(preview.querySelector('.editor-preview__media .question-media img')).toHaveAttribute('src', '/demo/portrait-1.svg')
+    expect(within(preview).getByText('Players select two people on their device')).toBeVisible()
+    expect(preview.querySelector('.editor-answer-preview')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Player' }))
+    expect(preview).toHaveAttribute('data-preview-audience', 'player')
+    expect(preview.closest('.preview-frame')).toHaveClass('preview-frame--player')
+  })
+
+  it('marks a four-choice Player preview for the narrow two-by-two layout', async () => {
+    const user = userEvent.setup()
+    repositoryMocks.getQuiz.mockResolvedValue({ ...structuredClone(mixedDemoQuiz), id: 'quiz-cover-test' })
+    renderEditor()
+    await screen.findByLabelText('Katwed! theme preview')
+    await user.click(screen.getByRole('tab', { name: 'Player' }))
+
+    expect(screen.getByLabelText('Answer colour preview')).toHaveAttribute('data-option-count', '4')
+  })
+
   it('shows Theme default plus exactly three accessible image backgrounds for the selected theme', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({
       themeId: 'paper',
