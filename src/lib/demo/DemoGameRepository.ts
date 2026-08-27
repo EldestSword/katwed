@@ -31,6 +31,7 @@ import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
+import { normaliseSoundPackId } from '../../features/audio/soundPacks'
 import {
   calculateStandardQuestionScore,
   standardQuestionWindow,
@@ -77,6 +78,7 @@ function normaliseState(state: DemoState): DemoState {
       return normaliseQuizHeadToHead({
         ...quiz,
         ...answerPalette,
+        soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
         coverImagePath: quiz.coverImagePath ?? null,
         themeId,
         backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
@@ -312,6 +314,7 @@ export class DemoGameRepository implements GameRepository {
         themeId: input.themeId,
         backgroundId: input.backgroundId,
         ...answerPalette,
+        soundPackId: normaliseSoundPackId(input.soundPackId ?? existing?.soundPackId),
         roster: input.roster.map((member, index) => ({
           ...member,
           id: member.id || uid('member'),
@@ -634,6 +637,7 @@ export class DemoGameRepository implements GameRepository {
       backgroundId: quiz.backgroundId,
       answerPaletteId: quiz.answerPaletteId,
       customAnswerColours: quiz.customAnswerColours,
+      soundPackId: quiz.soundPackId,
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,

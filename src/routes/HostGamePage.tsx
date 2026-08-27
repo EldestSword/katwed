@@ -11,6 +11,7 @@ import { questionTypeRegistry } from '../features/questions/registry'
 import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
 import { shouldAutoLockStandardQuestion } from '../features/game/autoLock'
 import { GameBadge } from '../components/design-system/GameBadge'
+import { HostAudioControls } from '../components/HostAudioControls'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -137,6 +138,7 @@ export function HostGamePage() {
               if (window.confirm('Close this room for every player?')) run('close')
             }}>Close room</button>
           </div>
+          <HostAudioControls soundPackId={quiz.soundPackId} />
           <section className="controller-monitor">
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
             <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>

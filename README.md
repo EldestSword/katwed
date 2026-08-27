@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608260001_quiz_answer_palettes.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching answer-palette frontend is not deployed by this development change; Netlify releases remain deliberate.
+The production migration chain through `202608260001_quiz_answer_palettes.sql` is applied to the live project. `202608270001_quiz_sound_pack.sql` is a pending forward migration for Audio Pass 1 and has not been applied. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1 frontend is not deployed by this development change; Netlify releases remain deliberate.
 
 ### Implemented and deployed
 
@@ -105,9 +105,9 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 4 is the export target. It adds quiz-wide positional answer palettes to the version 3 Standard speed-scoring, Double Score and tile-grid definition, while the importer remains backward-compatible with versions 1, 2 and 3 and normalises their missing palette to Classic. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v4.md`](docs/katwed-quiz-format-v4.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v4.schema.json); the v1-v3 documentation and schemas remain available for existing generators.
+Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
 
-Import/export versions 1 and 2 and Typed Answer are deployed. Version 4 exports are implemented and tested, and the required database migrations are applied; the matching frontend still requires a deliberate Netlify release.
+Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its Audio Pass 1 database migration and frontend both await deliberate release approval.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -133,7 +133,15 @@ Quiz-wide configuration now opens from **Quiz settings** in an accessible modal,
 
 Standard rooms close answers automatically once every joined player has submitted, using the same authoritative lock transition as the timer and the host's **Close answers now** action. Joined-player count deliberately includes disconnected players, so a missing device cannot cause a premature close and the host retains the manual override. Empty rooms never auto-lock and Head-to-Head behaviour is unchanged.
 
-Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Custom palette. Colours are assigned by final displayed answer position after the shared deterministic option ordering; True uses position 1 and False position 2. Player, presentation, controller preview, reveal and suitable result surfaces share that mapping. Text uses the WCAG relative-luminance contrast ratio to choose controlled near-black or white, with pure black reserved for the narrow colour range where neither preferred foreground reaches AA. Duplicate, Demo/Supabase save and load, safe live state, and portable format v4 preserve the configuration.
+Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Custom palette. Colours are assigned by final displayed answer position after the shared deterministic option ordering; True uses position 1 and False position 2. Player, presentation, controller preview, reveal and suitable result surfaces share that mapping. Text uses the WCAG relative-luminance contrast ratio to choose controlled near-black or white, with pure black reserved for the narrow colour range where neither preferred foreground reaches AA. Duplicate, Demo/Supabase save and load, safe live state, and portable format v5 preserve the configuration.
+
+### Shared game audio, pass 1
+
+Each quiz selects **Katwed!** or **None** in Quiz settings. The full Presentation route is the only shared-audio owner: it maps authoritative Lobby, Question, Urgent, Double Score, Locked, Reveal, Leaderboard and Final phases through one central engine and sound-pack registry. Controller music/effects volume and master mute are local device preferences; the compact preview and contestant phones never create duplicate playback.
+
+Lobby and Question use prepared loop seams, phase changes crossfade briefly, one-shot stings use authoritative event keys, and blocked playback exposes a non-blocking **Enable sound** action in the Presentation window. Presentation-visible YouTube questions conservatively silence the question bed because the current privacy-enhanced iframe has no reliable player-state API. Gameplay remains fully visual and continues through blocked, missing, muted or disabled audio. See [`docs/audio-language.md`](docs/audio-language.md) for the asset inventory, phase language, preparation and future-pack contract.
+
+The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. `202608270001_quiz_sound_pack.sql` is committed as a new forward migration but is deliberately unapplied, and no Audio Pass 1 frontend deployment has been performed.
 
 ### Visual design system, pass 1
 
@@ -332,7 +340,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every committed migration through `202608260001_quiz_answer_palettes.sql` applied. The palette migration was applied only after a dry run showed it as the sole pending file; no Netlify frontend deployment accompanied it.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608260001_quiz_answer_palettes.sql` applied. `202608270001_quiz_sound_pack.sql` remains pending for explicit approval; no Audio Pass 1 Netlify deployment has been performed.
 
 For a new Supabase environment:
 
@@ -401,6 +409,8 @@ Applied production migrations, in order:
 `202608090002_standard_scoring_and_tile_options.sql` is applied immutable production history. It adds backward-compatible false database defaults, owner/safe serialisation, authoritative Standard score modifiers, Double Score opening protection and tile-grid validation.
 
 `202608260001_quiz_answer_palettes.sql` is applied immutable production history. It adds a constrained palette ID and exact eight-colour custom tuple with Classic defaults, wraps the established authenticated quiz read/save boundary, and adds only harmless palette configuration to player-safe state. It does not change answer filtering, scoring, phases or grants.
+
+Pending migration `202608270001_quiz_sound_pack.sql` adds a constrained `katwed`/`none` quiz field with a Katwed default, stale-client-compatible owner save/read wrappers, and only harmless sound-pack metadata in player-safe state. It has not been applied to Supabase.
 
 ### Production pgcrypto repair
 
@@ -476,7 +486,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head, Typed Answer and portable quiz formats v1/v2 are implemented and deployed. Portable format v4, Quiz settings, answer palettes and Standard auto-lock are implemented and tested; their database migration is applied, while their frontend awaits a deliberate Netlify release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head, Typed Answer and portable quiz formats v1/v2 are implemented and deployed. Portable format v5, Quiz settings, answer palettes, Standard auto-lock and Audio Pass 1 are implemented and tested locally; the Audio migration and frontend await deliberate release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
 
 - tags;
 - optional media reuse;

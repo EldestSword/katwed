@@ -4,6 +4,7 @@ import { isQuizThemeId } from '../themes/quizThemes'
 import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBackgrounds'
 import { isQuizType } from '../head-to-head/headToHead'
 import { isAnswerColourTuple, isAnswerPaletteId } from '../answer-palettes/answerPalettes'
+import { isSoundPackId } from '../audio/soundPacks'
 import {
   MAX_TYPED_ANSWER_LENGTH,
   MAX_TYPED_ANSWER_VARIANTS,
@@ -170,6 +171,7 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   if (input.customAnswerColours !== undefined && !isAnswerColourTuple(input.customAnswerColours)) {
     messages.push('Set all eight custom answer colours using six-digit hexadecimal values.')
   }
+  if (input.soundPackId !== undefined && !isSoundPackId(input.soundPackId)) messages.push('Choose a supported sound pack.')
   if (input.backgroundId !== null) {
     if (!isQuizBackgroundId(input.backgroundId)) messages.push('Choose a supported quiz background.')
     else if (!isQuizBackgroundCompatible(input.backgroundId, input.themeId)) {

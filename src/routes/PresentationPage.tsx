@@ -5,6 +5,7 @@ import { Logo } from '../components/AppShell'
 import { PresentationStage } from '../features/game/PresentationStage'
 import { repository } from '../services/repository'
 import type { SafeGameState } from '../types/domain'
+import { usePresentationAudio } from '../hooks/usePresentationAudio'
 
 export function PresentationPage() {
   const sessionId = useParams().sessionId ?? ''
@@ -46,5 +47,25 @@ export function PresentationPage() {
 
   if (loading) return <LoadingScreen message="Opening the presentation…" />
   if (!state) return <main className="centred-screen recovery-screen"><Logo /><p className="eyebrow">Shared screen unavailable</p><h1>Presentation unavailable</h1><p>{error}</p><Link className="button button--primary" to="/host">Back to quizzes</Link></main>
-  return <main className={`presentation-page ${cursorHidden ? 'cursor-hidden' : ''}`}><PresentationStage state={state} /></main>
+  return <PresentationWithAudio state={state} cursorHidden={cursorHidden} />
+}
+
+function PresentationWithAudio({ state, cursorHidden }: { state: SafeGameState; cursorHidden: boolean }) {
+  const audio = usePresentationAudio(state)
+  const needsSoundAction = audio.status === 'blocked' || audio.status === 'error'
+  return (
+    <main
+      className={`presentation-page ${cursorHidden ? 'cursor-hidden' : ''}`}
+      data-audio-pack={audio.packId}
+      data-audio-cue={audio.cue}
+      data-audio-muted={audio.muted || undefined}
+      data-audio-ducked={audio.duckedForYouTube || undefined}
+    >
+      <PresentationStage state={state} />
+      {needsSoundAction && <aside className="presentation-audio-unlock" role="status">
+        <span><strong>Presentation sound is paused</strong><small>The game can continue normally.</small></span>
+        <button className="button button--light button--compact" type="button" onClick={audio.enable}>Enable sound</button>
+      </aside>}
+    </main>
+  )
 }

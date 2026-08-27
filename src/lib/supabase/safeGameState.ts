@@ -3,6 +3,7 @@ import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
+import { normaliseSoundPackId } from '../../features/audio/soundPacks'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -98,6 +99,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   return {
     ...value,
     ...answerPalette,
+    soundPackId: normaliseSoundPackId(value.soundPackId),
     quizType: normaliseQuizType(value.quizType),
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],

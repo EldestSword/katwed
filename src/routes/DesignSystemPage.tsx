@@ -11,6 +11,7 @@ import { backgroundsForTheme } from '../features/themes/quizBackgrounds'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 import { quizThemes } from '../features/themes/quizThemes'
 import type { AnswerPaletteId, QuizBackgroundId, QuizThemeId } from '../types/domain'
+import { HostAudioControls } from '../components/HostAudioControls'
 
 const tileExamples: readonly {
   label: string
@@ -141,6 +142,11 @@ export function DesignSystemPage() {
       <section className="design-system-section design-system-columns" aria-labelledby="backstage-heading">
         <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Pass 3 · Backstage</p><h2 id="backstage-heading">Professional host primitives</h2><div className="backstage-lab-row is-selected"><b>07</b><span><strong>Which of these launched first?</strong><small>Multiple select · Ross</small></span></div><div className="backstage-lab-row"><b>08</b><span><strong>Name both people</strong><small>Mash-up · Jess</small></span></div></div>
         <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Production status</p><h2>Phase-led controls</h2><div className="backstage-lab-stats"><span><small>Time</small><strong>14s</strong></span><span><small>Answered</small><strong>6 / 8</strong></span><span><small>Connected</small><strong>8 / 8</strong></span></div><button className="button button--primary button--wide" type="button">Reveal answer</button></div>
+      </section>
+
+      <section className="design-system-section design-system-columns" aria-labelledby="audio-heading">
+        <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Audio Pass 1</p><h2 id="audio-heading">Presentation audio controls</h2><p>Local host-device preferences use the same compact control used by the live Controller.</p></div>
+        <HostAudioControls soundPackId="katwed" />
       </section>
 
       <section className="design-system-section design-system-columns" aria-labelledby="foundation-heading">

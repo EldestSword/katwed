@@ -20,10 +20,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? { id: 'demo-host', email: 'demo@katwed.local' }
       : null,
   )
-  const [loading, setLoading] = useState(Boolean(supabase))
+  const [loading, setLoading] = useState(Boolean(supabase) && !config.demoMode)
 
   useEffect(() => {
-    if (!supabase) {
+    if (config.demoMode || !supabase) {
       setLoading(false)
       return
     }

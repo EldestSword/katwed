@@ -12,6 +12,9 @@ Thumbs.db
 *.tsbuildinfo
 supabase/.temp/
 
+# Local audio masters; commit only compressed public/audio/packs/** assets.
+/audio-source/
+
 # Local Netlify folder
 .netlify
 

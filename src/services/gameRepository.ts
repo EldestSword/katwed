@@ -20,6 +20,7 @@ export interface QuizSaveInput {
   backgroundId: Quiz['backgroundId']
   answerPaletteId?: Quiz['answerPaletteId']
   customAnswerColours?: Quiz['customAnswerColours']
+  soundPackId?: Quiz['soundPackId']
   roster: Quiz['roster']
   questions: Quiz['questions']
 }
