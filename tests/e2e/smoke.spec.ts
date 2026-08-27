@@ -90,9 +90,12 @@ async function joinPlayer(context: BrowserContext, roomCode: string, nickname: s
   return player
 }
 
-async function launchQuiz(page: Page, title: string) {
+async function launchQuiz(page: Page, title: string, configure?: (page: Page) => Promise<void>) {
   const card = page.getByRole('article').filter({ hasText: title })
   await card.getByRole('button', { name: 'Launch game' }).click()
+  await expect(page).toHaveURL(/\/host\/quizzes\/.+\/setup$/)
+  if (configure) await configure(page)
+  await page.getByRole('button', { name: 'Start lobby' }).click()
   await expect(page).toHaveURL(/\/host\/game\/.+\/control$/)
   const text = await page.locator('.controller-bar').textContent()
   const roomCode = text?.match(/Room\s+(\d{6})/)?.[1]
@@ -977,7 +980,8 @@ test('active and archived libraries preserve quiz content through archive and re
   await expect(activeCard()).toBeVisible()
   await expect(activeCard()).toContainText('3 questions')
   await activeCard().getByRole('button', { name: 'Launch game' }).click()
-  await expect(page).toHaveURL(/\/host\/game\/.+\/control$/)
+  await expect(page).toHaveURL(/\/host\/quizzes\/.+\/setup$/)
+  await expect(page.getByRole('heading', { name: 'Set up tonight’s game' })).toBeVisible()
 })
 
 test('active room blocks archive until the host closes it', async ({ page }) => {
@@ -1289,16 +1293,12 @@ test('Presentation owns idempotent phase audio while Controller preferences stay
   expect(browserErrors).toEqual([])
 })
 
-test('Sound Pack None persists and keeps the Presentation silent', async ({ context, page }) => {
+test('session Music theme None persists and keeps the Presentation silent', async ({ context, page }) => {
   await enterHost(page)
-  await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('link', { name: 'Edit' }).click()
-  const settings = await openQuizSettings(page, 'Audio')
-  await settings.getByRole('button', { name: /None/ }).click()
-  await settings.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('button', { name: 'Save quiz' }).first().click()
-  await expect(page.getByText('Quiz saved.')).toBeVisible()
-  await page.goto('/host')
-  await launchQuiz(page, 'The Curious Crew')
+  await launchQuiz(page, 'The Curious Crew', async (setup) => {
+    await setup.getByRole('button', { name: /None/ }).click()
+    await expect(setup.getByRole('button', { name: /None/ })).toHaveAttribute('aria-pressed', 'true')
+  })
   const presentation = await context.newPage()
   await mockPresentationAudio(presentation)
   await presentation.goto(page.url().replace('/control', '/present'))

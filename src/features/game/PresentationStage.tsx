@@ -8,7 +8,7 @@ import { GameBadge } from '../../components/design-system/GameBadge'
 import { GameTimer } from '../../components/design-system/GameTimer'
 import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionStatus } from '../../components/design-system/LiveGamePrimitives'
 import { useCountdown } from '../../hooks/useCountdown'
-import { useDoubleScoreIntro } from '../../hooks/useDoubleScoreIntro'
+import { useQuestionPrelude } from '../../hooks/useQuestionPrelude'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
@@ -19,6 +19,8 @@ import { FinalResults, HeadToHeadFinal } from './FinalResults'
 import { PinpointSurface } from './PinpointSurface'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
+import { QuestionTypeIntro } from './QuestionTypeIntro'
+import { questionTypeRegistry } from '../questions/registry'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -121,7 +123,8 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
-  const doubleScoreIntro = useDoubleScoreIntro(state.quizType, question, state.questionOpenedAt)
+  const configuredPrelude = state.questionPreludeKind ?? (question?.doubleScore ? 'double-score' : null)
+  const activePrelude = useQuestionPrelude(configuredPrelude, state.questionOpenedAt)
   const competitors = state.headToHeadCompetitors ?? []
   const answerColours = resolveAnswerColours(state.answerPaletteId, state.customAnswerColours)
   const joinUrl = `${window.location.origin}/join?room=${state.roomCode}`
@@ -153,8 +156,9 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro compact={compact} />}
-      {state.phase === 'question' && question && !doubleScoreIntro && (
+      {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro compact={compact} questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
+      {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} compact={compact} />}
+      {state.phase === 'question' && question && !activePrelude && (
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
           <div className="presentation-question__body">

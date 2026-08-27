@@ -144,6 +144,29 @@ describe('SupabaseGameRepository duplication', () => {
   })
 })
 
+describe('SupabaseGameRepository game launch', () => {
+  it('passes launch settings atomically and normalises the persisted session response', async () => {
+    const settings = {
+      soundPackId: 'none' as const,
+      shuffleQuestionOrder: true,
+      shuffleAnswerOptions: true,
+      autoLockWhenAllAnswered: false,
+    }
+    const rawSession = {
+      id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'lobby',
+      currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null,
+      startedAt: null, endedAt: null, players: [], answers: [],
+      settings: { ...settings, doubleScoreIntroMs: 9000, questionTypeIntrosEnabled: true, answerOptionSeed: 'seed' },
+      questionOrder: ['question-b', 'question-a'],
+    }
+    const rpc = vi.fn().mockResolvedValue({ data: rawSession, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    await expect(repository.launchGame(mixedDemoQuiz.id, settings)).resolves.toMatchObject(rawSession)
+    expect(rpc).toHaveBeenCalledWith('host_launch_game', { p_quiz_id: mixedDemoQuiz.id, p_settings: settings })
+  })
+})
+
 describe('SupabaseGameRepository permanent deletion', () => {
   it('completes the database deletion before surfacing best-effort Storage failure', async () => {
     const events: string[] = []

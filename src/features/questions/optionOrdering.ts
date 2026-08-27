@@ -1,6 +1,9 @@
 import type { ChoiceOption, MultipleSelectQuestion, SafeQuestion, SingleChoiceQuestion } from '../../types/domain'
 
-type ChoiceQuestion = Pick<SingleChoiceQuestion | MultipleSelectQuestion, 'id' | 'options' | 'randomiseOptions'>
+type ChoiceQuestion = Pick<SingleChoiceQuestion | MultipleSelectQuestion, 'id' | 'options' | 'randomiseOptions'> & {
+  forceRandomiseOptions?: boolean
+  optionOrderSeed?: string
+}
 type SafeChoiceQuestion = Extract<SafeQuestion, { type: 'single-choice' | 'multiple-select' }>
 
 function stableScore(seed: string, value: string): number {
@@ -22,7 +25,10 @@ export function orderOptions(
 }
 
 export function orderedQuestionOptions(question: ChoiceQuestion | SafeChoiceQuestion): ChoiceOption[] {
-  return orderOptions(question.options, question.randomiseOptions, question.id)
+  const safe = question as ChoiceQuestion
+  const randomise = question.randomiseOptions || safe.forceRandomiseOptions === true
+  const seed = safe.optionOrderSeed ?? question.id
+  return orderOptions(question.options, randomise, seed)
 }
 
 export function optionPosition(question: ChoiceQuestion | SafeChoiceQuestion, optionId: string): number {

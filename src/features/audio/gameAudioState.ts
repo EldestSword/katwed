@@ -1,4 +1,4 @@
-import type { SafeGameState } from '../../types/domain'
+import type { QuestionPreludeKind, SafeGameState } from '../../types/domain'
 import type { GameAudioCue } from './soundPacks'
 
 export interface AudioTrackIntent {
@@ -35,7 +35,7 @@ function presentationHasYouTube(state: SafeGameState): boolean {
 export function deriveGameAudioIntent(
   state: SafeGameState,
   remainingSeconds: number,
-  doubleScoreIntro: boolean,
+  activePrelude: QuestionPreludeKind,
 ): GameAudioIntent {
   if (state.soundPackId === 'none') {
     return { music: null, effect: null, duckedForYouTube: false, displayCue: 'silent' }
@@ -46,7 +46,7 @@ export function deriveGameAudioIntent(
   }
 
   if (state.phase === 'question') {
-    if (doubleScoreIntro) {
+    if (activePrelude === 'double-score') {
       return {
         music: null,
         effect: { cue: 'doubleScore', loop: false, eventKey: eventKey(state, 'doubleScore') },

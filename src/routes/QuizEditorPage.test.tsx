@@ -99,24 +99,22 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(within(dialog).getByRole('group', { name: 'Quiz type' })).toBeVisible()
     await user.click(within(dialog).getByRole('button', { name: /^Answer colours/ }))
     expect(within(dialog).getByRole('group', { name: 'Answer palette' })).toBeVisible()
-    await user.click(within(dialog).getByRole('button', { name: /^Audio/ }))
-    expect(within(dialog).getByRole('group', { name: 'Sound pack' })).toBeVisible()
+    expect(within(dialog).queryByRole('button', { name: /^Audio/ })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('group', { name: 'Sound pack' })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Quiz settings' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Quiz settings' })).toHaveFocus()
   })
 
-  it('selects and saves a quiz-wide None sound pack', async () => {
+  it('keeps the compatibility sound pack value without exposing it as an editor setting', async () => {
     const user = userEvent.setup()
     renderEditor()
-    const dialog = await openQuizSettings(user, 'Audio')
-    const none = within(dialog).getByRole('button', { name: /None/ })
-    expect(within(dialog).getByRole('button', { name: /Katwed!/ })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(none)
-    expect(none).toHaveAttribute('aria-pressed', 'true')
+    const dialog = await openQuizSettings(user)
+    expect(within(dialog).queryByRole('group', { name: 'Sound pack' })).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Done' }))
+    await user.type(screen.getByLabelText('Quiz title'), ' updated')
     await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
-    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ soundPackId: 'none' }))
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ soundPackId: 'katwed' }))
   })
 
   it('previews and saves a quiz-wide custom answer palette through the dirty workflow', async () => {

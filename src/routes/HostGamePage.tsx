@@ -8,10 +8,11 @@ import { useCountdown } from '../hooks/useCountdown'
 import { repository } from '../services/repository'
 import type { GameSession, Quiz, SafeGameState } from '../types/domain'
 import { questionTypeRegistry } from '../features/questions/registry'
-import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
+import { useQuestionPrelude } from '../hooks/useQuestionPrelude'
 import { shouldAutoLockStandardQuestion } from '../features/game/autoLock'
 import { GameBadge } from '../components/design-system/GameBadge'
 import { HostAudioControls } from '../components/HostAudioControls'
+import { orderedSessionQuestions } from '../features/game/launchSettings'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -27,7 +28,8 @@ export function HostGamePage() {
   const autoLockAttempt = useRef<string | null>(null)
   const navigate = useNavigate()
   const remaining = useCountdown(state?.questionClosesAt ?? null)
-  const doubleScoreIntro = useDoubleScoreIntro(state?.quizType, state?.currentQuestion ?? null, state?.questionOpenedAt ?? null)
+  const configuredPrelude = state?.questionPreludeKind ?? (state?.currentQuestion?.doubleScore ? 'double-score' : null)
+  const activePrelude = useQuestionPrelude(configuredPrelude, state?.questionOpenedAt ?? null)
 
   const refresh = useCallback(async () => {
     try {
@@ -83,11 +85,13 @@ export function HostGamePage() {
       submittedCount: state.submittedCount,
       joinedPlayerCount: state.players.length,
       deadlineReached: remaining === 0 && deadlineReached,
+      autoLockWhenAllAnswered: state.sessionSettings?.autoLockWhenAllAnswered ?? true,
     }) && autoLockAttempt.current !== questionId) {
+      if (activePrelude) return
       autoLockAttempt.current = questionId
       void action('lock')
     }
-  }, [action, remaining, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.submittedCount])
+  }, [action, activePrelude, remaining, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.sessionSettings?.autoLockWhenAllAnswered, state?.submittedCount])
 
   if (loading) return <LoadingScreen message="Preparing the game controller…" />
   if (!session || !quiz || !state) {
@@ -95,8 +99,9 @@ export function HostGamePage() {
   }
 
   const question = state.currentQuestion
+  const sessionQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
   const currentIndex = question ? question.questionNumber - 1 : session.currentQuestionIndex
-  const upcoming = quiz.questions[currentIndex + 1]
+  const upcoming = sessionQuestions[currentIndex + 1]
   const isFinalQuestion = question?.questionNumber === question?.totalQuestions
   const headToHead = state.quizType === 'head-to-head'
   const run = (kind: HostAction) => void action(kind)
@@ -120,25 +125,25 @@ export function HostGamePage() {
         <aside className="controller-panel">
           <div className="controller-panel__heading"><div><p className="eyebrow">Current state</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
           <dl className="controller-stats">
-            <div><dt>Time</dt><dd>{headToHead ? 'Untimed' : doubleScoreIntro ? 'Intro' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
+            <div><dt>Time</dt><dd>{activePrelude === 'double-score' ? 'Double Score' : activePrelude === 'question-type' ? 'Intro' : headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
             <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
           </dl>
           <div className="controller-actions">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
-            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('lock')}>Close answers now</button>}
+            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('lock')}>Close answers now</button>}
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
             {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
             {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
             {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
-            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || doubleScoreIntro} type="button" onClick={() => run('finish')}>Finish game</button>}
+            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
             {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
             <button className="button button--ghost" disabled={working} type="button" onClick={() => {
               if (window.confirm('Close this room for every player?')) run('close')
             }}>Close room</button>
           </div>
-          <HostAudioControls soundPackId={quiz.soundPackId} />
+          <HostAudioControls soundPackId={state.soundPackId ?? session.settings.soundPackId} />
           <section className="controller-monitor">
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
             <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>

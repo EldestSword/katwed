@@ -174,12 +174,10 @@ export function HostDashboardPage() {
   }
 
   async function launch(quiz: Quiz) {
-    try {
-      const session = await repository.launchGame(quiz.id)
-      await navigate(`/host/game/${session.id}/control`)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The game could not be launched.')
-    }
+    const activeSessionId = activeSessionIds[quiz.id]
+    await navigate(activeSessionId
+      ? `/host/game/${activeSessionId}/control`
+      : `/host/quizzes/${quiz.id}/setup`)
   }
 
   async function selectImportFile(file: File | undefined) {

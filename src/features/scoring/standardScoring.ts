@@ -1,6 +1,8 @@
-import type { Question, QuizType, SafeQuestion } from '../../types/domain'
+import type { GameSessionSettings, Question, QuestionPreludeKind } from '../../types/domain'
+import { DEFAULT_DOUBLE_SCORE_DURATION_MS } from '../audio/soundPacks'
+import { questionPreludeDurationMs, questionPreludeKind } from '../game/launchSettings'
 
-export const DOUBLE_SCORE_INTRO_MS = 5_000
+export const DOUBLE_SCORE_INTRO_MS = DEFAULT_DOUBLE_SCORE_DURATION_MS
 
 export function calculateTimedScore(baseScore: number, responseTimeMs: number, durationMs: number): number {
   if (!Number.isFinite(baseScore) || baseScore <= 0) return 0
@@ -25,21 +27,25 @@ export function calculateStandardQuestionScore(
 export function standardQuestionWindow(
   question: Pick<Question, 'doubleScore' | 'timeLimitSeconds'>,
   transitionTimeMs: number,
+  settings: Pick<GameSessionSettings, 'doubleScoreIntroMs' | 'questionTypeIntrosEnabled'> = {
+    doubleScoreIntroMs: DOUBLE_SCORE_INTRO_MS,
+    questionTypeIntrosEnabled: false,
+  },
 ): { openedAt: string; closesAt: string } {
-  const openedAtMs = transitionTimeMs + (question.doubleScore ? DOUBLE_SCORE_INTRO_MS : 0)
+  const prelude = questionPreludeKind(question, settings)
+  const openedAtMs = transitionTimeMs + questionPreludeDurationMs(prelude, settings)
   return {
     openedAt: new Date(openedAtMs).toISOString(),
     closesAt: new Date(openedAtMs + (question.timeLimitSeconds * 1_000)).toISOString(),
   }
 }
 
-export function isDoubleScoreIntroActive(
-  quizType: QuizType | undefined,
-  question: Pick<SafeQuestion, 'doubleScore'> | null,
+export function isQuestionPreludeActive(
+  kind: QuestionPreludeKind | undefined,
   questionOpenedAt: string | null,
   nowMs: number = Date.now(),
 ): boolean {
-  if (quizType === 'head-to-head' || !question?.doubleScore || !questionOpenedAt) return false
+  if (!kind || !questionOpenedAt) return false
   const openedAtMs = new Date(questionOpenedAt).getTime()
   return Number.isFinite(openedAtMs) && nowMs < openedAtMs
 }

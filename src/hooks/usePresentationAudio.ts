@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SafeGameState } from '../types/domain'
 import { useCountdown } from './useCountdown'
-import { useDoubleScoreIntro } from './useDoubleScoreIntro'
+import { useQuestionPrelude } from './useQuestionPrelude'
 import { useAudioPreferences } from './useAudioPreferences'
 import { GameAudioEngine, type AudioEngineStatus } from '../features/audio/gameAudioEngine'
 import { deriveGameAudioIntent } from '../features/audio/gameAudioState'
@@ -18,14 +18,15 @@ export interface PresentationAudioState {
 
 export function usePresentationAudio(state: SafeGameState): PresentationAudioState {
   const remaining = useCountdown(state.questionClosesAt, Number.MAX_SAFE_INTEGER)
-  const doubleScoreIntro = useDoubleScoreIntro(state.quizType, state.currentQuestion, state.questionOpenedAt)
+  const configuredPrelude = state.questionPreludeKind ?? (state.currentQuestion?.doubleScore ? 'double-score' : null)
+  const activePrelude = useQuestionPrelude(configuredPrelude, state.questionOpenedAt)
   const [preferences] = useAudioPreferences()
   const [engineStatus, setEngineStatus] = useState<AudioEngineStatus>('idle')
   const [engine] = useState(() => new GameAudioEngine(undefined, setEngineStatus))
   const pack = getSoundPack(state.soundPackId)
   const intent = useMemo(
-    () => deriveGameAudioIntent(state, remaining, doubleScoreIntro),
-    [doubleScoreIntro, remaining, state],
+    () => deriveGameAudioIntent(state, remaining, activePrelude),
+    [activePrelude, remaining, state],
   )
   const preloadedPack = useRef<string | null>(null)
   const pendingStop = useRef<number | null>(null)

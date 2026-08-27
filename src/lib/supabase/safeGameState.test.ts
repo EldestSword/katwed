@@ -58,6 +58,22 @@ describe('parseSafeGameState', () => {
     expect(parseSafeGameState({ ...safeState, soundPackId: 'future-pack' }).soundPackId).toBe('katwed')
   })
 
+  it('uses validated session settings as the live sound and prelude authority', () => {
+    const parsed = parseSafeGameState({
+      ...safeState,
+      soundPackId: 'katwed',
+      questionPreludeKind: 'question-type',
+      sessionSettings: {
+        soundPackId: 'none', doubleScoreIntroMs: 9000, shuffleQuestionOrder: true,
+        shuffleAnswerOptions: true, autoLockWhenAllAnswered: false,
+        questionTypeIntrosEnabled: true, answerOptionSeed: 'seed',
+      },
+    })
+    expect(parsed.soundPackId).toBe('none')
+    expect(parsed.questionPreludeKind).toBe('question-type')
+    expect(parsed.sessionSettings).toMatchObject({ doubleScoreIntroMs: 9000, autoLockWhenAllAnswered: false })
+  })
+
   it('accepts normalised pinpoint reveal data only in a reveal-capable phase', () => {
     expect(parseSafeGameState(safeState).reveal).toMatchObject({ type: 'pinpoint', targetX: .5 })
     expect(() => parseSafeGameState({ ...safeState, phase: 'question' })).toThrow(/reveal data/)
@@ -115,7 +131,7 @@ describe('parseSafeGameState', () => {
     const typed = {
       ...safeState,
       currentQuestion: { ...safeState.currentQuestion, type: 'typed-answer', media: { type: 'none' } },
-      reveal: { type: 'typed-answer', correctAnswer: 'Red Dwarf', caption: 'Shown at reveal' },
+      reveal: { type: 'typed-answer', correctAnswer: 'Red Dwarf', correctPlayerIds: ['player'], caption: 'Shown at reveal' },
     }
     expect(parseSafeGameState(typed).reveal).toEqual(typed.reveal)
     expect(() => parseSafeGameState({

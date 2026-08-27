@@ -2,6 +2,7 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   GameSession,
   JoinResult,
+  LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
   Quiz,
@@ -22,6 +23,7 @@ import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseSoundPackId } from '../../features/audio/soundPacks'
+import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 
 type JsonObject = Record<string, unknown>
 
@@ -48,6 +50,25 @@ function normaliseQuiz(quiz: Quiz): Quiz {
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
   })
+}
+
+function normaliseGameSession(
+  session: GameSession,
+  fallbackSoundPackId: unknown = 'katwed',
+  fallbackSettings?: Partial<LaunchGameSettings>,
+): GameSession {
+  const raw = session as GameSession & { settings?: GameSession['settings']; questionOrder?: unknown }
+  return {
+    ...session,
+    settings: normaliseGameSessionSettings(
+      raw.settings ?? fallbackSettings,
+      fallbackSettings?.soundPackId ?? fallbackSoundPackId,
+      session.id,
+    ),
+    questionOrder: Array.isArray(raw.questionOrder)
+      ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
+      : [],
+  }
 }
 
 export class SupabaseGameRepository implements GameRepository {
@@ -114,17 +135,24 @@ export class SupabaseGameRepository implements GameRepository {
     return cleanupSupabaseUnusedImages(this.client, paths)
   }
 
-  async launchGame(quizId: string): Promise<GameSession> {
-    return this.rpc<GameSession>('host_launch_game', { p_quiz_id: quizId })
+  async launchGame(quizId: string, settings?: LaunchGameSettings): Promise<GameSession> {
+    return normaliseGameSession(
+      await this.rpc<GameSession>('host_launch_game', { p_quiz_id: quizId, p_settings: settings ?? {} }),
+      settings?.soundPackId,
+      settings,
+    )
   }
 
   async getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null> {
     const bundle = await this.rpc<{ session: GameSession; quiz: Quiz } | null>('host_get_game', { p_session_id: sessionId })
-    return bundle ? { ...bundle, quiz: normaliseQuiz(bundle.quiz) } : null
+    if (!bundle) return null
+    const quiz = normaliseQuiz(bundle.quiz)
+    return { session: normaliseGameSession(bundle.session, quiz.soundPackId), quiz }
   }
 
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
-    return this.rpc('host_get_active_game', { p_quiz_id: quizId })
+    const session = await this.rpc<GameSession | null>('host_get_active_game', { p_quiz_id: quizId })
+    return session ? normaliseGameSession(session) : null
   }
 
   async getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null> {

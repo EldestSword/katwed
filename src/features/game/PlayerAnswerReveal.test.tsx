@@ -44,6 +44,16 @@ describe('PlayerAnswerReveal', () => {
     expect(screen.queryByRole('heading', { name: 'Not this time' })).not.toBeInTheDocument()
   })
 
+  it('uses server-authoritative Typed Answer correctness when reveal data is available', () => {
+    const reveal: RevealPayload = { type: 'typed-answer', correctAnswer: 'Red Dwarf', correctPlayerIds: ['player-correct'], caption: '' }
+    const question: SafeQuestion = { ...base, type: 'typed-answer' }
+    const { rerender } = render(<PlayerAnswerReveal reveal={reveal} question={question} playerId="player-correct" submittedAnswer={{ type: 'typed-answer', value: 'The Red Dwarf' }} />)
+    expect(screen.getByRole('heading', { name: 'You got it right!' })).toBeVisible()
+
+    rerender(<PlayerAnswerReveal reveal={reveal} question={question} playerId="player-wrong" submittedAnswer={{ type: 'typed-answer', value: 'Wrong' }} />)
+    expect(screen.getByRole('heading', { name: 'Not this time' })).toBeVisible()
+  })
+
   it('shows the Mars option itself instead of presentation-only placeholder copy', () => {
     renderReveal(
       { type: 'single-choice', correctOptionId: 'mars', caption: '', optionCounts: {} },

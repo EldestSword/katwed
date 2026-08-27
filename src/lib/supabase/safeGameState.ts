@@ -3,7 +3,7 @@ import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
-import { normaliseSoundPackId } from '../../features/audio/soundPacks'
+import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -38,7 +38,8 @@ function isRevealPayload(value: unknown): value is RevealPayload {
           isRecord(point) && isFiniteNumber(point.x) && point.x >= 0 && point.x <= 1 &&
           isFiniteNumber(point.y) && point.y >= 0 && point.y <= 1)
     case 'typed-answer':
-      return typeof value.correctAnswer === 'string' && !('acceptedAnswers' in value)
+      return typeof value.correctAnswer === 'string' && !('acceptedAnswers' in value) &&
+        (value.correctPlayerIds === undefined || isStringArray(value.correctPlayerIds))
     case 'mashup':
       return isStringArray(value.correctMemberIds) && value.correctMemberIds.length === 2 &&
         isStringArray(value.correctNames) && value.correctNames.length === 2
@@ -104,11 +105,22 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   const themeId = normaliseQuizThemeId(value.themeId)
   const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
+  const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
+  const sessionSettings = normaliseGameSessionSettings(
+    rawSettings as Partial<SafeGameState['sessionSettings']>,
+    value.soundPackId,
+    typeof value.sessionId === 'string' ? value.sessionId : undefined,
+  )
+  const questionPreludeKind = value.questionPreludeKind === 'double-score' || value.questionPreludeKind === 'question-type'
+    ? value.questionPreludeKind
+    : null
   return {
     ...value,
     ...answerPalette,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
-    soundPackId: normaliseSoundPackId(value.soundPackId),
+    soundPackId: sessionSettings.soundPackId,
+    sessionSettings,
+    questionPreludeKind,
     quizType: normaliseQuizType(value.quizType),
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],

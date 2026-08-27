@@ -42,8 +42,15 @@ function saveHeadToHeadFixture(repository: DemoGameRepository) {
   })
 }
 
+async function reachQuestionOpening(repository: DemoGameRepository, sessionId: string) {
+  const openedAt = (await repository.getHostSession(sessionId))?.session.questionOpenedAt
+  if (openedAt) vi.setSystemTime(new Date(openedAt))
+}
+
 describe('DemoGameRepository multi-format game state', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-27T12:00:00.000Z'))
     localStorage.clear()
     vi.clearAllMocks()
     demoImageMocks.listDemoStoredImages.mockResolvedValue([])
@@ -203,6 +210,49 @@ describe('DemoGameRepository multi-format game state', () => {
     expect((await repository.getSafeGameState(session.roomCode))?.soundPackId).toBe('none')
   })
 
+  it('persists launch settings, shuffled order and answer seed on the room without changing the quiz', async () => {
+    const repository = new DemoGameRepository()
+    const quizBefore = (await repository.getQuiz('quiz-mixed'))!
+    const authoredOrder = quizBefore.questions.map((question) => question.id)
+    const session = await repository.launchGame(quizBefore.id, {
+      soundPackId: 'none',
+      shuffleQuestionOrder: true,
+      shuffleAnswerOptions: true,
+      autoLockWhenAllAnswered: false,
+    })
+
+    expect(session.settings).toMatchObject({
+      soundPackId: 'none', doubleScoreIntroMs: 5000, shuffleQuestionOrder: true,
+      shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, questionTypeIntrosEnabled: true,
+    })
+    expect(new Set(session.questionOrder)).toEqual(new Set(authoredOrder))
+    expect(session.questionOrder).toHaveLength(authoredOrder.length)
+    expect((await repository.getActiveSessionForQuiz(quizBefore.id))?.questionOrder).toEqual(session.questionOrder)
+    expect((await new DemoGameRepository().getHostSession(session.id))?.session.settings).toEqual(session.settings)
+    expect((await repository.getQuiz(quizBefore.id))?.questions.map((question) => question.id)).toEqual(authoredOrder)
+
+    await repository.changePhase(session.id, 'start')
+    const safe = await repository.getSafeGameState(session.roomCode)
+    expect(safe).toMatchObject({
+      soundPackId: 'none', sessionSettings: session.settings,
+    })
+    expect(safe?.currentQuestion).toMatchObject({ forceRandomiseOptions: true })
+
+    await reachQuestionOpening(repository, session.id)
+    await repository.changePhase(session.id, 'finish')
+    await repository.changePhase(session.id, 'restart')
+    const restarted = (await repository.getHostSession(session.id))!.session
+    expect(restarted.questionOrder).toEqual(session.questionOrder)
+    expect(restarted.settings).toEqual(session.settings)
+
+    const resumed = await repository.launchGame(quizBefore.id, {
+      soundPackId: 'katwed', shuffleQuestionOrder: false,
+      shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+    })
+    expect(resumed.id).toBe(session.id)
+    expect(resumed.settings).toEqual(session.settings)
+  })
+
   it('imports a Head-to-Head definition with fresh competitors and remapped assignments', async () => {
     const repository = new DemoGameRepository()
     const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(headToHeadDemoQuiz)))
@@ -340,6 +390,7 @@ describe('DemoGameRepository multi-format game state', () => {
     const session = await repository.launchGame('quiz-mixed')
     const player = await repository.joinRoom(session.roomCode, 'Copy Witness')
     await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
     await repository.submitAnswer(
       session.roomCode,
       player.player.id,
@@ -590,6 +641,7 @@ describe('DemoGameRepository multi-format game state', () => {
     }))?.player.competitorId).toBe(jessSlot.competitorId)
 
     await repository.startHeadToHead(session.roomCode, ross.player.id, ross.reconnectToken)
+    await reachQuestionOpening(repository, session.id)
     await expect(repository.changePhase(session.id, 'lock')).rejects.toThrow(/controlled by the competitors/i)
 
     for (let index = 0; index < quiz.questions.length; index += 1) {
@@ -622,6 +674,7 @@ describe('DemoGameRepository multi-format game state', () => {
 
       await repository.continueHeadToHead(session.roomCode, playAlong.player.id, playAlong.reconnectToken, question.id)
       await repository.continueHeadToHead(session.roomCode, assigned.player.id, assigned.reconnectToken, question.id)
+      if (index + 1 < quiz.questions.length) await reachQuestionOpening(repository, session.id)
     }
 
     const finished = await repository.getSafeGameState(session.roomCode)
@@ -641,6 +694,7 @@ describe('DemoGameRepository multi-format game state', () => {
     const first = await repository.joinHeadToHeadRoom(session.roomCode, firstSlot.competitorId)
     const second = await repository.joinHeadToHeadRoom(session.roomCode, secondSlot.competitorId)
     await repository.startHeadToHead(session.roomCode, first.player.id, first.reconnectToken)
+    await reachQuestionOpening(repository, session.id)
     const assigned = question.assignedCompetitorId === firstSlot.competitorId ? first : second
     const playAlong = assigned === first ? second : first
     await expect(repository.skipHeadToHead(session.roomCode, assigned.player.id, assigned.reconnectToken, question.id))
@@ -713,6 +767,7 @@ describe('DemoGameRepository multi-format game state', () => {
     const session = await repository.launchGame('quiz-mixed')
     const player = await repository.joinRoom(session.roomCode, 'Mars Fan')
     await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
     const submit = () => repository.submitAnswer(session.roomCode, player.player.id, player.reconnectToken, { type: 'single-choice', optionId: 'mars' })
     await submit()
     await expect(submit()).rejects.toMatchObject({ code: 'duplicate-submission' })
@@ -745,6 +800,7 @@ describe('DemoGameRepository multi-format game state', () => {
     const session = await repository.launchGame('quiz-mixed')
     const player = await repository.joinRoom(session.roomCode, 'Safe Player')
     await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
     await repository.submitAnswer(session.roomCode, player.player.id, player.reconnectToken, { type: 'single-choice', optionId: 'mars' })
 
     const beforeReveal = await repository.getSafeGameState(session.roomCode)
@@ -773,11 +829,13 @@ describe('DemoGameRepository multi-format game state', () => {
       reconnectToken: player.reconnectToken,
     }))?.player.totalScore).toBe(1000)
     await repository.changePhase(session.id, 'next')
+    await reachQuestionOpening(repository, session.id)
     for (let questionIndex = 1; questionIndex < 4; questionIndex += 1) {
       await repository.changePhase(session.id, 'lock')
       await repository.changePhase(session.id, 'reveal')
       await repository.changePhase(session.id, 'leaderboard')
       await repository.changePhase(session.id, 'next')
+      await reachQuestionOpening(repository, session.id)
     }
     const pinpointQuestion = await repository.getSafeGameState(session.roomCode)
     expect(pinpointQuestion?.currentQuestion?.type).toBe('pinpoint')
@@ -791,6 +849,7 @@ describe('DemoGameRepository multi-format game state', () => {
     const session = await repository.launchGame('quiz-mixed')
     const player = await repository.joinRoom(session.roomCode, 'Finalist')
     await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
     await repository.submitAnswer(session.roomCode, player.player.id, player.reconnectToken, { type: 'single-choice', optionId: 'mars' })
 
     for (let index = 0; index < 7; index += 1) {
@@ -801,6 +860,7 @@ describe('DemoGameRepository multi-format game state', () => {
       }
       await repository.changePhase(session.id, 'leaderboard')
       await repository.changePhase(session.id, 'next')
+      await reachQuestionOpening(repository, session.id)
     }
 
     await repository.changePhase(session.id, 'lock')
