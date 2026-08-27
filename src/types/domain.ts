@@ -20,6 +20,7 @@ export type QuizType = typeof QUIZ_TYPE_IDS[number]
 
 export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
+export type SoundPackId = 'katwed' | 'none'
 
 export const QUIZ_BACKGROUND_IDS = [
   'katwed-bubbles',
@@ -273,6 +274,7 @@ export interface Quiz {
   backgroundId: QuizBackgroundId | null
   answerPaletteId: AnswerPaletteId
   customAnswerColours: AnswerColourTuple
+  soundPackId: SoundPackId
   roster: RosterMember[]
   questions: Question[]
   archivedAt: string | null
@@ -337,6 +339,7 @@ export interface SafeGameState {
   backgroundId: QuizBackgroundId | null
   answerPaletteId?: AnswerPaletteId
   customAnswerColours?: AnswerColourTuple
+  soundPackId?: SoundPackId
   roomCode: string
   status: SessionStatus
   phase: GamePhase

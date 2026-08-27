@@ -183,6 +183,26 @@ describe('DemoGameRepository multi-format game state', () => {
     })
   })
 
+  it('persists the selected sound pack through save, safe state and reload', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const saved = await repository.saveQuiz({
+      id: source.id,
+      title: source.title,
+      quizType: source.quizType,
+      headToHeadCompetitors: source.headToHeadCompetitors,
+      coverImagePath: source.coverImagePath,
+      themeId: source.themeId,
+      backgroundId: source.backgroundId,
+      soundPackId: 'none',
+      roster: source.roster,
+      questions: source.questions,
+    })
+    const session = await repository.launchGame(saved.id)
+    expect((await new DemoGameRepository().getQuiz(saved.id))?.soundPackId).toBe('none')
+    expect((await repository.getSafeGameState(session.roomCode))?.soundPackId).toBe('none')
+  })
+
   it('imports a Head-to-Head definition with fresh competitors and remapped assignments', async () => {
     const repository = new DemoGameRepository()
     const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(headToHeadDemoQuiz)))

@@ -51,6 +51,15 @@ describe('SupabaseGameRepository duplication', () => {
     ])
   })
 
+  it('normalises older or malformed sound-pack reads to Katwed', async () => {
+    const older = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
+    delete older.soundPackId
+    const malformed = { ...structuredClone(mixedDemoQuiz), soundPackId: 'future-pack' }
+    const rpc = vi.fn().mockResolvedValue({ data: [older, malformed], error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+    expect((await repository.listQuizzes()).map((quiz) => quiz.soundPackId)).toEqual(['katwed', 'katwed'])
+  })
+
   it('reads an active source and creates its remapped copy through host_save_quiz', async () => {
     const source = structuredClone(mixedDemoQuiz)
     source.coverImagePath = 'https://katwed-test.supabase.co/storage/v1/object/public/question-images/shared-cover.webp'
@@ -89,6 +98,7 @@ describe('SupabaseGameRepository duplication', () => {
     expect(saveInput).not.toHaveProperty('id')
     expect(saveInput.coverImagePath).toBe(source.coverImagePath)
     expect(saveInput.backgroundId).toBe('arcade-grid')
+    expect(saveInput.soundPackId).toBe('katwed')
     expect(saveInput.questions.every((question) =>
       !source.questions.some((candidate) => candidate.id === question.id)
     )).toBe(true)

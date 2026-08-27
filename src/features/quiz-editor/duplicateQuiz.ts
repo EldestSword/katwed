@@ -93,6 +93,7 @@ export function createDuplicateQuizInput(
     backgroundId: source.backgroundId,
     answerPaletteId: source.answerPaletteId,
     customAnswerColours: [...source.customAnswerColours] as QuizSaveInput['customAnswerColours'],
+    soundPackId: source.soundPackId,
     roster,
     questions,
   }

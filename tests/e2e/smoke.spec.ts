@@ -39,7 +39,7 @@ async function enterHost(page: Page) {
   await expect(page.getByRole('heading', { name: 'Quizzes', exact: true })).toBeVisible()
 }
 
-type QuizSettingsSection = 'Game' | 'Appearance' | 'Answer colours'
+type QuizSettingsSection = 'Game' | 'Appearance' | 'Answer colours' | 'Audio'
 
 async function openQuizSettings(page: Page, section: QuizSettingsSection = 'Game') {
   await page.getByRole('button', { name: 'Quiz settings' }).click()
@@ -47,7 +47,12 @@ async function openQuizSettings(page: Page, section: QuizSettingsSection = 'Game
   await expect(dialog).toBeVisible()
   if (section !== 'Game') {
     await dialog.getByRole('button', { name: new RegExp(`^${section}`) }).click()
-    await expect(dialog.getByRole('region', { name: section === 'Appearance' ? 'Define the quiz identity' : 'Choose the contestant palette' })).toBeVisible()
+    const regionName = section === 'Appearance'
+      ? 'Define the quiz identity'
+      : section === 'Answer colours'
+        ? 'Choose the contestant palette'
+        : 'Choose the game-show sound'
+    await expect(dialog.getByRole('region', { name: regionName })).toBeVisible()
   }
   return dialog
 }
@@ -106,6 +111,31 @@ async function expectHeadToHeadResult(
   await expect(card.getByText(role)).toBeVisible()
   await expect(card.getByText(status)).toBeVisible()
   await expect(card.getByText(consequence)).toBeVisible()
+}
+
+async function mockPresentationAudio(page: Page, rejectPlayback = false) {
+  await page.addInitScript(({ reject }) => {
+    const browser = globalThis as typeof globalThis & {
+      __katwedAudioPlays?: string[]
+      document: { createElement(name: string): { src: string } }
+    }
+    browser.__katwedAudioPlays = []
+    const audioPrototype = Object.getPrototypeOf(browser.document.createElement('audio')) as object
+    Object.defineProperty(audioPrototype, 'play', {
+      configurable: true,
+      value(this: { src: string }) {
+        browser.__katwedAudioPlays?.push(this.src)
+        if (reject) return Promise.reject(new Error('Simulated audio playback rejection'))
+        return Promise.resolve()
+      },
+    })
+  }, { reject: rejectPlayback })
+}
+
+async function presentationAudioPlayCount(page: Page) {
+  return page.evaluate(() => (
+    (globalThis as typeof globalThis & { __katwedAudioPlays?: string[] }).__katwedAudioPlays?.length ?? 0
+  ))
 }
 
 test('landing, joining validation and host guards work', async ({ page }) => {
@@ -591,7 +621,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   if (!exportedPath) throw new Error('Exported quiz file was unavailable')
   const { readFile } = await import('node:fs/promises')
   const exported = JSON.parse(await readFile(exportedPath, 'utf8')) as { formatVersion: number }
-  expect(exported.formatVersion).toBe(4)
+  expect(exported.formatVersion).toBe(5)
 })
 
 test('quiz themes persist through duplication and audience game phases', async ({ context, page }) => {
@@ -738,7 +768,8 @@ test('quiz covers persist across the library lifecycle and remain independent af
     ),
   })
   await expect(coverSection.locator('img')).toBeVisible()
-  await expect(page.getByText('Unsaved changes')).toBeVisible()
+  await expect(page.locator('.save-state')).toHaveText('Unsaved changes')
+  await expect(page.getByRole('button', { name: 'Save quiz' }).first()).toBeEnabled()
   await settings.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
@@ -1213,4 +1244,84 @@ test('mash-up remains usable at representative mobile widths', async ({ context,
   await player.getByRole('button', { name: 'Alex' }).click()
   await player.getByRole('button', { name: 'Bailey' }).click()
   await expect(player.getByRole('button', { name: 'Lock in' })).toBeEnabled()
+})
+
+test('Presentation owns idempotent phase audio while Controller preferences stay local', async ({ context, page }) => {
+  test.setTimeout(90_000)
+  await enterHost(page)
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const presentation = await context.newPage()
+  await mockPresentationAudio(presentation)
+  const browserErrors: string[] = []
+  presentation.on('pageerror', (error) => browserErrors.push(error.message))
+  presentation.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  await presentation.goto(page.url().replace('/control', '/present'))
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-pack', 'katwed')
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'lobby')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(1)
+
+  await page.getByRole('slider', { name: 'Music volume' }).fill('35')
+  await page.getByRole('slider', { name: 'Effects volume' }).fill('90')
+  await expect(page.getByText('35%')).toBeVisible()
+  await expect(page.getByText('90%')).toBeVisible()
+  await page.getByRole('button', { name: 'Mute' }).click()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-muted', 'true')
+  await page.getByRole('button', { name: 'Unmute' }).click()
+  await expect(presentation.locator('.presentation-page')).not.toHaveAttribute('data-audio-muted')
+
+  const player = await joinPlayer(context, roomCode, 'Audio Player')
+  await page.getByRole('button', { name: 'Start game' }).click()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'question')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(2)
+  await player.getByRole('button', { name: 'Mars' }).click()
+  await player.getByRole('button', { name: 'Lock in' }).click()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'lock')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(3)
+  await page.getByRole('button', { name: 'Reveal answer' }).click()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'reveal')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(4)
+  await page.getByRole('button', { name: 'Show leaderboard' }).click()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'leaderboard')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(5)
+  await presentation.waitForTimeout(5_200)
+  expect(await presentationAudioPlayCount(presentation)).toBe(5)
+  expect(await presentation.locator('audio').count()).toBe(0)
+  expect(browserErrors).toEqual([])
+})
+
+test('Sound Pack None persists and keeps the Presentation silent', async ({ context, page }) => {
+  await enterHost(page)
+  await page.getByRole('article', { name: 'The Curious Crew' }).getByRole('link', { name: 'Edit' }).click()
+  const settings = await openQuizSettings(page, 'Audio')
+  await settings.getByRole('button', { name: /None/ }).click()
+  await settings.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Save quiz' }).first().click()
+  await expect(page.getByText('Quiz saved.')).toBeVisible()
+  await page.goto('/host')
+  await launchQuiz(page, 'The Curious Crew')
+  const presentation = await context.newPage()
+  await mockPresentationAudio(presentation)
+  await presentation.goto(page.url().replace('/control', '/present'))
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-pack', 'none')
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'silent')
+  expect(await presentationAudioPlayCount(presentation)).toBe(0)
+})
+
+test('blocked Presentation audio stays recoverable and never blocks gameplay', async ({ context, page }) => {
+  await enterHost(page)
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const presentation = await context.newPage()
+  await mockPresentationAudio(presentation, true)
+  await presentation.goto(page.url().replace('/control', '/present'))
+  await expect(presentation.getByRole('button', { name: 'Enable sound' })).toBeVisible()
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(1)
+  await presentation.getByRole('button', { name: 'Enable sound' }).click()
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(2)
+  const player = await joinPlayer(context, roomCode, 'Silent Player')
+  await page.getByRole('button', { name: 'Start game' }).click()
+  await expect(player.getByRole('heading', { name: 'Which planet is known as the Red Planet?' })).toBeVisible()
+  await expect(presentation.getByRole('heading', { name: 'Which planet is known as the Red Planet?' })).toBeVisible()
+  await expect(presentation.getByRole('button', { name: 'Enable sound' })).toBeVisible()
+  await presentation.getByRole('button', { name: 'Enable sound' }).click()
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(4)
 })

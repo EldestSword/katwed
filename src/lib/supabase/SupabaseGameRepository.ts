@@ -21,6 +21,7 @@ import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
+import { normaliseSoundPackId } from '../../features/audio/soundPacks'
 
 type JsonObject = Record<string, unknown>
 
@@ -43,6 +44,7 @@ function normaliseQuiz(quiz: Quiz): Quiz {
   return normaliseQuizHeadToHead({
     ...quiz,
     ...answerPalette,
+    soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
   })

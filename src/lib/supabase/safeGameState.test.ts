@@ -52,6 +52,12 @@ describe('parseSafeGameState', () => {
     expect(parseSafeGameState({ ...safeState, backgroundId: 'arcade-grid' }).backgroundId).toBeNull()
   })
 
+  it('retains supported sound packs and defaults stale backend payloads to Katwed', () => {
+    expect(parseSafeGameState({ ...safeState, soundPackId: 'none' }).soundPackId).toBe('none')
+    expect(parseSafeGameState(safeState).soundPackId).toBe('katwed')
+    expect(parseSafeGameState({ ...safeState, soundPackId: 'future-pack' }).soundPackId).toBe('katwed')
+  })
+
   it('accepts normalised pinpoint reveal data only in a reveal-capable phase', () => {
     expect(parseSafeGameState(safeState).reveal).toMatchObject({ type: 'pinpoint', targetX: .5 })
     expect(() => parseSafeGameState({ ...safeState, phase: 'question' })).toThrow(/reveal data/)

@@ -55,6 +55,7 @@ function renderController(current: SafeGameState) {
 describe('HostGamePage Standard auto-lock', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     repositoryMocks.getHostSession.mockResolvedValue({ session, quiz: mixedDemoQuiz })
     repositoryMocks.changePhase.mockResolvedValue(undefined)
     repositoryMocks.subscribe.mockReturnValue(() => undefined)
@@ -96,5 +97,18 @@ describe('HostGamePage Standard auto-lock', () => {
     expect(await screen.findByText(/progression is controlled by the two competitors/i)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Close answers now' })).not.toBeInTheDocument()
     expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
+  })
+
+  it('controls persistent Presentation audio preferences without creating preview audio', async () => {
+    const user = userEvent.setup()
+    renderController(state())
+    const music = await screen.findByRole('slider', { name: 'Music volume' })
+    const effects = screen.getByRole('slider', { name: 'Effects volume' })
+    expect(music).toHaveValue('70')
+    expect(effects).toHaveValue('80')
+    await user.click(screen.getByRole('button', { name: 'Mute' }))
+    expect(screen.getByRole('button', { name: 'Unmute' })).toHaveAttribute('aria-pressed', 'true')
+    expect(localStorage.getItem('katwed.audio.preferences.v1')).toContain('"muted":true')
+    expect(document.querySelectorAll('audio')).toHaveLength(0)
   })
 })
