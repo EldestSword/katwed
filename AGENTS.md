@@ -1,7 +1,7 @@
 # Working on Katwed!
 
 - Read `README.md` fully before making changes.
-- Treat the linked Supabase project and Netlify site as live production systems. Production has applied migrations through `202608090001_fix_typed_answer_validation_trigger.sql`; later committed migrations may be awaiting a deliberate release.
+- Treat the linked Supabase project and Netlify site as live production systems. Production has applied migrations through `202608270010_bound_host_response_serialisation.sql`; later committed migrations may be awaiting a deliberate release.
 - Never edit an applied migration in place. Add a new chronological forward migration and preserve compatibility with the production schema.
 - Preserve the mash-up rule: players select exactly two different people and score only when both are correct.
 - Never introduce partial-credit scoring for mash-up questions. Multiple select may use its explicit wrong-answer-wipeout mode.

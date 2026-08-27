@@ -124,6 +124,7 @@ export function GameSetupPage() {
             <SessionToggle label="Shuffle question order" note="Creates one stable order for this room without changing the saved quiz." checked={settings.shuffleQuestionOrder} onChange={(checked) => update('shuffleQuestionOrder', checked)} />
             <SessionToggle label="Shuffle all answer choices" note="Forces eligible Single Choice and Multiple Select answers into one stable session order." checked={settings.shuffleAnswerOptions} onChange={(checked) => update('shuffleAnswerOptions', checked)} />
             {quiz.quizType === 'standard' && <SessionToggle label="Auto-close answers when everyone has locked in" note="Turn off to keep the timer running until time expires or you close answers manually." checked={settings.autoLockWhenAllAnswered} onChange={(checked) => update('autoLockWhenAllAnswered', checked)} />}
+            <SessionToggle label="Show live player answers on controller" note="Show each submitted answer on the private host controller for smaller rooms. Waiting player names are always shown." checked={settings.showPlayerAnswersToHost} onChange={(checked) => update('showPlayerAnswersToHost', checked)} />
           </div>
 
           <footer>

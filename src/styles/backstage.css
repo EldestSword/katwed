@@ -222,6 +222,22 @@
 .controller-players li::before { content: ''; position: absolute; left: .6rem; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: #48a46f; transform: translateY(-50%); }
 .controller-players li:has(span:last-child:not(:only-child)) span { font-size: .68rem; }
 .controller-players li span { color: #727582; }
+.controller-responses { margin: .85rem 0; }
+.controller-response-summary { margin: .55rem 0; padding: .65rem .75rem; border: 1px solid #d6c3a4; border-radius: 9px; color: #624313; background: #fff8e9; font-size: .82rem; font-weight: 850; line-height: 1.35; overflow-wrap: anywhere; }
+.controller-response-summary--neutral { border-color: var(--host-line); color: var(--host-muted); background: var(--host-surface-subtle); }
+.controller-response-note { margin: .45rem 0; color: var(--host-muted); font-size: .72rem; line-height: 1.4; }
+.controller-response-list { max-height: 280px; margin: .55rem 0 0; padding: 0; display: grid; gap: .4rem; overflow: auto; list-style: none; }
+.controller-response-row { min-width: 0; padding: .55rem .65rem; border: 1px solid var(--host-line); border-radius: 9px; background: #fafafc; }
+.controller-response-row--waiting, .controller-response-row--no-answer { border-color: #e1c99f; background: #fffaf0; }
+.controller-response-row__heading { display: flex; align-items: baseline; justify-content: space-between; gap: .65rem; }
+.controller-response-row__heading strong { min-width: 0; font-size: .82rem; overflow-wrap: anywhere; }
+.controller-response-row__heading span { flex: 0 0 auto; color: var(--host-muted); font-size: .66rem; font-weight: 800; }
+.controller-response-row--waiting .controller-response-row__heading span,
+.controller-response-row--no-answer .controller-response-row__heading span { color: #805816; }
+.controller-response-row > p { margin: .35rem 0 0; font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; white-space: pre-wrap; }
+.controller-response-judgement { margin-top: .45rem; padding-top: .4rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--host-line); }
+.controller-response-judgement span { font-size: .7rem; font-weight: 850; }
+.controller-response-judgement .button { min-height: 48px; padding: .55rem .75rem; font-size: .72rem; }
 .controller-up-next { margin-top: .9rem; padding: .8rem; border: 1px solid var(--host-line); border-radius: 11px; background: #fafafc; }
 .controller-up-next h2 { margin: .15rem 0 .25rem; font-size: .95rem; }
 .controller-up-next p:not(.eyebrow) { margin: 0; overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }

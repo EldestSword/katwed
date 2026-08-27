@@ -34,6 +34,7 @@ describe('design system CSS foundations', () => {
     expect(player).toContain('.answer-grid[data-option-count="4"]')
     expect(backstage).toContain('.editor-preview__media .question-media img')
     expect(backstage).toContain('.preview-frame--player .editor-answer-preview')
+    expect(backstage).toMatch(/\.controller-response-judgement \.button \{[^}]*min-height: 48px/)
     expect(`${shared}\n${presentation}\n${player}`).toMatch(/@media \(prefers-reduced-motion: reduce\)/)
   })
 })

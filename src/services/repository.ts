@@ -47,6 +47,7 @@ class UnconfiguredRepository implements GameRepository {
   startHeadToHead(_roomCode: string, _playerId: string, _token: string): Promise<void> { return this.fail() }
   skipHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }
   continueHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }
+  setTypedAnswerOverride(_sessionId: string, _answerId: string, _correctOverride: true | null): Promise<void> { return this.fail() }
   changePhase(_sessionId: string, _action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void> { return this.fail() }
   subscribe(_subject: string, _callback: () => void): Unsubscribe { return () => undefined }
 }

@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608270008_refresh_session_and_quiz_readers.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1 and game-preflight frontend is not deployed by this development change; Netlify releases remain deliberate.
+The production migration chain through `202608270010_bound_host_response_serialisation.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight and host-intelligence frontend is not deployed by this development change; Netlify releases remain deliberate.
 
 ### Implemented and deployed
 
@@ -117,6 +117,8 @@ The existing 24-tile image reveal now uses a deterministic seeded shuffle derive
 
 Typed Answer and deterministic 24-tile ordering are deployed. Focused authenticated production UAT confirmed saving a Typed Answer, normalised positive matching for `RED-DWARF` against `Red Dwarf`, and rejection of the deliberately wrong `RED-DWARFF` spelling.
 
+The private host controller derives named current-question response status from the authenticated owner session bundle. Waiting players remain visible regardless of the live-answer preference or room size; submitted answer text is shown only when the session setting is on and the room has at most 15 players. Standard Typed Answer results retain the automatic judgement separately from an optional session-only host acceptance. Accept and undo are owner-only, current-question operations available after Lock, and atomically adjust points, correct count and response-time tiebreak totals using the original response time and the normal Double Score and Speed Scoring formula. Player-safe state remains free of raw responses and exposes only the existing reveal-gated primary answer and authoritative player outcome.
+
 ### Standard scoring, Double Score and tile grids
 
 New Standard questions default to speed scoring on, while existing questions and all imported v1/v2 questions remain fixed-score unless explicitly changed. Positive scores use a linear 100%-to-50% multiplier across the authoritative question window. Double Score multiplies the existing base score first, followed by speed scaling and integer flooring. Multiple Select partial-wipeout continues to determine its proportional or zero base before either modifier.
@@ -139,13 +141,13 @@ Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Cust
 
 ### Game preflight and shared game audio
 
-Clicking **Launch game** now opens `/host/quizzes/:quizId/setup` without creating a room. The host chooses the session music theme, optional session-only question shuffle, optional forced answer-choice shuffle and Standard auto-close behaviour, then **Start lobby** creates the room atomically. An existing active room resumes instead of creating a duplicate. The stable question order and deterministic answer seed are persisted on the session and never rewrite the saved quiz.
+Clicking **Launch game** now opens `/host/quizzes/:quizId/setup` without creating a room. The host chooses the session music theme, optional session-only question shuffle, optional forced answer-choice shuffle, Standard auto-close behaviour and whether the private controller may show individual answers in rooms of up to 15 players, then **Start lobby** creates the room atomically. An existing active room resumes instead of creating a duplicate. The stable question order, deterministic answer seed and controller-answer preference are persisted on the session and never rewrite the saved quiz.
 
 Music selection is no longer editable in permanent Quiz settings. The portable-v5 `soundPackId` remains as a backwards-compatible preflight default, while every live phase reads the persisted session pack. The full Presentation route is the only shared-audio owner: it maps authoritative Lobby, Question, Urgent, Double Score, Locked, Reveal, Leaderboard and Final phases through one central engine and sound-pack registry. Controller music/effects volume and master mute are local device preferences; the compact preview and contestant phones never create duplicate playback.
 
 Lobby and Question use prepared loop seams, phase changes crossfade briefly, one-shot stings use authoritative event keys, and blocked playback exposes a non-blocking **Enable sound** action in the Presentation window. Presentation-visible YouTube questions conservatively silence the question bed because the current privacy-enhanced iframe has no reliable player-state API. Gameplay remains fully visual and continues through blocked, missing, muted or disabled audio. See [`docs/audio-language.md`](docs/audio-language.md) for the asset inventory, phase language, preparation and future-pack contract.
 
-The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. The audio and game-preflight migration chain through `202608270008_refresh_session_and_quiz_readers.sql` is applied, while no matching Netlify deployment has been performed.
+The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. The audio, game-preflight and host-intelligence migration chain through `202608270010_bound_host_response_serialisation.sql` is applied, while no matching Netlify deployment has been performed.
 
 ### Visual design system, pass 1
 
@@ -344,7 +346,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270008_refresh_session_and_quiz_readers.sql` applied. No Audio Pass 1 or game-preflight Netlify deployment has been performed.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270010_bound_host_response_serialisation.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
 
 For a new Supabase environment:
 
@@ -398,6 +400,8 @@ Applied production migrations, in order:
 202608270006_qualify_legacy_submit_answer_digest.sql
 202608270007_qualify_all_submit_answer_overloads.sql
 202608270008_refresh_session_and_quiz_readers.sql
+202608270009_host_intelligence_and_typed_overrides.sql
+202608270010_bound_host_response_serialisation.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -427,6 +431,10 @@ Applied migration `202608270001_quiz_sound_pack.sql` adds a constrained `katwed`
 Applied migration `202608270002_double_score_intro_five_seconds.sql` updates the existing server-authoritative Double Score window from the earlier 1.5-second behaviour to the current five-second baseline.
 
 Applied migration `202608270003_game_preflight_session_settings.sql` adds validated session-level sound, prelude, shuffle and auto-close configuration; persists one question order and answer-order seed per room; extends atomic launch; and keeps opening, deadline, submission and Head-to-Head progression authoritative. It wraps existing public functions rather than editing applied migrations. Applied follow-ups `202608270004` through `202608270007` preserve compatibility across the live function history by explicitly resolving the wrapped submission validator's pgcrypto dependency. `202608270008_refresh_session_and_quiz_readers.sql` rebinds owner readers to the current serialisers and removes the previous `host_get_game` lint warning. Post-apply schema lint reports no errors or warnings.
+
+Applied migration `202608270009_host_intelligence_and_typed_overrides.sql` adds the default-on session controller-answer preference, preserves automatic and host Typed Answer judgement separately, includes submitted answers only in the authenticated owner session serialiser, and adds an authenticated Standard-only current-question accept/undo RPC with row locking and delta-based score, count and response-time updates. Existing one- and two-argument launch signatures remain available, anonymous submission and player-safe state are unchanged, and post-apply schema lint reports no errors or warnings.
+
+Applied migration `202608270010_bound_host_response_serialisation.sql` bounds authenticated controller refresh payloads to the current question. It always returns payload-free current-question response markers for named waiting status, while raw answer detail is returned only when the session preference is enabled and the room has at most 15 players. The player-safe state and anonymous RPC boundary are unchanged.
 
 ### Production pgcrypto repair
 

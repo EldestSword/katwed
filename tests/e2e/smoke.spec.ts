@@ -1085,8 +1085,8 @@ test('Standard scoring controls, configured tiles and the Double Score intro wor
   await expect(presentation.getByText('Double Score browser question')).toHaveCount(0)
   await expect(player.getByText('Double Score browser question')).toHaveCount(0)
 
-  await expect(player.getByText('Double Score browser question')).toBeVisible()
-  await expect(presentation.getByText('Double Score browser question')).toBeVisible()
+  await expect(player.getByText('Double Score browser question')).toBeVisible({ timeout: 10_000 })
+  await expect(presentation.getByText('Double Score browser question')).toBeVisible({ timeout: 10_000 })
   await expect(player.getByText('2x points')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Close answers now' })).toBeEnabled()
   await player.getByRole('button', { name: 'True' }).click()

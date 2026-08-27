@@ -1,6 +1,7 @@
 import type {
   GameSession,
   GameSessionSettings,
+  HostResponseRecord,
   JoinResult,
   LaunchGameSettings,
   Player,
@@ -41,9 +42,11 @@ import {
 import {
   createGameSessionSettings,
   createSessionQuestionOrder,
+  normaliseGameSessionSettings,
   orderedSessionQuestions,
   questionPreludeKind,
 } from '../../features/game/launchSettings'
+import { HOST_RESPONSE_DETAIL_LIMIT, hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -98,13 +101,35 @@ function normaliseState(state: DemoState): DemoState {
       const quiz = quizzes.find((candidate) => candidate.id === session.quizId)
       if (!quiz) return session
       const existing = (session as Partial<GameSession>).settings
-      const settings = existing ?? createGameSessionSettings(undefined, quiz, session.id)
+      const settings = existing
+        ? normaliseGameSessionSettings(existing, quiz.soundPackId, session.id)
+        : createGameSessionSettings(undefined, quiz, session.id)
       const questionOrder = Array.isArray((session as Partial<GameSession>).questionOrder)
         ? (session as Partial<GameSession>).questionOrder as string[]
         : createSessionQuestionOrder(quiz.questions, false, session.id)
-      return { ...session, settings, questionOrder }
+      const answers = (session.answers ?? []).map((answer) => ({
+        ...answer,
+        automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
+        hostCorrectOverride: typeof answer.hostCorrectOverride === 'boolean' ? answer.hostCorrectOverride : null,
+      }))
+      const hostResponses = Array.isArray((session as Partial<GameSession>).hostResponses)
+        ? (session as Partial<GameSession>).hostResponses as HostResponseRecord[]
+        : answers.map(hostResponseRecordForAnswer)
+      return { ...session, settings, questionOrder, hostResponses, answers }
     }),
   }
+}
+
+function hostSessionView(session: GameSession, quiz: Quiz): GameSession {
+  const questionId = orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]?.id
+  const hostResponses = questionId
+    ? session.hostResponses.filter((response) => response.questionId === questionId)
+    : []
+  const answers = questionId && session.settings.showPlayerAnswersToHost &&
+      session.players.length <= HOST_RESPONSE_DETAIL_LIMIT
+    ? session.answers.filter((answer) => answer.questionId === questionId)
+    : []
+  return { ...session, hostResponses, answers }
 }
 
 function isDemoState(value: unknown): value is DemoState {
@@ -465,7 +490,7 @@ export class DemoGameRepository implements GameRepository {
         }
       }
       const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
-      if (active) return clone(active)
+      if (active) return clone(hostSessionView(active, quiz))
       const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
       let roomCode: string
       do roomCode = String(100000 + Math.floor(Math.random() * 900000))
@@ -486,6 +511,7 @@ export class DemoGameRepository implements GameRepository {
         settings,
         questionOrder: createSessionQuestionOrder(quiz.questions, settings.shuffleQuestionOrder, sessionId),
         players: [],
+        hostResponses: [],
         answers: [],
       }
       state.sessions.push(session)
@@ -499,13 +525,14 @@ export class DemoGameRepository implements GameRepository {
     const session = state.sessions.find((candidate) => candidate.id === sessionId)
     if (!session) return null
     const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
-    return quiz ? clone({ session, quiz }) : null
+    return quiz ? clone({ session: hostSessionView(session, quiz), quiz }) : null
   }
 
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
-    return clone(this.read().sessions.find(
-      (session) => session.quizId === quizId && session.status === 'active',
-    ) ?? null)
+    const state = this.read()
+    const session = state.sessions.find((candidate) => candidate.quizId === quizId && candidate.status === 'active')
+    const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
+    return clone(session && quiz ? hostSessionView(session, quiz) : null)
   }
 
   async getRoomJoinInfo(rawRoomCode: string): Promise<RoomJoinInfo | null> {
@@ -776,7 +803,7 @@ export class DemoGameRepository implements GameRepository {
       const pointsAwarded = quiz.quizType === 'head-to-head'
         ? (assigned && score.correct ? 1 : 0)
         : calculateStandardQuestionScore(score.points, question, responseTimeMs, closesAt - openedAt)
-      session.answers.push({
+      const answer: PlayerAnswer = {
         id: uid('answer'),
         sessionId: session.id,
         questionId: question.id,
@@ -785,9 +812,13 @@ export class DemoGameRepository implements GameRepository {
         resolutionStatus: 'answered',
         submittedAt: new Date().toISOString(),
         responseTimeMs,
+        automaticCorrect: score.correct,
+        hostCorrectOverride: null,
         correct: score.correct,
         pointsAwarded,
-      })
+      }
+      session.answers.push(answer)
+      session.hostResponses.push(hostResponseRecordForAnswer(answer))
       player.totalScore += pointsAwarded
       if (score.correct && (quiz.quizType === 'standard' || assigned)) {
         player.correctAnswerCount += 1
@@ -819,6 +850,43 @@ export class DemoGameRepository implements GameRepository {
       session.questionOpenedAt = opening
       session.questionClosesAt = null
       session.startedAt = new Date(now).toISOString()
+      this.write(state, true, session.id)
+    })
+  }
+
+  async setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId)
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      const answer = session?.answers.find((candidate) => candidate.id === answerId)
+      const question = quiz?.questions.find((candidate) => candidate.id === answer?.questionId)
+      const player = session?.players.find((candidate) => candidate.id === answer?.playerId)
+      if (!session || !quiz || !answer || !question || !player) {
+        throw new RepositoryError('database', 'That submitted answer could not be found.')
+      }
+      if (quiz.quizType !== 'standard' || question.type !== 'typed-answer' ||
+        session.currentQuestionIndex < 0 || orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]?.id !== question.id) {
+        throw new RepositoryError('invalid-selection', 'Only the current Standard Typed Answer can be reviewed.')
+      }
+      if (!['locked', 'reveal', 'leaderboard'].includes(session.phase)) {
+        throw new RepositoryError('invalid-phase', 'Lock answers before reviewing Typed Answers.')
+      }
+      const automaticCorrect = answer.automaticCorrect ?? answer.correct
+      const nextOverride = correctOverride === true && !automaticCorrect ? true : null
+      const previousCorrect = answer.correct
+      const previousPoints = answer.pointsAwarded
+      const nextCorrect = nextOverride ?? automaticCorrect
+      const nextPoints = nextCorrect
+        ? calculateStandardQuestionScore(question.points, question, answer.responseTimeMs, question.timeLimitSeconds * 1_000)
+        : 0
+      answer.automaticCorrect = automaticCorrect
+      answer.hostCorrectOverride = nextOverride
+      answer.correct = nextCorrect
+      answer.pointsAwarded = nextPoints
+      player.totalScore += nextPoints - previousPoints
+      player.correctAnswerCount += Number(nextCorrect) - Number(previousCorrect)
+      player.totalCorrectResponseMs += (nextCorrect ? answer.responseTimeMs : 0) - (previousCorrect ? answer.responseTimeMs : 0)
       this.write(state, true, session.id)
     })
   }
@@ -961,6 +1029,7 @@ export class DemoGameRepository implements GameRepository {
           session.questionClosesAt = null
           session.startedAt = null
           session.endedAt = null
+          session.hostResponses = []
           session.answers = []
           session.players.forEach((player) => {
             player.totalScore = 0
