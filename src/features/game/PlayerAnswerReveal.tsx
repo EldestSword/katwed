@@ -2,6 +2,7 @@ import { GameBadge } from '../../components/design-system/GameBadge'
 import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RevealPayload, RosterMember, SafeQuestion } from '../../types/domain'
 import { CLASSIC_ANSWER_COLOURS, answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { orderedQuestionOptions, optionPosition } from '../questions/optionOrdering'
+import { normaliseTypedAnswer } from '../typed-answer/typedAnswer'
 import { PinpointSurface } from './PinpointSurface'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { RevealAnswerCard } from './RevealAnswerCard'
@@ -27,19 +28,19 @@ function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null
     case 'slider': return answer.type === 'slider' && Math.abs(answer.value - reveal.correctValue) <= reveal.tolerance ? 'correct' : 'incorrect'
     case 'pinpoint': return answer.type === 'pinpoint' && Math.hypot(answer.x - reveal.targetX, answer.y - reveal.targetY) <= reveal.targetRadius ? 'correct' : 'incorrect'
     case 'mashup': return answer.type === 'mashup' && sameSet(answer.memberIds, reveal.correctMemberIds) ? 'correct' : 'incorrect'
-    case 'typed-answer': return answer.type === 'typed-answer' && answer.value.trim().toLocaleLowerCase() === reveal.correctAnswer.trim().toLocaleLowerCase() ? 'correct' : 'unknown'
+    case 'typed-answer': return answer.type === 'typed-answer' && normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'incorrect'
   }
 }
 
 function OutcomeHeading({ outcome }: { outcome: RevealOutcome }) {
   const content = outcome === 'correct'
-    ? { icon: '✓', heading: 'Correct', note: 'Nicely played.', tone: 'success' as const }
+    ? { icon: '✓', heading: 'You got it right!', note: 'Nicely played.', tone: 'success' as const }
     : outcome === 'incorrect'
-      ? { icon: '×', heading: 'Not quite', note: 'Here’s the answer.', tone: 'warning' as const }
+      ? { icon: '×', heading: 'Not this time', note: 'Here’s the correct answer.', tone: 'warning' as const }
       : { icon: '!', heading: 'Answer revealed', note: 'See how yours compares.', tone: 'info' as const }
   return (
     <div className={`player-reveal-outcome player-reveal-outcome--${outcome}`} role="status">
-      <GameBadge tone={content.tone}>{content.icon} {content.heading}</GameBadge>
+      <GameBadge tone={content.tone}>{content.icon} {outcome === 'correct' ? 'Correct' : outcome === 'incorrect' ? 'Incorrect' : 'Revealed'}</GameBadge>
       <h1>{content.heading}</h1><p>{content.note}</p>
     </div>
   )
