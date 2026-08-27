@@ -1,6 +1,6 @@
 import type { Question, QuizType, SafeQuestion } from '../../types/domain'
 
-export const DOUBLE_SCORE_INTRO_MS = 1_500
+export const DOUBLE_SCORE_INTRO_MS = 5_000
 
 export function calculateTimedScore(baseScore: number, responseTimeMs: number, durationMs: number): number {
   if (!Number.isFinite(baseScore) || baseScore <= 0) return 0
