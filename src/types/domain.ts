@@ -21,6 +21,20 @@ export type QuizType = typeof QUIZ_TYPE_IDS[number]
 export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 export type SoundPackId = 'katwed' | 'none'
+export type QuestionPreludeKind = 'double-score' | 'question-type' | null
+
+export interface LaunchGameSettings {
+  soundPackId: SoundPackId
+  shuffleQuestionOrder: boolean
+  shuffleAnswerOptions: boolean
+  autoLockWhenAllAnswered: boolean
+}
+
+export interface GameSessionSettings extends LaunchGameSettings {
+  doubleScoreIntroMs: number
+  questionTypeIntrosEnabled: boolean
+  answerOptionSeed: string
+}
 
 export const QUIZ_BACKGROUND_IDS = [
   'katwed-bubbles',
@@ -199,6 +213,8 @@ interface SafeAssignment {
 interface QuestionProgress {
   questionNumber: number
   totalQuestions: number
+  forceRandomiseOptions?: boolean
+  optionOrderSeed?: string
 }
 
 export type RevealPayload =
@@ -245,6 +261,7 @@ export type RevealPayload =
   | {
       type: 'typed-answer'
       correctAnswer: string
+      correctPlayerIds?: string[]
       caption: string
     }
 
@@ -318,6 +335,8 @@ export interface GameSession {
   questionClosesAt: string | null
   startedAt: string | null
   endedAt: string | null
+  settings: GameSessionSettings
+  questionOrder: string[]
   players: Player[]
   answers: PlayerAnswer[]
 }
@@ -340,6 +359,8 @@ export interface SafeGameState {
   answerPaletteId?: AnswerPaletteId
   customAnswerColours?: AnswerColourTuple
   soundPackId?: SoundPackId
+  sessionSettings?: GameSessionSettings
+  questionPreludeKind?: QuestionPreludeKind
   roomCode: string
   status: SessionStatus
   phase: GamePhase

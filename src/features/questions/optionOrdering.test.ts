@@ -30,4 +30,16 @@ describe('shared option ordering', () => {
     expect(first).not.toEqual(['paris', 'london', 'rome', 'berlin'])
     first.forEach((id, index) => expect(optionPosition(question(true), id)).toBe(index))
   })
+
+  it('forces a stable session-specific order without mutating authored options', () => {
+    const authored = question(false)
+    const original = structuredClone(authored.options)
+    const first = orderedQuestionOptions({ ...authored, forceRandomiseOptions: true, optionOrderSeed: 'session-a' }).map((option) => option.id)
+    const refreshed = orderedQuestionOptions({ ...authored, forceRandomiseOptions: true, optionOrderSeed: 'session-a' }).map((option) => option.id)
+    const otherSession = orderedQuestionOptions({ ...authored, forceRandomiseOptions: true, optionOrderSeed: 'session-b' }).map((option) => option.id)
+    expect(refreshed).toEqual(first)
+    expect(new Set(first)).toEqual(new Set(authored.options.map((option) => option.id)))
+    expect(otherSession).not.toEqual(first)
+    expect(authored.options).toEqual(original)
+  })
 })

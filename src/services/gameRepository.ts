@@ -1,6 +1,7 @@
 import type {
   GameSession,
   JoinResult,
+  LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
   Quiz,
@@ -42,7 +43,7 @@ export interface GameRepository {
   permanentlyDeleteQuiz(quizId: string): Promise<QuizDeleteResult>
   getStorageReport(): Promise<StorageReport>
   cleanupUnusedImages(paths: readonly string[]): Promise<StorageCleanupResult>
-  launchGame(quizId: string): Promise<GameSession>
+  launchGame(quizId: string, settings?: LaunchGameSettings): Promise<GameSession>
   getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
   getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null>

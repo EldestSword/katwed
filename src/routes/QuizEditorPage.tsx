@@ -41,7 +41,6 @@ import {
 } from '../features/answer-palettes/answerPalettes'
 import { normaliseHexColour } from '../features/answer-palettes/colourContrast'
 import { orderedQuestionOptions } from '../features/questions/optionOrdering'
-import { soundPacks } from '../features/audio/soundPacks'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction
@@ -379,7 +378,7 @@ function QuizSettingsDialog({
   uploadCover(file: File | undefined): Promise<void>
 }) {
   const dialog = useRef<HTMLDivElement>(null)
-  const [section, setSection] = useState<'game' | 'appearance' | 'colours' | 'audio'>('game')
+  const [section, setSection] = useState<'game' | 'appearance' | 'colours'>('game')
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -426,7 +425,6 @@ function QuizSettingsDialog({
             <button type="button" aria-current={section === 'game' ? 'page' : undefined} onClick={() => setSection('game')}><strong>Game</strong><span>Mode and competitors</span></button>
             <button type="button" aria-current={section === 'appearance' ? 'page' : undefined} onClick={() => setSection('appearance')}><strong>Appearance</strong><span>Theme, background and cover</span></button>
             <button type="button" aria-current={section === 'colours' ? 'page' : undefined} onClick={() => setSection('colours')}><strong>Answer colours</strong><span>Palette and custom colours</span></button>
-            <button type="button" aria-current={section === 'audio' ? 'page' : undefined} onClick={() => setSection('audio')}><strong>Audio</strong><span>Shared Presentation sound</span></button>
           </nav>
           <div className="quiz-settings-content">
         {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
@@ -451,34 +449,12 @@ function QuizSettingsDialog({
           <header><p className="eyebrow">Answer colours</p><h2 id="settings-colours-heading">Choose the contestant palette</h2></header>
           <div><AnswerPalettePicker quiz={quiz} update={update} /></div>
         </section>}
-        {section === 'audio' && <section className="quiz-settings-section" aria-labelledby="settings-audio-heading">
-          <header><p className="eyebrow">Audio</p><h2 id="settings-audio-heading">Choose the game-show sound</h2></header>
-          <div><SoundPackPicker quiz={quiz} update={update} /></div>
-        </section>}
           </div>
         </div>
         <footer><button className="button button--primary" type="button" onClick={close}>Done</button></footer>
       </div>
     </div>,
     document.body,
-  )
-}
-
-function SoundPackPicker({ quiz, update }: { quiz: Quiz; update(updater: (quiz: Quiz) => Quiz): void }) {
-  return (
-    <fieldset className="sound-pack-picker">
-      <legend>Sound pack</legend>
-      <p>Music and stings play from the shared Presentation only. Contestant phones stay silent.</p>
-      <div className="sound-pack-grid">
-        {soundPacks.map((pack) => (
-          <button key={pack.id} type="button" aria-pressed={quiz.soundPackId === pack.id} onClick={() => update((current) => ({ ...current, soundPackId: pack.id }))}>
-            <span aria-hidden="true">{pack.id === 'none' ? '×' : '!'}</span>
-            <span><strong>{pack.name}</strong><small>{pack.description}</small></span>
-            <em>{quiz.soundPackId === pack.id ? 'Selected' : 'Choose'}</em>
-          </button>
-        ))}
-      </div>
-    </fieldset>
   )
 }
 

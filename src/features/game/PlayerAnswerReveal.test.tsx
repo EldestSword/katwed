@@ -31,17 +31,27 @@ describe('PlayerAnswerReveal', () => {
   it('communicates correctness with text and retains the submitted answer after reveal', () => {
     const question: SafeQuestion = { ...base, type: 'single-choice', options: [{ id: 'mars', label: 'Mars' }, { id: 'venus', label: 'Venus' }], randomiseOptions: false }
     const { rerender } = render(<PlayerAnswerReveal reveal={{ type: 'single-choice', correctOptionId: 'mars', caption: '', optionCounts: {} }} question={question} submittedAnswer={{ type: 'single-choice', optionId: 'mars' }} />)
-    expect(screen.getByRole('heading', { name: 'Correct' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'You got it right!' })).toBeVisible()
     expect(screen.getByText('Your answer')).toBeVisible()
 
     rerender(<PlayerAnswerReveal reveal={{ type: 'single-choice', correctOptionId: 'mars', caption: '', optionCounts: {} }} question={question} submittedAnswer={{ type: 'single-choice', optionId: 'venus' }} />)
-    expect(screen.getByRole('heading', { name: 'Not quite' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Not this time' })).toBeVisible()
   })
 
   it('does not falsely reject a Typed Answer that could match a hidden accepted alternative', () => {
     render(<PlayerAnswerReveal reveal={{ type: 'typed-answer', correctAnswer: 'Red Dwarf', caption: '' }} question={{ ...base, type: 'typed-answer' }} submittedAnswer={{ type: 'typed-answer', value: 'The Red Dwarf' }} />)
     expect(screen.getByRole('heading', { name: 'Answer revealed' })).toBeVisible()
-    expect(screen.queryByRole('heading', { name: 'Not quite' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Not this time' })).not.toBeInTheDocument()
+  })
+
+  it('uses server-authoritative Typed Answer correctness when reveal data is available', () => {
+    const reveal: RevealPayload = { type: 'typed-answer', correctAnswer: 'Red Dwarf', correctPlayerIds: ['player-correct'], caption: '' }
+    const question: SafeQuestion = { ...base, type: 'typed-answer' }
+    const { rerender } = render(<PlayerAnswerReveal reveal={reveal} question={question} playerId="player-correct" submittedAnswer={{ type: 'typed-answer', value: 'The Red Dwarf' }} />)
+    expect(screen.getByRole('heading', { name: 'You got it right!' })).toBeVisible()
+
+    rerender(<PlayerAnswerReveal reveal={reveal} question={question} playerId="player-wrong" submittedAnswer={{ type: 'typed-answer', value: 'Wrong' }} />)
+    expect(screen.getByRole('heading', { name: 'Not this time' })).toBeVisible()
   })
 
   it('shows the Mars option itself instead of presentation-only placeholder copy', () => {

@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608260001_quiz_answer_palettes.sql` is applied to the live project. `202608270001_quiz_sound_pack.sql` is a pending forward migration for Audio Pass 1 and has not been applied. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1 frontend is not deployed by this development change; Netlify releases remain deliberate.
+The production migration chain through `202608270008_refresh_session_and_quiz_readers.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1 and game-preflight frontend is not deployed by this development change; Netlify releases remain deliberate.
 
 ### Implemented and deployed
 
@@ -107,7 +107,7 @@ Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown st
 
 Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
 
-Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its Audio Pass 1 database migration and frontend both await deliberate release approval.
+Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -121,7 +121,9 @@ Typed Answer and deterministic 24-tile ordering are deployed. Focused authentica
 
 New Standard questions default to speed scoring on, while existing questions and all imported v1/v2 questions remain fixed-score unless explicitly changed. Positive scores use a linear 100%-to-50% multiplier across the authoritative question window. Double Score multiplies the existing base score first, followed by speed scaling and integer flooring. Multiple Select partial-wipeout continues to determine its proportional or zero base before either modifier.
 
-Double Score questions have a shared 1.5-second server-timed introduction on player, presentation and compact controller-preview screens. The authoritative opening timestamp is placed after that notice, so the full configured timer remains available, reconnect does not restart the notice, and early answers or host Lock/Finish attempts are rejected.
+Double Score questions use the launched session's validated sound-pack duration on player, presentation and compact controller-preview screens. The server places the authoritative question opening after that prelude, so the full configured timer remains available, Speed Scoring starts at the actual opening, reconnect does not restart the notice, and early answers or host Lock/Finish attempts are rejected. The current Katwed and silent packs use a five-second visual prelude; future registry entries may provide a different duration between 500 ms and 30 seconds.
+
+Mixed-format quizzes also receive a 1.75-second question-type prelude before each ordinary question. Single-format quizzes have none. A Double Score prelude replaces, rather than follows, the type prelude and carries the type label as secondary copy. Standard and Head-to-Head progression both use the authoritative opening timestamp; Head-to-Head questions remain untimed.
 
 New tile authoring supports 6-by-6, 8-by-8, 12-by-12 and 16-by-16 grids, defaulting to 8-by-8. Existing tile media without a size retains the deployed 24-tile 6-by-4 layout. All grids keep deterministic per-opening reveal order, total reveal duration, reduced-motion behaviour and image enlargement.
 
@@ -131,17 +133,19 @@ These features are implemented and tested. `202608090002_standard_scoring_and_ti
 
 Quiz-wide configuration now opens from **Quiz settings** in an accessible modal, covering quiz type, competitors, theme, background, cover and answer colours. Changes remain part of the editor draft and persist only through the ordinary **Save quiz** action. The permanent right sidebar is question-specific and grouped into Question, Answers, Scoring, and Media & presentation sections.
 
-Standard rooms close answers automatically once every joined player has submitted, using the same authoritative lock transition as the timer and the host's **Close answers now** action. Joined-player count deliberately includes disconnected players, so a missing device cannot cause a premature close and the host retains the manual override. Empty rooms never auto-lock and Head-to-Head behaviour is unchanged.
+Standard rooms default to closing answers automatically once every joined player has submitted, using the same authoritative lock transition as the timer and the host's **Close answers now** action. This may be disabled for an individual game during preflight, in which case the deadline or host closes the answers. Joined-player count deliberately includes disconnected players, so a missing device cannot cause a premature close. Empty rooms never auto-lock and Head-to-Head behaviour is unchanged.
 
 Each quiz selects one of 17 preset eight-colour palettes or an eight-colour Custom palette. Colours are assigned by final displayed answer position after the shared deterministic option ordering; True uses position 1 and False position 2. Player, presentation, controller preview, reveal and suitable result surfaces share that mapping. Text uses the WCAG relative-luminance contrast ratio to choose controlled near-black or white, with pure black reserved for the narrow colour range where neither preferred foreground reaches AA. Duplicate, Demo/Supabase save and load, safe live state, and portable format v5 preserve the configuration.
 
-### Shared game audio, pass 1
+### Game preflight and shared game audio
 
-Each quiz selects **Katwed!** or **None** in Quiz settings. The full Presentation route is the only shared-audio owner: it maps authoritative Lobby, Question, Urgent, Double Score, Locked, Reveal, Leaderboard and Final phases through one central engine and sound-pack registry. Controller music/effects volume and master mute are local device preferences; the compact preview and contestant phones never create duplicate playback.
+Clicking **Launch game** now opens `/host/quizzes/:quizId/setup` without creating a room. The host chooses the session music theme, optional session-only question shuffle, optional forced answer-choice shuffle and Standard auto-close behaviour, then **Start lobby** creates the room atomically. An existing active room resumes instead of creating a duplicate. The stable question order and deterministic answer seed are persisted on the session and never rewrite the saved quiz.
+
+Music selection is no longer editable in permanent Quiz settings. The portable-v5 `soundPackId` remains as a backwards-compatible preflight default, while every live phase reads the persisted session pack. The full Presentation route is the only shared-audio owner: it maps authoritative Lobby, Question, Urgent, Double Score, Locked, Reveal, Leaderboard and Final phases through one central engine and sound-pack registry. Controller music/effects volume and master mute are local device preferences; the compact preview and contestant phones never create duplicate playback.
 
 Lobby and Question use prepared loop seams, phase changes crossfade briefly, one-shot stings use authoritative event keys, and blocked playback exposes a non-blocking **Enable sound** action in the Presentation window. Presentation-visible YouTube questions conservatively silence the question bed because the current privacy-enhanced iframe has no reliable player-state API. Gameplay remains fully visual and continues through blocked, missing, muted or disabled audio. See [`docs/audio-language.md`](docs/audio-language.md) for the asset inventory, phase language, preparation and future-pack contract.
 
-The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. `202608270001_quiz_sound_pack.sql` is committed as a new forward migration but is deliberately unapplied, and no Audio Pass 1 frontend deployment has been performed.
+The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. The audio and game-preflight migration chain through `202608270008_refresh_session_and_quiz_readers.sql` is applied, while no matching Netlify deployment has been performed.
 
 ### Visual design system, pass 1
 
@@ -213,6 +217,7 @@ The 18 approved outputs are registered as three optional built-in backgrounds pe
 
 | Route | Purpose | Mutating controls |
 |---|---|---:|
+| `/host/quizzes/:quizId/setup` | Host preflight for one game session; no room exists until Start lobby | Creates session |
 | `/host/game/:sessionId/control` | Private host controller, normally kept on a second monitor | Yes |
 | `/host/game/:sessionId/present` | Read-only shared presentation window | No |
 | `/play/:roomCode` | Responsive phone, tablet and desktop player interface | Answer submission only |
@@ -223,13 +228,12 @@ Both host routes require host authentication in production. The presentation use
 
 ## Recommended Teams workflow
 
-1. Open the controller.
-2. Launch a game.
-3. Select **Open presentation window**.
-4. Move the presentation to the main monitor.
-5. Share only that browser window in Microsoft Teams.
-6. Keep the controller on the second monitor.
-7. Ask players to join using the room code or QR code.
+1. Select **Launch game**, review Game setup and choose **Start lobby**.
+2. Select **Open presentation window** from the controller.
+3. Move the presentation to the main monitor.
+4. Share only that browser window in Microsoft Teams.
+5. Keep the controller on the second monitor.
+6. Ask players to join using the room code or QR code.
 
 Katwed! does not integrate with Teams. It provides a browser window designed to be shared through Teams.
 
@@ -340,7 +344,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608260001_quiz_answer_palettes.sql` applied. `202608270001_quiz_sound_pack.sql` remains pending for explicit approval; no Audio Pass 1 Netlify deployment has been performed.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270008_refresh_session_and_quiz_readers.sql` applied. No Audio Pass 1 or game-preflight Netlify deployment has been performed.
 
 For a new Supabase environment:
 
@@ -386,6 +390,14 @@ Applied production migrations, in order:
 202608090001_fix_typed_answer_validation_trigger.sql
 202608090002_standard_scoring_and_tile_options.sql
 202608260001_quiz_answer_palettes.sql
+202608270001_quiz_sound_pack.sql
+202608270002_double_score_intro_five_seconds.sql
+202608270003_game_preflight_session_settings.sql
+202608270004_fix_wrapped_submit_answer_search_path.sql
+202608270005_fix_public_submit_answer_search_path.sql
+202608270006_qualify_legacy_submit_answer_digest.sql
+202608270007_qualify_all_submit_answer_overloads.sql
+202608270008_refresh_session_and_quiz_readers.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -410,7 +422,11 @@ Applied production migrations, in order:
 
 `202608260001_quiz_answer_palettes.sql` is applied immutable production history. It adds a constrained palette ID and exact eight-colour custom tuple with Classic defaults, wraps the established authenticated quiz read/save boundary, and adds only harmless palette configuration to player-safe state. It does not change answer filtering, scoring, phases or grants.
 
-Pending migration `202608270001_quiz_sound_pack.sql` adds a constrained `katwed`/`none` quiz field with a Katwed default, stale-client-compatible owner save/read wrappers, and only harmless sound-pack metadata in player-safe state. It has not been applied to Supabase.
+Applied migration `202608270001_quiz_sound_pack.sql` adds a constrained `katwed`/`none` quiz field with a Katwed default, stale-client-compatible owner save/read wrappers, and only harmless sound-pack metadata in player-safe state.
+
+Applied migration `202608270002_double_score_intro_five_seconds.sql` updates the existing server-authoritative Double Score window from the earlier 1.5-second behaviour to the current five-second baseline.
+
+Applied migration `202608270003_game_preflight_session_settings.sql` adds validated session-level sound, prelude, shuffle and auto-close configuration; persists one question order and answer-order seed per room; extends atomic launch; and keeps opening, deadline, submission and Head-to-Head progression authoritative. It wraps existing public functions rather than editing applied migrations. Applied follow-ups `202608270004` through `202608270007` preserve compatibility across the live function history by explicitly resolving the wrapped submission validator's pgcrypto dependency. `202608270008_refresh_session_and_quiz_readers.sql` rebinds owner readers to the current serialisers and removes the previous `host_get_game` lint warning. Post-apply schema lint reports no errors or warnings.
 
 ### Production pgcrypto repair
 
@@ -486,7 +502,7 @@ Planned test points are approximately 25, 50, 75 and 100 simultaneous players. T
 
 ### Quiz library and storage management
 
-Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head, Typed Answer and portable quiz formats v1/v2 are implemented and deployed. Portable format v5, Quiz settings, answer palettes, Standard auto-lock and Audio Pass 1 are implemented and tested locally; the Audio migration and frontend await deliberate release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
+Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited, sorting, Quiz Covers, Storage Manager, Head-to-Head, Typed Answer and portable quiz formats v1/v2 are implemented and deployed. Portable format v5, Quiz settings, answer palettes, Audio Pass 1 and game preflight are implemented and tested locally; their database migrations are applied and the matching frontend awaits deliberate release. The lifecycle removes relational game history on permanent deletion, safely preserves shared media references and provides explicit review and cleanup of eligible unused Katwed images.
 
 - tags;
 - optional media reuse;

@@ -24,4 +24,9 @@ describe('Standard answer auto-lock', () => {
     expect(check({ deadlineReached: true })).toBe(true)
     expect(check({ quizType: 'head-to-head', submittedCount: 4, deadlineReached: true })).toBe(false)
   })
+
+  it('keeps timer locking but ignores everybody-submitted when session auto-lock is off', () => {
+    expect(check({ submittedCount: 4, autoLockWhenAllAnswered: false })).toBe(false)
+    expect(check({ submittedCount: 4, autoLockWhenAllAnswered: false, deadlineReached: true })).toBe(true)
+  })
 })

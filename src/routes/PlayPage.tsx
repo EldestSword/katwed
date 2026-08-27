@@ -14,9 +14,11 @@ import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
 import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
 import { HeadToHeadResults } from '../features/head-to-head/HeadToHeadResults'
 import { DoubleScoreIntro } from '../features/game/DoubleScoreIntro'
-import { useDoubleScoreIntro } from '../hooks/useDoubleScoreIntro'
+import { useQuestionPrelude } from '../hooks/useQuestionPrelude'
 import { PlayerSubmissionSummary } from '../features/game/PlayerSubmissionSummary'
 import { FinalResults, HeadToHeadFinal } from '../features/game/FinalResults'
+import { QuestionTypeIntro } from '../features/game/QuestionTypeIntro'
+import { questionTypeRegistry } from '../features/questions/registry'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -45,7 +47,8 @@ export function PlayPage() {
     [playerSession?.playerId, state?.players],
   )
   const currentPlayerId = currentPlayer?.id
-  const doubleScoreIntro = useDoubleScoreIntro(state?.quizType, state?.currentQuestion ?? null, state?.questionOpenedAt ?? null)
+  const configuredPrelude = state?.questionPreludeKind ?? (state?.currentQuestion?.doubleScore ? 'double-score' : null)
+  const activePrelude = useQuestionPrelude(configuredPrelude, state?.questionOpenedAt ?? null)
 
   useEffect(() => {
     if (!playerSession || !currentPlayerId) return
@@ -110,8 +113,9 @@ export function PlayPage() {
         <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p><strong>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} in the lobby</strong></section>
       ))}
 
-      {state.phase === 'question' && question && doubleScoreIntro && <DoubleScoreIntro />}
-      {state.phase === 'question' && question && !doubleScoreIntro && (resolution && !submittedAnswer ? (
+      {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
+      {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} />}
+      {state.phase === 'question' && question && !activePrelude && (resolution && !submittedAnswer ? (
         <section className="player-waiting" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Head-to-Head</p><h2>{resolution.status === 'skipped' ? 'Question skipped' : 'Answer locked'}</h2></div></div><p className="player-waiting__next">Waiting for the other competitor…</p></section>
       ) : (
         <>
@@ -139,7 +143,7 @@ export function PlayPage() {
       {state.phase === 'locked' && <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}<p className="player-waiting__next">Waiting for the reveal…</p></section>}
       {state.phase === 'reveal' && state.reveal && question && (
         <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
-          <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer}
+          <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer} playerId={currentPlayer.id}
             roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
           {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}

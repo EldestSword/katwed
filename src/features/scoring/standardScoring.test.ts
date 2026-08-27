@@ -3,7 +3,7 @@ import {
   DOUBLE_SCORE_INTRO_MS,
   calculateStandardQuestionScore,
   calculateTimedScore,
-  isDoubleScoreIntroActive,
+  isQuestionPreludeActive,
   standardQuestionWindow,
 } from './standardScoring'
 
@@ -69,12 +69,33 @@ describe('Double Score authoritative timing', () => {
     })
   })
 
+  it('uses a selected session pack duration without stealing question time', () => {
+    expect(standardQuestionWindow(
+      { doubleScore: true, timeLimitSeconds: 30 },
+      transition,
+      { doubleScoreIntroMs: 9000, questionTypeIntrosEnabled: true },
+    )).toEqual({
+      openedAt: '2026-08-09T12:00:09.000Z',
+      closesAt: '2026-08-09T12:00:39.000Z',
+    })
+  })
+
+  it('uses one question-type prelude for a mixed ordinary question', () => {
+    expect(standardQuestionWindow(
+      { doubleScore: false, timeLimitSeconds: 20 },
+      transition,
+      { doubleScoreIntroMs: 9000, questionTypeIntrosEnabled: true },
+    )).toEqual({
+      openedAt: '2026-08-09T12:00:01.750Z',
+      closesAt: '2026-08-09T12:00:21.750Z',
+    })
+  })
+
   it('derives intro state from the shared opening timestamp without restarting it', () => {
-    const question = { doubleScore: true }
     const opensAt = '2026-08-09T12:00:05.000Z'
-    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition)).toBe(true)
-    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 4999)).toBe(true)
-    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 5000)).toBe(false)
-    expect(isDoubleScoreIntroActive('head-to-head', question, opensAt, transition)).toBe(false)
+    expect(isQuestionPreludeActive('double-score', opensAt, transition)).toBe(true)
+    expect(isQuestionPreludeActive('double-score', opensAt, transition + 4999)).toBe(true)
+    expect(isQuestionPreludeActive('double-score', opensAt, transition + 5000)).toBe(false)
+    expect(isQuestionPreludeActive(null, opensAt, transition)).toBe(false)
   })
 })

@@ -14,7 +14,7 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value) => right.includes(value))
 }
 
-function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null): RevealOutcome {
+function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null, playerId?: string): RevealOutcome {
   if (!answer || answer.type !== reveal.type) return 'unknown'
   switch (reveal.type) {
     case 'single-choice': return answer.type === 'single-choice' && answer.optionId === reveal.correctOptionId ? 'correct' : 'incorrect'
@@ -28,7 +28,10 @@ function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null
     case 'slider': return answer.type === 'slider' && Math.abs(answer.value - reveal.correctValue) <= reveal.tolerance ? 'correct' : 'incorrect'
     case 'pinpoint': return answer.type === 'pinpoint' && Math.hypot(answer.x - reveal.targetX, answer.y - reveal.targetY) <= reveal.targetRadius ? 'correct' : 'incorrect'
     case 'mashup': return answer.type === 'mashup' && sameSet(answer.memberIds, reveal.correctMemberIds) ? 'correct' : 'incorrect'
-    case 'typed-answer': return answer.type === 'typed-answer' && normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'incorrect'
+    case 'typed-answer':
+      if (answer.type !== 'typed-answer') return 'unknown'
+      if (reveal.correctPlayerIds && playerId) return reveal.correctPlayerIds.includes(playerId) ? 'correct' : 'incorrect'
+      return normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'unknown'
   }
 }
 
@@ -53,6 +56,7 @@ export function PlayerAnswerReveal({
   roster = [],
   answerPaletteId = 'classic',
   customAnswerColours = CLASSIC_ANSWER_COLOURS,
+  playerId,
 }: {
   reveal: RevealPayload
   question: SafeQuestion
@@ -60,9 +64,10 @@ export function PlayerAnswerReveal({
   roster?: RosterMember[]
   answerPaletteId?: AnswerPaletteId
   customAnswerColours?: AnswerColourTuple
+  playerId?: string
 }) {
   const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
-  const outcome = revealOutcome(reveal, submittedAnswer)
+  const outcome = revealOutcome(reveal, submittedAnswer, playerId)
   let correctAnswer
 
   switch (reveal.type) {

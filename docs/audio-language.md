@@ -43,20 +43,20 @@ Selection is technical where the candidates provide an objective distinction; no
 | `leaderboard.mp3` | Once | 13.92 s | 279,030 |
 | `final.mp3` | Once | 27.84 s | 557,430 |
 
-The complete compressed pack is **2,853,360 bytes (2.72 MiB)**. Lobby and Question encode a 600 ms linear crossfade from the source tail into its head, then rotate the middle section after that seam. Browser looping therefore meets a deliberately blended boundary rather than an untreated fade-out. Runtime phase changes use a restrained 350 ms crossfade. Double Score is trimmed to 1.75 seconds with a 250 ms ending fade; the 1.5-second visual state is unchanged.
+The complete compressed pack is **2,853,360 bytes (2.72 MiB)**. Lobby and Question encode a 600 ms linear crossfade from the source tail into its head, then rotate the middle section after that seam. Browser looping therefore meets a deliberately blended boundary rather than an untreated fade-out. Runtime phase changes use a restrained 350 ms crossfade. The registry declares a validated Double Score prelude duration for every pack; the current Katwed pack uses the established five-second visual behaviour even though its prepared sting is shorter.
 
 ## Ownership and architecture
 
 Authoritative safe game state flows through the pure phase mapper into one `GameAudioEngine`, then through the selected sound-pack registry. Only the full `/present` route constructs the engine. The Controller's compact Presentation preview and all `/play/:roomCode` contestant views remain silent.
 
-The initial registry contains `katwed` and `none`. A future pack supplies the same eight stable cue roles; phase logic does not change. `soundPackId` belongs to the quiz definition and player-safe display metadata. Master mute, music volume (70% default) and effects volume (80% default) are local host-device preferences shared between Controller and Presentation windows through local storage.
+The initial registry contains `katwed` and `none`. A future pack supplies the same eight stable cue roles plus its authoritative Double Score duration; phase logic does not change. Game setup copies the selected pack and duration into the new session. The portable quiz `soundPackId` remains only as a backwards-compatible setup default, and live play never follows later quiz edits. Master mute, music volume (70% default) and effects volume (80% default) are local host-device preferences shared between Controller and Presentation windows through local storage.
 
 ## Phase language
 
 - Lobby loops until the game begins.
 - Question loops for the ordinary timed or untimed question bed.
 - Urgent replaces Question with a 350 ms crossfade at 10 seconds remaining when the limit is over 15 seconds, or at 5 seconds for a 10–15 second limit. Questions under 10 seconds retain Question audio and visual urgency only.
-- Double Score plays once during the existing server-timed introduction.
+- Double Score plays once during the server-timed session prelude. Playback ending or failing never controls progression.
 - Answers Locked stops the bed and plays Lock once.
 - Reveal plays once and carries no correct/incorrect meaning.
 - Leaderboard plays once and then leaves the stage silent.

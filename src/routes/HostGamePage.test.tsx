@@ -25,7 +25,14 @@ const session: GameSession = {
   id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'question',
   currentQuestionIndex: 0, questionOpenedAt: '2026-08-26T12:00:00.000Z',
   questionClosesAt: '2026-08-26T12:01:00.000Z', startedAt: '2026-08-26T12:00:00.000Z',
-  endedAt: null, players, answers: [],
+  endedAt: null,
+  settings: {
+    soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
+    shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+    questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
+  },
+  questionOrder: mixedDemoQuiz.questions.map((question) => question.id),
+  players, answers: [],
 }
 
 function state(overrides: Partial<SafeGameState> = {}): SafeGameState {
@@ -74,6 +81,27 @@ describe('HostGamePage Standard auto-lock', () => {
     expect(repositoryMocks.changePhase).toHaveBeenCalledTimes(1)
   })
 
+  it('does not auto-lock everybody-submitted when the session setting is off', async () => {
+    renderController(state({
+      submittedCount: 4,
+      sessionSettings: { ...session.settings, autoLockWhenAllAnswered: false },
+    }))
+    expect(await screen.findByRole('button', { name: 'Close answers now' })).toBeEnabled()
+    await waitFor(() => expect(repositoryMocks.changePhase).not.toHaveBeenCalled())
+  })
+
+  it('shows Intro and blocks manual or automatic lock before authoritative opening', async () => {
+    renderController(state({
+      submittedCount: 4,
+      questionPreludeKind: 'question-type',
+      questionOpenedAt: '2099-08-26T12:00:00.000Z',
+      sessionSettings: session.settings,
+    }))
+    expect(await screen.findByText('Intro')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Close answers now' })).toBeDisabled()
+    expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
+  })
+
   it('never auto-locks an empty room', async () => {
     renderController(state({ submittedCount: 0, players: [] }))
     await screen.findByRole('button', { name: 'Close answers now' })
@@ -85,6 +113,16 @@ describe('HostGamePage Standard auto-lock', () => {
     renderController(state({ submittedCount: 2 }))
     await user.click(await screen.findByRole('button', { name: 'Close answers now' }))
     expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock')
+  })
+
+  it('uses the persisted shuffled question order for Up next', async () => {
+    const shuffled = [...mixedDemoQuiz.questions].reverse()
+    repositoryMocks.getHostSession.mockResolvedValue({
+      session: { ...session, questionOrder: shuffled.map((question) => question.id) },
+      quiz: mixedDemoQuiz,
+    })
+    renderController(state({ currentQuestion: { ...state().currentQuestion!, questionNumber: 1 } }))
+    expect(await screen.findByText(shuffled[1].prompt)).toBeVisible()
   })
 
   it('retains timer-expiry locking', async () => {

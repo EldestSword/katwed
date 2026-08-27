@@ -69,6 +69,14 @@ function CopyEditorDestination() {
   return <h1>Editing copy {useParams().quizId}</h1>
 }
 
+function SetupDestination() {
+  return <h1>Setting up {useParams().quizId}</h1>
+}
+
+function ControllerDestination() {
+  return <h1>Controlling {useParams().sessionId}</h1>
+}
+
 function renderDashboard() {
   localStorage.setItem('katwed.demo.host', 'true')
   return render(
@@ -77,6 +85,8 @@ function renderDashboard() {
         <Routes>
           <Route path="/host" element={<AppShell><HostDashboardPage /></AppShell>} />
           <Route path="/host/quizzes/:quizId/edit" element={<CopyEditorDestination />} />
+          <Route path="/host/quizzes/:quizId/setup" element={<SetupDestination />} />
+          <Route path="/host/game/:sessionId/control" element={<ControllerDestination />} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -242,6 +252,23 @@ describe('HostDashboardPage quiz library', () => {
     expect(within(archivedCard).getByRole('button', { name: 'Export' })).toBeVisible()
     expect(within(archivedCard).getByRole('button', { name: 'Permanently delete' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
+  })
+
+  it('opens Game Setup without launching, while an active room resumes its controller', async () => {
+    const user = userEvent.setup()
+    const firstRender = renderDashboard()
+    const card = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    await user.click(within(card).getByRole('button', { name: 'Launch game' }))
+    expect(await screen.findByRole('heading', { name: 'Setting up active-friday' })).toBeVisible()
+    firstRender.unmount()
+
+    repositoryMocks.getActiveSessionForQuiz.mockImplementation(async (quizId: string) => (
+      quizId === 'active-friday' ? { id: 'existing-session' } : null
+    ))
+    renderDashboard()
+    const resumedCard = await screen.findByRole('article', { name: 'Friday Team Quiz' })
+    await user.click(within(resumedCard).getByRole('button', { name: 'Resume game' }))
+    expect(await screen.findByRole('heading', { name: 'Controlling existing-session' })).toBeVisible()
   })
 
   it('badges Head-to-Head quizzes and exposes live launch only in the active library', async () => {

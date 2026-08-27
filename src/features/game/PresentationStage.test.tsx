@@ -39,16 +39,75 @@ describe('PresentationStage quiz theme', () => {
         media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
         questionNumber: 1, totalQuestions: 1,
       },
-      questionOpenedAt: '2026-08-09T12:00:01.500Z',
-      questionClosesAt: '2026-08-09T12:00:21.500Z',
+      questionOpenedAt: '2026-08-09T12:00:05.000Z',
+      questionClosesAt: '2026-08-09T12:00:25.000Z',
     }
     render(<PresentationStage state={doubleState} compact={compact} />)
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     expect(screen.queryByText('Visible after the intro?')).not.toBeInTheDocument()
 
-    await act(async () => vi.advanceTimersByTime(1510))
+    await act(async () => vi.advanceTimersByTime(5010))
     expect(screen.getByText('Visible after the intro?')).toBeVisible()
     expect(screen.getByText('2x points')).toBeVisible()
+  })
+
+  it('holds a nine-second Double Score session intro and shows the mixed-format label only once', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    render(<PresentationStage state={{
+      ...state('question'), quizType: 'standard', questionPreludeKind: 'double-score',
+      sessionSettings: {
+        soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
+        shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+        questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
+      },
+      currentQuestion: {
+        id: 'double-typed', type: 'typed-answer', prompt: 'Name the ship', supportingText: '',
+        timeLimitSeconds: 30, points: 1000, speedScoringEnabled: true, doubleScore: true, displayOrder: 0,
+        media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+        questionNumber: 1, totalQuestions: 3,
+      },
+      questionOpenedAt: '2026-08-09T12:00:09.000Z',
+      questionClosesAt: '2026-08-09T12:00:39.000Z',
+    }} />)
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    expect(screen.getByText('TYPE YOUR ANSWER')).toBeVisible()
+    expect(screen.queryByText('Name the ship')).not.toBeInTheDocument()
+    await act(async () => vi.advanceTimersByTime(8990))
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    await act(async () => vi.advanceTimersByTime(20))
+    expect(screen.getByText('Name the ship')).toBeVisible()
+    expect(screen.getByLabelText('30 seconds remaining')).toBeVisible()
+  })
+
+  it('shows a brief type intro only when the launched session says the quiz is mixed', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    const question = {
+      id: 'typed', type: 'typed-answer' as const, prompt: 'Typed prompt', supportingText: '',
+      timeLimitSeconds: 20, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+      media: { type: 'none' as const }, mediaVisibility: 'both' as const, presentationChoiceVisibility: 'show' as const,
+      questionNumber: 1, totalQuestions: 3,
+    }
+    const mixedState: SafeGameState = {
+      ...state('question'), quizType: 'standard', currentQuestion: question,
+      questionPreludeKind: 'question-type',
+      questionOpenedAt: '2026-08-09T12:00:01.750Z', questionClosesAt: '2026-08-09T12:00:21.750Z',
+    }
+    const view = render(<PresentationStage state={mixedState} />)
+    expect(screen.getByRole('heading', { name: 'TYPE YOUR ANSWER' })).toBeVisible()
+    expect(screen.queryByText('Typed prompt')).not.toBeInTheDocument()
+    await act(async () => vi.advanceTimersByTime(1760))
+    expect(screen.getByText('Typed prompt')).toBeVisible()
+
+    view.rerender(<PresentationStage state={{
+      ...mixedState,
+      questionPreludeKind: null,
+      questionOpenedAt: '2026-08-09T12:00:01.760Z',
+      questionClosesAt: '2026-08-09T12:00:21.760Z',
+    }} />)
+    expect(screen.queryByRole('heading', { name: 'TYPE YOUR ANSWER' })).not.toBeInTheDocument()
+    expect(screen.getByText('Typed prompt')).toBeVisible()
   })
 
   it('does not add an intro to an ordinary Standard question', () => {
@@ -78,7 +137,7 @@ describe('PresentationStage quiz theme', () => {
       timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
       media: { type: 'none' as const }, mediaVisibility: 'both' as const,
       presentationChoiceVisibility: 'show' as const, questionNumber: 1, totalQuestions: 1,
-      options, randomiseOptions: true,
+      options, randomiseOptions: false, forceRandomiseOptions: true, optionOrderSeed: 'session-answer-seed',
     }
     const customAnswerColours = ['#FFFFFF', '#071326', '#FFFF00', '#00FFFF', '#C62828', '#1565C0', '#2E7D32', '#F9A825'] as const
     const questionState = {
@@ -101,6 +160,7 @@ describe('PresentationStage quiz theme', () => {
       reveal: { type: 'single-choice', correctOptionId: 'paris', caption: '', optionCounts: {} },
     }} />)
     expect(ids('.presentation-reveal-grid > [data-option-id]')).toEqual(presentationIds)
+    expect(options.map((option) => option.id)).toEqual(['paris', 'london', 'rome', 'berlin'])
   })
 
   it.each<GamePhase>(['lobby', 'question', 'locked', 'reveal', 'leaderboard', 'finished'])(

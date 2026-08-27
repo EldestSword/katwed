@@ -1,6 +1,8 @@
 import type {
   GameSession,
+  GameSessionSettings,
   JoinResult,
+  LaunchGameSettings,
   Player,
   PlayerAnswer,
   PlayerAnswerPayload,
@@ -36,6 +38,12 @@ import {
   calculateStandardQuestionScore,
   standardQuestionWindow,
 } from '../../features/scoring/standardScoring'
+import {
+  createGameSessionSettings,
+  createSessionQuestionOrder,
+  orderedSessionQuestions,
+  questionPreludeKind,
+} from '../../features/game/launchSettings'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -66,24 +74,35 @@ function freshState(): DemoState {
 }
 
 function normaliseState(state: DemoState): DemoState {
+  const quizzes = state.quizzes.map((quiz) => {
+    const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
+    const answerPalette = normaliseAnswerPalette(
+      (quiz as { answerPaletteId?: unknown }).answerPaletteId,
+      (quiz as { customAnswerColours?: unknown }).customAnswerColours,
+    )
+    return normaliseQuizHeadToHead({
+      ...quiz,
+      ...answerPalette,
+      soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
+      coverImagePath: quiz.coverImagePath ?? null,
+      themeId,
+      backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
+      archivedAt: quiz.archivedAt ?? null,
+    })
+  })
   return {
     ...state,
     headToHeadSkips: state.headToHeadSkips ?? [],
-    quizzes: state.quizzes.map((quiz) => {
-      const themeId = normaliseQuizThemeId((quiz as { themeId?: unknown }).themeId)
-      const answerPalette = normaliseAnswerPalette(
-        (quiz as { answerPaletteId?: unknown }).answerPaletteId,
-        (quiz as { customAnswerColours?: unknown }).customAnswerColours,
-      )
-      return normaliseQuizHeadToHead({
-        ...quiz,
-        ...answerPalette,
-        soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
-        coverImagePath: quiz.coverImagePath ?? null,
-        themeId,
-        backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
-        archivedAt: quiz.archivedAt ?? null,
-      })
+    quizzes,
+    sessions: state.sessions.map((session) => {
+      const quiz = quizzes.find((candidate) => candidate.id === session.quizId)
+      if (!quiz) return session
+      const existing = (session as Partial<GameSession>).settings
+      const settings = existing ?? createGameSessionSettings(undefined, quiz, session.id)
+      const questionOrder = Array.isArray((session as Partial<GameSession>).questionOrder)
+        ? (session as Partial<GameSession>).questionOrder as string[]
+        : createSessionQuestionOrder(quiz.questions, false, session.id)
+      return { ...session, settings, questionOrder }
     }),
   }
 }
@@ -127,8 +146,17 @@ function revealHeadToHeadWhenComplete(state: DemoState, session: GameSession, qu
   session.phase = 'reveal'
 }
 
-function toSafeQuestion(question: Question, questionNumber: number, totalQuestions: number): SafeQuestion {
-  const base = safeBase(question, questionNumber, totalQuestions)
+function toSafeQuestion(
+  question: Question,
+  questionNumber: number,
+  totalQuestions: number,
+  settings: GameSessionSettings,
+): SafeQuestion {
+  const base = {
+    ...safeBase(question, questionNumber, totalQuestions),
+    forceRandomiseOptions: settings.shuffleAnswerOptions,
+    optionOrderSeed: settings.shuffleAnswerOptions ? `${settings.answerOptionSeed}:${question.id}` : undefined,
+  }
   switch (question.type) {
     case 'single-choice':
       return { ...base, type: question.type, options: question.options, randomiseOptions: question.randomiseOptions }
@@ -221,6 +249,7 @@ function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Q
       return {
         type: question.type,
         correctAnswer: question.correctAnswer,
+        correctPlayerIds: answers.filter((answer) => answer.correct).map((answer) => answer.playerId),
         caption: question.revealCaption,
       }
     case 'mashup':
@@ -422,7 +451,7 @@ export class DemoGameRepository implements GameRepository {
     }
   }
 
-  async launchGame(quizId: string): Promise<GameSession> {
+  async launchGame(quizId: string, launchSettings?: LaunchGameSettings): Promise<GameSession> {
     return this.withMutation(() => {
       const state = this.read()
       const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
@@ -441,8 +470,10 @@ export class DemoGameRepository implements GameRepository {
       let roomCode: string
       do roomCode = String(100000 + Math.floor(Math.random() * 900000))
       while (usedCodes.has(roomCode))
+      const sessionId = uid('game')
+      const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
       const session: GameSession = {
-        id: uid('game'),
+        id: sessionId,
         quizId,
         roomCode,
         status: 'active',
@@ -452,6 +483,8 @@ export class DemoGameRepository implements GameRepository {
         questionClosesAt: null,
         startedAt: null,
         endedAt: null,
+        settings,
+        questionOrder: createSessionQuestionOrder(quiz.questions, settings.shuffleQuestionOrder, sessionId),
         players: [],
         answers: [],
       }
@@ -622,7 +655,8 @@ export class DemoGameRepository implements GameRepository {
     if (!session) return null
     const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
     if (!quiz) return null
-      const question = quiz.questions[session.currentQuestionIndex] ?? null
+    const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
+    const question = orderedQuestions[session.currentQuestionIndex] ?? null
     const headToHead = quiz.quizType === 'head-to-head'
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
     const scoresVisible = headToHead || ['leaderboard', 'finished'].includes(session.phase)
@@ -637,12 +671,14 @@ export class DemoGameRepository implements GameRepository {
       backgroundId: quiz.backgroundId,
       answerPaletteId: quiz.answerPaletteId,
       customAnswerColours: quiz.customAnswerColours,
-      soundPackId: quiz.soundPackId,
+      soundPackId: session.settings.soundPackId,
+      sessionSettings: session.settings,
+      questionPreludeKind: session.phase === 'question' ? questionPreludeKind(question, session.settings) : null,
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,
       currentQuestion: question
-        ? toSafeQuestion(question, session.currentQuestionIndex + 1, quiz.questions.length)
+        ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings)
         : null,
       roster: question?.type === 'mashup'
         ? quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
@@ -709,15 +745,17 @@ export class DemoGameRepository implements GameRepository {
       }
       if (session.phase !== 'question') throw new RepositoryError('invalid-phase', 'Answers are not open.')
       const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
-      const question = quiz?.questions[session.currentQuestionIndex]
+      const question = quiz
+        ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]
+        : undefined
       if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
       const submittedAt = Date.now()
+      const authoritativeOpenedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : 0
+      if (!authoritativeOpenedAt || submittedAt < authoritativeOpenedAt) {
+        throw new RepositoryError('invalid-phase', 'Wait for the question to open.')
+      }
       if (quiz.quizType === 'standard') {
-        const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : 0
         const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
-        if (!openedAt || submittedAt < openedAt) {
-          throw new RepositoryError('invalid-phase', 'Wait for the question to open.')
-        }
         if (!closesAt || submittedAt > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
       }
       if (isHeadToHeadResolved(state, session, question.id, playerId)) {
@@ -772,14 +810,15 @@ export class DemoGameRepository implements GameRepository {
       if (session.players.length !== 2 || quiz.headToHeadCompetitors.some((competitor) => !session.players.some((candidate) => candidate.competitorId === competitor.id))) {
         throw new RepositoryError('invalid-phase', 'Both competitors must join before the game can start.')
       }
-      const question = quiz.questions[0]
+      const question = orderedSessionQuestions(quiz.questions, session.questionOrder)[0]
       if (!question) throw new RepositoryError('database', 'This quiz has no questions.')
-      const now = new Date().toISOString()
+      const now = Date.now()
+      const opening = standardQuestionWindow(question, now, session.settings).openedAt
       session.phase = 'question'
       session.currentQuestionIndex = 0
-      session.questionOpenedAt = now
+      session.questionOpenedAt = opening
       session.questionClosesAt = null
-      session.startedAt = now
+      session.startedAt = new Date(now).toISOString()
       this.write(state, true, session.id)
     })
   }
@@ -790,10 +829,15 @@ export class DemoGameRepository implements GameRepository {
       const session = state.sessions.find((candidate) => candidate.roomCode === roomCode && candidate.status === 'active')
       const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
       const player = session?.players.find((candidate) => candidate.id === playerId)
-      const question = quiz && session ? quiz.questions[session.currentQuestionIndex] : undefined
+      const question = quiz && session
+        ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]
+        : undefined
       if (!session || !quiz || quiz.quizType !== 'head-to-head') throw new RepositoryError('invalid-room', 'This Head-to-Head room is not active.')
       if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
       if (session.phase !== 'question' || !question || question.id !== expectedQuestionId) throw new RepositoryError('invalid-phase', 'That question is no longer open.')
+      if (session.questionOpenedAt && Date.now() < new Date(session.questionOpenedAt).getTime()) {
+        throw new RepositoryError('invalid-phase', 'Wait for the question to open.')
+      }
       if (player.competitorId === question.assignedCompetitorId) throw new RepositoryError('invalid-selection', 'The assigned competitor must answer this question.')
       if (isHeadToHeadResolved(state, session, question.id, playerId)) throw new RepositoryError('duplicate-submission', 'You have already resolved this question.')
       state.headToHeadSkips.push({ sessionId: session.id, questionId: question.id, playerId })
@@ -810,17 +854,21 @@ export class DemoGameRepository implements GameRepository {
       const player = session?.players.find((candidate) => candidate.id === playerId)
       if (!session || !quiz || quiz.quizType !== 'head-to-head') throw new RepositoryError('invalid-room', 'This Head-to-Head room is not active.')
       if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
-      const question = quiz.questions[session.currentQuestionIndex]
+      const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
+      const question = orderedQuestions[session.currentQuestionIndex]
       if (session.phase === 'finished') return
       if (!question || question.id !== expectedQuestionId) return
       if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Wait for both competitors to resolve the question.')
-      if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+      if (session.currentQuestionIndex + 1 >= orderedQuestions.length) {
         session.phase = 'finished'
         session.endedAt = new Date().toISOString()
       } else {
         session.currentQuestionIndex += 1
         session.phase = 'question'
-        session.questionOpenedAt = new Date().toISOString()
+        const nextQuestion = orderedQuestions[session.currentQuestionIndex]
+        const transition = Date.now()
+        const timingWindow = standardQuestionWindow(nextQuestion, transition, session.settings)
+        session.questionOpenedAt = timingWindow.openedAt
         session.questionClosesAt = null
       }
       this.write(state, true, session.id)
@@ -841,10 +889,11 @@ export class DemoGameRepository implements GameRepository {
         throw new RepositoryError('invalid-phase', 'Head-to-Head progression is controlled by the competitors.')
       }
       const now = new Date()
+      const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
       const openCurrentQuestion = (): void => {
-        const question = quiz.questions[session.currentQuestionIndex]
+        const question = orderedQuestions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
-        const timingWindow = standardQuestionWindow(question, now.getTime())
+        const timingWindow = standardQuestionWindow(question, now.getTime(), session.settings)
         session.phase = 'question'
         session.questionOpenedAt = timingWindow.openedAt
         session.questionClosesAt = timingWindow.closesAt
@@ -852,7 +901,7 @@ export class DemoGameRepository implements GameRepository {
       switch (action) {
         case 'start':
           if (session.phase !== 'lobby') throw new RepositoryError('invalid-phase', 'The game has already started.')
-          if (!quiz.questions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
+          if (!orderedQuestions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
           session.startedAt = now.toISOString()
           session.currentQuestionIndex = 0
           openCurrentQuestion()
@@ -871,14 +920,14 @@ export class DemoGameRepository implements GameRepository {
           break
         case 'leaderboard':
           if (session.phase !== 'reveal') throw new RepositoryError('invalid-phase', 'Reveal the answer first.')
-          if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+          if (session.currentQuestionIndex + 1 >= orderedQuestions.length) {
             throw new RepositoryError('invalid-phase', 'Reveal the final results instead.')
           }
           session.phase = 'leaderboard'
           break
         case 'next':
           if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
-          if (session.currentQuestionIndex + 1 >= quiz.questions.length) {
+          if (session.currentQuestionIndex + 1 >= orderedQuestions.length) {
             throw new RepositoryError('invalid-phase', 'There is no next question.')
           }
           session.currentQuestionIndex += 1
@@ -888,10 +937,10 @@ export class DemoGameRepository implements GameRepository {
           if (session.phase === 'question' && session.questionOpenedAt && now.getTime() < new Date(session.questionOpenedAt).getTime()) {
             throw new RepositoryError('invalid-phase', 'Wait for the Double Score intro to finish.')
           }
-          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < quiz.questions.length) {
+          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < orderedQuestions.length) {
             throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
           }
-          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= quiz.questions.length) {
+          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= orderedQuestions.length) {
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()

@@ -15,9 +15,13 @@ export interface SoundPackDefinition {
   name: string
   description: string
   assets: Readonly<Record<GameAudioCue, string>> | null
+  doubleScoreDurationMs: number
 }
 
 export const DEFAULT_SOUND_PACK_ID: SoundPackId = 'katwed'
+export const DEFAULT_DOUBLE_SCORE_DURATION_MS = 5_000
+export const MIN_DOUBLE_SCORE_DURATION_MS = 500
+export const MAX_DOUBLE_SCORE_DURATION_MS = 30_000
 export const SOUND_PACK_IDS = ['katwed', 'none'] as const satisfies readonly SoundPackId[]
 
 export const soundPacks: readonly SoundPackDefinition[] = [
@@ -25,6 +29,7 @@ export const soundPacks: readonly SoundPackDefinition[] = [
     id: 'katwed',
     name: 'Katwed!',
     description: 'The original Katwed game-show music and stings.',
+    doubleScoreDurationMs: 5_000,
     assets: {
       lobby: '/audio/packs/katwed/lobby.mp3',
       question: '/audio/packs/katwed/question.mp3',
@@ -40,6 +45,7 @@ export const soundPacks: readonly SoundPackDefinition[] = [
     id: 'none',
     name: 'None',
     description: 'Keep the shared Presentation silent.',
+    doubleScoreDurationMs: DEFAULT_DOUBLE_SCORE_DURATION_MS,
     assets: null,
   },
 ]
@@ -56,4 +62,11 @@ export function normaliseSoundPackId(value: unknown): SoundPackId {
 
 export function getSoundPack(id: unknown): SoundPackDefinition {
   return packsById.get(normaliseSoundPackId(id)) ?? soundPacks[0]
+}
+
+export function normaliseDoubleScoreDurationMs(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) &&
+    value >= MIN_DOUBLE_SCORE_DURATION_MS && value <= MAX_DOUBLE_SCORE_DURATION_MS
+    ? value
+    : DEFAULT_DOUBLE_SCORE_DURATION_MS
 }
