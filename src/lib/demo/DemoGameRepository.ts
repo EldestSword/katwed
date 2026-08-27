@@ -41,6 +41,7 @@ import {
 import {
   createGameSessionSettings,
   createSessionQuestionOrder,
+  normaliseGameSessionSettings,
   orderedSessionQuestions,
   questionPreludeKind,
 } from '../../features/game/launchSettings'
@@ -98,11 +99,18 @@ function normaliseState(state: DemoState): DemoState {
       const quiz = quizzes.find((candidate) => candidate.id === session.quizId)
       if (!quiz) return session
       const existing = (session as Partial<GameSession>).settings
-      const settings = existing ?? createGameSessionSettings(undefined, quiz, session.id)
+      const settings = existing
+        ? normaliseGameSessionSettings(existing, quiz.soundPackId, session.id)
+        : createGameSessionSettings(undefined, quiz, session.id)
       const questionOrder = Array.isArray((session as Partial<GameSession>).questionOrder)
         ? (session as Partial<GameSession>).questionOrder as string[]
         : createSessionQuestionOrder(quiz.questions, false, session.id)
-      return { ...session, settings, questionOrder }
+      const answers = (session.answers ?? []).map((answer) => ({
+        ...answer,
+        automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
+        hostCorrectOverride: typeof answer.hostCorrectOverride === 'boolean' ? answer.hostCorrectOverride : null,
+      }))
+      return { ...session, settings, questionOrder, answers }
     }),
   }
 }
@@ -785,6 +793,8 @@ export class DemoGameRepository implements GameRepository {
         resolutionStatus: 'answered',
         submittedAt: new Date().toISOString(),
         responseTimeMs,
+        automaticCorrect: score.correct,
+        hostCorrectOverride: null,
         correct: score.correct,
         pointsAwarded,
       })
@@ -819,6 +829,43 @@ export class DemoGameRepository implements GameRepository {
       session.questionOpenedAt = opening
       session.questionClosesAt = null
       session.startedAt = new Date(now).toISOString()
+      this.write(state, true, session.id)
+    })
+  }
+
+  async setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId)
+      const quiz = session ? state.quizzes.find((candidate) => candidate.id === session.quizId) : undefined
+      const answer = session?.answers.find((candidate) => candidate.id === answerId)
+      const question = quiz?.questions.find((candidate) => candidate.id === answer?.questionId)
+      const player = session?.players.find((candidate) => candidate.id === answer?.playerId)
+      if (!session || !quiz || !answer || !question || !player) {
+        throw new RepositoryError('database', 'That submitted answer could not be found.')
+      }
+      if (quiz.quizType !== 'standard' || question.type !== 'typed-answer' ||
+        session.currentQuestionIndex < 0 || orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]?.id !== question.id) {
+        throw new RepositoryError('invalid-selection', 'Only the current Standard Typed Answer can be reviewed.')
+      }
+      if (!['locked', 'reveal', 'leaderboard'].includes(session.phase)) {
+        throw new RepositoryError('invalid-phase', 'Lock answers before reviewing Typed Answers.')
+      }
+      const automaticCorrect = answer.automaticCorrect ?? answer.correct
+      const nextOverride = correctOverride === true && !automaticCorrect ? true : null
+      const previousCorrect = answer.correct
+      const previousPoints = answer.pointsAwarded
+      const nextCorrect = nextOverride ?? automaticCorrect
+      const nextPoints = nextCorrect
+        ? calculateStandardQuestionScore(question.points, question, answer.responseTimeMs, question.timeLimitSeconds * 1_000)
+        : 0
+      answer.automaticCorrect = automaticCorrect
+      answer.hostCorrectOverride = nextOverride
+      answer.correct = nextCorrect
+      answer.pointsAwarded = nextPoints
+      player.totalScore += nextPoints - previousPoints
+      player.correctAnswerCount += Number(nextCorrect) - Number(previousCorrect)
+      player.totalCorrectResponseMs += (nextCorrect ? answer.responseTimeMs : 0) - (previousCorrect ? answer.responseTimeMs : 0)
       this.write(state, true, session.id)
     })
   }

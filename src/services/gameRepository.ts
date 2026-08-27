@@ -56,6 +56,7 @@ export interface GameRepository {
   startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void>
   skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
+  setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void): Unsubscribe
 }

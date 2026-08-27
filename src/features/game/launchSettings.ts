@@ -23,6 +23,7 @@ export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): Laun
     shuffleQuestionOrder: false,
     shuffleAnswerOptions: false,
     autoLockWhenAllAnswered: true,
+    showPlayerAnswersToHost: true,
   }
 }
 
@@ -36,6 +37,7 @@ export function normaliseLaunchGameSettings(
     shuffleQuestionOrder: value?.shuffleQuestionOrder === true,
     shuffleAnswerOptions: value?.shuffleAnswerOptions === true,
     autoLockWhenAllAnswered: value?.autoLockWhenAllAnswered !== false,
+    showPlayerAnswersToHost: value?.showPlayerAnswersToHost !== false,
   }
 }
 
@@ -66,6 +68,7 @@ export function normaliseGameSessionSettings(
     shuffleQuestionOrder: value?.shuffleQuestionOrder === true,
     shuffleAnswerOptions: value?.shuffleAnswerOptions === true,
     autoLockWhenAllAnswered: value?.autoLockWhenAllAnswered !== false,
+    showPlayerAnswersToHost: value?.showPlayerAnswersToHost !== false,
     questionTypeIntrosEnabled: value?.questionTypeIntrosEnabled === true,
     answerOptionSeed: typeof value?.answerOptionSeed === 'string' && value.answerOptionSeed.length > 0
       ? value.answerOptionSeed

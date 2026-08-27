@@ -151,6 +151,7 @@ describe('SupabaseGameRepository game launch', () => {
       shuffleQuestionOrder: true,
       shuffleAnswerOptions: true,
       autoLockWhenAllAnswered: false,
+      showPlayerAnswersToHost: false,
     }
     const rawSession = {
       id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'lobby',
@@ -164,6 +165,39 @@ describe('SupabaseGameRepository game launch', () => {
 
     await expect(repository.launchGame(mixedDemoQuiz.id, settings)).resolves.toMatchObject(rawSession)
     expect(rpc).toHaveBeenCalledWith('host_launch_game', { p_quiz_id: mixedDemoQuiz.id, p_settings: settings })
+  })
+
+  it('uses the authenticated host override RPC and retains automatic judgement metadata', async () => {
+    const rawSession = {
+      id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'locked',
+      currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null,
+      startedAt: null, endedAt: null, players: [], questionOrder: [],
+      settings: {
+        soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
+        shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
+        questionTypeIntrosEnabled: true, answerOptionSeed: 'seed',
+      },
+      answers: [{
+        id: 'answer', sessionId: 'session', questionId: 'question', playerId: 'player',
+        payload: { type: 'typed-answer', value: 'Near miss' }, submittedAt: '2026-08-27T12:00:00.000Z',
+        responseTimeMs: 5000, correct: true, pointsAwarded: 1000, hostCorrectOverride: true,
+      }],
+    }
+    const rpc = vi.fn().mockResolvedValueOnce({ data: { session: rawSession, quiz: mixedDemoQuiz }, error: null })
+      .mockResolvedValue({ data: null, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    const bundle = await repository.getHostSession('session')
+    expect(bundle?.session.answers[0]).toMatchObject({
+      automaticCorrect: true,
+      hostCorrectOverride: true,
+    })
+    await repository.setTypedAnswerOverride('session', 'answer', true)
+    await repository.setTypedAnswerOverride('session', 'answer', null)
+    expect(rpc.mock.calls.slice(1)).toEqual([
+      ['host_set_typed_answer_override', { p_session_id: 'session', p_answer_id: 'answer', p_correct_override: true }],
+      ['host_set_typed_answer_override', { p_session_id: 'session', p_answer_id: 'answer', p_correct_override: null }],
+    ])
   })
 })
 

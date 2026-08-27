@@ -58,7 +58,7 @@ describe('PresentationStage quiz theme', () => {
       ...state('question'), quizType: 'standard', questionPreludeKind: 'double-score',
       sessionSettings: {
         soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
-        shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+        shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
         questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
       },
       currentQuestion: {

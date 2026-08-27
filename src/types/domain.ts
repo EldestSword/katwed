@@ -28,6 +28,7 @@ export interface LaunchGameSettings {
   shuffleQuestionOrder: boolean
   shuffleAnswerOptions: boolean
   autoLockWhenAllAnswered: boolean
+  showPlayerAnswersToHost: boolean
 }
 
 export interface GameSessionSettings extends LaunchGameSettings {
@@ -320,6 +321,8 @@ export interface PlayerAnswer {
   resolutionStatus?: HeadToHeadResolutionStatus
   submittedAt: string
   responseTimeMs: number
+  automaticCorrect: boolean
+  hostCorrectOverride: boolean | null
   correct: boolean
   pointsAwarded: number
 }

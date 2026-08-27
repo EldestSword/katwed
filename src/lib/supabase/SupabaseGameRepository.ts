@@ -68,6 +68,11 @@ function normaliseGameSession(
     questionOrder: Array.isArray(raw.questionOrder)
       ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
       : [],
+    answers: Array.isArray(session.answers) ? session.answers.map((answer) => ({
+      ...answer,
+      automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
+      hostCorrectOverride: typeof answer.hostCorrectOverride === 'boolean' ? answer.hostCorrectOverride : null,
+    })) : [],
   }
 }
 
@@ -239,6 +244,14 @@ export class SupabaseGameRepository implements GameRepository {
       p_player_id: playerId,
       p_reconnect_token: reconnectToken,
       p_expected_question_id: expectedQuestionId,
+    })
+  }
+
+  async setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void> {
+    await this.rpc('host_set_typed_answer_override', {
+      p_session_id: sessionId,
+      p_answer_id: answerId,
+      p_correct_override: correctOverride,
     })
   }
 

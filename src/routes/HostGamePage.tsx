@@ -13,6 +13,7 @@ import { shouldAutoLockStandardQuestion } from '../features/game/autoLock'
 import { GameBadge } from '../components/design-system/GameBadge'
 import { HostAudioControls } from '../components/HostAudioControls'
 import { orderedSessionQuestions } from '../features/game/launchSettings'
+import { HostResponseMonitor } from '../features/game/HostResponseMonitor'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -23,6 +24,7 @@ export function HostGamePage() {
   const [state, setState] = useState<SafeGameState | null>(null)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
+  const [reviewingAnswerId, setReviewingAnswerId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const actionInFlight = useRef(false)
   const autoLockAttempt = useRef<string | null>(null)
@@ -70,6 +72,20 @@ export function HostGamePage() {
     }
   }, [navigate, refresh, sessionId])
 
+  const setTypedAnswerOverride = useCallback(async (answerId: string, correctOverride: true | null) => {
+    if (reviewingAnswerId) return
+    setReviewingAnswerId(answerId)
+    setError('')
+    try {
+      await repository.setTypedAnswerOverride(sessionId, answerId, correctOverride)
+      await refresh()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'That Typed Answer result could not be updated.')
+    } finally {
+      setReviewingAnswerId(null)
+    }
+  }, [refresh, reviewingAnswerId, sessionId])
+
   useEffect(() => {
     const deadlineReached = state?.questionClosesAt
       ? Date.now() >= new Date(state.questionClosesAt).getTime()
@@ -102,6 +118,9 @@ export function HostGamePage() {
   const sessionQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
   const currentIndex = question ? question.questionNumber - 1 : session.currentQuestionIndex
   const upcoming = sessionQuestions[currentIndex + 1]
+  const currentQuestionDefinition = question
+    ? sessionQuestions.find((candidate) => candidate.id === question.id) ?? null
+    : null
   const isFinalQuestion = question?.questionNumber === question?.totalQuestions
   const headToHead = state.quizType === 'head-to-head'
   const run = (kind: HostAction) => void action(kind)
@@ -129,6 +148,19 @@ export function HostGamePage() {
             <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
           </dl>
+          {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
+            <HostResponseMonitor
+              players={session.players}
+              answers={session.answers}
+              question={currentQuestionDefinition}
+              roster={quiz.roster}
+              settings={session.settings}
+              phase={state.phase}
+              preludeActive={Boolean(activePrelude)}
+              reviewingAnswerId={reviewingAnswerId}
+              onOverride={(answerId, correctOverride) => void setTypedAnswerOverride(answerId, correctOverride)}
+            />
+          )}
           <div className="controller-actions">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
@@ -144,10 +176,10 @@ export function HostGamePage() {
             }}>Close room</button>
           </div>
           <HostAudioControls soundPackId={state.soundPackId ?? session.settings.soundPackId} />
-          <section className="controller-monitor">
+          {(headToHead || state.phase === 'lobby') && <section className="controller-monitor">
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
             <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>
-          </section>
+          </section>}
           <section className="controller-up-next">
             <p className="eyebrow">Up next</p>
             <h2>{upcoming ? `Question ${currentIndex + 2}` : 'Final results'}</h2>

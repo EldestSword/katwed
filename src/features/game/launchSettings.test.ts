@@ -10,6 +10,11 @@ import {
 } from './launchSettings'
 
 describe('game-session launch settings', () => {
+  it('defaults private live-answer visibility on and preserves an explicit opt-out', () => {
+    expect(createGameSessionSettings(undefined, mixedDemoQuiz, 'default').showPlayerAnswersToHost).toBe(true)
+    expect(createGameSessionSettings({ showPlayerAnswersToHost: false }, mixedDemoQuiz, 'hidden').showPlayerAnswersToHost).toBe(false)
+  })
+
   it('enables type intros only for quizzes containing two or more question types', () => {
     const typedQuestions = mixedDemoQuiz.questions.slice(0, 3).map((question, index) => ({
       ...question,

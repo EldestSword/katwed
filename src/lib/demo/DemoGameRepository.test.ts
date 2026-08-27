@@ -136,6 +136,92 @@ describe('DemoGameRepository multi-format game state', () => {
     })
   })
 
+  it.each([
+    ['fixed scoring', false, false, 1000],
+    ['Double Score', true, false, 2000],
+    ['Speed Scoring', false, true, 750],
+    ['Double Score with Speed Scoring', true, true, 1500],
+  ])('applies and undoes a Typed Answer host override with %s', async (_label, doubleScore, speedScoringEnabled, expectedPoints) => {
+    vi.setSystemTime(new Date('2026-08-27T12:00:00.000Z'))
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const typed = source.questions.find((question) => question.type === 'typed-answer')!
+    const question = {
+      ...typed,
+      correctAnswer: 'House of the Rising Sun',
+      acceptedAnswers: ['The House of the Rising Sun'],
+      timeLimitSeconds: 20,
+      points: 1000,
+      doubleScore,
+      speedScoringEnabled,
+      displayOrder: 0,
+    }
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions: [question],
+    })
+    const session = await repository.launchGame(quiz.id)
+    const joined = await repository.joinRoom(session.roomCode, 'Roger')
+    await repository.changePhase(session.id, 'start')
+    const openedAt = new Date((await repository.getHostSession(session.id))!.session.questionOpenedAt!).getTime()
+    vi.setSystemTime(openedAt + 10_000)
+    await repository.submitAnswer(session.roomCode, joined.player.id, joined.reconnectToken, {
+      type: 'typed-answer', value: 'House Rising Sun',
+    })
+    await repository.changePhase(session.id, 'lock')
+    let bundle = (await repository.getHostSession(session.id))!
+    const answer = bundle.session.answers[0]
+    expect(answer).toMatchObject({ automaticCorrect: false, hostCorrectOverride: null, correct: false, pointsAwarded: 0, responseTimeMs: 10_000 })
+
+    await repository.setTypedAnswerOverride(session.id, answer.id, true)
+    await repository.setTypedAnswerOverride(session.id, answer.id, true)
+    bundle = (await repository.getHostSession(session.id))!
+    expect(bundle.session.answers[0]).toMatchObject({
+      automaticCorrect: false, hostCorrectOverride: true, correct: true, pointsAwarded: expectedPoints,
+    })
+    expect(bundle.session.players[0]).toMatchObject({
+      totalScore: expectedPoints, correctAnswerCount: 1, totalCorrectResponseMs: 10_000,
+    })
+
+    await repository.changePhase(session.id, 'reveal')
+    const acceptedReveal = await repository.getSafeGameState(session.roomCode)
+    expect(acceptedReveal?.reveal).toMatchObject({
+      type: 'typed-answer', correctAnswer: 'House of the Rising Sun', correctPlayerIds: [joined.player.id],
+    })
+    expect(JSON.stringify(acceptedReveal)).not.toContain('The House of the Rising Sun')
+
+    await repository.setTypedAnswerOverride(session.id, answer.id, null)
+    bundle = (await repository.getHostSession(session.id))!
+    expect(bundle.session.answers[0]).toMatchObject({
+      automaticCorrect: false, hostCorrectOverride: null, correct: false, pointsAwarded: 0,
+    })
+    expect(bundle.session.players[0]).toMatchObject({
+      totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0,
+    })
+    expect((await repository.getSafeGameState(session.roomCode))?.reveal).toMatchObject({ correctPlayerIds: [] })
+  })
+
+  it('preserves an accepted Typed Answer alternative as an automatic correct judgement', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const typed = source.questions.find((question) => question.type === 'typed-answer')!
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions: [{ ...typed, displayOrder: 0 }],
+    })
+    const session = await repository.launchGame(quiz.id)
+    const joined = await repository.joinRoom(session.roomCode, 'Alternative')
+    await repository.changePhase(session.id, 'start')
+    await repository.submitAnswer(session.roomCode, joined.player.id, joined.reconnectToken, {
+      type: 'typed-answer', value: typed.acceptedAnswers[0],
+    })
+    expect((await repository.getHostSession(session.id))?.session.answers[0]).toMatchObject({
+      automaticCorrect: true, hostCorrectOverride: null, correct: true, pointsAwarded: 1000,
+    })
+  })
+
   it('provides both the preserved mash-up quiz and a mixed quiz', async () => {
     const repository = new DemoGameRepository()
     const quizzes = await repository.listQuizzes()
@@ -219,11 +305,13 @@ describe('DemoGameRepository multi-format game state', () => {
       shuffleQuestionOrder: true,
       shuffleAnswerOptions: true,
       autoLockWhenAllAnswered: false,
+      showPlayerAnswersToHost: false,
     })
 
     expect(session.settings).toMatchObject({
       soundPackId: 'none', doubleScoreIntroMs: 5000, shuffleQuestionOrder: true,
-      shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, questionTypeIntrosEnabled: true,
+      shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, showPlayerAnswersToHost: false,
+      questionTypeIntrosEnabled: true,
     })
     expect(new Set(session.questionOrder)).toEqual(new Set(authoredOrder))
     expect(session.questionOrder).toHaveLength(authoredOrder.length)
@@ -247,7 +335,7 @@ describe('DemoGameRepository multi-format game state', () => {
 
     const resumed = await repository.launchGame(quizBefore.id, {
       soundPackId: 'katwed', shuffleQuestionOrder: false,
-      shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+      shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
     })
     expect(resumed.id).toBe(session.id)
     expect(resumed.settings).toEqual(session.settings)

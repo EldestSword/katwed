@@ -19,7 +19,7 @@ const session: GameSession = {
   currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null, startedAt: null, endedAt: null,
   settings: {
     soundPackId: 'none', doubleScoreIntroMs: 5000, shuffleQuestionOrder: true,
-    shuffleAnswerOptions: true, autoLockWhenAllAnswered: false,
+    shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, showPlayerAnswersToHost: false,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'answer-seed',
   },
   questionOrder: mixedDemoQuiz.questions.map((question) => question.id), players: [], answers: [],
@@ -64,6 +64,9 @@ describe('GameSetupPage', () => {
     const autoLock = screen.getByRole('checkbox', { name: /Auto-close answers/ })
     expect(autoLock).toBeChecked()
     await user.click(autoLock)
+    const liveAnswers = screen.getByRole('checkbox', { name: /Show live player answers/ })
+    expect(liveAnswers).toBeChecked()
+    await user.click(liveAnswers)
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
@@ -71,6 +74,7 @@ describe('GameSetupPage', () => {
       shuffleQuestionOrder: true,
       shuffleAnswerOptions: true,
       autoLockWhenAllAnswered: false,
+      showPlayerAnswersToHost: false,
     })
     expect(await screen.findByRole('heading', { name: 'Controller session-new' })).toBeVisible()
   })
