@@ -35,6 +35,38 @@
   margin-inline: auto;
 }
 
+/* Typed-answer questions have no presentation answer tiles. Prevent the generic
+   choice-visibility flag from leaving the media stranded in a two-column layout. */
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__body {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__copy,
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__media {
+  grid-column: 1 / -1 !important;
+}
+
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__media {
+  width: min(100%, 78rem);
+  justify-self: center;
+}
+
+/* Player reveal media should sit quietly under the result, not look like a second answer card. */
+.player-game .reveal-state > .question-media {
+  overflow: hidden;
+  border: 1px solid var(--quiz-border) !important;
+  border-radius: var(--radius-lg);
+  background: var(--quiz-surface);
+  box-shadow: var(--quiz-shadow);
+}
+
+.player-game .reveal-state > .question-media .question-media__image,
+.player-game .reveal-state > .question-media img {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 /* Give desktop players a little more visual presence without changing phone layouts. */
 @media (min-width: 900px) {
   .player-question,
