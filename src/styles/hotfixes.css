@@ -53,11 +53,13 @@
 
 /* Player reveal media should sit quietly under the result, not look like a second answer card. */
 .player-game .reveal-state > .question-media {
+  width: min(100%, 46rem);
+  margin: 1rem auto;
   overflow: hidden;
-  border: 1px solid var(--quiz-border) !important;
+  border: 1px solid color-mix(in srgb, var(--quiz-border) 72%, transparent) !important;
   border-radius: var(--radius-lg);
-  background: var(--quiz-surface);
-  box-shadow: var(--quiz-shadow);
+  background: color-mix(in srgb, var(--quiz-surface) 72%, transparent);
+  box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .16);
 }
 
 .player-game .reveal-state > .question-media .question-media__image,
@@ -70,9 +72,12 @@
 /* Give desktop players a little more visual presence without changing phone layouts. */
 @media (min-width: 900px) {
   .player-question,
-  .player-game > .status-message,
-  .reveal-state {
+  .player-game > .status-message {
     width: min(100%, 58rem);
+  }
+
+  .reveal-state {
+    width: min(100%, 72rem);
   }
 
   .player-question__prompt h1 {
@@ -104,5 +109,46 @@
   .player-game .lock-button {
     min-height: 4.1rem;
     font-size: 1.12rem;
+  }
+
+  /* Desktop reveal: outcome across the top, submitted and correct answers as a pair. */
+  .player-answer-reveal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .player-answer-reveal .player-reveal-outcome {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .player-answer-reveal .submission-summary,
+  .player-answer-reveal__correct {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .player-answer-reveal .submission-summary {
+    max-width: none;
+    margin: 0;
+  }
+
+  .player-answer-reveal__correct {
+    padding-top: 0;
+  }
+
+  .player-answer-reveal__correct .reveal-answer-card,
+  .player-answer-reveal .submission-summary {
+    height: 100%;
+  }
+
+  .player-answer-reveal > .game-badge:last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .reveal-state > p:not(.eyebrow):not(.final-results-wait) {
+    width: min(100%, 46rem);
   }
 }
