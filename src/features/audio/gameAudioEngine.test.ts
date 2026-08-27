@@ -21,6 +21,9 @@ const music = (cue: 'lobby' | 'question' | 'urgent' | 'leaderboard' | 'final', l
 const effect = (cue: 'doubleScore' | 'lock' | 'reveal', eventKey: string): GameAudioIntent => ({
   music: null, effect: { cue, loop: false, eventKey }, duckedForYouTube: false, displayCue: cue,
 })
+const silent: GameAudioIntent = {
+  music: null, effect: null, duckedForYouTube: true, displayCue: 'silent',
+}
 
 describe('GameAudioEngine', () => {
   beforeEach(() => sessionStorage.clear())
@@ -75,6 +78,68 @@ describe('GameAudioEngine', () => {
     engine.transition(music('lobby'), getSoundPack('katwed'))
     await Promise.resolve()
     expect(status).toHaveBeenCalledWith('blocked')
+  })
+
+  it('clears stale autoplay failure in intentional silence and retries the later current cue', async () => {
+    const audio = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    const elements = [...audio]
+    const status = vi.fn()
+    const engine = new GameAudioEngine(() => elements.shift() as unknown as HTMLAudioElement, status, 0, new Set())
+    const pack = getSoundPack('katwed')
+    const lobby = audio[1]
+    const effectElement = audio[2]
+
+    lobby.play.mockRejectedValueOnce(new DOMException('Blocked', 'NotAllowedError'))
+    engine.transition(music('lobby'), pack)
+    await Promise.resolve()
+    expect(status).toHaveBeenLastCalledWith('blocked')
+
+    engine.transition(silent, pack)
+    expect(status).toHaveBeenLastCalledWith('idle')
+    engine.retryCurrent()
+    expect(lobby.play).toHaveBeenCalledTimes(1)
+    expect(effectElement.play).not.toHaveBeenCalled()
+    expect(status).toHaveBeenLastCalledWith('idle')
+
+    effectElement.play.mockRejectedValueOnce(new DOMException('Blocked again', 'NotAllowedError'))
+    engine.transition(effect('reveal', 'youtube-question-reveal'), pack)
+    await Promise.resolve()
+    expect(effectElement.src).toContain('reveal.mp3')
+    expect(status).toHaveBeenLastCalledWith('blocked')
+
+    effectElement.play.mockResolvedValueOnce(undefined)
+    engine.retryCurrent()
+    await Promise.resolve()
+    expect(effectElement.play).toHaveBeenCalledTimes(2)
+    expect(status).toHaveBeenLastCalledWith('playing')
+  })
+
+  it('ignores late failures from cues that are no longer authoritative', async () => {
+    const audio = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    const elements = [...audio]
+    let rejectLobby: ((reason: unknown) => void) | undefined
+    audio[1].play.mockReturnValueOnce(new Promise((_, reject) => { rejectLobby = reject }))
+    const status = vi.fn()
+    const engine = new GameAudioEngine(() => elements.shift() as unknown as HTMLAudioElement, status, 0, new Set())
+
+    engine.transition(music('lobby'), getSoundPack('katwed'))
+    engine.transition(silent, getSoundPack('katwed'))
+    rejectLobby?.(new DOMException('Late block', 'NotAllowedError'))
+    await Promise.resolve()
+    expect(status).toHaveBeenLastCalledWith('idle')
+    expect(status).not.toHaveBeenCalledWith('blocked')
+  })
+
+  it('clears stale decode errors when the selected pack or phase is intentionally silent', async () => {
+    const elements = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    elements[1].play.mockRejectedValueOnce(new Error('Could not decode'))
+    const status = vi.fn()
+    const engine = new GameAudioEngine(() => elements.shift() as unknown as HTMLAudioElement, status, 0, new Set())
+    engine.transition(music('lobby'), getSoundPack('katwed'))
+    await Promise.resolve()
+    expect(status).toHaveBeenLastCalledWith('error')
+    engine.transition(silent, getSoundPack('none'))
+    expect(status).toHaveBeenLastCalledWith('idle')
   })
 
   it('creates no playable track for the None pack', () => {

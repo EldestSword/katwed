@@ -21,6 +21,8 @@ export class GameAudioEngine {
   private activeMusic: ActiveTrack | null = null
   private activeMusicIndex = 0
   private activeEffectKey: string | null = null
+  private nextPlayAttempt = 0
+  private readonly currentPlayAttempt = new WeakMap<HTMLAudioElement, number>()
   private preferences: AudioPreferences = { muted: false, musicVolume: 0.7, effectsVolume: 0.8 }
 
   constructor(
@@ -33,7 +35,9 @@ export class GameAudioEngine {
     this.effect = createAudio()
     ;[...this.music, this.effect].forEach((element) => {
       element.preload = 'auto'
-      element.addEventListener?.('error', () => this.statusChanged('error'))
+      element.addEventListener?.('error', () => {
+        if (this.isRetryable(element)) this.statusChanged('error')
+      })
     })
   }
 
@@ -52,6 +56,7 @@ export class GameAudioEngine {
   transition(intent: GameAudioIntent, pack: SoundPackDefinition): void {
     this.stopOrChangeMusic(intent.music, pack)
     this.playEffect(intent.effect, pack)
+    if (!this.hasRetryableAudio()) this.statusChanged('idle')
   }
 
   retryCurrent(): void {
@@ -64,7 +69,9 @@ export class GameAudioEngine {
     if (this.activeEffectKey && this.effect.src) {
       this.effect.volume = this.preferences.effectsVolume
       this.safePlay(this.effect)
+      return
     }
+    this.statusChanged('idle')
   }
 
   stopAll(): void {
@@ -131,17 +138,36 @@ export class GameAudioEngine {
   }
 
   private safePlay(element: HTMLAudioElement): void {
+    const attempt = ++this.nextPlayAttempt
+    this.currentPlayAttempt.set(element, attempt)
     try {
       const result = element.play()
       void result.then(
-        () => this.statusChanged('playing'),
-        (reason: unknown) => this.statusChanged(
-          reason instanceof DOMException && reason.name === 'NotAllowedError' ? 'blocked' : 'error',
-        ),
+        () => {
+          if (this.isCurrentAttempt(element, attempt)) this.statusChanged('playing')
+        },
+        (reason: unknown) => {
+          if (!this.isCurrentAttempt(element, attempt)) return
+          this.statusChanged(reason instanceof DOMException && reason.name === 'NotAllowedError' ? 'blocked' : 'error')
+        },
       )
     } catch {
-      this.statusChanged('error')
+      if (this.isCurrentAttempt(element, attempt)) this.statusChanged('error')
     }
+  }
+
+  private hasRetryableAudio(): boolean {
+    return this.activeMusic !== null || (this.activeEffectKey !== null && Boolean(this.effect.src))
+  }
+
+  private isRetryable(element: HTMLAudioElement): boolean {
+    return this.activeMusic?.element === element || (
+      element === this.effect && this.activeEffectKey !== null && Boolean(this.effect.src)
+    )
+  }
+
+  private isCurrentAttempt(element: HTMLAudioElement, attempt: number): boolean {
+    return this.currentPlayAttempt.get(element) === attempt && this.isRetryable(element)
   }
 
   private hasPlayed(eventKey: string): boolean {
