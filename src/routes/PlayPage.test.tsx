@@ -100,19 +100,30 @@ describe('PlayPage quiz background', () => {
           media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
           questionNumber: 1, totalQuestions: 1,
         },
-        questionOpenedAt: '2026-08-09T12:00:05.000Z',
-        questionClosesAt: '2026-08-09T12:00:25.000Z',
+        questionPreludeKind: 'double-score',
+        sessionSettings: {
+          soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
+          shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
+          questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
+        },
+        questionOpenedAt: '2026-08-09T12:00:09.000Z',
+        questionClosesAt: '2026-08-09T12:00:29.000Z',
       },
       loading: false,
       error: '',
       refresh: vi.fn(),
     })
-    renderPage()
+    const first = renderPage()
     await act(async () => { await Promise.resolve() })
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     expect(screen.queryByText('Player question')).not.toBeInTheDocument()
 
-    await act(async () => vi.advanceTimersByTime(5010))
+    await act(async () => vi.advanceTimersByTime(4500))
+    first.unmount()
+    renderPage()
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    await act(async () => vi.advanceTimersByTime(4510))
     expect(screen.getByText('Player question')).toBeVisible()
     expect(screen.getByText('2x points')).toBeVisible()
     expect(screen.getByLabelText('20 seconds remaining')).toBeVisible()

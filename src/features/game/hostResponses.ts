@@ -12,7 +12,7 @@ import { formatSliderValue } from './revealFormatting'
 
 export const HOST_RESPONSE_DETAIL_LIMIT = 15
 
-export type HostResponseStatus = 'ready' | 'waiting' | 'locked-in' | 'answered' | 'no-answer'
+export type HostResponseStatus = 'ready' | 'waiting' | 'locked-in' | 'answered' | 'correct' | 'incorrect' | 'no-answer'
 
 export interface HostResponseRow {
   player: Player
@@ -49,11 +49,12 @@ export function buildHostResponseRows(
   return players.map((player) => {
     const response = responseByPlayer.get(player.id) ?? null
     const answer = answerByPlayer.get(player.id) ?? null
-    const status: HostResponseStatus = preludeActive
-      ? 'ready'
-      : phase === 'question'
-        ? (response ? 'locked-in' : 'waiting')
-        : (response ? 'answered' : 'no-answer')
+    let status: HostResponseStatus
+    if (preludeActive) status = 'ready'
+    else if (phase === 'question') status = response ? 'locked-in' : 'waiting'
+    else if (!response) status = 'no-answer'
+    else if (answer && ['reveal', 'leaderboard', 'finished'].includes(phase)) status = answer.correct ? 'correct' : 'incorrect'
+    else status = 'answered'
     return { player, response, answer, status }
   }).sort((left, right) => {
     const priority = (row: HostResponseRow) => row.response ? 1 : 0
@@ -65,7 +66,10 @@ export function responseSummary(rows: readonly HostResponseRow[], phase: GamePha
   if (preludeActive) return 'Question opens shortly'
   const missing = rows.filter((row) => !row.response).map((row) => row.player.nickname)
   if (phase === 'question') return missing.length ? `Waiting for: ${missing.join(' · ')}` : 'Everyone locked in'
-  return missing.length ? `No answer from: ${missing.join(' · ')}` : 'Everyone answered'
+  const summary = missing.length ? `No answer from: ${missing.join(' · ')}` : 'Everyone answered'
+  if (phase === 'locked') return `Answers closed · ${summary}`
+  if (['reveal', 'leaderboard', 'finished'].includes(phase)) return `Results shown · ${summary}`
+  return summary
 }
 
 export function formatHostAnswer(

@@ -54,7 +54,7 @@ describe('PresentationStage quiz theme', () => {
   it('holds a nine-second Double Score session intro and shows the mixed-format label only once', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
-    render(<PresentationStage state={{
+    const introState: SafeGameState = {
       ...state('question'), quizType: 'standard', questionPreludeKind: 'double-score',
       sessionSettings: {
         soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
@@ -69,11 +69,17 @@ describe('PresentationStage quiz theme', () => {
       },
       questionOpenedAt: '2026-08-09T12:00:09.000Z',
       questionClosesAt: '2026-08-09T12:00:39.000Z',
-    }} />)
+    }
+    const first = render(<PresentationStage state={introState} />)
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     expect(screen.getByText('TYPE YOUR ANSWER')).toBeVisible()
     expect(screen.queryByText('Name the ship')).not.toBeInTheDocument()
-    await act(async () => vi.advanceTimersByTime(8990))
+    await act(async () => vi.advanceTimersByTime(4500))
+    first.unmount()
+
+    render(<PresentationStage state={introState} />)
+    expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
+    await act(async () => vi.advanceTimersByTime(4490))
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     await act(async () => vi.advanceTimersByTime(20))
     expect(screen.getByText('Name the ship')).toBeVisible()

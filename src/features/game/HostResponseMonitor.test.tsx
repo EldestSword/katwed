@@ -67,10 +67,12 @@ describe('HostResponseMonitor', () => {
   })
 
   it('hides answer content when disabled while retaining named status', () => {
-    renderMonitor({ settings: { ...settings, showPlayerAnswersToHost: false }, answers: [] })
-    expect(screen.getByText('Waiting for: Roger')).toBeVisible()
+    renderMonitor({ settings: { ...settings, showPlayerAnswersToHost: false }, phase: 'reveal' })
+    expect(screen.getByText('Results shown · No answer from: Roger')).toBeVisible()
     expect(screen.getByText('Individual answers are hidden for this session.')).toBeVisible()
     expect(screen.queryByText('Red Dwarfs')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Answered')).toHaveLength(2)
+    expect(screen.queryByText('Correct')).not.toBeInTheDocument()
   })
 
   it('hides detail over 15 players while retaining the waiting name', () => {
@@ -105,10 +107,19 @@ describe('HostResponseMonitor', () => {
     expect(screen.getByText('Correct ✓')).toBeVisible()
     expect(screen.getByText('Not accepted')).toBeVisible()
     expect(screen.getByText('Host accepted ✓')).toBeVisible()
+    expect(screen.getByText('Answers closed · Everyone answered')).toBeVisible()
     expect(screen.getAllByRole('button')).toHaveLength(2)
     await user.click(screen.getByRole('button', { name: 'Mark correct' }))
     await user.click(screen.getByRole('button', { name: 'Undo override' }))
     expect(onOverride).toHaveBeenNthCalledWith(1, 'answer-player-1', true)
     expect(onOverride).toHaveBeenNthCalledWith(2, 'answer-player-2', null)
+  })
+
+  it('uses result status after reveal while keeping a no-answer player prominent', () => {
+    renderMonitor({ phase: 'reveal' })
+    expect(screen.getByText('Results shown · No answer from: Roger')).toBeVisible()
+    expect(screen.getByText('Correct')).toBeVisible()
+    expect(screen.getByText('Incorrect')).toBeVisible()
+    expect(screen.getByText('No answer · Disconnected')).toBeVisible()
   })
 })

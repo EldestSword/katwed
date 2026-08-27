@@ -85,4 +85,24 @@ describe('GameSetupPage', () => {
     expect(await screen.findByRole('heading', { name: 'Controller session-existing' })).toBeVisible()
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
   })
+
+  it('keeps a long, covered single-format quiz legible and omits Standard-only controls for Head-to-Head', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue({
+      ...mixedDemoQuiz,
+      title: 'A deliberately long single-format quiz title for the projector desk',
+      quizType: 'head-to-head',
+      coverImagePath: '/demo/portrait-1.svg',
+      questions: mixedDemoQuiz.questions
+        .filter((question) => question.type === 'typed-answer')
+        .map((question, index) => ({ ...question, displayOrder: index })),
+    })
+    renderSetup()
+
+    expect(await screen.findByRole('heading', { name: 'A deliberately long single-format quiz title for the projector desk' })).toBeVisible()
+    expect(screen.getByText('Head to Head')).toBeVisible()
+    expect(screen.getByText('Single format')).toBeVisible()
+    expect(screen.getByText('No question-type intros are needed for this quiz.')).toBeVisible()
+    expect(document.querySelector('.game-setup-summary__cover img')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Auto-close answers/ })).not.toBeInTheDocument()
+  })
 })

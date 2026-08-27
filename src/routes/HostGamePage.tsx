@@ -148,6 +148,20 @@ export function HostGamePage() {
             <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
           </dl>
+          <div className="controller-actions" role="group" aria-label="Game controls">
+            {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
+            {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
+            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('lock')}>Close answers now</button>}
+            {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
+            {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
+            {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
+            {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
+            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
+            {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
+            <button className="button button--ghost" disabled={working} type="button" onClick={() => {
+              if (window.confirm('Close this room for every player?')) run('close')
+            }}>Close room</button>
+          </div>
           {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
             <HostResponseMonitor
               players={session.players}
@@ -162,20 +176,6 @@ export function HostGamePage() {
               onOverride={(answerId, correctOverride) => void setTypedAnswerOverride(answerId, correctOverride)}
             />
           )}
-          <div className="controller-actions">
-            {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
-            {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
-            {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('lock')}>Close answers now</button>}
-            {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
-            {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
-            {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
-            {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
-            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
-            {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
-            <button className="button button--ghost" disabled={working} type="button" onClick={() => {
-              if (window.confirm('Close this room for every player?')) run('close')
-            }}>Close room</button>
-          </div>
           <HostAudioControls soundPackId={state.soundPackId ?? session.settings.soundPackId} />
           {(headToHead || state.phase === 'lobby') && <section className="controller-monitor">
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>

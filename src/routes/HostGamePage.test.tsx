@@ -154,6 +154,8 @@ describe('HostGamePage Standard auto-lock', () => {
     const responses = screen.getByRole('heading', { name: 'Live responses' }).closest('section')!
     expect(within(responses).getByText('True')).toBeVisible()
     expect(within(responses).getByText('False')).toBeVisible()
+    const controls = screen.getByRole('group', { name: 'Game controls' })
+    expect(controls.compareDocumentPosition(responses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('retains timer-expiry locking', async () => {

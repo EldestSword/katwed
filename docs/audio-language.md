@@ -71,3 +71,17 @@ Presentation attempts playback but contains every rejected promise. If the brows
 The current YouTube component is a privacy-enhanced iframe without reliable player-state events. For Audio Pass 1, a Presentation-visible YouTube question therefore fades Katwed background music to silence for the whole question. Player-only YouTube does not affect Presentation audio. Stings remain phase-led. A future YouTube API integration may replace this conservative policy with exact duck/restore events.
 
 Audio never carries information that is absent visually, and mute is independent of reduced-motion preference. Adding a future pack requires compressed assets for the eight cue keys, a registry entry, level/loop QA, tests and documentation; arbitrary uploads and per-question music are outside Audio Pass 1.
+
+## Registering another sound pack
+
+Use this checklist when prepared music for a new theme is ready:
+
+1. Put the eight browser-ready files in `public/audio/packs/<pack-id>/`: `lobby`, `question`, `urgent`, `double-score`, `lock`, `reveal`, `leaderboard` and `final`. Keep source masters outside the public bundle.
+2. Add the stable ID to `SoundPackId` in `src/types/domain.ts` and `SOUND_PACK_IDS` in `src/features/audio/soundPacks.ts`.
+3. Add one `SoundPackDefinition` to the `soundPacks` registry with all eight cue paths. Game Setup discovers registry entries automatically; do not add a separate selector or quiz-editor setting.
+4. Set `doubleScoreDurationMs` to the intended complete visual prelude. It must be an integer from 500 to 30,000 milliseconds. This server-known value is copied into each launched session, so it must be reviewed even when the audio file itself is shorter or longer.
+5. Check that Lobby and Question loop cleanly, one-shot cues finish cleanly, relative levels are comfortable, muted and blocked playback never affect progression, and the Double Score question receives its full timer after the prelude.
+6. Extend the sound-pack, launch-settings, audio-state and browser coverage for the new ID. Include a Game Setup selection check and a timed Double Score check using the pack’s declared duration.
+7. Keep `none` registered with `assets: null`. Its five-second visual Double Score prelude is deliberate and provides the silent fallback contract.
+
+Changing a pack’s assets or duration affects only newly launched rooms. Existing sessions continue with their persisted sound-pack ID and Double Score duration.
