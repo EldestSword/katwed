@@ -33,6 +33,7 @@ function isSubmittedAnswer(value: unknown): value is PlayerAnswerPayload {
     case 'true-false': return typeof candidate.value === 'boolean'
     case 'slider': return typeof candidate.value === 'number'
     case 'pinpoint': return typeof candidate.x === 'number' && typeof candidate.y === 'number'
+    case 'typed-answer': return typeof candidate.value === 'string'
     case 'mashup':
       return Array.isArray(candidate.memberIds) &&
         candidate.memberIds.length === 2 &&
