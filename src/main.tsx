@@ -14,6 +14,7 @@ import './styles/presentation.css'
 import './styles/player.css'
 import './styles/backstage.css'
 import './styles/audio.css'
+import './styles/hotfixes.css'
 
 const router = createBrowserRouter([
   {
