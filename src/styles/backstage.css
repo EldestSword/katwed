@@ -237,7 +237,7 @@
 .controller-response-row > p { margin: .35rem 0 0; font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; white-space: pre-wrap; }
 .controller-response-judgement { margin-top: .45rem; padding-top: .4rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--host-line); }
 .controller-response-judgement span { font-size: .7rem; font-weight: 850; }
-.controller-response-judgement .button { min-height: 32px; padding: .3rem .55rem; font-size: .68rem; }
+.controller-response-judgement .button { min-height: 48px; padding: .55rem .75rem; font-size: .72rem; }
 .controller-up-next { margin-top: .9rem; padding: .8rem; border: 1px solid var(--host-line); border-radius: 11px; background: #fafafc; }
 .controller-up-next h2 { margin: .15rem 0 .25rem; font-size: .95rem; }
 .controller-up-next p:not(.eyebrow) { margin: 0; overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }

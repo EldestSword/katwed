@@ -1,4 +1,12 @@
-import type { GamePhase, GameSessionSettings, Player, PlayerAnswer, Question, RosterMember } from '../../types/domain'
+import type {
+  GamePhase,
+  GameSessionSettings,
+  HostResponseRecord,
+  Player,
+  PlayerAnswer,
+  Question,
+  RosterMember,
+} from '../../types/domain'
 import {
   buildHostResponseRows,
   formatHostAnswer,
@@ -17,6 +25,7 @@ const STATUS_COPY: Record<HostResponseStatus, string> = {
 
 export function HostResponseMonitor({
   players,
+  responses,
   answers,
   question,
   roster,
@@ -27,6 +36,7 @@ export function HostResponseMonitor({
   onOverride,
 }: {
   players: readonly Player[]
+  responses: readonly HostResponseRecord[]
   answers: readonly PlayerAnswer[]
   question: Question
   roster: readonly RosterMember[]
@@ -36,7 +46,7 @@ export function HostResponseMonitor({
   reviewingAnswerId: string | null
   onOverride(answerId: string, correctOverride: true | null): void
 }) {
-  const rows = buildHostResponseRows(players, answers, question.id, phase, preludeActive)
+  const rows = buildHostResponseRows(players, responses, answers, question.id, phase, preludeActive)
   const showDetails = settings.showPlayerAnswersToHost && players.length <= HOST_RESPONSE_DETAIL_LIMIT
   const mayReview = question.type === 'typed-answer' && ['locked', 'reveal', 'leaderboard'].includes(phase)
 
@@ -44,7 +54,7 @@ export function HostResponseMonitor({
     <section className="controller-responses" aria-labelledby="live-responses-heading">
       <div className="controller-section-heading">
         <h2 id="live-responses-heading">Live responses</h2>
-        <span>{rows.filter((row) => row.answer).length} / {rows.length}</span>
+        <span>{rows.filter((row) => row.response).length} / {rows.length}</span>
       </div>
       <p className={`controller-response-summary${preludeActive ? ' controller-response-summary--neutral' : ''}`} role="status">
         {responseSummary(rows, phase, preludeActive)}

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mixedDemoQuiz } from '../../lib/demo/sampleData'
 import type { GameSessionSettings, Player, PlayerAnswer } from '../../types/domain'
 import { HostResponseMonitor } from './HostResponseMonitor'
+import { hostResponseRecordForAnswer } from './hostResponses'
 
 const question = mixedDemoQuiz.questions.find((candidate) => candidate.type === 'typed-answer')!
 const settings: GameSessionSettings = {
@@ -28,12 +29,14 @@ function typedAnswer(player: Player, value: string, automaticCorrect: boolean, h
 }
 
 function renderMonitor(overrides: Partial<Parameters<typeof HostResponseMonitor>[0]> = {}) {
+  const answers = [
+    typedAnswer(players[1], 'Red Dwarf', true),
+    typedAnswer(players[2], 'Red Dwarfs', false),
+  ]
   const props: Parameters<typeof HostResponseMonitor>[0] = {
     players,
-    answers: [
-      typedAnswer(players[1], 'Red Dwarf', true),
-      typedAnswer(players[2], 'Red Dwarfs', false),
-    ],
+    responses: answers.map(hostResponseRecordForAnswer),
+    answers,
     question,
     roster: mixedDemoQuiz.roster,
     settings,
@@ -64,7 +67,7 @@ describe('HostResponseMonitor', () => {
   })
 
   it('hides answer content when disabled while retaining named status', () => {
-    renderMonitor({ settings: { ...settings, showPlayerAnswersToHost: false } })
+    renderMonitor({ settings: { ...settings, showPlayerAnswersToHost: false }, answers: [] })
     expect(screen.getByText('Waiting for: Roger')).toBeVisible()
     expect(screen.getByText('Individual answers are hidden for this session.')).toBeVisible()
     expect(screen.queryByText('Red Dwarfs')).not.toBeInTheDocument()
@@ -76,7 +79,7 @@ describe('HostResponseMonitor', () => {
       connected: true,
     }))
     const answers = largePlayers.slice(1).map((player) => typedAnswer(player, `Answer ${player.id}`, false))
-    renderMonitor({ players: largePlayers, answers })
+    renderMonitor({ players: largePlayers, responses: answers.map(hostResponseRecordForAnswer), answers: [] })
     expect(screen.getByText('Waiting for: Roger')).toBeVisible()
     expect(screen.getByText('Individual answers are hidden for rooms over 15 players.')).toBeVisible()
     expect(screen.queryByText('Answer large-1')).not.toBeInTheDocument()
@@ -87,6 +90,11 @@ describe('HostResponseMonitor', () => {
     const onOverride = vi.fn()
     renderMonitor({
       phase: 'locked',
+      responses: [
+        typedAnswer(players[0], 'The Red Dwarf', true),
+        typedAnswer(players[1], 'Red Dwarfs', false),
+        typedAnswer(players[2], 'Dwarf, Red', false, true),
+      ].map(hostResponseRecordForAnswer),
       answers: [
         typedAnswer(players[0], 'The Red Dwarf', true),
         typedAnswer(players[1], 'Red Dwarfs', false),

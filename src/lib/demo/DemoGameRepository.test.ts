@@ -341,6 +341,95 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(resumed.settings).toEqual(session.settings)
   })
 
+  it('returns named current-question response status without raw payloads when host detail is disabled', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const question = source.questions[0]
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions: [question],
+    })
+    const session = await repository.launchGame(quiz.id, {
+      soundPackId: 'katwed',
+      shuffleQuestionOrder: false,
+      shuffleAnswerOptions: false,
+      autoLockWhenAllAnswered: true,
+      showPlayerAnswersToHost: false,
+    })
+    const joined = await repository.joinRoom(session.roomCode, 'Private response')
+    await repository.changePhase(session.id, 'start')
+    await repository.submitAnswer(
+      session.roomCode,
+      joined.player.id,
+      joined.reconnectToken,
+      correctAnswer(question),
+    )
+
+    const host = (await repository.getHostSession(session.id))!.session
+    expect(host.answers).toEqual([])
+    expect(host.hostResponses).toEqual([expect.objectContaining({
+      questionId: question.id,
+      playerId: joined.player.id,
+    })])
+    expect(JSON.stringify(host.hostResponses)).not.toContain('payload')
+  })
+
+  it('returns raw detail for only the current question without accumulating answer history', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const questions = source.questions.slice(0, 2)
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions,
+    })
+    const session = await repository.launchGame(quiz.id)
+    const joined = await repository.joinRoom(session.roomCode, 'Current only')
+    await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
+    await repository.submitAnswer(session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(questions[0]))
+    await repository.changePhase(session.id, 'lock')
+    await repository.changePhase(session.id, 'reveal')
+    await repository.changePhase(session.id, 'leaderboard')
+    await repository.changePhase(session.id, 'next')
+    await reachQuestionOpening(repository, session.id)
+    await repository.submitAnswer(session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(questions[1]))
+
+    const host = (await repository.getHostSession(session.id))!.session
+    expect(host.answers).toHaveLength(1)
+    expect(host.answers[0].questionId).toBe(questions[1].id)
+    expect(host.hostResponses).toHaveLength(1)
+    expect(host.hostResponses[0].questionId).toBe(questions[1].id)
+  })
+
+  it('omits raw detail above the 15-player limit while retaining submitted-player status', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const question = source.questions[0]
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions: [question],
+    })
+    const session = await repository.launchGame(quiz.id)
+    const joined = await Promise.all(Array.from(
+      { length: 16 },
+      (_, index) => repository.joinRoom(session.roomCode, `Player ${index + 1}`),
+    ))
+    await repository.changePhase(session.id, 'start')
+    await repository.submitAnswer(
+      session.roomCode,
+      joined[0].player.id,
+      joined[0].reconnectToken,
+      correctAnswer(question),
+    )
+
+    const host = (await repository.getHostSession(session.id))!.session
+    expect(host.answers).toEqual([])
+    expect(host.hostResponses).toEqual([expect.objectContaining({ playerId: joined[0].player.id })])
+  })
+
   it('imports a Head-to-Head definition with fresh competitors and remapped assignments', async () => {
     const repository = new DemoGameRepository()
     const parsed = parseKatwedQuizJson(JSON.stringify(exportQuizToPortable(headToHeadDemoQuiz)))

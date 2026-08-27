@@ -327,6 +327,15 @@ export interface PlayerAnswer {
   pointsAwarded: number
 }
 
+export interface HostResponseRecord {
+  id: string
+  sessionId: string
+  questionId: string
+  playerId: string
+  resolutionStatus?: HeadToHeadResolutionStatus
+  submittedAt: string
+}
+
 export interface GameSession {
   id: string
   quizId: string
@@ -341,6 +350,7 @@ export interface GameSession {
   settings: GameSessionSettings
   questionOrder: string[]
   players: Player[]
+  hostResponses: HostResponseRecord[]
   answers: PlayerAnswer[]
 }
 

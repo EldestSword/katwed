@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mixedDemoQuiz } from '../../lib/demo/sampleData'
 import type { GameSessionSettings, Player, PlayerAnswer, PlayerAnswerPayload, Question } from '../../types/domain'
-import { buildHostResponseRows, formatHostAnswer, responseSummary } from './hostResponses'
+import { buildHostResponseRows, formatHostAnswer, hostResponseRecordForAnswer, responseSummary } from './hostResponses'
 
 const settings: GameSessionSettings = {
   soundPackId: 'katwed',
@@ -49,21 +49,50 @@ describe('host response intelligence', () => {
       answer(players[1].id, question, { type: 'single-choice', optionId: 'mars' }),
       answer(players[2].id, question, { type: 'single-choice', optionId: 'venus' }),
     ]
-    const active = buildHostResponseRows(players, answers, question.id, 'question', false)
+    const responses = answers.map(hostResponseRecordForAnswer)
+    const active = buildHostResponseRows(players, responses, answers, question.id, 'question', false)
     expect(active.map((row) => [row.player.nickname, row.status, row.player.connected])).toEqual([
       ['Roger', 'waiting', false],
       ['James', 'locked-in', true],
       ['Mandy', 'locked-in', true],
     ])
     expect(responseSummary(active, 'question', false)).toBe('Waiting for: Roger')
-    expect(responseSummary(buildHostResponseRows(players, answers, question.id, 'locked', false), 'locked', false))
+    expect(responseSummary(buildHostResponseRows(players, responses, answers, question.id, 'locked', false), 'locked', false))
       .toBe('No answer from: Roger')
-    expect(responseSummary(buildHostResponseRows(players, answers, question.id, 'question', true), 'question', true))
+    expect(responseSummary(buildHostResponseRows(players, responses, answers, question.id, 'question', true), 'question', true))
       .toBe('Question opens shortly')
-    expect(responseSummary(buildHostResponseRows(players, [
+    const completeAnswers = [
       ...answers,
       answer(players[0].id, question, { type: 'single-choice', optionId: 'jupiter' }),
-    ], question.id, 'question', false), 'question', false)).toBe('Everyone locked in')
+    ]
+    expect(responseSummary(buildHostResponseRows(
+      players,
+      completeAnswers.map(hostResponseRecordForAnswer),
+      completeAnswers,
+      question.id,
+      'question',
+      false,
+    ), 'question', false)).toBe('Everyone locked in')
+  })
+
+  it('keeps named submission status when raw answer detail is omitted', () => {
+    const question = mixedDemoQuiz.questions[0]
+    const submitted = answer(players[1].id, question, { type: 'single-choice', optionId: 'mars' })
+    const rows = buildHostResponseRows(
+      players,
+      [hostResponseRecordForAnswer(submitted)],
+      [],
+      question.id,
+      'question',
+      false,
+    )
+
+    expect(rows.map((row) => [row.player.nickname, row.status, row.answer])).toEqual([
+      ['James', 'waiting', null],
+      ['Roger', 'waiting', null],
+      ['Mandy', 'locked-in', null],
+    ])
+    expect(responseSummary(rows, 'question', false)).toBe('Waiting for: James · Roger')
   })
 
   it('formats every answer type for people rather than exposing identifiers', () => {

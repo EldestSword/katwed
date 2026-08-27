@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608270009_host_intelligence_and_typed_overrides.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight and host-intelligence frontend is not deployed by this development change; Netlify releases remain deliberate.
+The production migration chain through `202608270010_bound_host_response_serialisation.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight and host-intelligence frontend is not deployed by this development change; Netlify releases remain deliberate.
 
 ### Implemented and deployed
 
@@ -147,7 +147,7 @@ Music selection is no longer editable in permanent Quiz settings. The portable-v
 
 Lobby and Question use prepared loop seams, phase changes crossfade briefly, one-shot stings use authoritative event keys, and blocked playback exposes a non-blocking **Enable sound** action in the Presentation window. Presentation-visible YouTube questions conservatively silence the question bed because the current privacy-enhanced iframe has no reliable player-state API. Gameplay remains fully visual and continues through blocked, missing, muted or disabled audio. See [`docs/audio-language.md`](docs/audio-language.md) for the asset inventory, phase language, preparation and future-pack contract.
 
-The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. The audio, game-preflight and host-intelligence migration chain through `202608270009_host_intelligence_and_typed_overrides.sql` is applied, while no matching Netlify deployment has been performed.
+The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV masters remain ignored local source assets. The audio, game-preflight and host-intelligence migration chain through `202608270010_bound_host_response_serialisation.sql` is applied, while no matching Netlify deployment has been performed.
 
 ### Visual design system, pass 1
 
@@ -346,7 +346,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270009_host_intelligence_and_typed_overrides.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270010_bound_host_response_serialisation.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
 
 For a new Supabase environment:
 
@@ -401,6 +401,7 @@ Applied production migrations, in order:
 202608270007_qualify_all_submit_answer_overloads.sql
 202608270008_refresh_session_and_quiz_readers.sql
 202608270009_host_intelligence_and_typed_overrides.sql
+202608270010_bound_host_response_serialisation.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -432,6 +433,8 @@ Applied migration `202608270002_double_score_intro_five_seconds.sql` updates the
 Applied migration `202608270003_game_preflight_session_settings.sql` adds validated session-level sound, prelude, shuffle and auto-close configuration; persists one question order and answer-order seed per room; extends atomic launch; and keeps opening, deadline, submission and Head-to-Head progression authoritative. It wraps existing public functions rather than editing applied migrations. Applied follow-ups `202608270004` through `202608270007` preserve compatibility across the live function history by explicitly resolving the wrapped submission validator's pgcrypto dependency. `202608270008_refresh_session_and_quiz_readers.sql` rebinds owner readers to the current serialisers and removes the previous `host_get_game` lint warning. Post-apply schema lint reports no errors or warnings.
 
 Applied migration `202608270009_host_intelligence_and_typed_overrides.sql` adds the default-on session controller-answer preference, preserves automatic and host Typed Answer judgement separately, includes submitted answers only in the authenticated owner session serialiser, and adds an authenticated Standard-only current-question accept/undo RPC with row locking and delta-based score, count and response-time updates. Existing one- and two-argument launch signatures remain available, anonymous submission and player-safe state are unchanged, and post-apply schema lint reports no errors or warnings.
+
+Applied migration `202608270010_bound_host_response_serialisation.sql` bounds authenticated controller refresh payloads to the current question. It always returns payload-free current-question response markers for named waiting status, while raw answer detail is returned only when the session preference is enabled and the room has at most 15 players. The player-safe state and anonymous RPC boundary are unchanged.
 
 ### Production pgcrypto repair
 

@@ -24,6 +24,7 @@ import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseSoundPackId } from '../../features/audio/soundPacks'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
+import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 
 type JsonObject = Record<string, unknown>
 
@@ -57,7 +58,26 @@ function normaliseGameSession(
   fallbackSoundPackId: unknown = 'katwed',
   fallbackSettings?: Partial<LaunchGameSettings>,
 ): GameSession {
-  const raw = session as GameSession & { settings?: GameSession['settings']; questionOrder?: unknown }
+  const raw = session as GameSession & {
+    settings?: GameSession['settings']
+    questionOrder?: unknown
+    hostResponses?: unknown
+  }
+  const answers = Array.isArray(session.answers) ? session.answers.map((answer) => ({
+    ...answer,
+    automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
+    hostCorrectOverride: typeof answer.hostCorrectOverride === 'boolean' ? answer.hostCorrectOverride : null,
+  })) : []
+  const hostResponses = Array.isArray(raw.hostResponses)
+    ? raw.hostResponses.filter((response): response is GameSession['hostResponses'][number] => (
+      typeof response === 'object' && response !== null &&
+      typeof (response as { id?: unknown }).id === 'string' &&
+      typeof (response as { sessionId?: unknown }).sessionId === 'string' &&
+      typeof (response as { questionId?: unknown }).questionId === 'string' &&
+      typeof (response as { playerId?: unknown }).playerId === 'string' &&
+      typeof (response as { submittedAt?: unknown }).submittedAt === 'string'
+    ))
+    : answers.map(hostResponseRecordForAnswer)
   return {
     ...session,
     settings: normaliseGameSessionSettings(
@@ -68,11 +88,8 @@ function normaliseGameSession(
     questionOrder: Array.isArray(raw.questionOrder)
       ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
       : [],
-    answers: Array.isArray(session.answers) ? session.answers.map((answer) => ({
-      ...answer,
-      automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
-      hostCorrectOverride: typeof answer.hostCorrectOverride === 'boolean' ? answer.hostCorrectOverride : null,
-    })) : [],
+    hostResponses,
+    answers,
   }
 }
 

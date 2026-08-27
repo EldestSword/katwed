@@ -151,6 +151,7 @@ export function HostGamePage() {
           {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
             <HostResponseMonitor
               players={session.players}
+              responses={session.hostResponses}
               answers={session.answers}
               question={currentQuestionDefinition}
               roster={quiz.roster}

@@ -22,7 +22,7 @@ const session: GameSession = {
     shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, showPlayerAnswersToHost: false,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'answer-seed',
   },
-  questionOrder: mixedDemoQuiz.questions.map((question) => question.id), players: [], answers: [],
+  questionOrder: mixedDemoQuiz.questions.map((question) => question.id), players: [], hostResponses: [], answers: [],
 }
 
 function Destination() {

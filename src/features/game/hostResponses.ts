@@ -1,6 +1,7 @@
 import type {
   GamePhase,
   GameSessionSettings,
+  HostResponseRecord,
   Player,
   PlayerAnswer,
   Question,
@@ -15,37 +16,54 @@ export type HostResponseStatus = 'ready' | 'waiting' | 'locked-in' | 'answered' 
 
 export interface HostResponseRow {
   player: Player
+  response: HostResponseRecord | null
   answer: PlayerAnswer | null
   status: HostResponseStatus
 }
 
+export function hostResponseRecordForAnswer(answer: PlayerAnswer): HostResponseRecord {
+  return {
+    id: answer.id,
+    sessionId: answer.sessionId,
+    questionId: answer.questionId,
+    playerId: answer.playerId,
+    resolutionStatus: answer.resolutionStatus,
+    submittedAt: answer.submittedAt,
+  }
+}
+
 export function buildHostResponseRows(
   players: readonly Player[],
+  responses: readonly HostResponseRecord[],
   answers: readonly PlayerAnswer[],
   questionId: string,
   phase: GamePhase,
   preludeActive: boolean,
 ): HostResponseRow[] {
-  const byPlayer = new Map(
+  const responseByPlayer = new Map(
+    responses.filter((response) => response.questionId === questionId).map((response) => [response.playerId, response]),
+  )
+  const answerByPlayer = new Map(
     answers.filter((answer) => answer.questionId === questionId).map((answer) => [answer.playerId, answer]),
   )
   return players.map((player) => {
-    const answer = byPlayer.get(player.id) ?? null
+    const response = responseByPlayer.get(player.id) ?? null
+    const answer = answerByPlayer.get(player.id) ?? null
     const status: HostResponseStatus = preludeActive
       ? 'ready'
       : phase === 'question'
-        ? (answer ? 'locked-in' : 'waiting')
-        : (answer ? 'answered' : 'no-answer')
-    return { player, answer, status }
+        ? (response ? 'locked-in' : 'waiting')
+        : (response ? 'answered' : 'no-answer')
+    return { player, response, answer, status }
   }).sort((left, right) => {
-    const priority = (row: HostResponseRow) => row.answer ? 1 : 0
+    const priority = (row: HostResponseRow) => row.response ? 1 : 0
     return priority(left) - priority(right) || left.player.nickname.localeCompare(right.player.nickname)
   })
 }
 
 export function responseSummary(rows: readonly HostResponseRow[], phase: GamePhase, preludeActive: boolean): string {
   if (preludeActive) return 'Question opens shortly'
-  const missing = rows.filter((row) => !row.answer).map((row) => row.player.nickname)
+  const missing = rows.filter((row) => !row.response).map((row) => row.player.nickname)
   if (phase === 'question') return missing.length ? `Waiting for: ${missing.join(' · ')}` : 'Everyone locked in'
   return missing.length ? `No answer from: ${missing.join(' · ')}` : 'Everyone answered'
 }

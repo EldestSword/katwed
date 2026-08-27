@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mixedDemoQuiz } from '../lib/demo/sampleData'
 import type { GameSession, Player, SafeGameState } from '../types/domain'
+import { hostResponseRecordForAnswer } from '../features/game/hostResponses'
 import { HostGamePage } from './HostGamePage'
 
 const repositoryMocks = vi.hoisted(() => ({
@@ -33,7 +34,7 @@ const session: GameSession = {
     questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
   },
   questionOrder: mixedDemoQuiz.questions.map((question) => question.id),
-  players, answers: [],
+  players, hostResponses: [], answers: [],
 }
 
 function state(overrides: Partial<SafeGameState> = {}): SafeGameState {
@@ -128,16 +129,18 @@ describe('HostGamePage Standard auto-lock', () => {
   })
 
   it('shows named waiting players from the private host answer bundle', async () => {
+    const answers = players.slice(0, 2).map((player, index) => ({
+      id: `answer-${index}`, sessionId: session.id, questionId: 'mixed-boolean', playerId: player.id,
+      payload: { type: 'true-false' as const, value: index === 0 }, resolutionStatus: 'answered' as const,
+      submittedAt: '2026-08-26T12:00:05.000Z', responseTimeMs: 5000,
+      automaticCorrect: index === 0, hostCorrectOverride: null, correct: index === 0,
+      pointsAwarded: index === 0 ? 1000 : 0,
+    }))
     repositoryMocks.getHostSession.mockResolvedValue({
       session: {
         ...session,
-        answers: players.slice(0, 2).map((player, index) => ({
-          id: `answer-${index}`, sessionId: session.id, questionId: 'mixed-boolean', playerId: player.id,
-          payload: { type: 'true-false' as const, value: index === 0 }, resolutionStatus: 'answered' as const,
-          submittedAt: '2026-08-26T12:00:05.000Z', responseTimeMs: 5000,
-          automaticCorrect: index === 0, hostCorrectOverride: null, correct: index === 0,
-          pointsAwarded: index === 0 ? 1000 : 0,
-        })),
+        hostResponses: answers.map(hostResponseRecordForAnswer),
+        answers,
       },
       quiz: mixedDemoQuiz,
     })
