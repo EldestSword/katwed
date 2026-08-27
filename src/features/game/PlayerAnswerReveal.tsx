@@ -28,7 +28,9 @@ function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null
     case 'slider': return answer.type === 'slider' && Math.abs(answer.value - reveal.correctValue) <= reveal.tolerance ? 'correct' : 'incorrect'
     case 'pinpoint': return answer.type === 'pinpoint' && Math.hypot(answer.x - reveal.targetX, answer.y - reveal.targetY) <= reveal.targetRadius ? 'correct' : 'incorrect'
     case 'mashup': return answer.type === 'mashup' && sameSet(answer.memberIds, reveal.correctMemberIds) ? 'correct' : 'incorrect'
-    case 'typed-answer': return answer.type === 'typed-answer' && normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'incorrect'
+    case 'typed-answer':
+      if (answer.type !== 'typed-answer') return 'unknown'
+      return normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'unknown'
   }
 }
 

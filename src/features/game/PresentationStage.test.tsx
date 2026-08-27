@@ -39,14 +39,14 @@ describe('PresentationStage quiz theme', () => {
         media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
         questionNumber: 1, totalQuestions: 1,
       },
-      questionOpenedAt: '2026-08-09T12:00:01.500Z',
-      questionClosesAt: '2026-08-09T12:00:21.500Z',
+      questionOpenedAt: '2026-08-09T12:00:05.000Z',
+      questionClosesAt: '2026-08-09T12:00:25.000Z',
     }
     render(<PresentationStage state={doubleState} compact={compact} />)
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     expect(screen.queryByText('Visible after the intro?')).not.toBeInTheDocument()
 
-    await act(async () => vi.advanceTimersByTime(1510))
+    await act(async () => vi.advanceTimersByTime(5010))
     expect(screen.getByText('Visible after the intro?')).toBeVisible()
     expect(screen.getByText('2x points')).toBeVisible()
   })

@@ -112,14 +112,14 @@ describe('DemoGameRepository multi-format game state', () => {
     const joined = await repository.joinRoom(session.roomCode, 'Double Player')
     await repository.changePhase(session.id, 'start')
     const opened = (await repository.getHostSession(session.id))!.session
-    expect(opened.questionOpenedAt).toBe('2026-08-09T12:00:01.500Z')
-    expect(opened.questionClosesAt).toBe('2026-08-09T12:00:21.500Z')
+    expect(opened.questionOpenedAt).toBe('2026-08-09T12:00:05.000Z')
+    expect(opened.questionClosesAt).toBe('2026-08-09T12:00:25.000Z')
     await expect(repository.submitAnswer(
       session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(question),
     )).rejects.toThrow('Wait for the question to open.')
     await expect(repository.changePhase(session.id, 'lock')).rejects.toThrow('Wait for the Double Score intro to finish.')
 
-    vi.setSystemTime(new Date('2026-08-09T12:00:01.500Z'))
+    vi.setSystemTime(new Date('2026-08-09T12:00:05.000Z'))
     await repository.submitAnswer(
       session.roomCode, joined.player.id, joined.reconnectToken, correctAnswer(question),
     )

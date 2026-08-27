@@ -100,8 +100,8 @@ describe('PlayPage quiz background', () => {
           media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
           questionNumber: 1, totalQuestions: 1,
         },
-        questionOpenedAt: '2026-08-09T12:00:01.500Z',
-        questionClosesAt: '2026-08-09T12:00:21.500Z',
+        questionOpenedAt: '2026-08-09T12:00:05.000Z',
+        questionClosesAt: '2026-08-09T12:00:25.000Z',
       },
       loading: false,
       error: '',
@@ -112,7 +112,7 @@ describe('PlayPage quiz background', () => {
     expect(screen.getByRole('heading', { name: 'DOUBLE SCORE!' })).toBeVisible()
     expect(screen.queryByText('Player question')).not.toBeInTheDocument()
 
-    await act(async () => vi.advanceTimersByTime(1510))
+    await act(async () => vi.advanceTimersByTime(5010))
     expect(screen.getByText('Player question')).toBeVisible()
     expect(screen.getByText('2x points')).toBeVisible()
     expect(screen.getByLabelText('20 seconds remaining')).toBeVisible()
