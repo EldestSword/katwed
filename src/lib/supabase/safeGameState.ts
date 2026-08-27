@@ -47,6 +47,14 @@ function isRevealPayload(value: unknown): value is RevealPayload {
   }
 }
 
+function outcomeNeutralReveal(reveal: RevealPayload | null): RevealPayload | null {
+  if (!reveal) return null
+  return {
+    ...reveal,
+    caption: reveal.caption.replace(/^Correct:\s*/i, ''),
+  }
+}
+
 export function parseSafeGameState(value: unknown): SafeGameState {
   if (!isRecord(value) || typeof value.phase !== 'string' ||
     !Array.isArray(value.players) || !Array.isArray(value.leaderboard)) {
@@ -99,6 +107,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   return {
     ...value,
     ...answerPalette,
+    reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: normaliseSoundPackId(value.soundPackId),
     quizType: normaliseQuizType(value.quizType),
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
