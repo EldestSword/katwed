@@ -1,0 +1,12 @@
+/* Focused live-game fixes that must win over theme/background styling. */
+.player-game .typed-answer-input input {
+  color: #111827;
+  background: #FFFFFF;
+  caret-color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+
+.player-game .typed-answer-input input::placeholder {
+  color: #6B7280;
+  opacity: 1;
+}
