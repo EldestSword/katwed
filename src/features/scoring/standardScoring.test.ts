@@ -61,20 +61,20 @@ describe('Double Score authoritative timing', () => {
     })
   })
 
-  it('places the intro before a full-duration Double Score question', () => {
-    expect(DOUBLE_SCORE_INTRO_MS).toBe(1500)
+  it('places the five-second intro before a full-duration Double Score question', () => {
+    expect(DOUBLE_SCORE_INTRO_MS).toBe(5000)
     expect(standardQuestionWindow({ doubleScore: true, timeLimitSeconds: 20 }, transition)).toEqual({
-      openedAt: '2026-08-09T12:00:01.500Z',
-      closesAt: '2026-08-09T12:00:21.500Z',
+      openedAt: '2026-08-09T12:00:05.000Z',
+      closesAt: '2026-08-09T12:00:25.000Z',
     })
   })
 
   it('derives intro state from the shared opening timestamp without restarting it', () => {
     const question = { doubleScore: true }
-    const opensAt = '2026-08-09T12:00:01.500Z'
+    const opensAt = '2026-08-09T12:00:05.000Z'
     expect(isDoubleScoreIntroActive('standard', question, opensAt, transition)).toBe(true)
-    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 1499)).toBe(true)
-    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 1500)).toBe(false)
+    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 4999)).toBe(true)
+    expect(isDoubleScoreIntroActive('standard', question, opensAt, transition + 5000)).toBe(false)
     expect(isDoubleScoreIntroActive('head-to-head', question, opensAt, transition)).toBe(false)
   })
 })
