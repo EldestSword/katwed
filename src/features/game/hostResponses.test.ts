@@ -58,7 +58,7 @@ describe('host response intelligence', () => {
     ])
     expect(responseSummary(active, 'question', false)).toBe('Waiting for: Roger')
     expect(responseSummary(buildHostResponseRows(players, responses, answers, question.id, 'locked', false), 'locked', false))
-      .toBe('No answer from: Roger')
+      .toBe('Answers closed · No answer from: Roger')
     expect(responseSummary(buildHostResponseRows(players, responses, answers, question.id, 'question', true), 'question', true))
       .toBe('Question opens shortly')
     const completeAnswers = [
@@ -73,6 +73,26 @@ describe('host response intelligence', () => {
       'question',
       false,
     ), 'question', false)).toBe('Everyone locked in')
+  })
+
+  it('distinguishes revealed correct and incorrect results when private detail is available', () => {
+    const question = mixedDemoQuiz.questions[0]
+    const incorrect = answer(players[1].id, question, { type: 'single-choice', optionId: 'venus' })
+    const correct = {
+      ...answer(players[2].id, question, { type: 'single-choice', optionId: 'mars' }),
+      automaticCorrect: true,
+      correct: true,
+      pointsAwarded: 1000,
+    }
+    const answers = [incorrect, correct]
+    const rows = buildHostResponseRows(players, answers.map(hostResponseRecordForAnswer), answers, question.id, 'reveal', false)
+
+    expect(rows.map((row) => [row.player.nickname, row.status])).toEqual([
+      ['Roger', 'no-answer'],
+      ['James', 'correct'],
+      ['Mandy', 'incorrect'],
+    ])
+    expect(responseSummary(rows, 'reveal', false)).toBe('Results shown · No answer from: Roger')
   })
 
   it('keeps named submission status when raw answer detail is omitted', () => {

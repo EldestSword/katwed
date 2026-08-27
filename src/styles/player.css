@@ -103,6 +103,15 @@
 .reveal-state > p:not(.eyebrow):not(.final-results-wait) { width: min(100%, 42rem); margin: .8rem auto; padding: .8rem 1rem; border-left: .3rem solid var(--quiz-room-accent); border-radius: var(--radius-sm); color: var(--quiz-text); background: var(--quiz-surface); text-align: left; }
 .player-pinpoint-reveal .pinpoint-coordinate-surface { height: min(52vh, 30rem); margin: 0 auto; border-color: var(--quiz-accent); }
 
+/* Typed input contrast is fixed at the player control, independent of the selected quiz theme. */
+.player-game .typed-answer-input input { color: #111827; background: #fff; caret-color: #111827; -webkit-text-fill-color: #111827; }
+.player-game .typed-answer-input input::placeholder { color: #6b7280; opacity: 1; }
+
+/* Reveal media supports the answer outcome instead of competing with it as another card. */
+.player-game .reveal-state > .question-media { width: min(100%, 46rem); margin: 1rem auto; overflow: hidden; border: 1px solid color-mix(in srgb, var(--quiz-border) 72%, transparent); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--quiz-surface) 72%, transparent); box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .16); }
+.player-game .reveal-state > .question-media .question-media__image,
+.player-game .reveal-state > .question-media img { border: 0; border-radius: 0; box-shadow: none; }
+
 .player-game .game-state-card { margin: clamp(1.2rem, 6vh, 4rem) auto; }
 .player-game .leaderboard { margin-block: 1rem; }
 .player-game .leaderboard li { grid-template-columns: 2.5rem minmax(0, 1fr) auto; border-radius: var(--radius-md); }
@@ -147,6 +156,32 @@
   .final-podium li, .final-podium li[data-rank="1"], .final-podium li[data-rank="2"], .final-podium li[data-rank="3"] { min-height: 5rem; grid-template-columns: auto 1fr auto; place-items: center start; order: initial; transform: none; border-radius: var(--radius-md); }
   .final-podium li > span:last-child { justify-self: end; }
   .head-to-head-final__competitors { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 900px) {
+  .player-question,
+  .player-game > .status-message { width: min(100%, 58rem); }
+  .reveal-state { width: min(100%, 72rem); }
+  .player-question__prompt h1 { font-size: clamp(1.8rem, 3vw, 3.1rem); }
+  .player-question__prompt p,
+  .selection-guidance,
+  .selection-heading,
+  .typed-answer-input { font-size: 1.05rem; }
+  .player-question .answer-tile__select { min-height: 6.2rem; font-size: 1.32rem; }
+  .player-question > .question-media,
+  .player-question > .question-media img { max-height: min(40vh, 23rem); }
+  .player-game .typed-answer-input input { min-height: 4.4rem; font-size: 1.3rem; }
+  .player-game .lock-button { min-height: 4.1rem; font-size: 1.12rem; }
+  .player-answer-reveal { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 1rem; }
+  .player-answer-reveal .player-reveal-outcome { grid-column: 1 / -1; text-align: center; }
+  .player-answer-reveal .submission-summary,
+  .player-answer-reveal__correct { width: 100%; min-width: 0; }
+  .player-answer-reveal .submission-summary { max-width: none; margin: 0; }
+  .player-answer-reveal__correct { padding-top: 0; }
+  .player-answer-reveal__correct .reveal-answer-card,
+  .player-answer-reveal .submission-summary { height: 100%; }
+  .player-answer-reveal > .game-badge:last-child { grid-column: 1 / -1; justify-self: center; }
+  .reveal-state > p:not(.eyebrow):not(.final-results-wait) { width: min(100%, 46rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

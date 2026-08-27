@@ -20,6 +20,8 @@ const STATUS_COPY: Record<HostResponseStatus, string> = {
   waiting: 'Waiting',
   'locked-in': 'Locked in',
   answered: 'Answered',
+  correct: 'Correct',
+  incorrect: 'Incorrect',
   'no-answer': 'No answer',
 }
 
@@ -46,8 +48,8 @@ export function HostResponseMonitor({
   reviewingAnswerId: string | null
   onOverride(answerId: string, correctOverride: true | null): void
 }) {
-  const rows = buildHostResponseRows(players, responses, answers, question.id, phase, preludeActive)
   const showDetails = settings.showPlayerAnswersToHost && players.length <= HOST_RESPONSE_DETAIL_LIMIT
+  const rows = buildHostResponseRows(players, responses, showDetails ? answers : [], question.id, phase, preludeActive)
   const mayReview = question.type === 'typed-answer' && ['locked', 'reveal', 'leaderboard'].includes(phase)
 
   return (

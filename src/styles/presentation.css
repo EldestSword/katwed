@@ -195,6 +195,22 @@
 .presentation-stage--compact .final-podium__rank { width: 1.1rem; font-size: .55rem; }
 .presentation-stage--compact .final-podium strong { font-size: .7rem; }
 
+/* Phase layouts own their media centring so presentation themes cannot displace it. */
+.presentation-stage .presentation-question__media,
+.presentation-stage .presentation-reveal__media { justify-items: center; }
+.presentation-stage .presentation-question__media .question-media,
+.presentation-stage .presentation-reveal__media .question-media { margin-inline: auto; justify-self: center; }
+.presentation-stage .presentation-question__media .question-media__image,
+.presentation-stage .presentation-reveal__media .question-media__image { width: 100%; display: grid; place-items: center; }
+.presentation-stage .presentation-question__media .question-media img,
+.presentation-stage .presentation-reveal__media .question-media img { margin-inline: auto; }
+
+/* Typed Answer has no presentation tiles, even when a legacy quiz says choices are visible. */
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__body { grid-template-columns: minmax(0, 1fr) !important; }
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__copy,
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__media { grid-column: 1 / -1 !important; }
+.presentation-stage[data-question-type="typed-answer"] .presentation-question__media { width: min(100%, 78rem); justify-self: center; }
+
 @keyframes locked-stage-in { from { opacity: 0; transform: scale(.985); } }
 @keyframes scoreboard-row-in { from { opacity: 0; transform: translateY(.7rem); } }
 
