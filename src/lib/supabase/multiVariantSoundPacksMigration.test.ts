@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  'supabase/migrations/202608280001_multi_variant_sound_packs.sql',
+  'supabase/migrations/20260828074030_multi_variant_sound_packs.sql',
   'utf8',
 )
 
