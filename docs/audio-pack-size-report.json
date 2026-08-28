@@ -1,0 +1,512 @@
+{
+  "settings": {
+    "loudnessTargetLufs": -18,
+    "truePeakDb": -1.5,
+    "loudnessRange": 12,
+    "codec": "libmp3lame",
+    "vbrQuality": 4,
+    "sampleRate": 48000,
+    "channels": 2,
+    "metadataStripped": true
+  },
+  "packs": [
+    {
+      "id": "1940s",
+      "name": "1940s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10826501,
+      "productionBytes": 8614248,
+      "reductionPercent": 20.4,
+      "doubleScoreDurationsMs": [
+        6400,
+        5040
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 12.663
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.881
+        }
+      ]
+    },
+    {
+      "id": "1950s",
+      "name": "1950s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 1
+      },
+      "sourceBytes": 10108625,
+      "productionBytes": 7907112,
+      "reductionPercent": 21.8,
+      "doubleScoreDurationsMs": [
+        7200,
+        6400
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.992
+        },
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.273
+        },
+        {
+          "file": "leaderboard-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 19.181
+        }
+      ]
+    },
+    {
+      "id": "1960s",
+      "name": "1960s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 8768594,
+      "productionBytes": 6851496,
+      "reductionPercent": 21.9,
+      "doubleScoreDurationsMs": [
+        6400,
+        8360
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.539
+        },
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 18.271
+        }
+      ]
+    },
+    {
+      "id": "1970s",
+      "name": "1970s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 1,
+        "final": 2
+      },
+      "sourceBytes": 11084000,
+      "productionBytes": 8933760,
+      "reductionPercent": 19.4,
+      "doubleScoreDurationsMs": [
+        6800,
+        5960
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "1980s",
+      "name": "1980s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 3,
+        "final": 2
+      },
+      "sourceBytes": 9866553,
+      "productionBytes": 7746048,
+      "reductionPercent": 21.5,
+      "doubleScoreDurationsMs": [
+        4960,
+        7080
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 19.52
+        }
+      ]
+    },
+    {
+      "id": "1990s",
+      "name": "1990s",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10139428,
+      "productionBytes": 8037768,
+      "reductionPercent": 20.7,
+      "doubleScoreDurationsMs": [
+        5160,
+        7960
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.392
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.002
+        },
+        {
+          "file": "final-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 29.112
+        }
+      ]
+    },
+    {
+      "id": "arcade",
+      "name": "Arcade",
+      "variants": {
+        "lobby": 6,
+        "question": 3,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 1,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10529250,
+      "productionBytes": 8179512,
+      "reductionPercent": 22.3,
+      "doubleScoreDurationsMs": [
+        5200,
+        5200
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.219
+        }
+      ]
+    },
+    {
+      "id": "blues",
+      "name": "Blues",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 1,
+        "final": 2
+      },
+      "sourceBytes": 13163636,
+      "productionBytes": 10427784,
+      "reductionPercent": 20.8,
+      "doubleScoreDurationsMs": [
+        6880,
+        7600
+      ],
+      "unusualHandling": [
+        {
+          "file": "lock-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 12.354
+        }
+      ]
+    },
+    {
+      "id": "hard-rock",
+      "name": "Hard Rock",
+      "variants": {
+        "lobby": 2,
+        "question": 3,
+        "urgent": 1,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10759743,
+      "productionBytes": 8301288,
+      "reductionPercent": 22.8,
+      "doubleScoreDurationsMs": [
+        7200,
+        5600
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "jazz",
+      "name": "Jazz",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 16461091,
+      "productionBytes": 13439424,
+      "reductionPercent": 18.4,
+      "doubleScoreDurationsMs": [
+        9160,
+        8800
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.161
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 6.561
+        },
+        {
+          "file": "leaderboard-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 14.1
+        }
+      ]
+    },
+    {
+      "id": "midnight",
+      "name": "Midnight",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 1,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 9463330,
+      "productionBytes": 7405056,
+      "reductionPercent": 21.7,
+      "doubleScoreDurationsMs": [
+        8993,
+        10000
+      ],
+      "unusualHandling": [
+        {
+          "file": "double-score-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.993
+        },
+        {
+          "file": "lock-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.702
+        },
+        {
+          "file": "lock-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.417
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.298
+        }
+      ]
+    },
+    {
+      "id": "mint",
+      "name": "Mint",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 4,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 13838768,
+      "productionBytes": 11098632,
+      "reductionPercent": 19.8,
+      "doubleScoreDurationsMs": [
+        5600,
+        4800
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.594
+        },
+        {
+          "file": "reveal-03.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.467
+        },
+        {
+          "file": "reveal-04.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.721
+        },
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 23.308
+        }
+      ]
+    },
+    {
+      "id": "paper",
+      "name": "Paper",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 14424532,
+      "productionBytes": 11275152,
+      "reductionPercent": 21.8,
+      "doubleScoreDurationsMs": [
+        4800,
+        4400
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.551
+        },
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 58.652
+        },
+        {
+          "file": "final-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 38.977
+        }
+      ]
+    },
+    {
+      "id": "pop",
+      "name": "Pop",
+      "variants": {
+        "lobby": 2,
+        "question": 4,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 1,
+        "final": 2
+      },
+      "sourceBytes": 10887689,
+      "productionBytes": 8649000,
+      "reductionPercent": 20.6,
+      "doubleScoreDurationsMs": [
+        5880,
+        6000
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 6.809
+        }
+      ]
+    },
+    {
+      "id": "sunset",
+      "name": "Sunset",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10817273,
+      "productionBytes": 8702448,
+      "reductionPercent": 19.6,
+      "doubleScoreDurationsMs": [
+        9200,
+        8400
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 12.542
+        },
+        {
+          "file": "lock-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 6.748
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.045
+        }
+      ]
+    }
+  ]
+}

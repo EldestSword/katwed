@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608270010_bound_host_response_serialisation.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight and host-intelligence frontend is not deployed by this development change; Netlify releases remain deliberate.
+The production migration chain through `202608270010_bound_host_response_serialisation.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight, host-intelligence and multi-variant audio frontend is not deployed by this development change; Netlify releases remain deliberate. `202608280001_multi_variant_sound_packs.sql` is a forward migration pending deliberate application.
 
 ### Implemented and deployed
 
@@ -123,7 +123,7 @@ The private host controller derives named current-question response status from 
 
 New Standard questions default to speed scoring on, while existing questions and all imported v1/v2 questions remain fixed-score unless explicitly changed. Positive scores use a linear 100%-to-50% multiplier across the authoritative question window. Double Score multiplies the existing base score first, followed by speed scaling and integer flooring. Multiple Select partial-wipeout continues to determine its proportional or zero base before either modifier.
 
-Double Score questions use the launched session's validated sound-pack duration on player, presentation and compact controller-preview screens. The server places the authoritative question opening after that prelude, so the full configured timer remains available, Speed Scoring starts at the actual opening, reconnect does not restart the notice, and early answers or host Lock/Finish attempts are rejected. The current Katwed and silent packs use a five-second visual prelude; future registry entries may provide a different duration between 500 ms and 30 seconds.
+Double Score questions use the launched session's selected sound-pack variant duration on player, presentation and compact controller-preview screens. The server persists a shuffled variant-index bag, chooses the authoritative sting before opening the question and exposes only its index to Presentation. The question opens after that prepared sting duration, so the full configured timer remains available, Speed Scoring starts at the actual opening, reconnect does not choose another variant, and early answers or host Lock/Finish attempts are rejected. Katwed Core and the silent option retain their established five-second visual fallback; imported production durations are validated between 500 ms and 30 seconds.
 
 Mixed-format quizzes also receive a 1.75-second question-type prelude before each ordinary question. Single-format quizzes have none. A Double Score prelude replaces, rather than follows, the type prelude and carries the type label as secondary copy. Standard and Head-to-Head progression both use the authoritative opening timestamp; Head-to-Head questions remain untimed.
 
@@ -348,6 +348,8 @@ The browser never receives a Supabase service-role credential.
 
 The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270010_bound_host_response_serialisation.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
 
+Audio Pass 2 adds the pending forward migration `202608280001_multi_variant_sound_packs.sql`. It generalises persisted quiz and session pack IDs to safe slugs, keeps the stale-client-compatible quiz-save wrapper, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. It has not been applied to production or deployed to Netlify.
+
 For a new Supabase environment:
 
 1. Create a Supabase project.
@@ -404,6 +406,12 @@ Applied production migrations, in order:
 202608270010_bound_host_response_serialisation.sql
 ```
 
+Pending forward migration:
+
+```text
+202608280001_multi_variant_sound_packs.sql
+```
+
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
 
 `202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
@@ -435,6 +443,8 @@ Applied migration `202608270003_game_preflight_session_settings.sql` adds valida
 Applied migration `202608270009_host_intelligence_and_typed_overrides.sql` adds the default-on session controller-answer preference, preserves automatic and host Typed Answer judgement separately, includes submitted answers only in the authenticated owner session serialiser, and adds an authenticated Standard-only current-question accept/undo RPC with row locking and delta-based score, count and response-time updates. Existing one- and two-argument launch signatures remain available, anonymous submission and player-safe state are unchanged, and post-apply schema lint reports no errors or warnings.
 
 Applied migration `202608270010_bound_host_response_serialisation.sql` bounds authenticated controller refresh payloads to the current question. It always returns payload-free current-question response markers for named waiting status, while raw answer detail is returned only when the session preference is enabled and the room has at most 15 players. The player-safe state and anonymous RPC boundary are unchanged.
+
+Pending migration `202608280001_multi_variant_sound_packs.sql` expands both permanent quiz and session pack IDs to the same bounded safe-slug rule, updates the existing stale-client-compatible save wrapper, adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts no client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
 
 ### Production pgcrypto repair
 
@@ -478,6 +488,8 @@ npm run check
 npm audit
 git diff --check
 ```
+
+Local audio contributors additionally use `npm run import:audio-sources` and `npm run prepare:audio`, then verify every committed production MP3 with FFprobe. Raw ZIPs and clean source folders remain ignored under `audio-source/`; only prepared `public/audio/packs/**` output and generated manifest/report data are committed. See [`docs/audio-language.md`](docs/audio-language.md).
 
 Playwright runs the controller, presentation and three player pages through the mixed quiz, plus representative mobile widths.
 

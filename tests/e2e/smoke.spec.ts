@@ -141,6 +141,12 @@ async function presentationAudioPlayCount(page: Page) {
   ))
 }
 
+async function presentationAudioSources(page: Page) {
+  return page.evaluate(() => (
+    (globalThis as typeof globalThis & { __katwedAudioPlays?: string[] }).__katwedAudioPlays ?? []
+  ))
+}
+
 test('landing, joining validation and host guards work', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /live team quiz/i })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Host', exact: true })).toHaveAttribute('href', '/host')
@@ -1358,14 +1364,17 @@ test('mash-up remains usable at representative mobile widths', async ({ context,
 test('Presentation owns idempotent phase audio while Controller preferences stay local', async ({ context, page }) => {
   test.setTimeout(90_000)
   await enterHost(page)
-  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz', async (setup) => {
+    await setup.getByRole('button', { name: /Hard Rock/ }).click()
+    await expect(setup.getByRole('button', { name: /Hard Rock/ })).toHaveAttribute('aria-pressed', 'true')
+  })
   const presentation = await context.newPage()
   await mockPresentationAudio(presentation)
   const browserErrors: string[] = []
   presentation.on('pageerror', (error) => browserErrors.push(error.message))
   presentation.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
   await presentation.goto(page.url().replace('/control', '/present'))
-  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-pack', 'katwed')
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-pack', 'hard-rock')
   await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'lobby')
   await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(1)
 
@@ -1382,18 +1391,25 @@ test('Presentation owns idempotent phase audio while Controller preferences stay
   await page.getByRole('button', { name: 'Start game' }).click()
   await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'question')
   await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(2)
+  const questionSource = (await presentationAudioSources(presentation)).at(-1)
+  expect(questionSource).toMatch(/\/audio\/packs\/hard-rock\/question-\d{2}\.mp3$/)
+  await presentation.reload()
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-pack', 'hard-rock')
+  await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'question')
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(1)
+  expect((await presentationAudioSources(presentation)).at(-1)).toBe(questionSource)
   await player.getByRole('button', { name: 'Mars' }).click()
   await player.getByRole('button', { name: 'Lock in' }).click()
   await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'lock')
-  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(3)
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(2)
   await page.getByRole('button', { name: 'Reveal answer' }).click()
   await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'reveal')
-  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(4)
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(3)
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await expect(presentation.locator('.presentation-page')).toHaveAttribute('data-audio-cue', 'leaderboard')
-  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(5)
+  await expect.poll(() => presentationAudioPlayCount(presentation)).toBe(4)
   await presentation.waitForTimeout(5_200)
-  expect(await presentationAudioPlayCount(presentation)).toBe(5)
+  expect(await presentationAudioPlayCount(presentation)).toBe(4)
   expect(await presentation.locator('audio').count()).toBe(0)
   expect(browserErrors).toEqual([])
 })

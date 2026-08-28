@@ -52,8 +52,8 @@ export function usePresentationAudio(state: SafeGameState): PresentationAudioSta
   useEffect(() => {
     if (engineStatus !== 'playing' || !pack.assets || preloadedPack.current === pack.id) return
     preloadedPack.current = pack.id
-    Object.values(pack.assets).forEach((asset) => {
-      void fetch(asset, { cache: 'force-cache' }).catch(() => undefined)
+    Object.values(pack.assets).flat().forEach((asset) => {
+      void fetch(asset.src, { cache: 'force-cache' }).catch(() => undefined)
     })
   }, [engineStatus, pack])
 

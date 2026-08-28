@@ -35,6 +35,7 @@ import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseSoundPackId } from '../../features/audio/soundPacks'
+import { shuffledVariantIndices } from '../../features/audio/audioVariantSelection'
 import {
   calculateStandardQuestionScore,
   standardQuestionWindow,
@@ -63,6 +64,28 @@ interface DemoState {
 
 const STORAGE_KEY = 'katwed.demo.state.v2'
 const CHANNEL_NAME = 'katwed-demo-realtime-v2'
+
+function prepareQuestionTiming(session: GameSession, question: Question, transitionMs: number) {
+  if (question.doubleScore) {
+    const durations = session.settings.doubleScoreVariantDurationsMs?.length
+      ? session.settings.doubleScoreVariantDurationsMs
+      : [session.settings.doubleScoreIntroMs]
+    let order = session.doubleScoreVariantOrder
+    let cursor = session.doubleScoreVariantCursor ?? 0
+    if (!order || order.length !== durations.length || new Set(order).size !== durations.length || cursor >= order.length) {
+      order = shuffledVariantIndices(durations.length, session.currentDoubleScoreVariantIndex ?? null)
+      cursor = 0
+    }
+    const index = order[cursor]
+    session.doubleScoreVariantOrder = order
+    session.doubleScoreVariantCursor = cursor + 1
+    session.currentDoubleScoreVariantIndex = index
+    session.settings.doubleScoreIntroMs = durations[index]
+  } else {
+    session.currentDoubleScoreVariantIndex = null
+  }
+  return standardQuestionWindow(question, transitionMs, session.settings)
+}
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -115,7 +138,23 @@ function normaliseState(state: DemoState): DemoState {
       const hostResponses = Array.isArray((session as Partial<GameSession>).hostResponses)
         ? (session as Partial<GameSession>).hostResponses as HostResponseRecord[]
         : answers.map(hostResponseRecordForAnswer)
-      return { ...session, settings, questionOrder, hostResponses, answers }
+      const durations = settings.doubleScoreVariantDurationsMs?.length
+        ? settings.doubleScoreVariantDurationsMs
+        : [settings.doubleScoreIntroMs]
+      return {
+        ...session,
+        settings,
+        questionOrder,
+        doubleScoreVariantOrder: Array.isArray(session.doubleScoreVariantOrder)
+          ? session.doubleScoreVariantOrder
+          : shuffledVariantIndices(durations.length),
+        doubleScoreVariantCursor: Number.isInteger(session.doubleScoreVariantCursor) ? session.doubleScoreVariantCursor : 0,
+        currentDoubleScoreVariantIndex: Number.isInteger(session.currentDoubleScoreVariantIndex)
+          ? session.currentDoubleScoreVariantIndex
+          : null,
+        hostResponses,
+        answers,
+      }
     }),
   }
 }
@@ -497,6 +536,7 @@ export class DemoGameRepository implements GameRepository {
       while (usedCodes.has(roomCode))
       const sessionId = uid('game')
       const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
+      const doubleScoreVariantOrder = shuffledVariantIndices(settings.doubleScoreVariantDurationsMs?.length ?? 1)
       const session: GameSession = {
         id: sessionId,
         quizId,
@@ -509,6 +549,9 @@ export class DemoGameRepository implements GameRepository {
         startedAt: null,
         endedAt: null,
         settings,
+        doubleScoreVariantOrder,
+        doubleScoreVariantCursor: 0,
+        currentDoubleScoreVariantIndex: null,
         questionOrder: createSessionQuestionOrder(quiz.questions, settings.shuffleQuestionOrder, sessionId),
         players: [],
         hostResponses: [],
@@ -701,6 +744,7 @@ export class DemoGameRepository implements GameRepository {
       soundPackId: session.settings.soundPackId,
       sessionSettings: session.settings,
       questionPreludeKind: session.phase === 'question' ? questionPreludeKind(question, session.settings) : null,
+      doubleScoreVariantIndex: session.currentDoubleScoreVariantIndex ?? null,
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,
@@ -844,7 +888,7 @@ export class DemoGameRepository implements GameRepository {
       const question = orderedSessionQuestions(quiz.questions, session.questionOrder)[0]
       if (!question) throw new RepositoryError('database', 'This quiz has no questions.')
       const now = Date.now()
-      const opening = standardQuestionWindow(question, now, session.settings).openedAt
+      const opening = prepareQuestionTiming(session, question, now).openedAt
       session.phase = 'question'
       session.currentQuestionIndex = 0
       session.questionOpenedAt = opening
@@ -935,7 +979,7 @@ export class DemoGameRepository implements GameRepository {
         session.phase = 'question'
         const nextQuestion = orderedQuestions[session.currentQuestionIndex]
         const transition = Date.now()
-        const timingWindow = standardQuestionWindow(nextQuestion, transition, session.settings)
+        const timingWindow = prepareQuestionTiming(session, nextQuestion, transition)
         session.questionOpenedAt = timingWindow.openedAt
         session.questionClosesAt = null
       }
@@ -961,7 +1005,7 @@ export class DemoGameRepository implements GameRepository {
       const openCurrentQuestion = (): void => {
         const question = orderedQuestions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
-        const timingWindow = standardQuestionWindow(question, now.getTime(), session.settings)
+        const timingWindow = prepareQuestionTiming(session, question, now.getTime())
         session.phase = 'question'
         session.questionOpenedAt = timingWindow.openedAt
         session.questionClosesAt = timingWindow.closesAt
@@ -1027,6 +1071,7 @@ export class DemoGameRepository implements GameRepository {
           session.currentQuestionIndex = 0
           session.questionOpenedAt = null
           session.questionClosesAt = null
+          session.currentDoubleScoreVariantIndex = null
           session.startedAt = null
           session.endedAt = null
           session.hostResponses = []

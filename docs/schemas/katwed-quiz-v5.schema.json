@@ -686,6 +686,21 @@
         "soundPackId": {
           "enum": [
             "katwed",
+            "1940s",
+            "1950s",
+            "1960s",
+            "1970s",
+            "1980s",
+            "1990s",
+            "arcade",
+            "blues",
+            "hard-rock",
+            "jazz",
+            "midnight",
+            "mint",
+            "paper",
+            "pop",
+            "sunset",
             "none"
           ]
         }

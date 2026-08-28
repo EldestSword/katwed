@@ -114,6 +114,9 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   const questionPreludeKind = value.questionPreludeKind === 'double-score' || value.questionPreludeKind === 'question-type'
     ? value.questionPreludeKind
     : null
+  const doubleScoreVariantIndex = Number.isInteger(value.doubleScoreVariantIndex) && Number(value.doubleScoreVariantIndex) >= 0
+    ? Number(value.doubleScoreVariantIndex)
+    : null
   return {
     ...value,
     ...answerPalette,
@@ -121,6 +124,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     soundPackId: sessionSettings.soundPackId,
     sessionSettings,
     questionPreludeKind,
+    doubleScoreVariantIndex,
     quizType: normaliseQuizType(value.quizType),
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],

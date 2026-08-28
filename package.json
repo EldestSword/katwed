@@ -13,7 +13,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "prepare:backgrounds": "node scripts/prepare-backgrounds.mjs",
+    "import:audio-sources": "node scripts/import-audio-sources.mjs",
     "prepare:audio": "node scripts/prepare-audio.mjs",
+    "verify:audio": "node scripts/verify-audio-packs.mjs",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

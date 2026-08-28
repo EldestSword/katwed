@@ -20,11 +20,12 @@ export type QuizType = typeof QUIZ_TYPE_IDS[number]
 
 export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
-export type SoundPackId = 'katwed' | 'none'
+export type SoundPackId = string
 export type QuestionPreludeKind = 'double-score' | 'question-type' | null
 
 export interface LaunchGameSettings {
   soundPackId: SoundPackId
+  doubleScoreVariantDurationsMs?: number[]
   shuffleQuestionOrder: boolean
   shuffleAnswerOptions: boolean
   autoLockWhenAllAnswered: boolean
@@ -33,6 +34,7 @@ export interface LaunchGameSettings {
 
 export interface GameSessionSettings extends LaunchGameSettings {
   doubleScoreIntroMs: number
+  doubleScoreVariantDurationsMs?: number[]
   questionTypeIntrosEnabled: boolean
   answerOptionSeed: string
 }
@@ -345,6 +347,9 @@ export interface GameSession {
   currentQuestionIndex: number
   questionOpenedAt: string | null
   questionClosesAt: string | null
+  doubleScoreVariantOrder?: number[]
+  doubleScoreVariantCursor?: number
+  currentDoubleScoreVariantIndex?: number | null
   startedAt: string | null
   endedAt: string | null
   settings: GameSessionSettings
@@ -374,6 +379,7 @@ export interface SafeGameState {
   soundPackId?: SoundPackId
   sessionSettings?: GameSessionSettings
   questionPreludeKind?: QuestionPreludeKind
+  doubleScoreVariantIndex?: number | null
   roomCode: string
   status: SessionStatus
   phase: GamePhase

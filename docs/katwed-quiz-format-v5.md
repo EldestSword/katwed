@@ -88,7 +88,7 @@ Text colour is not stored in the file. Each audience surface calculates it from 
 
 ## Sound pack
 
-Every version 5 quiz requires `soundPackId`. It is `katwed` for the Katwed Core pack or `none` for no shared Presentation audio. Music/effects volume and master mute are local host-device preferences and are deliberately not exported. Older files without audio configuration import as `katwed`.
+Every version 5 quiz requires `soundPackId`. It may name a sound pack registered in the shipped browser manifest (for example `hard-rock`), use `katwed` for Katwed Core, or use `none` for no shared Presentation audio. Imports reject unregistered IDs, and the database persists only bounded lowercase slug IDs rather than client-provided asset URLs. Music/effects volume and master mute are local host-device preferences and are deliberately not exported. Older files without audio configuration import as `katwed`.
 
 ## Media and tile grids
 

@@ -136,6 +136,46 @@ describe('DemoGameRepository multi-format game state', () => {
     })
   })
 
+  it('persists and consumes the selected pack Double Score variants authoritatively', async () => {
+    const repository = new DemoGameRepository()
+    const source = (await repository.getQuiz('quiz-mixed'))!
+    const questions = source.questions.slice(0, 2).map((question, displayOrder) => ({
+      ...question, displayOrder, doubleScore: true, timeLimitSeconds: 20,
+    }))
+    const quiz = await repository.saveQuiz({
+      id: source.id, title: source.title, quizType: 'standard', headToHeadCompetitors: [],
+      coverImagePath: source.coverImagePath, themeId: source.themeId, backgroundId: source.backgroundId,
+      roster: source.roster, questions,
+    })
+    const session = await repository.launchGame(quiz.id, {
+      soundPackId: 'hard-rock', shuffleQuestionOrder: false, shuffleAnswerOptions: false,
+      autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
+    })
+
+    await repository.changePhase(session.id, 'start')
+    const first = (await repository.getHostSession(session.id))!.session
+    const firstDuration = new Date(first.questionOpenedAt!).getTime() - Date.now()
+    expect([5600, 7200]).toContain(firstDuration)
+    expect(first.settings.doubleScoreVariantDurationsMs).toEqual([7200, 5600])
+    expect((await repository.getSafeGameState(session.roomCode))?.doubleScoreVariantIndex)
+      .toBe(first.currentDoubleScoreVariantIndex)
+
+    vi.setSystemTime(new Date(first.questionOpenedAt!))
+    await repository.changePhase(session.id, 'lock')
+    await repository.changePhase(session.id, 'reveal')
+    await repository.changePhase(session.id, 'leaderboard')
+    const secondTransition = Date.now()
+    await repository.changePhase(session.id, 'next')
+    const second = (await repository.getHostSession(session.id))!.session
+    const secondDuration = new Date(second.questionOpenedAt!).getTime() - secondTransition
+    expect([5600, 7200]).toContain(secondDuration)
+    expect(secondDuration).not.toBe(firstDuration)
+    expect(second.currentDoubleScoreVariantIndex).not.toBe(first.currentDoubleScoreVariantIndex)
+    expect((await repository.getSafeGameState(session.roomCode))?.doubleScoreVariantIndex)
+      .toBe(second.currentDoubleScoreVariantIndex)
+    expect(new Date(second.questionClosesAt!).getTime() - new Date(second.questionOpenedAt!).getTime()).toBe(20_000)
+  })
+
   it.each([
     ['fixed scoring', false, false, 1000],
     ['Double Score', true, false, 2000],
