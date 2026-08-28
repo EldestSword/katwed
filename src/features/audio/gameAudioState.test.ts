@@ -39,7 +39,8 @@ describe('authoritative game state to audio mapping', () => {
   })
 
   it('maps Double Score once and silences music for presentation-visible YouTube', () => {
-    expect(deriveGameAudioIntent(state(), 30, 'double-score').effect?.cue).toBe('doubleScore')
+    expect(deriveGameAudioIntent(state({ doubleScoreVariantIndex: 1 }), 30, 'double-score').effect)
+      .toMatchObject({ cue: 'doubleScore', authoritativeVariantIndex: 1 })
     expect(deriveGameAudioIntent(state(), 30, 'question-type').music?.cue).toBe('question')
     const youtube = state({ currentQuestion: {
       ...state().currentQuestion!, media: { type: 'youtube', videoId: 'abcdefghijk' }, mediaVisibility: 'presentation',

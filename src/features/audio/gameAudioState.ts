@@ -4,7 +4,8 @@ import type { GameAudioCue } from './soundPacks'
 export interface AudioTrackIntent {
   cue: GameAudioCue
   loop: boolean
-  eventKey?: string
+  eventKey: string
+  authoritativeVariantIndex?: number
 }
 
 export interface GameAudioIntent {
@@ -42,14 +43,17 @@ export function deriveGameAudioIntent(
   }
 
   if (state.phase === 'lobby') {
-    return { music: { cue: 'lobby', loop: true }, effect: null, duckedForYouTube: false, displayCue: 'lobby' }
+    return { music: { cue: 'lobby', loop: true, eventKey: eventKey(state, 'lobby') }, effect: null, duckedForYouTube: false, displayCue: 'lobby' }
   }
 
   if (state.phase === 'question') {
     if (activePrelude === 'double-score') {
       return {
         music: null,
-        effect: { cue: 'doubleScore', loop: false, eventKey: eventKey(state, 'doubleScore') },
+        effect: {
+          cue: 'doubleScore', loop: false, eventKey: eventKey(state, 'doubleScore'),
+          authoritativeVariantIndex: state.doubleScoreVariantIndex ?? undefined,
+        },
         duckedForYouTube: false,
         displayCue: 'doubleScore',
       }
@@ -63,7 +67,7 @@ export function deriveGameAudioIntent(
       : null
     const urgent = threshold !== null && remainingSeconds <= threshold
     return {
-      music: { cue: urgent ? 'urgent' : 'question', loop: !urgent },
+      music: { cue: urgent ? 'urgent' : 'question', loop: !urgent, eventKey: eventKey(state, urgent ? 'urgent' : 'question') },
       effect: null,
       duckedForYouTube: false,
       displayCue: urgent ? 'urgent' : 'question',

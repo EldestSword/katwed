@@ -7,11 +7,19 @@ import type {
 } from '../../types/domain'
 import {
   getSoundPack,
+  doubleScoreVariantDurations,
   normaliseDoubleScoreDurationMs,
   normaliseSoundPackId,
 } from '../audio/soundPacks'
 
 export const QUESTION_TYPE_INTRO_MS = 1_750
+export const MAX_DOUBLE_SCORE_VARIANTS = 64
+
+export function normaliseDoubleScoreVariantDurations(value: unknown, fallback: readonly number[] = [5_000]): number[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > MAX_DOUBLE_SCORE_VARIANTS) return [...fallback]
+  const durations = value.map(normaliseDoubleScoreDurationMs)
+  return durations.every((duration, index) => duration === value[index]) ? durations : [...fallback]
+}
 
 export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 'type'>[]): boolean {
   return new Set(questions.map((question) => question.type)).size > 1
@@ -48,9 +56,11 @@ export function createGameSessionSettings(
 ): GameSessionSettings {
   const launch = normaliseLaunchGameSettings(value, quiz)
   const pack = getSoundPack(launch.soundPackId)
+  const variantDurations = doubleScoreVariantDurations(pack)
   return {
     ...launch,
-    doubleScoreIntroMs: normaliseDoubleScoreDurationMs(pack.doubleScoreDurationMs),
+    doubleScoreIntroMs: variantDurations[0],
+    doubleScoreVariantDurationsMs: variantDurations,
     questionTypeIntrosEnabled: quizUsesMixedQuestionTypes(quiz.questions),
     answerOptionSeed,
   }
@@ -62,9 +72,14 @@ export function normaliseGameSessionSettings(
   fallbackSeed = 'legacy-session',
 ): GameSessionSettings {
   const soundPackId = normaliseSoundPackId(value?.soundPackId ?? fallbackSoundPackId)
+  const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
   return {
     soundPackId,
-    doubleScoreIntroMs: normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs),
+    doubleScoreIntroMs: fallbackDuration,
+    doubleScoreVariantDurationsMs: normaliseDoubleScoreVariantDurations(
+      value?.doubleScoreVariantDurationsMs,
+      [fallbackDuration],
+    ),
     shuffleQuestionOrder: value?.shuffleQuestionOrder === true,
     shuffleAnswerOptions: value?.shuffleAnswerOptions === true,
     autoLockWhenAllAnswered: value?.autoLockWhenAllAnswered !== false,

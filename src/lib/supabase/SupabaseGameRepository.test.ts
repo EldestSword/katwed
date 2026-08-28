@@ -164,7 +164,10 @@ describe('SupabaseGameRepository game launch', () => {
     const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
 
     await expect(repository.launchGame(mixedDemoQuiz.id, settings)).resolves.toMatchObject(rawSession)
-    expect(rpc).toHaveBeenCalledWith('host_launch_game', { p_quiz_id: mixedDemoQuiz.id, p_settings: settings })
+    expect(rpc).toHaveBeenCalledWith('host_launch_game', {
+      p_quiz_id: mixedDemoQuiz.id,
+      p_settings: { ...settings, doubleScoreVariantDurationsMs: [5000] },
+    })
   })
 
   it('uses the authenticated host override RPC and retains automatic judgement metadata', async () => {

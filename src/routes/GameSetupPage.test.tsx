@@ -58,6 +58,7 @@ describe('GameSetupPage', () => {
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
 
     const music = screen.getByRole('group', { name: 'Music theme' })
+    expect(within(music).getByRole('button', { name: /Hard Rock/ })).toBeVisible()
     await user.click(within(music).getByRole('button', { name: /None/ }))
     await user.click(screen.getByRole('checkbox', { name: /Shuffle question order/ }))
     await user.click(screen.getByRole('checkbox', { name: /Shuffle all answer choices/ }))

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameAudioIntent } from './gameAudioState'
 import { GameAudioEngine } from './gameAudioEngine'
-import { getSoundPack } from './soundPacks'
+import { AudioVariantSelectionStore } from './audioVariantSelection'
+import { getSoundPack, type SoundPackDefinition } from './soundPacks'
 
 class FakeAudio {
   src = ''
@@ -15,7 +16,7 @@ class FakeAudio {
   addEventListener = vi.fn()
 }
 
-const music = (cue: 'lobby' | 'question' | 'urgent' | 'leaderboard' | 'final', loop = true, eventKey?: string): GameAudioIntent => ({
+const music = (cue: 'lobby' | 'question' | 'urgent' | 'leaderboard' | 'final', loop = true, eventKey = `${cue}-event`): GameAudioIntent => ({
   music: { cue, loop, eventKey }, effect: null, duckedForYouTube: false, displayCue: cue,
 })
 const effect = (cue: 'doubleScore' | 'lock' | 'reveal', eventKey: string): GameAudioIntent => ({
@@ -148,5 +149,67 @@ describe('GameAudioEngine', () => {
     engine.transition(music('lobby'), getSoundPack('none'))
     expect(elements).toHaveLength(0)
     expect((engine as unknown as { music: FakeAudio[] }).music.every((element) => !element.src)).toBe(true)
+  })
+
+  it('keeps a Question variant stable across duplicate updates and a Presentation refresh', () => {
+    const questionVariants = [
+      { src: '/question-01.mp3', durationMs: 1000 },
+      { src: '/question-02.mp3', durationMs: 1000 },
+      { src: '/question-03.mp3', durationMs: 1000 },
+    ]
+    const pack: SoundPackDefinition = {
+      id: 'variants', name: 'Variants', description: 'Test',
+      assets: {
+        lobby: questionVariants, question: questionVariants, urgent: questionVariants,
+        doubleScore: questionVariants, lock: questionVariants, reveal: questionVariants,
+        leaderboard: questionVariants, final: questionVariants,
+      },
+    }
+    const firstElements = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    const selector = new AudioVariantSelectionStore(localStorage, () => 0)
+    const firstEngine = new GameAudioEngine(
+      () => firstElements.shift() as unknown as HTMLAudioElement, vi.fn(), 0, new Set(), selector,
+    )
+    firstEngine.transition(music('question', true, 'session:q1:opened:question'), pack)
+    const firstSrc = (firstEngine as unknown as { activeMusic: { element: FakeAudio } }).activeMusic.element.src
+    firstEngine.transition(music('question', true, 'session:q1:opened:question'), pack)
+    expect((firstEngine as unknown as { activeMusic: { element: FakeAudio } }).activeMusic.element.src).toBe(firstSrc)
+
+    const nextElements = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    firstEngine.transition(music('question', true, 'session:q2:opened:question'), pack)
+    const nextSrc = (firstEngine as unknown as { activeMusic: { element: FakeAudio } }).activeMusic.element.src
+    expect(nextSrc).not.toBe(firstSrc)
+    const refreshed = new GameAudioEngine(
+      () => nextElements.shift() as unknown as HTMLAudioElement, vi.fn(), 0, new Set(),
+      new AudioVariantSelectionStore(localStorage, () => 0.9),
+    )
+    refreshed.transition(music('question', true, 'session:q2:opened:question'), pack)
+    expect((refreshed as unknown as { activeMusic: { element: FakeAudio } }).activeMusic.element.src).toBe(nextSrc)
+  })
+
+  it('plays the Double Score variant index chosen by the authoritative game state', () => {
+    const variants = [
+      { src: '/double-01.mp3', durationMs: 7200 },
+      { src: '/double-02.mp3', durationMs: 9100 },
+    ]
+    const pack: SoundPackDefinition = {
+      id: 'double-variants', name: 'Double', description: 'Test',
+      assets: {
+        lobby: variants, question: variants, urgent: variants, doubleScore: variants,
+        lock: variants, reveal: variants, leaderboard: variants, final: variants,
+      },
+    }
+    const elements = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+    const engine = new GameAudioEngine(
+      () => elements.shift() as unknown as HTMLAudioElement, vi.fn(), 0, new Set(),
+      new AudioVariantSelectionStore(localStorage, () => 0),
+    )
+    engine.transition({
+      music: null,
+      effect: { cue: 'doubleScore', loop: false, eventKey: 'session:q1:open:doubleScore', authoritativeVariantIndex: 1 },
+      duckedForYouTube: false,
+      displayCue: 'doubleScore',
+    }, pack)
+    expect((engine as unknown as { effect: FakeAudio }).effect.src).toContain('double-02.mp3')
   })
 })

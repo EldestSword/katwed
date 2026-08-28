@@ -22,7 +22,7 @@ import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizHeadToHead } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
-import { normaliseSoundPackId } from '../../features/audio/soundPacks'
+import { doubleScoreVariantDurations, getSoundPack, normaliseSoundPackId } from '../../features/audio/soundPacks'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 
@@ -88,6 +88,13 @@ function normaliseGameSession(
     questionOrder: Array.isArray(raw.questionOrder)
       ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
       : [],
+    doubleScoreVariantOrder: Array.isArray(session.doubleScoreVariantOrder)
+      ? session.doubleScoreVariantOrder.filter((index): index is number => Number.isInteger(index))
+      : [0],
+    doubleScoreVariantCursor: Number.isInteger(session.doubleScoreVariantCursor) ? session.doubleScoreVariantCursor : 0,
+    currentDoubleScoreVariantIndex: Number.isInteger(session.currentDoubleScoreVariantIndex)
+      ? session.currentDoubleScoreVariantIndex
+      : null,
     hostResponses,
     answers,
   }
@@ -158,10 +165,15 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async launchGame(quizId: string, settings?: LaunchGameSettings): Promise<GameSession> {
+    const pack = getSoundPack(settings?.soundPackId)
+    const launchSettings = settings ? {
+      ...settings,
+      doubleScoreVariantDurationsMs: doubleScoreVariantDurations(pack),
+    } : undefined
     return normaliseGameSession(
-      await this.rpc<GameSession>('host_launch_game', { p_quiz_id: quizId, p_settings: settings ?? {} }),
-      settings?.soundPackId,
-      settings,
+      await this.rpc<GameSession>('host_launch_game', { p_quiz_id: quizId, p_settings: launchSettings ?? {} }),
+      launchSettings?.soundPackId,
+      launchSettings,
     )
   }
 

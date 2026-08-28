@@ -1,30 +1,55 @@
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SOUND_PACK_ID, getSoundPack, normaliseDoubleScoreDurationMs, normaliseSoundPackId, soundPacks } from './soundPacks'
+import sizeReport from '../../../docs/audio-pack-size-report.json'
+import {
+  DEFAULT_SOUND_PACK_ID,
+  getSoundPack,
+  normaliseDoubleScoreDurationMs,
+  normaliseSoundPackId,
+  soundPacks,
+} from './soundPacks'
 
 describe('sound-pack registry', () => {
-  it('offers only the Katwed Core pack and None', () => {
-    expect(soundPacks.map(({ id, name }) => [id, name])).toEqual([
-      ['katwed', 'Katwed!'],
-      ['none', 'None'],
+  it('registers Core, every prepared local pack and the deliberate silent option', () => {
+    expect(soundPacks.map(({ id }) => id)).toEqual([
+      'katwed', '1940s', '1950s', '1960s', '1970s', '1980s', '1990s',
+      'arcade', 'blues', 'hard-rock', 'jazz', 'midnight', 'mint', 'paper', 'pop', 'sunset', 'none',
     ])
-    expect(getSoundPack('katwed').assets).toEqual({
-      lobby: '/audio/packs/katwed/lobby.mp3',
-      question: '/audio/packs/katwed/question.mp3',
-      urgent: '/audio/packs/katwed/urgent.mp3',
-      doubleScore: '/audio/packs/katwed/double-score.mp3',
-      lock: '/audio/packs/katwed/lock.mp3',
-      reveal: '/audio/packs/katwed/reveal.mp3',
-      leaderboard: '/audio/packs/katwed/leaderboard.mp3',
-      final: '/audio/packs/katwed/final.mp3',
-    })
     expect(getSoundPack('none').assets).toBeNull()
-    expect(soundPacks.map((pack) => pack.doubleScoreDurationMs)).toEqual([5000, 5000])
   })
 
-  it('defaults missing and future values safely to Katwed', () => {
+  it('keeps every production pack complete, unique and backed by committed files', () => {
+    for (const pack of soundPacks.filter((candidate) => candidate.id !== 'none')) {
+      expect(pack.assets).not.toBeNull()
+      const filenames = new Set<string>()
+      for (const variants of Object.values(pack.assets!)) {
+        expect(variants.length).toBeGreaterThan(0)
+        for (const variant of variants) {
+          expect(filenames.has(variant.src)).toBe(false)
+          filenames.add(variant.src)
+          expect(existsSync(resolve('public', variant.src.slice(1)))).toBe(true)
+        }
+      }
+      for (const variant of pack.assets!.doubleScore) {
+        expect(variant.durationMs).toBeGreaterThanOrEqual(500)
+        expect(variant.durationMs).toBeLessThanOrEqual(30_000)
+      }
+    }
+  })
+
+  it('uses the prepared Double Score durations recorded by the production report', () => {
+    for (const reported of sizeReport.packs) {
+      expect(getSoundPack(reported.id).assets?.doubleScore.map((variant) => variant.durationMs))
+        .toEqual(reported.doubleScoreDurationsMs)
+    }
+  })
+
+  it('defaults missing and unknown values safely to Katwed', () => {
     expect(DEFAULT_SOUND_PACK_ID).toBe('katwed')
     expect(normaliseSoundPackId(undefined)).toBe('katwed')
     expect(normaliseSoundPackId('future')).toBe('katwed')
+    expect(normaliseSoundPackId('hard-rock')).toBe('hard-rock')
   })
 
   it('bounds invalid Double Score metadata to the safe five-second fallback', () => {

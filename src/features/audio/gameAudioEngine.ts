@@ -1,6 +1,7 @@
 import type { AudioPreferences } from './audioPreferences'
 import type { AudioTrackIntent, GameAudioIntent } from './gameAudioState'
 import type { GameAudioCue, SoundPackDefinition } from './soundPacks'
+import { AudioVariantSelectionStore } from './audioVariantSelection'
 
 export type AudioEngineStatus = 'idle' | 'playing' | 'blocked' | 'error'
 type AudioFactory = () => HTMLAudioElement
@@ -30,6 +31,7 @@ export class GameAudioEngine {
     private readonly statusChanged: (status: AudioEngineStatus) => void = () => undefined,
     private readonly fadeDuration = 350,
     private readonly playedEvents: Set<string> = playedAudioEvents,
+    private readonly variants = new AudioVariantSelectionStore(),
   ) {
     this.music = [createAudio(), createAudio()]
     this.effect = createAudio()
@@ -97,22 +99,24 @@ export class GameAudioEngine {
       this.activeMusic.loop === track.loop &&
       this.activeMusic.eventKey === track.eventKey
     ) return
-    if (track.eventKey && this.hasPlayed(track.eventKey)) {
+    if (!track.loop && this.hasPlayed(track.eventKey)) {
       if (this.activeMusic && this.activeMusic.eventKey !== track.eventKey) this.fadeOut(this.activeMusic.element, true)
       this.activeMusic = null
       return
     }
+    const asset = this.variants.select(track.eventKey.split(':', 1)[0], pack, track.cue, track.eventKey, track.authoritativeVariantIndex)
+    if (!asset) return
 
     const previous = this.activeMusic?.element ?? null
     this.activeMusicIndex = this.activeMusicIndex === 0 ? 1 : 0
     const element = this.music[this.activeMusicIndex]
     element.pause()
-    element.src = pack.assets[track.cue]
+    element.src = asset.src
     element.currentTime = 0
     element.loop = track.loop
     element.volume = 0
     this.activeMusic = { element, ...track, started: false }
-    if (track.eventKey) this.markPlayed(track.eventKey)
+    if (!track.loop) this.markPlayed(track.eventKey)
     if (this.preferences.muted) return
     this.activeMusic.started = true
     this.safePlay(element)
@@ -127,10 +131,12 @@ export class GameAudioEngine {
       return
     }
     if (this.activeEffectKey === track.eventKey || this.hasPlayed(track.eventKey)) return
+    const asset = this.variants.select(track.eventKey.split(':', 1)[0], pack, track.cue, track.eventKey, track.authoritativeVariantIndex)
+    if (!asset) return
     this.markPlayed(track.eventKey)
     this.activeEffectKey = track.eventKey
     this.effect.pause()
-    this.effect.src = pack.assets[track.cue]
+    this.effect.src = asset.src
     this.effect.currentTime = 0
     this.effect.loop = false
     this.effect.volume = this.preferences.muted ? 0 : this.preferences.effectsVolume

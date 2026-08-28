@@ -39,6 +39,12 @@ describe('game-session launch settings', () => {
     expect(questionPreludeKind({ doubleScore: true }, settings)).toBe('double-score')
   })
 
+  it('copies the selected production pack Double Score durations into the session settings', () => {
+    const settings = createGameSessionSettings({ soundPackId: 'hard-rock' }, mixedDemoQuiz, 'session')
+    expect(settings.soundPackId).toBe('hard-rock')
+    expect(settings.doubleScoreVariantDurationsMs).toEqual([7200, 5600])
+  })
+
   it('creates one complete stable question order without changing authored display order', () => {
     const original = mixedDemoQuiz.questions.map((question) => [question.id, question.displayOrder])
     const order = createSessionQuestionOrder(mixedDemoQuiz.questions, true, 'session-a')

@@ -37,6 +37,6 @@ describe('route security', () => {
     await user.click(await screen.findByRole('button', { name: 'Enter demo host area' }))
     const hostNavigation = await screen.findByRole('navigation', { name: 'Host navigation' }, { timeout: 5000 })
     await user.click(hostNavigation.querySelector('a[href="/host/design-system"]')!)
-    expect(await screen.findByRole('heading', { name: 'Katwed! design system' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Katwed! design system' }, { timeout: 5000 })).toBeInTheDocument()
   })
 })
