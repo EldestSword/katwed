@@ -316,6 +316,10 @@ describe('Katwed quiz portable parser', () => {
     file.quiz.soundPackId = 'none'
     expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
 
+    file.quiz.soundPackId = 'hard-rock'
+    expect(parse(file).input.soundPackId).toBe('hard-rock')
+    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+
     const unsupportedSound = standardFile() as unknown as { quiz: { soundPackId: string } }
     unsupportedSound.quiz.soundPackId = 'future-pack'
     expect(() => parseKatwedQuizJson(JSON.stringify(unsupportedSound))).toThrow('unsupported sound pack')

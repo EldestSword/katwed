@@ -151,6 +151,23 @@ describe('GameAudioEngine', () => {
     expect((engine as unknown as { music: FakeAudio[] }).music.every((element) => !element.src)).toBe(true)
   })
 
+  it('constructs and continues when accessing localStorage throws a SecurityError', () => {
+    const storageAccess = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Storage is restricted', 'SecurityError')
+    })
+    try {
+      const elements = [new FakeAudio(), new FakeAudio(), new FakeAudio()]
+      const engine = new GameAudioEngine(
+        () => elements.shift() as unknown as HTMLAudioElement, vi.fn(), 0, new Set(),
+      )
+      expect(() => engine.transition(music('lobby'), getSoundPack('katwed'))).not.toThrow()
+      expect((engine as unknown as { activeMusic: { element: FakeAudio } }).activeMusic.element.src)
+        .toContain('/audio/packs/katwed/lobby.mp3')
+    } finally {
+      storageAccess.mockRestore()
+    }
+  })
+
   it('keeps a Question variant stable across duplicate updates and a Presentation refresh', () => {
     const questionVariants = [
       { src: '/question-01.mp3', durationMs: 1000 },

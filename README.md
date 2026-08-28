@@ -348,7 +348,7 @@ The browser never receives a Supabase service-role credential.
 
 The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270010_bound_host_response_serialisation.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
 
-Audio Pass 2 adds the pending forward migration `202608280001_multi_variant_sound_packs.sql`. It generalises session pack IDs to safe slugs, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. It has not been applied to production or deployed to Netlify.
+Audio Pass 2 adds the pending forward migration `202608280001_multi_variant_sound_packs.sql`. It generalises persisted quiz and session pack IDs to safe slugs, keeps the stale-client-compatible quiz-save wrapper, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. It has not been applied to production or deployed to Netlify.
 
 For a new Supabase environment:
 
@@ -444,7 +444,7 @@ Applied migration `202608270009_host_intelligence_and_typed_overrides.sql` adds 
 
 Applied migration `202608270010_bound_host_response_serialisation.sql` bounds authenticated controller refresh payloads to the current question. It always returns payload-free current-question response markers for named waiting status, while raw answer detail is returned only when the session preference is enabled and the room has at most 15 players. The player-safe state and anonymous RPC boundary are unchanged.
 
-Pending migration `202608280001_multi_variant_sound_packs.sql` adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts only safe pack slugs rather than client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
+Pending migration `202608280001_multi_variant_sound_packs.sql` expands both permanent quiz and session pack IDs to the same bounded safe-slug rule, updates the existing stale-client-compatible save wrapper, adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts no client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
 
 ### Production pgcrypto repair
 

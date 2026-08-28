@@ -2,6 +2,13 @@
 -- The browser registry owns asset paths; PostgreSQL accepts only a safe pack slug and
 -- bounded Double Score durations, then selects the authoritative sting index per event.
 
+alter table public.quizzes
+  drop constraint quizzes_sound_pack_id_check,
+  add constraint quizzes_sound_pack_id_check check (
+    length(sound_pack_id) between 1 and 64 and
+    sound_pack_id ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+  );
+
 alter table public.game_sessions
   drop constraint game_sessions_sound_pack_id_check,
   add column double_score_variant_durations_ms integer[] not null default array[5000],
@@ -27,6 +34,43 @@ set double_score_variant_durations_ms = array[double_score_intro_ms],
     double_score_variant_order = array[0],
     double_score_variant_cursor = 0,
     current_double_score_variant_index = null;
+
+-- Keep the established save chain and stale-client behaviour while allowing every
+-- browser-registered pack ID that satisfies the same bounded slug rule as launch.
+create or replace function public.host_save_quiz(p_quiz jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_saved jsonb;
+  v_quiz_id uuid;
+  v_sound_pack_id text;
+begin
+  if p_quiz ? 'soundPackId' then
+    if jsonb_typeof(p_quiz -> 'soundPackId') is distinct from 'string' then
+      raise exception 'Sound pack ID must be text';
+    end if;
+    v_sound_pack_id := p_quiz ->> 'soundPackId';
+    if length(v_sound_pack_id) not between 1 and 64 or
+      v_sound_pack_id !~ '^[a-z0-9]+(-[a-z0-9]+)*$' then
+      raise exception 'Unsupported sound pack ID';
+    end if;
+  end if;
+
+  v_saved := public.host_save_quiz_without_sound_pack(p_quiz);
+  v_quiz_id := (v_saved ->> 'id')::uuid;
+
+  update public.quizzes
+  set sound_pack_id = case
+        when p_quiz ? 'soundPackId' then p_quiz ->> 'soundPackId'
+        else sound_pack_id
+      end
+  where id = v_quiz_id;
+
+  return public.quiz_to_json(v_quiz_id);
+end;
+$$;
+
+revoke all on function public.host_save_quiz(jsonb) from public, anon;
+grant execute on function public.host_save_quiz(jsonb) to authenticated;
 
 create or replace function public.consume_double_score_variant(p_session_id uuid)
 returns table(variant_index integer, duration_ms integer)

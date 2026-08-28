@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SoundPackDefinition } from './soundPacks'
 import { AudioVariantSelectionStore, shuffledVariantIndices } from './audioVariantSelection'
 
@@ -57,6 +57,21 @@ describe('audio variant shuffle bags', () => {
     const audioPack = pack(3)
     expect(store.select('session', audioPack, 'doubleScore', 'double-1', 2)?.src).toBe('/question-3.mp3')
     expect(store.select('session', audioPack, 'doubleScore', 'double-1', 0)?.src).toBe('/question-3.mp3')
+  })
+
+  it('guards access to localStorage itself and retains selections in memory', () => {
+    const storageAccess = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Storage is restricted', 'SecurityError')
+    })
+    try {
+      const store = new AudioVariantSelectionStore(undefined, () => 0)
+      const audioPack = pack(3)
+      const first = store.select('session', audioPack, 'question', 'question-one')
+      expect(store.select('session', audioPack, 'question', 'question-one')).toEqual(first)
+      expect(store.select('session', audioPack, 'question', 'question-two')).not.toEqual(first)
+    } finally {
+      storageAccess.mockRestore()
+    }
   })
 
   it('reshuffles deterministic index bags while respecting the previous index', () => {

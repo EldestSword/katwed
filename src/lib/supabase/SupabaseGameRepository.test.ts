@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, it, vi } from 'vitest'
+import { exportQuizToPortable, parseKatwedQuizJson } from '../../features/quiz-transfer/katwedQuizFormat'
 import { mixedDemoQuiz } from '../demo/sampleData'
 import { SupabaseGameRepository } from './SupabaseGameRepository'
 
@@ -145,6 +146,50 @@ describe('SupabaseGameRepository duplication', () => {
 })
 
 describe('SupabaseGameRepository game launch', () => {
+  it('imports, saves and later launches a quiz with a newly registered sound pack', async () => {
+    const portable = exportQuizToPortable({ ...structuredClone(mixedDemoQuiz), soundPackId: 'hard-rock' })
+    const imported = parseKatwedQuizJson(JSON.stringify(portable))
+    const savedId = '323e4567-e89b-42d3-a456-426614174000'
+    let savedQuiz: Record<string, unknown> | null = null
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'host_save_quiz') {
+        const input = args.p_quiz as Record<string, unknown>
+        savedQuiz = {
+          ...input, id: savedId, archivedAt: null,
+          createdAt: '2026-08-28T12:00:00.000Z', updatedAt: '2026-08-28T12:00:00.000Z',
+        }
+        return { data: savedQuiz, error: null }
+      }
+      if (name === 'host_launch_game') {
+        expect(args).toEqual({ p_quiz_id: savedId, p_settings: {} })
+        expect(savedQuiz).toMatchObject({ soundPackId: 'hard-rock' })
+        return {
+          data: {
+            id: 'session', quizId: savedId, roomCode: '123456', status: 'active', phase: 'lobby',
+            currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null,
+            startedAt: null, endedAt: null, players: [], answers: [], questionOrder: [],
+            settings: {
+              soundPackId: 'hard-rock', doubleScoreIntroMs: 7200,
+              doubleScoreVariantDurationsMs: [7200, 5600], shuffleQuestionOrder: false,
+              shuffleAnswerOptions: false, autoLockWhenAllAnswered: true,
+              showPlayerAnswersToHost: true, questionTypeIntrosEnabled: true, answerOptionSeed: 'seed',
+            },
+          },
+          error: null,
+        }
+      }
+      throw new Error(`Unexpected RPC: ${name}`)
+    })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    const saved = await repository.saveQuiz(imported.input)
+    const launched = await repository.launchGame(saved.id)
+
+    expect(saved.soundPackId).toBe('hard-rock')
+    expect(launched.settings.soundPackId).toBe('hard-rock')
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual(['host_save_quiz', 'host_launch_game'])
+  })
+
   it('passes launch settings atomically and normalises the persisted session response', async () => {
     const settings = {
       soundPackId: 'none' as const,

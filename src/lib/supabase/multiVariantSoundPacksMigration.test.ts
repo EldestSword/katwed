@@ -14,6 +14,15 @@ describe('multi-variant Sound Pack migration', () => {
     expect(migration).toMatch(/sound_pack_id ~ '\^\[a-z0-9\]/i)
   })
 
+  it('persists safe registered pack IDs through the quiz constraint and save wrapper', () => {
+    expect(migration).toMatch(/alter table public\.quizzes[\s\S]*drop constraint quizzes_sound_pack_id_check/i)
+    expect(migration).toMatch(/create or replace function public\.host_save_quiz\(p_quiz jsonb\)/i)
+    expect(migration).toMatch(/length\(v_sound_pack_id\) not between 1 and 64/i)
+    expect(migration).toMatch(/v_sound_pack_id !~ '\^\[a-z0-9\]/i)
+    expect(migration).toContain('v_saved := public.host_save_quiz_without_sound_pack(p_quiz)')
+    expect(migration).toMatch(/when p_quiz \? 'soundPackId' then p_quiz ->> 'soundPackId'[\s\S]*else sound_pack_id/i)
+  })
+
   it('keeps both launch overloads and validates client duration metadata', () => {
     expect(migration).toMatch(/host_launch_game\(p_quiz_id uuid, p_settings jsonb\)/i)
     expect(migration).toMatch(/host_launch_game\(p_quiz_id uuid\)/i)

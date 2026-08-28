@@ -55,10 +55,17 @@ function validOrder(order: unknown, size: number): order is number[] {
 }
 
 export class AudioVariantSelectionStore {
+  private readonly storage: Storage | null
+  private readonly random: RandomSource
+  private memoryState = emptyState()
+
   constructor(
-    private readonly storage: Storage | null = typeof localStorage === 'undefined' ? null : localStorage,
-    private readonly random: RandomSource = cryptoRandom,
-  ) {}
+    storage?: Storage | null,
+    random: RandomSource = cryptoRandom,
+  ) {
+    this.storage = storage === undefined ? this.resolveLocalStorage() : storage
+    this.random = random
+  }
 
   select(
     sessionId: string,
@@ -104,18 +111,19 @@ export class AudioVariantSelectionStore {
   }
 
   private read(): PersistedVariantState {
-    if (!this.storage) return emptyState()
+    if (!this.storage) return this.memoryState
     try {
       const parsed: unknown = JSON.parse(this.storage.getItem(STORAGE_KEY) ?? '')
       if (typeof parsed === 'object' && parsed !== null &&
         typeof (parsed as PersistedVariantState).sessionPacks === 'object') return parsed as PersistedVariantState
     } catch {
-      // Restricted or malformed storage falls back to an in-memory selection for this transition.
+      // Restricted or malformed storage falls back to in-memory selection state.
     }
-    return emptyState()
+    return this.memoryState
   }
 
   private write(state: PersistedVariantState): void {
+    this.memoryState = state
     try {
       this.storage?.setItem(STORAGE_KEY, JSON.stringify(state))
     } catch {
@@ -126,5 +134,13 @@ export class AudioVariantSelectionStore {
   private prune(state: PersistedVariantState): void {
     const entries = Object.entries(state.sessionPacks).sort((left, right) => right[1].updatedAt - left[1].updatedAt)
     state.sessionPacks = Object.fromEntries(entries.slice(0, MAX_SESSION_PACKS))
+  }
+
+  private resolveLocalStorage(): Storage | null {
+    try {
+      return typeof window === 'undefined' ? null : window.localStorage
+    } catch {
+      return null
+    }
   }
 }
