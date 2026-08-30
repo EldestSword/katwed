@@ -13,7 +13,7 @@ import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/dom
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
 import { orderedQuestionOptions } from '../questions/optionOrdering'
-import { quizBackgroundSurfaceProps } from '../themes/quizBackgroundSurface'
+import { quizThemeSurfaceProps } from '../themes/quizThemeSurface'
 import { DoubleScoreBadge, DoubleScoreIntro } from './DoubleScoreIntro'
 import { FinalResults, HeadToHeadFinal } from './FinalResults'
 import { PinpointSurface } from './PinpointSurface'
@@ -133,7 +133,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const composition = question ? questionComposition(question, showMedia, showChoices) : undefined
 
   return (
-    <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-quiz-theme={state.themeId} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)} aria-live="polite">
+    <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live="polite">
       {state.phase === 'lobby' && (
         <div className={`presentation-lobby ${headToHead ? 'presentation-lobby--head-to-head' : ''}`}>
           <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">Lobby</GameBadge></header>

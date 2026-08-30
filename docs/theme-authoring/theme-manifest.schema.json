@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katwed.example/schemas/theme-manifest-v2.schema.json",
+  "title": "Katwed Visual Theme Authoring Manifest v2",
+  "description": "Build-time contract for a reviewed local theme source package. It is not a quiz import format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "category", "description", "keywords", "displayFontId", "uiFontId", "swatches", "tokens", "backgrounds"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "id": { "$ref": "#/$defs/slug" },
+    "name": { "type": "string", "minLength": 2, "maxLength": 60 },
+    "category": {
+      "enum": ["katwed-originals", "abstract", "music", "decades", "cinematic", "places-culture", "seasonal", "entertainment", "wildcards"]
+    },
+    "description": { "type": "string", "minLength": 12, "maxLength": 180 },
+    "keywords": {
+      "type": "array", "minItems": 3, "maxItems": 12, "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9 &'-]{0,29}$" }
+    },
+    "displayFontId": { "$ref": "#/$defs/fontId" },
+    "uiFontId": { "$ref": "#/$defs/fontId" },
+    "swatches": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "prefixItems": [{ "$ref": "#/$defs/hexColour" }, { "$ref": "#/$defs/hexColour" }, { "$ref": "#/$defs/hexColour" }],
+      "items": false
+    },
+    "preview": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "label"],
+          "properties": { "kind": { "const": "tokens" }, "label": { "type": "string", "minLength": 5, "maxLength": 100 } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "label", "sourceFilename"],
+          "properties": {
+            "kind": { "const": "thumbnail" },
+            "label": { "type": "string", "minLength": 5, "maxLength": 100 },
+            "sourceFilename": { "$ref": "#/$defs/localImageFilename" }
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canvas", "surface", "surfaceSecondary", "text", "textMuted", "border", "accent", "accentSecondary", "accentText", "focus",
+        "featureBackground", "featureText", "buttonBackground", "buttonText", "buttonShadow", "answerSurface", "answerSelected",
+        "leaderboardSurface", "leaderboardHighlight", "progress", "stageBackground", "playerBarBackground", "playerBarText", "playerBarMuted",
+        "stageText", "stageTextMuted", "stageSurface", "stageBorder", "roomAccent", "stageEyebrow", "shadow"
+      ],
+      "properties": {
+        "canvas": { "$ref": "#/$defs/hexColour" },
+        "surface": { "$ref": "#/$defs/hexColour" },
+        "surfaceSecondary": { "$ref": "#/$defs/hexColour" },
+        "text": { "$ref": "#/$defs/hexColour" },
+        "textMuted": { "$ref": "#/$defs/hexColour" },
+        "border": { "$ref": "#/$defs/hexColour" },
+        "accent": { "$ref": "#/$defs/hexColour" },
+        "accentSecondary": { "$ref": "#/$defs/hexColour" },
+        "accentText": { "$ref": "#/$defs/hexColour" },
+        "focus": { "$ref": "#/$defs/hexColour" },
+        "featureBackground": { "$ref": "#/$defs/hexColour" },
+        "featureText": { "$ref": "#/$defs/hexColour" },
+        "buttonBackground": { "$ref": "#/$defs/hexColour" },
+        "buttonText": { "$ref": "#/$defs/hexColour" },
+        "buttonShadow": { "$ref": "#/$defs/hexColour" },
+        "answerSurface": { "$ref": "#/$defs/hexColour" },
+        "answerSelected": { "$ref": "#/$defs/hexColour" },
+        "leaderboardSurface": { "$ref": "#/$defs/hexColour" },
+        "leaderboardHighlight": { "$ref": "#/$defs/hexColour" },
+        "progress": { "$ref": "#/$defs/hexColour" },
+        "stageBackground": { "$ref": "#/$defs/stageBackground" },
+        "playerBarBackground": { "$ref": "#/$defs/hexColour" },
+        "playerBarText": { "$ref": "#/$defs/hexColour" },
+        "playerBarMuted": { "$ref": "#/$defs/hexColour" },
+        "stageText": { "$ref": "#/$defs/hexColour" },
+        "stageTextMuted": { "$ref": "#/$defs/hexColour" },
+        "stageSurface": { "$ref": "#/$defs/hexColour" },
+        "stageBorder": { "$ref": "#/$defs/hexColour" },
+        "roomAccent": { "$ref": "#/$defs/hexColour" },
+        "stageEyebrow": { "$ref": "#/$defs/hexColour" },
+        "shadow": { "$ref": "#/$defs/shadow" }
+      }
+    },
+    "backgrounds": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": { "$ref": "#/$defs/background" }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+    "hexColour": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$" },
+    "localImageFilename": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.(?:png|webp)$", "maxLength": 100 },
+    "fontId": {
+      "enum": ["system-ui", "bricolage-grotesque", "space-grotesk", "oswald", "fraunces", "cinzel", "rye", "pixelify-sans", "orbitron", "limelight", "uncial-antiqua", "roboto-slab"]
+    },
+    "stageBackground": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "colour"],
+          "properties": { "kind": { "const": "solid" }, "colour": { "$ref": "#/$defs/hexColour" } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "position", "inner", "outer", "outerStopPercent"],
+          "properties": {
+            "kind": { "const": "radial-gradient" },
+            "position": { "enum": ["top-left", "top", "top-right", "left", "centre", "right", "bottom-left", "bottom", "bottom-right"] },
+            "inner": { "$ref": "#/$defs/hexColour" },
+            "outer": { "$ref": "#/$defs/hexColour" },
+            "outerStopPercent": { "type": "integer", "minimum": 45, "maximum": 90 }
+          }
+        }
+      ]
+    },
+    "shadow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["xPx", "yPx", "blurPx", "colour"],
+      "properties": {
+        "xPx": { "type": "integer", "minimum": -40, "maximum": 40 },
+        "yPx": { "type": "integer", "minimum": -40, "maximum": 60 },
+        "blurPx": { "type": "integer", "minimum": 0, "maximum": 90 },
+        "colour": { "$ref": "#/$defs/hexColour" }
+      }
+    },
+    "background": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "sourceFilename"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 50 },
+        "sourceFilename": { "$ref": "#/$defs/localImageFilename" }
+      }
+    }
+  }
+}

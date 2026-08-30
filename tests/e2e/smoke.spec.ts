@@ -10,6 +10,8 @@ interface BrowserComputedStyle {
 }
 
 interface BrowserEvaluationElement {
+  clientWidth: number
+  scrollWidth: number
   closest(selector: string): unknown
   getAttribute(name: string): string | null
   getBoundingClientRect(): BrowserEvaluationRect
@@ -643,7 +645,26 @@ test('quiz themes persist through duplication and audience game phases', async (
   let settings = await openQuizSettings(page, 'Appearance')
   const themePicker = settings.getByRole('group', { name: 'Quiz theme' })
   let backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
-  await expect(themePicker.getByRole('button')).toHaveCount(6)
+  await expect(themePicker.locator('.quiz-theme-option')).toHaveCount(6)
+  const themeSearch = themePicker.getByRole('searchbox', { name: 'Search themes' })
+  await expect(themeSearch).toBeVisible()
+  await themeSearch.fill('  electric   blue ')
+  await expect(themePicker.locator('.quiz-theme-option')).toHaveCount(1)
+  await expect(themePicker.getByRole('button', { name: /Midnight/ })).toBeVisible()
+  await themeSearch.fill('')
+  await themePicker.getByRole('button', { name: 'Entertainment', exact: true }).click()
+  await expect(themePicker.locator('.quiz-theme-option')).toHaveCount(1)
+  await expect(themePicker.getByRole('button', { name: /Arcade/ })).toBeVisible()
+  await themePicker.getByRole('button', { name: 'All' }).click()
+  const desktopViewport = page.viewportSize()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(settings).toBeVisible()
+  const mobileThemeGeometry = await themePicker.evaluate((element) => {
+    const browserElement = element as unknown as BrowserEvaluationElement
+    return { clientWidth: browserElement.clientWidth, scrollWidth: browserElement.scrollWidth }
+  })
+  expect(mobileThemeGeometry.scrollWidth).toBeLessThanOrEqual(mobileThemeGeometry.clientWidth)
+  if (desktopViewport) await page.setViewportSize(desktopViewport)
   await expect(backgroundPicker.getByRole('button')).toHaveCount(4)
   await expect(backgroundPicker.getByRole('button', { name: /Theme default/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Katwed! theme preview')).not.toHaveAttribute('data-quiz-background')
@@ -664,6 +685,8 @@ test('quiz themes persist through duplication and audience game phases', async (
   await backgroundPicker.getByRole('button', { name: /Grid/ }).click()
   const preview = page.getByLabel('Arcade theme preview')
   await expect(preview).toHaveAttribute('data-quiz-theme', 'arcade')
+  await expect(preview).toHaveCSS('font-family', /system-ui/)
+  await expect(preview.getByRole('heading')).toHaveCSS('font-family', /Bricolage Grotesque/)
   await expect(preview).toHaveAttribute('data-quiz-background', 'arcade-grid')
   await expect(preview).toHaveCSS('background-image', /arcade-grid\.webp/)
   await themePicker.getByRole('button', { name: /Paper/ }).click()

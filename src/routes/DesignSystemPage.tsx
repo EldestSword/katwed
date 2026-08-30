@@ -8,8 +8,10 @@ import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionSta
 import { ImageViewer } from '../components/ImageViewer'
 import { answerColourStyle, answerPalettes, resolveAnswerColours } from '../features/answer-palettes/answerPalettes'
 import { backgroundsForTheme } from '../features/themes/quizBackgrounds'
-import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
+import { quizThemeSurfaceProps } from '../features/themes/quizThemeSurface'
 import { quizThemes } from '../features/themes/quizThemes'
+import { ThemeBrowser } from '../features/themes/ThemeBrowser'
+import { themeFonts } from '../features/themes/themeFonts'
 import type { AnswerPaletteId, QuizBackgroundId, QuizThemeId } from '../types/domain'
 import { HostAudioControls } from '../components/HostAudioControls'
 
@@ -69,7 +71,7 @@ export function DesignSystemPage() {
         <label>Answer palette<select value={paletteId} onChange={(event) => setPaletteId(event.target.value as AnswerPaletteId)}>{answerPalettes.map((palette) => <option value={palette.id} key={palette.id}>{palette.name}</option>)}</select></label>
       </section>
 
-      <section className="design-system-stage quiz-themed-surface" data-quiz-theme={themeId} {...quizBackgroundSurfaceProps(backgroundId, themeId)} aria-labelledby="answer-tiles-heading">
+      <section className="design-system-stage quiz-themed-surface" {...quizThemeSurfaceProps(themeId, backgroundId)} aria-labelledby="answer-tiles-heading">
         <div className="design-system-stage__intro">
           <GameBadge tone="accent">{selectedTheme.name} theme</GameBadge>
           <div><p className="eyebrow">Core game primitive</p><h2 id="answer-tiles-heading">Answer tiles</h2></div>
@@ -100,7 +102,7 @@ export function DesignSystemPage() {
         <div className="design-system-section__heading"><div><p className="eyebrow">Theme compatibility</p><h2 id="themes-heading">All six quiz themes</h2></div><p>Semantic surface, text, border and accent tokens remain scoped per quiz.</p></div>
         <div className="design-system-theme-grid">
           {quizThemes.map((theme) => (
-            <article className="design-system-theme-card quiz-themed-surface" data-quiz-theme={theme.id} key={theme.id}>
+            <article className="design-system-theme-card quiz-themed-surface" {...quizThemeSurfaceProps(theme.id)} key={theme.id}>
               <GameBadge tone="accent">{theme.name}</GameBadge>
               <h3>{theme.name}</h3><p>{theme.description}</p>
               <div className="design-system-theme-card__swatches" aria-label={`${theme.name} key colours`}>{theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }}><span className="sr-only">{colour}</span></i>)}</div>
@@ -142,6 +144,22 @@ export function DesignSystemPage() {
       <section className="design-system-section design-system-columns" aria-labelledby="backstage-heading">
         <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Pass 3 · Backstage</p><h2 id="backstage-heading">Professional host primitives</h2><div className="backstage-lab-row is-selected"><b>07</b><span><strong>Which of these launched first?</strong><small>Multiple select · Ross</small></span></div><div className="backstage-lab-row"><b>08</b><span><strong>Name both people</strong><small>Mash-up · Jess</small></span></div></div>
         <div className="surface surface--raised design-system-specimen"><p className="eyebrow">Production status</p><h2>Phase-led controls</h2><div className="backstage-lab-stats"><span><small>Time</small><strong>14s</strong></span><span><small>Answered</small><strong>6 / 8</strong></span><span><small>Connected</small><strong>8 / 8</strong></span></div><button className="button button--primary button--wide" type="button">Reveal answer</button></div>
+      </section>
+
+      <section className="design-system-section design-system-theme-browser" aria-labelledby="theme-browser-heading">
+        <div className="design-system-section__heading"><div><p className="eyebrow">Growing catalogue</p><h2 id="theme-browser-heading">Theme discovery</h2></div><p>Search terms and stable categories keep the selector usable as the approved catalogue grows.</p></div>
+        <ThemeBrowser selectedId={themeId} onSelect={changeTheme} description="Browse the current approved themes without changing quiz data." />
+      </section>
+
+      <section className="design-system-section" aria-labelledby="font-registry-heading">
+        <div className="design-system-section__heading"><div><p className="eyebrow">Approved typography</p><h2 id="font-registry-heading">Theme font registry</h2></div><p>Theme authors choose a licensed registry ID; arbitrary font names and remote font URLs are not accepted.</p></div>
+        <div className="design-system-font-grid">
+          {themeFonts.map((font) => <article className="surface design-system-font-card" key={font.id}>
+            <small>{font.category} · {font.weights}</small>
+            <strong style={{ fontFamily: font.family }}>The quick quiz round</strong>
+            <span>{font.name}</span>
+          </article>)}
+        </div>
       </section>
 
       <section className="design-system-section design-system-columns" aria-labelledby="audio-heading">

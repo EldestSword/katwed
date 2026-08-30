@@ -9,11 +9,12 @@ import { validateQuestion, validateQuizSave } from '../features/quiz-editor/vali
 import { createQuestion } from '../features/questions/factories'
 import { questionTypes, questionTypeRegistry } from '../features/questions/registry'
 import { quizThemes } from '../features/themes/quizThemes'
+import { ThemeBrowser } from '../features/themes/ThemeBrowser'
 import {
   backgroundsForTheme,
   normaliseQuizBackgroundId,
 } from '../features/themes/quizBackgrounds'
-import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
+import { quizThemeSurfaceProps } from '../features/themes/quizThemeSurface'
 import { createHeadToHeadCompetitors, nextHeadToHeadAssignment } from '../features/head-to-head/headToHead'
 import { MAX_TYPED_ANSWER_LENGTH, parseTypedAnswerAlternatives } from '../features/typed-answer/typedAnswer'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
@@ -272,8 +273,7 @@ export function QuizEditorPage() {
             <article
               className="question-preview-card quiz-themed-surface"
               data-preview-audience={previewMode}
-              data-quiz-theme={quiz.themeId}
-              {...quizBackgroundSurfaceProps(quiz.backgroundId, quiz.themeId)}
+              {...quizThemeSurfaceProps(quiz.themeId, quiz.backgroundId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
             ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             </div>
@@ -637,7 +637,7 @@ function QuizBackgroundPicker({
         >
           <span
             className="quiz-background-option__preview quiz-themed-surface"
-            data-quiz-theme={themeId}
+            {...quizThemeSurfaceProps(themeId)}
             aria-hidden="true"
           ><i /></span>
           <span className="quiz-background-option__copy">
@@ -676,35 +676,7 @@ function QuizThemePicker({
   themeId: QuizThemeId
   select(themeId: QuizThemeId): void
 }) {
-  return (
-    <fieldset className="quiz-theme-picker">
-      <legend>Quiz theme</legend>
-      <p>Applied to presentation and player game screens. Save the quiz to keep this change.</p>
-      <div className="quiz-theme-grid">
-        {quizThemes.map((theme) => {
-          const selected = theme.id === themeId
-          return (
-            <button
-              key={theme.id}
-              className="quiz-theme-option"
-              type="button"
-              aria-pressed={selected}
-              onClick={() => select(theme.id)}
-            >
-              <span className="quiz-theme-option__swatches" aria-hidden="true">
-                {theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }} />)}
-              </span>
-              <span className="quiz-theme-option__copy">
-                <strong>{theme.name}</strong>
-                <small>{theme.description}</small>
-              </span>
-              <span className="quiz-theme-option__state">{selected ? 'Selected' : 'Choose'}</span>
-            </button>
-          )
-        })}
-      </div>
-    </fieldset>
-  )
+  return <ThemeBrowser selectedId={themeId} onSelect={select} />
 }
 
 function QuizCover({

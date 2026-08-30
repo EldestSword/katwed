@@ -2,8 +2,12 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { QUIZ_THEME_IDS } from '../../types/domain'
+import { getThemeCategory } from './themeCategories'
+import { getThemeFont } from './themeFonts'
+import { validateQuizThemeDefinition } from './themeValidation'
 import {
   DEFAULT_QUIZ_THEME_ID,
+  getQuizTheme,
   isQuizThemeId,
   normaliseQuizThemeId,
   quizThemes,
@@ -26,7 +30,7 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe('quiz theme registry', () => {
-  it('defines exactly the six curated IDs and human names', () => {
+  it('defines exactly the six stable themes', () => {
     expect(QUIZ_THEME_IDS).toEqual(['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'])
     expect(quizThemes.map(({ id, name }) => ({ id, name }))).toEqual([
       { id: 'katwed', name: 'Katwed!' },
@@ -36,35 +40,54 @@ describe('quiz theme registry', () => {
       { id: 'mint', name: 'Mint' },
       { id: 'paper', name: 'Paper' },
     ])
+    expect(new Set(quizThemes.map((theme) => theme.id)).size).toBe(quizThemes.length)
     expect(DEFAULT_QUIZ_THEME_ID).toBe('katwed')
   })
 
-  it('retains valid IDs and defensively normalises malformed values', () => {
+  it('retains valid IDs and defensively falls back for malformed values', () => {
     for (const id of QUIZ_THEME_IDS) {
       expect(isQuizThemeId(id)).toBe(true)
       expect(normaliseQuizThemeId(id)).toBe(id)
+      expect(getQuizTheme(id).id).toBe(id)
     }
     for (const value of ['unknown', 'ARCADE', '', null, undefined, 42]) {
       expect(isQuizThemeId(value)).toBe(false)
       expect(normaliseQuizThemeId(value)).toBe('katwed')
+      expect(getQuizTheme(value).id).toBe('katwed')
     }
   })
 
-  it('supplies a scoped semantic palette for every registered theme', () => {
+  it('provides complete discoverable theme metadata and approved fonts', () => {
+    for (const theme of quizThemes) {
+      expect(getThemeCategory(theme.category), `${theme.id} category`).not.toBeNull()
+      expect(theme.description.length).toBeGreaterThan(10)
+      expect(theme.keywords.length).toBeGreaterThanOrEqual(3)
+      expect(theme.swatches).toHaveLength(3)
+      expect(theme.preview?.kind).toBe('tokens')
+      expect(theme.preview?.label).toMatch(/preview$/)
+      expect(getThemeFont(theme.typography.displayFontId)?.roleSuitability.display).toBe(true)
+      expect(getThemeFont(theme.typography.uiFontId)?.roleSuitability.ui).toBe(true)
+    }
+  })
+
+  it('supplies accessible semantic colour pairs for every theme', () => {
+    for (const theme of quizThemes) {
+      expect(validateQuizThemeDefinition(theme), theme.id).toEqual([])
+      const { tokens } = theme
+      expect(contrastRatio(tokens.surface, tokens.text), `${theme.id} surface text`).toBeGreaterThanOrEqual(7)
+      expect(contrastRatio(tokens.surface, tokens.textMuted), `${theme.id} muted text`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(tokens.button.background, tokens.button.text), `${theme.id} button`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(tokens.feature.background, tokens.feature.text), `${theme.id} feature`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(tokens.stage.playerBarBackground, tokens.stage.playerBarText), `${theme.id} player bar`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(tokens.stage.playerBarBackground, tokens.stage.playerBarMuted), `${theme.id} player bar muted`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('keeps theme values out of duplicated per-ID CSS selectors', () => {
     const css = readFileSync(resolve('src/styles/global.css'), 'utf8')
-    for (const id of QUIZ_THEME_IDS) {
-      const start = css.indexOf(`[data-quiz-theme="${id}"]`)
-      const end = css.indexOf('\n}', start)
-      const scope = css.slice(start, end)
-      expect(start, id).toBeGreaterThanOrEqual(0)
-      for (const token of ['--quiz-bg', '--quiz-surface', '--quiz-text', '--quiz-border', '--quiz-accent', '--quiz-stage-bg', '--quiz-shadow']) {
-        expect(scope, `${id} ${token}`).toContain(token)
-      }
-      const surface = scope.match(/--quiz-surface:\s*(#[0-9a-f]{3,6})/i)?.[1]
-      const text = scope.match(/--quiz-text:\s*(#[0-9a-f]{3,6})/i)?.[1]
-      expect(surface, `${id} surface colour`).toBeDefined()
-      expect(text, `${id} text colour`).toBeDefined()
-      expect(contrastRatio(surface!, text!), `${id} answer-card contrast`).toBeGreaterThanOrEqual(7)
+    for (const id of QUIZ_THEME_IDS) expect(css).not.toContain(`[data-quiz-theme="${id}"] {`)
+    for (const token of ['--quiz-bg', '--quiz-surface', '--quiz-text', '--quiz-border', '--quiz-accent', '--quiz-stage-bg', '--quiz-shadow']) {
+      expect(readFileSync(resolve('src/features/themes/quizThemeSurface.ts'), 'utf8')).toContain(`'${token}'`)
     }
     const revealCardStart = css.indexOf('.reveal-answer-card {')
     const revealCardEnd = css.indexOf('\n}', revealCardStart)
@@ -74,7 +97,5 @@ describe('quiz theme registry', () => {
     expect(revealCard).toContain('border: 2px solid var(--quiz-border)')
     expect(revealCard).toContain('box-shadow: var(--quiz-shadow)')
     expect(revealCard).not.toContain('var(--quiz-stage-surface)')
-    expect(css).toContain('.presentation-qr-panel')
-    expect(css).toContain('background: #fff;')
   })
 })
