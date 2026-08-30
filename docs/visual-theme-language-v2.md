@@ -53,7 +53,7 @@ The 45 source PNGs total 165,457,097 bytes. Their production WebPs total 5,717,9
 
 ## Batch 3 measured performance
 
-The 45 source PNGs total 90,693,747 bytes. Their production WebPs total 4,199,856 bytes, a 95.37% reduction and 93,330 bytes on average. `new-year-confetti` is the smallest at 26,418 bytes; `comic-book-halftone` is the largest at 342,042 bytes. The 15 preview thumbnails add 125,562 bytes in total. Details are recorded in [`visual-theme-batch-3-size-report.json`](visual-theme-batch-3-size-report.json).
+The 45 source PNGs total 90,466,038 bytes. Their production WebPs total 4,183,836 bytes, a 95.38% reduction and 92,974 bytes on average. `new-year-confetti` is the smallest at 26,418 bytes; `comic-book-halftone` is the largest at 342,042 bytes. The 15 preview thumbnails add 123,332 bytes in total. Details are recorded in [`visual-theme-batch-3-size-report.json`](visual-theme-batch-3-size-report.json).
 
 ## Backgrounds
 

@@ -1,6 +1,6 @@
 {
   "batchId": "batch-03",
-  "sourceContentSha256": "42156c3ac896cc4e6cd2e559005989f5ad415450d1b70ce8323bba1d2ba5cfc4",
+  "sourceContentSha256": "d02f1a426eb10ec24c68cc186ad0974f4b4805423efc22f0c2a48c33c53e0474",
   "sourceArchiveSha256": "d60c1ecfe420a33193696d78b861d893a48abfadac86148641dcf1b383d04c98",
   "themeCount": 15,
   "backgroundCount": 45,
@@ -9,10 +9,10 @@
     "format": "webp",
     "quality": 82,
     "maximumDimensions": "1920x1080",
-    "totalSourceBytes": 90693747,
-    "totalProductionBytes": 4199856,
-    "reductionPercent": 95.37,
-    "averageBytes": 93330,
+    "totalSourceBytes": 90466038,
+    "totalProductionBytes": 4183836,
+    "reductionPercent": 95.38,
+    "averageBytes": 92974,
     "smallest": {
       "id": "new-year-confetti",
       "bytes": 26418
@@ -26,7 +26,7 @@
     "format": "webp",
     "quality": 68,
     "dimensions": "480x270",
-    "totalBytes": 125562
+    "totalBytes": 123332
   },
   "semanticTokenCorrections": [
     {
@@ -344,9 +344,9 @@
       "id": "sports-broadcast-motion",
       "themeId": "sports-broadcast",
       "sourceFilename": "sports-broadcast-motion.png",
-      "sourceBytes": 1855972,
+      "sourceBytes": 1628263,
       "productionFilename": "sports-broadcast-motion.webp",
-      "productionBytes": 81436,
+      "productionBytes": 65416,
       "width": 1920,
       "height": 1080,
       "quality": 82
@@ -625,7 +625,7 @@
       "themeId": "sports-broadcast",
       "sourceFilename": "sports-broadcast-motion.png",
       "thumbnailFilename": "sports-broadcast.webp",
-      "thumbnailBytes": 8920,
+      "thumbnailBytes": 6690,
       "width": 480,
       "height": 270,
       "quality": 68
