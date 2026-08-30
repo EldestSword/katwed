@@ -275,7 +275,7 @@ const visualThemeBatch3 = createBatchConfig({
   sourceDirectory: 'batch-03',
   sourceArchiveFilename: 'Katwed-Visual-Theme-Batch-03.zip',
   expectedSourceContentSha256: 'd02f1a426eb10ec24c68cc186ad0974f4b4805423efc22f0c2a48c33c53e0474',
-  expectedSourceArchiveSha256: 'd60c1ecfe420a33193696d78b861d893a48abfadac86148641dcf1b383d04c98',
+  expectedSourceArchiveSha256: '45bf3227aaa1a175fa4afa8e11b560c6b39f3d6b5b964c111fd9374d61268028',
   generatedModuleFilename: 'visualThemeBatch3.ts',
   reportFilename: 'visual-theme-batch-3-size-report.json',
   exports: {
