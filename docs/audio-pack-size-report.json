@@ -11,6 +11,33 @@
   },
   "packs": [
     {
+      "id": "90s-rave",
+      "name": "90s Rave",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 1,
+        "lock": 1,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11043808,
+      "productionBytes": 8680680,
+      "reductionPercent": 21.4,
+      "doubleScoreDurationsMs": [
+        12280
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.559
+        }
+      ]
+    },
+    {
       "id": "1940s",
       "name": "1940s",
       "variants": {
@@ -231,6 +258,34 @@
       ]
     },
     {
+      "id": "bluegrass",
+      "name": "Bluegrass",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 9975943,
+      "productionBytes": 7817904,
+      "reductionPercent": 21.6,
+      "doubleScoreDurationsMs": [
+        5560,
+        4800
+      ],
+      "unusualHandling": [
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 29.211
+        }
+      ]
+    },
+    {
       "id": "blues",
       "name": "Blues",
       "variants": {
@@ -259,6 +314,189 @@
       ]
     },
     {
+      "id": "chiptune",
+      "name": "Chiptune",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10182541,
+      "productionBytes": 8192328,
+      "reductionPercent": 19.5,
+      "doubleScoreDurationsMs": [
+        4920,
+        4920
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "christmas",
+      "name": "Christmas",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10890842,
+      "productionBytes": 8576928,
+      "reductionPercent": 21.2,
+      "doubleScoreDurationsMs": [
+        8360,
+        5920
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.58
+        },
+        {
+          "file": "lock-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.292
+        }
+      ]
+    },
+    {
+      "id": "disco",
+      "name": "Disco",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 1,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10362299,
+      "productionBytes": 8209536,
+      "reductionPercent": 20.8,
+      "doubleScoreDurationsMs": [
+        7200,
+        7200
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "french",
+      "name": "French",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11001868,
+      "productionBytes": 8770032,
+      "reductionPercent": 20.3,
+      "doubleScoreDurationsMs": [
+        5120,
+        7782
+      ],
+      "unusualHandling": [
+        {
+          "file": "double-score-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.782
+        }
+      ]
+    },
+    {
+      "id": "grand-orchestra",
+      "name": "Grand Orchestra",
+      "variants": {
+        "lobby": 2,
+        "question": 1,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 8961325,
+      "productionBytes": 7153896,
+      "reductionPercent": 20.2,
+      "doubleScoreDurationsMs": [
+        5160,
+        5200
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 4.38
+        }
+      ]
+    },
+    {
+      "id": "greek",
+      "name": "Greek",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10403704,
+      "productionBytes": 8188632,
+      "reductionPercent": 21.3,
+      "doubleScoreDurationsMs": [
+        3960,
+        4920
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "halloween",
+      "name": "Halloween",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10826477,
+      "productionBytes": 8404272,
+      "reductionPercent": 22.4,
+      "doubleScoreDurationsMs": [
+        6400,
+        7200
+      ],
+      "unusualHandling": [
+        {
+          "file": "lock-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.976
+        }
+      ]
+    },
+    {
       "id": "hard-rock",
       "name": "Hard Rock",
       "variants": {
@@ -279,6 +517,56 @@
         5600
       ],
       "unusualHandling": []
+    },
+    {
+      "id": "hip-hop",
+      "name": "Hip-Hop",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11192425,
+      "productionBytes": 8925792,
+      "reductionPercent": 20.3,
+      "doubleScoreDurationsMs": [
+        7200,
+        11760
+      ],
+      "unusualHandling": []
+    },
+    {
+      "id": "italian",
+      "name": "Italian",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10482851,
+      "productionBytes": 8401152,
+      "reductionPercent": 19.9,
+      "doubleScoreDurationsMs": [
+        7200,
+        8000
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 6.056
+        }
+      ]
     },
     {
       "id": "jazz",
@@ -317,6 +605,28 @@
           "trimmedEndSeconds": 14.1
         }
       ]
+    },
+    {
+      "id": "medieval",
+      "name": "Medieval",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11614037,
+      "productionBytes": 9214608,
+      "reductionPercent": 20.7,
+      "doubleScoreDurationsMs": [
+        4800,
+        5200
+      ],
+      "unusualHandling": []
     },
     {
       "id": "midnight",
@@ -443,6 +753,34 @@
       ]
     },
     {
+      "id": "pirate",
+      "name": "Pirate",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11098500,
+      "productionBytes": 8802480,
+      "reductionPercent": 20.7,
+      "doubleScoreDurationsMs": [
+        7600,
+        8400
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 14.075
+        }
+      ]
+    },
+    {
       "id": "pop",
       "name": "Pop",
       "variants": {
@@ -467,6 +805,224 @@
           "file": "reveal-01.mp3",
           "trimmedStartSeconds": 0,
           "trimmedEndSeconds": 6.809
+        }
+      ]
+    },
+    {
+      "id": "retro-game-show",
+      "name": "Retro Game Show",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 12616178,
+      "productionBytes": 10101888,
+      "reductionPercent": 19.9,
+      "doubleScoreDurationsMs": [
+        9238,
+        7880
+      ],
+      "unusualHandling": [
+        {
+          "file": "double-score-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.238
+        },
+        {
+          "file": "lock-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.875
+        },
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.921
+        },
+        {
+          "file": "final-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 29.052
+        }
+      ]
+    },
+    {
+      "id": "rocksteady",
+      "name": "Rocksteady",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10777347,
+      "productionBytes": 8671752,
+      "reductionPercent": 19.5,
+      "doubleScoreDurationsMs": [
+        8360,
+        8360
+      ],
+      "unusualHandling": [
+        {
+          "file": "leaderboard-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.353
+        },
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.875
+        }
+      ]
+    },
+    {
+      "id": "sci-fi",
+      "name": "Sci-Fi",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 9623193,
+      "productionBytes": 7596600,
+      "reductionPercent": 21.1,
+      "doubleScoreDurationsMs": [
+        5200,
+        5160
+      ],
+      "unusualHandling": [
+        {
+          "file": "final-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 28.46
+        }
+      ]
+    },
+    {
+      "id": "ska",
+      "name": "Ska",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11237983,
+      "productionBytes": 8938800,
+      "reductionPercent": 20.5,
+      "doubleScoreDurationsMs": [
+        6320,
+        7600
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.27
+        },
+        {
+          "file": "final-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 23.493
+        }
+      ]
+    },
+    {
+      "id": "soul",
+      "name": "Soul",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 1,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 11058748,
+      "productionBytes": 8754600,
+      "reductionPercent": 20.8,
+      "doubleScoreDurationsMs": [
+        6360,
+        6800
+      ],
+      "unusualHandling": [
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.938
+        },
+        {
+          "file": "final-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 28.602
+        }
+      ]
+    },
+    {
+      "id": "spy-noir",
+      "name": "Spy Noir",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10038161,
+      "productionBytes": 7753584,
+      "reductionPercent": 22.8,
+      "doubleScoreDurationsMs": [
+        9150,
+        9392
+      ],
+      "unusualHandling": [
+        {
+          "file": "double-score-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.15
+        },
+        {
+          "file": "double-score-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 9.392
+        },
+        {
+          "file": "lock-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.79
+        },
+        {
+          "file": "lock-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 7.78
+        },
+        {
+          "file": "reveal-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 8.605
         }
       ]
     },
@@ -507,6 +1063,61 @@
           "trimmedEndSeconds": 9.045
         }
       ]
+    },
+    {
+      "id": "synthwave",
+      "name": "Synthwave",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 8338474,
+      "productionBytes": 6565728,
+      "reductionPercent": 21.3,
+      "doubleScoreDurationsMs": [
+        5200,
+        4760
+      ],
+      "unusualHandling": [
+        {
+          "file": "urgent-02.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 13.987
+        },
+        {
+          "file": "leaderboard-01.mp3",
+          "trimmedStartSeconds": 0,
+          "trimmedEndSeconds": 14.158
+        }
+      ]
+    },
+    {
+      "id": "western",
+      "name": "Western",
+      "variants": {
+        "lobby": 2,
+        "question": 2,
+        "urgent": 2,
+        "double-score": 2,
+        "lock": 2,
+        "reveal": 2,
+        "leaderboard": 2,
+        "final": 2
+      },
+      "sourceBytes": 10795029,
+      "productionBytes": 8387784,
+      "reductionPercent": 22.3,
+      "doubleScoreDurationsMs": [
+        5080,
+        5000
+      ],
+      "unusualHandling": []
     }
   ]
 }

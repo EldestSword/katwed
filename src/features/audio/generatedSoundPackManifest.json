@@ -1,5 +1,84 @@
 [
   {
+    "id": "90s-rave",
+    "name": "90s Rave",
+    "description": "A varied 90s Rave game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/90s-rave/lobby-01.mp3",
+          "durationMs": 78800
+        },
+        {
+          "src": "/audio/packs/90s-rave/lobby-02.mp3",
+          "durationMs": 79441
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/90s-rave/question-01.mp3",
+          "durationMs": 66080
+        },
+        {
+          "src": "/audio/packs/90s-rave/question-02.mp3",
+          "durationMs": 67280
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/90s-rave/urgent-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/90s-rave/urgent-02.mp3",
+          "durationMs": 14800
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/90s-rave/double-score-01.mp3",
+          "durationMs": 12280
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/90s-rave/lock-01.mp3",
+          "durationMs": 12400
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/90s-rave/reveal-01.mp3",
+          "durationMs": 13559
+        },
+        {
+          "src": "/audio/packs/90s-rave/reveal-02.mp3",
+          "durationMs": 9200
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/90s-rave/leaderboard-01.mp3",
+          "durationMs": 15200
+        },
+        {
+          "src": "/audio/packs/90s-rave/leaderboard-02.mp3",
+          "durationMs": 15200
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/90s-rave/final-01.mp3",
+          "durationMs": 29560
+        },
+        {
+          "src": "/audio/packs/90s-rave/final-02.mp3",
+          "durationMs": 29720
+        }
+      ]
+    }
+  },
+  {
     "id": "1940s",
     "name": "1940s",
     "description": "A varied 1940s game-show soundtrack with multiple music and sting variants.",
@@ -621,6 +700,93 @@
     }
   },
   {
+    "id": "bluegrass",
+    "name": "Bluegrass",
+    "description": "A varied Bluegrass game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/bluegrass/lobby-01.mp3",
+          "durationMs": 49120
+        },
+        {
+          "src": "/audio/packs/bluegrass/lobby-02.mp3",
+          "durationMs": 74120
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/bluegrass/question-01.mp3",
+          "durationMs": 68800
+        },
+        {
+          "src": "/audio/packs/bluegrass/question-02.mp3",
+          "durationMs": 68800
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/bluegrass/urgent-01.mp3",
+          "durationMs": 15841
+        },
+        {
+          "src": "/audio/packs/bluegrass/urgent-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/bluegrass/double-score-01.mp3",
+          "durationMs": 5560
+        },
+        {
+          "src": "/audio/packs/bluegrass/double-score-02.mp3",
+          "durationMs": 4800
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/bluegrass/lock-01.mp3",
+          "durationMs": 6400
+        },
+        {
+          "src": "/audio/packs/bluegrass/lock-02.mp3",
+          "durationMs": 5200
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/bluegrass/reveal-01.mp3",
+          "durationMs": 5880
+        },
+        {
+          "src": "/audio/packs/bluegrass/reveal-02.mp3",
+          "durationMs": 5200
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/bluegrass/leaderboard-01.mp3",
+          "durationMs": 15040
+        },
+        {
+          "src": "/audio/packs/bluegrass/leaderboard-02.mp3",
+          "durationMs": 14600
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/bluegrass/final-01.mp3",
+          "durationMs": 29211
+        },
+        {
+          "src": "/audio/packs/bluegrass/final-02.mp3",
+          "durationMs": 26920
+        }
+      ]
+    }
+  },
+  {
     "id": "blues",
     "name": "Blues",
     "description": "A varied Blues game-show soundtrack with multiple music and sting variants.",
@@ -699,6 +865,607 @@
         {
           "src": "/audio/packs/blues/final-02.mp3",
           "durationMs": 30361
+        }
+      ]
+    }
+  },
+  {
+    "id": "chiptune",
+    "name": "Chiptune",
+    "description": "A varied Chiptune game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/chiptune/lobby-01.mp3",
+          "durationMs": 78880
+        },
+        {
+          "src": "/audio/packs/chiptune/lobby-02.mp3",
+          "durationMs": 47281
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/chiptune/question-01.mp3",
+          "durationMs": 69400
+        },
+        {
+          "src": "/audio/packs/chiptune/question-02.mp3",
+          "durationMs": 70600
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/chiptune/urgent-01.mp3",
+          "durationMs": 14760
+        },
+        {
+          "src": "/audio/packs/chiptune/urgent-02.mp3",
+          "durationMs": 16640
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/chiptune/double-score-01.mp3",
+          "durationMs": 4920
+        },
+        {
+          "src": "/audio/packs/chiptune/double-score-02.mp3",
+          "durationMs": 4920
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/chiptune/lock-01.mp3",
+          "durationMs": 6320
+        },
+        {
+          "src": "/audio/packs/chiptune/lock-02.mp3",
+          "durationMs": 7200
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/chiptune/reveal-01.mp3",
+          "durationMs": 6000
+        },
+        {
+          "src": "/audio/packs/chiptune/reveal-02.mp3",
+          "durationMs": 6400
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/chiptune/leaderboard-01.mp3",
+          "durationMs": 12400
+        },
+        {
+          "src": "/audio/packs/chiptune/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/chiptune/final-01.mp3",
+          "durationMs": 29680
+        },
+        {
+          "src": "/audio/packs/chiptune/final-02.mp3",
+          "durationMs": 27520
+        }
+      ]
+    }
+  },
+  {
+    "id": "christmas",
+    "name": "Christmas",
+    "description": "A varied Christmas game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/christmas/lobby-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/christmas/lobby-02.mp3",
+          "durationMs": 74080
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/christmas/question-01.mp3",
+          "durationMs": 74080
+        },
+        {
+          "src": "/audio/packs/christmas/question-02.mp3",
+          "durationMs": 73240
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/christmas/urgent-01.mp3",
+          "durationMs": 13400
+        },
+        {
+          "src": "/audio/packs/christmas/urgent-02.mp3",
+          "durationMs": 13580
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/christmas/double-score-01.mp3",
+          "durationMs": 8360
+        },
+        {
+          "src": "/audio/packs/christmas/double-score-02.mp3",
+          "durationMs": 5920
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/christmas/lock-01.mp3",
+          "durationMs": 9600
+        },
+        {
+          "src": "/audio/packs/christmas/lock-02.mp3",
+          "durationMs": 9292
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/christmas/reveal-01.mp3",
+          "durationMs": 8400
+        },
+        {
+          "src": "/audio/packs/christmas/reveal-02.mp3",
+          "durationMs": 6800
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/christmas/leaderboard-01.mp3",
+          "durationMs": 14680
+        },
+        {
+          "src": "/audio/packs/christmas/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/christmas/final-01.mp3",
+          "durationMs": 29281
+        },
+        {
+          "src": "/audio/packs/christmas/final-02.mp3",
+          "durationMs": 29720
+        }
+      ]
+    }
+  },
+  {
+    "id": "disco",
+    "name": "Disco",
+    "description": "A varied Disco game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/disco/lobby-01.mp3",
+          "durationMs": 74320
+        },
+        {
+          "src": "/audio/packs/disco/lobby-02.mp3",
+          "durationMs": 71080
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/disco/question-01.mp3",
+          "durationMs": 67801
+        },
+        {
+          "src": "/audio/packs/disco/question-02.mp3",
+          "durationMs": 53281
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/disco/urgent-01.mp3",
+          "durationMs": 15080
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/disco/double-score-01.mp3",
+          "durationMs": 7200
+        },
+        {
+          "src": "/audio/packs/disco/double-score-02.mp3",
+          "durationMs": 7200
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/disco/lock-01.mp3",
+          "durationMs": 6400
+        },
+        {
+          "src": "/audio/packs/disco/lock-02.mp3",
+          "durationMs": 12640
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/disco/reveal-01.mp3",
+          "durationMs": 10000
+        },
+        {
+          "src": "/audio/packs/disco/reveal-02.mp3",
+          "durationMs": 8280
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/disco/leaderboard-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/disco/leaderboard-02.mp3",
+          "durationMs": 12080
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/disco/final-01.mp3",
+          "durationMs": 29641
+        },
+        {
+          "src": "/audio/packs/disco/final-02.mp3",
+          "durationMs": 29560
+        }
+      ]
+    }
+  },
+  {
+    "id": "french",
+    "name": "French",
+    "description": "A varied French game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/french/lobby-01.mp3",
+          "durationMs": 74080
+        },
+        {
+          "src": "/audio/packs/french/lobby-02.mp3",
+          "durationMs": 74120
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/french/question-01.mp3",
+          "durationMs": 73681
+        },
+        {
+          "src": "/audio/packs/french/question-02.mp3",
+          "durationMs": 73760
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/french/urgent-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/french/urgent-02.mp3",
+          "durationMs": 11840
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/french/double-score-01.mp3",
+          "durationMs": 5120
+        },
+        {
+          "src": "/audio/packs/french/double-score-02.mp3",
+          "durationMs": 7782
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/french/lock-01.mp3",
+          "durationMs": 5600
+        },
+        {
+          "src": "/audio/packs/french/lock-02.mp3",
+          "durationMs": 5960
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/french/reveal-01.mp3",
+          "durationMs": 5160
+        },
+        {
+          "src": "/audio/packs/french/reveal-02.mp3",
+          "durationMs": 6760
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/french/leaderboard-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/french/leaderboard-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/french/final-01.mp3",
+          "durationMs": 35000
+        },
+        {
+          "src": "/audio/packs/french/final-02.mp3",
+          "durationMs": 34681
+        }
+      ]
+    }
+  },
+  {
+    "id": "grand-orchestra",
+    "name": "Grand Orchestra",
+    "description": "A varied Grand Orchestra game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/grand-orchestra/lobby-01.mp3",
+          "durationMs": 79201
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/lobby-02.mp3",
+          "durationMs": 79040
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/grand-orchestra/question-01.mp3",
+          "durationMs": 74120
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/grand-orchestra/urgent-01.mp3",
+          "durationMs": 13120
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/urgent-02.mp3",
+          "durationMs": 11840
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/grand-orchestra/double-score-01.mp3",
+          "durationMs": 5160
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/double-score-02.mp3",
+          "durationMs": 5200
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/grand-orchestra/lock-01.mp3",
+          "durationMs": 4000
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/lock-02.mp3",
+          "durationMs": 8360
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/grand-orchestra/reveal-01.mp3",
+          "durationMs": 4380
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/reveal-02.mp3",
+          "durationMs": 5200
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/grand-orchestra/leaderboard-01.mp3",
+          "durationMs": 14440
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/leaderboard-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/grand-orchestra/final-01.mp3",
+          "durationMs": 29600
+        },
+        {
+          "src": "/audio/packs/grand-orchestra/final-02.mp3",
+          "durationMs": 22520
+        }
+      ]
+    }
+  },
+  {
+    "id": "greek",
+    "name": "Greek",
+    "description": "A varied Greek game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/greek/lobby-01.mp3",
+          "durationMs": 62920
+        },
+        {
+          "src": "/audio/packs/greek/lobby-02.mp3",
+          "durationMs": 73921
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/greek/question-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/greek/question-02.mp3",
+          "durationMs": 73360
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/greek/urgent-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/greek/urgent-02.mp3",
+          "durationMs": 13120
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/greek/double-score-01.mp3",
+          "durationMs": 3960
+        },
+        {
+          "src": "/audio/packs/greek/double-score-02.mp3",
+          "durationMs": 4920
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/greek/lock-01.mp3",
+          "durationMs": 8320
+        },
+        {
+          "src": "/audio/packs/greek/lock-02.mp3",
+          "durationMs": 5880
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/greek/reveal-01.mp3",
+          "durationMs": 4800
+        },
+        {
+          "src": "/audio/packs/greek/reveal-02.mp3",
+          "durationMs": 5160
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/greek/leaderboard-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/greek/leaderboard-02.mp3",
+          "durationMs": 14641
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/greek/final-01.mp3",
+          "durationMs": 25441
+        },
+        {
+          "src": "/audio/packs/greek/final-02.mp3",
+          "durationMs": 27920
+        }
+      ]
+    }
+  },
+  {
+    "id": "halloween",
+    "name": "Halloween",
+    "description": "A varied Halloween game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/halloween/lobby-01.mp3",
+          "durationMs": 79120
+        },
+        {
+          "src": "/audio/packs/halloween/lobby-02.mp3",
+          "durationMs": 79561
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/halloween/question-01.mp3",
+          "durationMs": 69121
+        },
+        {
+          "src": "/audio/packs/halloween/question-02.mp3",
+          "durationMs": 68881
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/halloween/urgent-01.mp3",
+          "durationMs": 14641
+        },
+        {
+          "src": "/audio/packs/halloween/urgent-02.mp3",
+          "durationMs": 15160
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/halloween/double-score-01.mp3",
+          "durationMs": 6400
+        },
+        {
+          "src": "/audio/packs/halloween/double-score-02.mp3",
+          "durationMs": 7200
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/halloween/lock-01.mp3",
+          "durationMs": 5120
+        },
+        {
+          "src": "/audio/packs/halloween/lock-02.mp3",
+          "durationMs": 7976
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/halloween/reveal-01.mp3",
+          "durationMs": 6400
+        },
+        {
+          "src": "/audio/packs/halloween/reveal-02.mp3",
+          "durationMs": 5080
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/halloween/leaderboard-01.mp3",
+          "durationMs": 14680
+        },
+        {
+          "src": "/audio/packs/halloween/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/halloween/final-01.mp3",
+          "durationMs": 29720
+        },
+        {
+          "src": "/audio/packs/halloween/final-02.mp3",
+          "durationMs": 29720
         }
       ]
     }
@@ -791,6 +1558,180 @@
     }
   },
   {
+    "id": "hip-hop",
+    "name": "Hip-Hop",
+    "description": "A varied Hip-Hop game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/hip-hop/lobby-01.mp3",
+          "durationMs": 73960
+        },
+        {
+          "src": "/audio/packs/hip-hop/lobby-02.mp3",
+          "durationMs": 74200
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/hip-hop/question-01.mp3",
+          "durationMs": 69200
+        },
+        {
+          "src": "/audio/packs/hip-hop/question-02.mp3",
+          "durationMs": 69121
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/hip-hop/urgent-01.mp3",
+          "durationMs": 16240
+        },
+        {
+          "src": "/audio/packs/hip-hop/urgent-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/hip-hop/double-score-01.mp3",
+          "durationMs": 7200
+        },
+        {
+          "src": "/audio/packs/hip-hop/double-score-02.mp3",
+          "durationMs": 11760
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/hip-hop/lock-01.mp3",
+          "durationMs": 9840
+        },
+        {
+          "src": "/audio/packs/hip-hop/lock-02.mp3",
+          "durationMs": 10000
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/hip-hop/reveal-01.mp3",
+          "durationMs": 10000
+        },
+        {
+          "src": "/audio/packs/hip-hop/reveal-02.mp3",
+          "durationMs": 7160
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/hip-hop/leaderboard-01.mp3",
+          "durationMs": 14800
+        },
+        {
+          "src": "/audio/packs/hip-hop/leaderboard-02.mp3",
+          "durationMs": 15241
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/hip-hop/final-01.mp3",
+          "durationMs": 30200
+        },
+        {
+          "src": "/audio/packs/hip-hop/final-02.mp3",
+          "durationMs": 29680
+        }
+      ]
+    }
+  },
+  {
+    "id": "italian",
+    "name": "Italian",
+    "description": "A varied Italian game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/italian/lobby-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/italian/lobby-02.mp3",
+          "durationMs": 74080
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/italian/question-01.mp3",
+          "durationMs": 74200
+        },
+        {
+          "src": "/audio/packs/italian/question-02.mp3",
+          "durationMs": 74160
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/italian/urgent-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/italian/urgent-02.mp3",
+          "durationMs": 14800
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/italian/double-score-01.mp3",
+          "durationMs": 7200
+        },
+        {
+          "src": "/audio/packs/italian/double-score-02.mp3",
+          "durationMs": 8000
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/italian/lock-01.mp3",
+          "durationMs": 6000
+        },
+        {
+          "src": "/audio/packs/italian/lock-02.mp3",
+          "durationMs": 6000
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/italian/reveal-01.mp3",
+          "durationMs": 8200
+        },
+        {
+          "src": "/audio/packs/italian/reveal-02.mp3",
+          "durationMs": 6056
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/italian/leaderboard-01.mp3",
+          "durationMs": 14080
+        },
+        {
+          "src": "/audio/packs/italian/leaderboard-02.mp3",
+          "durationMs": 15040
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/italian/final-01.mp3",
+          "durationMs": 15960
+        },
+        {
+          "src": "/audio/packs/italian/final-02.mp3",
+          "durationMs": 18240
+        }
+      ]
+    }
+  },
+  {
     "id": "jazz",
     "name": "Jazz",
     "description": "A varied Jazz game-show soundtrack with multiple music and sting variants.",
@@ -873,6 +1814,93 @@
         {
           "src": "/audio/packs/jazz/final-02.mp3",
           "durationMs": 31400
+        }
+      ]
+    }
+  },
+  {
+    "id": "medieval",
+    "name": "Medieval",
+    "description": "A varied Medieval game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/medieval/lobby-01.mp3",
+          "durationMs": 77080
+        },
+        {
+          "src": "/audio/packs/medieval/lobby-02.mp3",
+          "durationMs": 78520
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/medieval/question-01.mp3",
+          "durationMs": 78960
+        },
+        {
+          "src": "/audio/packs/medieval/question-02.mp3",
+          "durationMs": 78960
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/medieval/urgent-01.mp3",
+          "durationMs": 14320
+        },
+        {
+          "src": "/audio/packs/medieval/urgent-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/medieval/double-score-01.mp3",
+          "durationMs": 4800
+        },
+        {
+          "src": "/audio/packs/medieval/double-score-02.mp3",
+          "durationMs": 5200
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/medieval/lock-01.mp3",
+          "durationMs": 6400
+        },
+        {
+          "src": "/audio/packs/medieval/lock-02.mp3",
+          "durationMs": 6000
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/medieval/reveal-01.mp3",
+          "durationMs": 8320
+        },
+        {
+          "src": "/audio/packs/medieval/reveal-02.mp3",
+          "durationMs": 8000
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/medieval/leaderboard-01.mp3",
+          "durationMs": 14720
+        },
+        {
+          "src": "/audio/packs/medieval/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/medieval/final-01.mp3",
+          "durationMs": 29720
+        },
+        {
+          "src": "/audio/packs/medieval/final-02.mp3",
+          "durationMs": 29720
         }
       ]
     }
@@ -1143,6 +2171,93 @@
     }
   },
   {
+    "id": "pirate",
+    "name": "Pirate",
+    "description": "A varied Pirate game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/pirate/lobby-01.mp3",
+          "durationMs": 73600
+        },
+        {
+          "src": "/audio/packs/pirate/lobby-02.mp3",
+          "durationMs": 73840
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/pirate/question-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/pirate/question-02.mp3",
+          "durationMs": 74120
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/pirate/urgent-01.mp3",
+          "durationMs": 12200
+        },
+        {
+          "src": "/audio/packs/pirate/urgent-02.mp3",
+          "durationMs": 14075
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/pirate/double-score-01.mp3",
+          "durationMs": 7600
+        },
+        {
+          "src": "/audio/packs/pirate/double-score-02.mp3",
+          "durationMs": 8400
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/pirate/lock-01.mp3",
+          "durationMs": 8200
+        },
+        {
+          "src": "/audio/packs/pirate/lock-02.mp3",
+          "durationMs": 4360
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/pirate/reveal-01.mp3",
+          "durationMs": 9000
+        },
+        {
+          "src": "/audio/packs/pirate/reveal-02.mp3",
+          "durationMs": 7200
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/pirate/leaderboard-01.mp3",
+          "durationMs": 14641
+        },
+        {
+          "src": "/audio/packs/pirate/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/pirate/final-01.mp3",
+          "durationMs": 29600
+        },
+        {
+          "src": "/audio/packs/pirate/final-02.mp3",
+          "durationMs": 27880
+        }
+      ]
+    }
+  },
+  {
     "id": "pop",
     "name": "Pop",
     "description": "A varied Pop game-show soundtrack with multiple music and sting variants.",
@@ -1234,6 +2349,524 @@
     }
   },
   {
+    "id": "retro-game-show",
+    "name": "Retro Game Show",
+    "description": "A varied Retro Game Show game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/retro-game-show/lobby-01.mp3",
+          "durationMs": 84121
+        },
+        {
+          "src": "/audio/packs/retro-game-show/lobby-02.mp3",
+          "durationMs": 84040
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/retro-game-show/question-01.mp3",
+          "durationMs": 83320
+        },
+        {
+          "src": "/audio/packs/retro-game-show/question-02.mp3",
+          "durationMs": 84121
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/retro-game-show/urgent-01.mp3",
+          "durationMs": 14641
+        },
+        {
+          "src": "/audio/packs/retro-game-show/urgent-02.mp3",
+          "durationMs": 14641
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/retro-game-show/double-score-01.mp3",
+          "durationMs": 9238
+        },
+        {
+          "src": "/audio/packs/retro-game-show/double-score-02.mp3",
+          "durationMs": 7880
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/retro-game-show/lock-01.mp3",
+          "durationMs": 7875
+        },
+        {
+          "src": "/audio/packs/retro-game-show/lock-02.mp3",
+          "durationMs": 5160
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/retro-game-show/reveal-01.mp3",
+          "durationMs": 6800
+        },
+        {
+          "src": "/audio/packs/retro-game-show/reveal-02.mp3",
+          "durationMs": 7921
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/retro-game-show/leaderboard-01.mp3",
+          "durationMs": 14680
+        },
+        {
+          "src": "/audio/packs/retro-game-show/leaderboard-02.mp3",
+          "durationMs": 14840
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/retro-game-show/final-01.mp3",
+          "durationMs": 29600
+        },
+        {
+          "src": "/audio/packs/retro-game-show/final-02.mp3",
+          "durationMs": 29052
+        }
+      ]
+    }
+  },
+  {
+    "id": "rocksteady",
+    "name": "Rocksteady",
+    "description": "A varied Rocksteady game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/rocksteady/lobby-01.mp3",
+          "durationMs": 73720
+        },
+        {
+          "src": "/audio/packs/rocksteady/lobby-02.mp3",
+          "durationMs": 72361
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/rocksteady/question-01.mp3",
+          "durationMs": 73960
+        },
+        {
+          "src": "/audio/packs/rocksteady/question-02.mp3",
+          "durationMs": 74000
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/rocksteady/urgent-01.mp3",
+          "durationMs": 13160
+        },
+        {
+          "src": "/audio/packs/rocksteady/urgent-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/rocksteady/double-score-01.mp3",
+          "durationMs": 8360
+        },
+        {
+          "src": "/audio/packs/rocksteady/double-score-02.mp3",
+          "durationMs": 8360
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/rocksteady/lock-01.mp3",
+          "durationMs": 9200
+        },
+        {
+          "src": "/audio/packs/rocksteady/lock-02.mp3",
+          "durationMs": 9200
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/rocksteady/reveal-01.mp3",
+          "durationMs": 10000
+        },
+        {
+          "src": "/audio/packs/rocksteady/reveal-02.mp3",
+          "durationMs": 9960
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/rocksteady/leaderboard-01.mp3",
+          "durationMs": 13353
+        },
+        {
+          "src": "/audio/packs/rocksteady/leaderboard-02.mp3",
+          "durationMs": 13120
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/rocksteady/final-01.mp3",
+          "durationMs": 13875
+        },
+        {
+          "src": "/audio/packs/rocksteady/final-02.mp3",
+          "durationMs": 14680
+        }
+      ]
+    }
+  },
+  {
+    "id": "sci-fi",
+    "name": "Sci-Fi",
+    "description": "A varied Sci-Fi game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/sci-fi/lobby-01.mp3",
+          "durationMs": 31600
+        },
+        {
+          "src": "/audio/packs/sci-fi/lobby-02.mp3",
+          "durationMs": 78961
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/sci-fi/question-01.mp3",
+          "durationMs": 27800
+        },
+        {
+          "src": "/audio/packs/sci-fi/question-02.mp3",
+          "durationMs": 88960
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/sci-fi/urgent-01.mp3",
+          "durationMs": 14240
+        },
+        {
+          "src": "/audio/packs/sci-fi/urgent-02.mp3",
+          "durationMs": 13921
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/sci-fi/double-score-01.mp3",
+          "durationMs": 5200
+        },
+        {
+          "src": "/audio/packs/sci-fi/double-score-02.mp3",
+          "durationMs": 5160
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/sci-fi/lock-01.mp3",
+          "durationMs": 8520
+        },
+        {
+          "src": "/audio/packs/sci-fi/lock-02.mp3",
+          "durationMs": 7200
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/sci-fi/reveal-01.mp3",
+          "durationMs": 7200
+        },
+        {
+          "src": "/audio/packs/sci-fi/reveal-02.mp3",
+          "durationMs": 9160
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/sci-fi/leaderboard-01.mp3",
+          "durationMs": 14320
+        },
+        {
+          "src": "/audio/packs/sci-fi/leaderboard-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/sci-fi/final-01.mp3",
+          "durationMs": 26120
+        },
+        {
+          "src": "/audio/packs/sci-fi/final-02.mp3",
+          "durationMs": 28460
+        }
+      ]
+    }
+  },
+  {
+    "id": "ska",
+    "name": "Ska",
+    "description": "A varied Ska game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/ska/lobby-01.mp3",
+          "durationMs": 83041
+        },
+        {
+          "src": "/audio/packs/ska/lobby-02.mp3",
+          "durationMs": 83080
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/ska/question-01.mp3",
+          "durationMs": 73921
+        },
+        {
+          "src": "/audio/packs/ska/question-02.mp3",
+          "durationMs": 73880
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/ska/urgent-01.mp3",
+          "durationMs": 15320
+        },
+        {
+          "src": "/audio/packs/ska/urgent-02.mp3",
+          "durationMs": 15001
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/ska/double-score-01.mp3",
+          "durationMs": 6320
+        },
+        {
+          "src": "/audio/packs/ska/double-score-02.mp3",
+          "durationMs": 7600
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/ska/lock-01.mp3",
+          "durationMs": 6240
+        },
+        {
+          "src": "/audio/packs/ska/lock-02.mp3",
+          "durationMs": 8360
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/ska/reveal-01.mp3",
+          "durationMs": 7960
+        },
+        {
+          "src": "/audio/packs/ska/reveal-02.mp3",
+          "durationMs": 8270
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/ska/leaderboard-01.mp3",
+          "durationMs": 14641
+        },
+        {
+          "src": "/audio/packs/ska/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/ska/final-01.mp3",
+          "durationMs": 24721
+        },
+        {
+          "src": "/audio/packs/ska/final-02.mp3",
+          "durationMs": 23493
+        }
+      ]
+    }
+  },
+  {
+    "id": "soul",
+    "name": "Soul",
+    "description": "A varied Soul game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/soul/lobby-01.mp3",
+          "durationMs": 78961
+        },
+        {
+          "src": "/audio/packs/soul/lobby-02.mp3",
+          "durationMs": 79120
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/soul/question-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/soul/question-02.mp3",
+          "durationMs": 74000
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/soul/urgent-01.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/soul/double-score-01.mp3",
+          "durationMs": 6360
+        },
+        {
+          "src": "/audio/packs/soul/double-score-02.mp3",
+          "durationMs": 6800
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/soul/lock-01.mp3",
+          "durationMs": 10640
+        },
+        {
+          "src": "/audio/packs/soul/lock-02.mp3",
+          "durationMs": 8000
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/soul/reveal-01.mp3",
+          "durationMs": 8938
+        },
+        {
+          "src": "/audio/packs/soul/reveal-02.mp3",
+          "durationMs": 11600
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/soul/leaderboard-01.mp3",
+          "durationMs": 14200
+        },
+        {
+          "src": "/audio/packs/soul/leaderboard-02.mp3",
+          "durationMs": 15040
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/soul/final-01.mp3",
+          "durationMs": 28602
+        },
+        {
+          "src": "/audio/packs/soul/final-02.mp3",
+          "durationMs": 28960
+        }
+      ]
+    }
+  },
+  {
+    "id": "spy-noir",
+    "name": "Spy Noir",
+    "description": "A varied Spy Noir game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/spy-noir/lobby-01.mp3",
+          "durationMs": 74120
+        },
+        {
+          "src": "/audio/packs/spy-noir/lobby-02.mp3",
+          "durationMs": 74120
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/spy-noir/question-01.mp3",
+          "durationMs": 73960
+        },
+        {
+          "src": "/audio/packs/spy-noir/question-02.mp3",
+          "durationMs": 38881
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/spy-noir/urgent-01.mp3",
+          "durationMs": 14320
+        },
+        {
+          "src": "/audio/packs/spy-noir/urgent-02.mp3",
+          "durationMs": 14680
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/spy-noir/double-score-01.mp3",
+          "durationMs": 9150
+        },
+        {
+          "src": "/audio/packs/spy-noir/double-score-02.mp3",
+          "durationMs": 9392
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/spy-noir/lock-01.mp3",
+          "durationMs": 8790
+        },
+        {
+          "src": "/audio/packs/spy-noir/lock-02.mp3",
+          "durationMs": 7780
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/spy-noir/reveal-01.mp3",
+          "durationMs": 8605
+        },
+        {
+          "src": "/audio/packs/spy-noir/reveal-02.mp3",
+          "durationMs": 8400
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/spy-noir/leaderboard-01.mp3",
+          "durationMs": 19081
+        },
+        {
+          "src": "/audio/packs/spy-noir/leaderboard-02.mp3",
+          "durationMs": 19120
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/spy-noir/final-01.mp3",
+          "durationMs": 14800
+        },
+        {
+          "src": "/audio/packs/spy-noir/final-02.mp3",
+          "durationMs": 23881
+        }
+      ]
+    }
+  },
+  {
     "id": "sunset",
     "name": "Sunset",
     "description": "A varied Sunset game-show soundtrack with multiple music and sting variants.",
@@ -1316,6 +2949,180 @@
         {
           "src": "/audio/packs/sunset/final-02.mp3",
           "durationMs": 23440
+        }
+      ]
+    }
+  },
+  {
+    "id": "synthwave",
+    "name": "Synthwave",
+    "description": "A varied Synthwave game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/synthwave/lobby-01.mp3",
+          "durationMs": 56120
+        },
+        {
+          "src": "/audio/packs/synthwave/lobby-02.mp3",
+          "durationMs": 28880
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/synthwave/question-01.mp3",
+          "durationMs": 37720
+        },
+        {
+          "src": "/audio/packs/synthwave/question-02.mp3",
+          "durationMs": 64120
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/synthwave/urgent-01.mp3",
+          "durationMs": 14800
+        },
+        {
+          "src": "/audio/packs/synthwave/urgent-02.mp3",
+          "durationMs": 13987
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/synthwave/double-score-01.mp3",
+          "durationMs": 5200
+        },
+        {
+          "src": "/audio/packs/synthwave/double-score-02.mp3",
+          "durationMs": 4760
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/synthwave/lock-01.mp3",
+          "durationMs": 7160
+        },
+        {
+          "src": "/audio/packs/synthwave/lock-02.mp3",
+          "durationMs": 6800
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/synthwave/reveal-01.mp3",
+          "durationMs": 5200
+        },
+        {
+          "src": "/audio/packs/synthwave/reveal-02.mp3",
+          "durationMs": 5160
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/synthwave/leaderboard-01.mp3",
+          "durationMs": 14158
+        },
+        {
+          "src": "/audio/packs/synthwave/leaderboard-02.mp3",
+          "durationMs": 14720
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/synthwave/final-01.mp3",
+          "durationMs": 27760
+        },
+        {
+          "src": "/audio/packs/synthwave/final-02.mp3",
+          "durationMs": 28441
+        }
+      ]
+    }
+  },
+  {
+    "id": "western",
+    "name": "Western",
+    "description": "A varied Western game-show soundtrack with multiple music and sting variants.",
+    "assets": {
+      "lobby": [
+        {
+          "src": "/audio/packs/western/lobby-01.mp3",
+          "durationMs": 79120
+        },
+        {
+          "src": "/audio/packs/western/lobby-02.mp3",
+          "durationMs": 79201
+        }
+      ],
+      "question": [
+        {
+          "src": "/audio/packs/western/question-01.mp3",
+          "durationMs": 72680
+        },
+        {
+          "src": "/audio/packs/western/question-02.mp3",
+          "durationMs": 73720
+        }
+      ],
+      "urgent": [
+        {
+          "src": "/audio/packs/western/urgent-01.mp3",
+          "durationMs": 14800
+        },
+        {
+          "src": "/audio/packs/western/urgent-02.mp3",
+          "durationMs": 15600
+        }
+      ],
+      "doubleScore": [
+        {
+          "src": "/audio/packs/western/double-score-01.mp3",
+          "durationMs": 5080
+        },
+        {
+          "src": "/audio/packs/western/double-score-02.mp3",
+          "durationMs": 5000
+        }
+      ],
+      "lock": [
+        {
+          "src": "/audio/packs/western/lock-01.mp3",
+          "durationMs": 5960
+        },
+        {
+          "src": "/audio/packs/western/lock-02.mp3",
+          "durationMs": 5600
+        }
+      ],
+      "reveal": [
+        {
+          "src": "/audio/packs/western/reveal-01.mp3",
+          "durationMs": 7200
+        },
+        {
+          "src": "/audio/packs/western/reveal-02.mp3",
+          "durationMs": 7600
+        }
+      ],
+      "leaderboard": [
+        {
+          "src": "/audio/packs/western/leaderboard-01.mp3",
+          "durationMs": 15520
+        },
+        {
+          "src": "/audio/packs/western/leaderboard-02.mp3",
+          "durationMs": 15560
+        }
+      ],
+      "final": [
+        {
+          "src": "/audio/packs/western/final-01.mp3",
+          "durationMs": 15361
+        },
+        {
+          "src": "/audio/packs/western/final-02.mp3",
+          "durationMs": 16000
         }
       ]
     }

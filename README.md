@@ -33,7 +33,7 @@ The hosted application has verified support for:
 - the controller/presentation window split in the hosted application;
 - a shared question validation and scoring engine.
 
-The production migration chain through `202608270010_bound_host_response_serialisation.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight, host-intelligence and multi-variant audio frontend is not deployed by this development change; Netlify releases remain deliberate. `202608280001_multi_variant_sound_packs.sql` is a forward migration pending deliberate application.
+The production migration chain through `20260828074030_multi_variant_sound_packs.sql` is applied to the live project. A real host account exists, and host sign-in works against Supabase Auth. The matching Audio Pass 1, game-preflight, host-intelligence and multi-variant audio frontend is not deployed by this development change; Netlify releases remain deliberate.
 
 ### Implemented and deployed
 
@@ -346,9 +346,9 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `202608270010_bound_host_response_serialisation.sql` applied. No Audio Pass 1, game-preflight or host-intelligence Netlify deployment has been performed.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `20260828074030_multi_variant_sound_packs.sql` applied. No matching multi-variant audio Netlify deployment has been performed by this development change.
 
-Audio Pass 2 adds the pending forward migration `202608280001_multi_variant_sound_packs.sql`. It generalises persisted quiz and session pack IDs to safe slugs, keeps the stale-client-compatible quiz-save wrapper, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. It has not been applied to production or deployed to Netlify.
+Audio Pass 2 added applied migration `20260828074030_multi_variant_sound_packs.sql`. It generalises persisted quiz and session pack IDs to safe slugs, keeps the stale-client-compatible quiz-save wrapper, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. The matching Netlify release remains deliberate.
 
 For a new Supabase environment:
 
@@ -404,12 +404,7 @@ Applied production migrations, in order:
 202608270008_refresh_session_and_quiz_readers.sql
 202608270009_host_intelligence_and_typed_overrides.sql
 202608270010_bound_host_response_serialisation.sql
-```
-
-Pending forward migration:
-
-```text
-202608280001_multi_variant_sound_packs.sql
+20260828074030_multi_variant_sound_packs.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -444,7 +439,7 @@ Applied migration `202608270009_host_intelligence_and_typed_overrides.sql` adds 
 
 Applied migration `202608270010_bound_host_response_serialisation.sql` bounds authenticated controller refresh payloads to the current question. It always returns payload-free current-question response markers for named waiting status, while raw answer detail is returned only when the session preference is enabled and the room has at most 15 players. The player-safe state and anonymous RPC boundary are unchanged.
 
-Pending migration `202608280001_multi_variant_sound_packs.sql` expands both permanent quiz and session pack IDs to the same bounded safe-slug rule, updates the existing stale-client-compatible save wrapper, adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts no client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
+Applied migration `20260828074030_multi_variant_sound_packs.sql` expands both permanent quiz and session pack IDs to the same bounded safe-slug rule, updates the existing stale-client-compatible save wrapper, adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts no client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
 
 ### Production pgcrypto repair
 
@@ -489,7 +484,7 @@ npm audit
 git diff --check
 ```
 
-Local audio contributors additionally use `npm run import:audio-sources` and `npm run prepare:audio`, then verify every committed production MP3 with FFprobe. Raw ZIPs and clean source folders remain ignored under `audio-source/`; only prepared `public/audio/packs/**` output and generated manifest/report data are committed. See [`docs/audio-language.md`](docs/audio-language.md).
+Local audio contributors additionally use `npm run import:audio-sources` and `npm run prepare:audio`, with reviewed pack-selection environment variables for batch imports, then verify every committed production MP3 with FFprobe. Raw ZIPs and clean source folders remain ignored under `audio-source/`; only prepared `public/audio/packs/**` output and generated manifest/report data are committed. See [`docs/audio-language.md`](docs/audio-language.md).
 
 Playwright runs the controller, presentation and three player pages through the mixed quiz, plus representative mobile widths.
 
