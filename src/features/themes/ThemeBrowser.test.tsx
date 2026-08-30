@@ -30,6 +30,18 @@ describe('ThemeBrowser', () => {
     expect(screen.getByText('0 themes shown')).toBeInTheDocument()
   })
 
+  it('shows represented categories only and filters the three places and culture themes', async () => {
+    const user = userEvent.setup()
+    render(<ThemeBrowser selectedId="katwed" onSelect={() => undefined} />)
+    expect(screen.getByRole('button', { name: 'Places & Culture' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Wildcards' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Places & Culture' }))
+    expect(screen.getByText('3 themes shown')).toBeInTheDocument()
+    for (const name of ['Greek', 'French', 'Italian']) {
+      expect(screen.getByRole('button', { name: new RegExp(name) })).toBeInTheDocument()
+    }
+  })
+
   it('uses lazy lightweight previews without applying every decorative catalogue font', () => {
     render(<ThemeBrowser selectedId="katwed" onSelect={() => undefined} />)
     const hardRock = screen.getByRole('button', { name: /Hard Rock/ })
@@ -37,6 +49,12 @@ describe('ThemeBrowser', () => {
     expect(preview).toHaveAttribute('loading', 'lazy')
     expect(preview).toHaveAttribute('src', '/backgrounds/previews/hard-rock.webp')
     expect(within(hardRock).getByText('Hard Rock')).not.toHaveAttribute('style')
+    const importedPreviews = screen.getAllByRole('img').filter((image) => image.tagName === 'IMG')
+    expect(importedPreviews).toHaveLength(30)
+    for (const image of importedPreviews) {
+      expect(image).toHaveAttribute('loading', 'lazy')
+      expect(image.getAttribute('src')).toMatch(/^\/backgrounds\/previews\/[^/]+\.webp$/)
+    }
   })
 
   it('supports native keyboard selection', async () => {

@@ -132,6 +132,17 @@ describe('Katwed quiz portable parser', () => {
       themeId: 'western',
       backgroundId: 'western-turquoise',
     })
+
+    const batchTwo = standardFile()
+    batchTwo.quiz.themeId = 'french'
+    batchTwo.quiz.backgroundId = 'french-editorial'
+    expect(parse(batchTwo).summary).toMatchObject({
+      themeId: 'french',
+      backgroundId: 'french-editorial',
+    })
+
+    batchTwo.quiz.backgroundId = 'greek-mosaic'
+    expect(() => parse(batchTwo)).toThrow('does not belong')
   })
 
   it.each(['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'blob:https://example.test/id']) (

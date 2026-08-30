@@ -47,4 +47,23 @@ describe('quizThemeSurfaceProps', () => {
       '--quiz-background-image': `url("/backgrounds/${backgroundId}.webp")`,
     })
   })
+
+  it.each([
+    ['pop', 'pop-gradient', 'Space Grotesk'],
+    ['ska', 'ska-check', 'Oswald'],
+    ['punk', 'punk-torn', 'Oswald'],
+    ['1950s', '1950s-boomerang', 'Roboto Slab'],
+    ['1960s', '1960s-mod', 'Space Grotesk'],
+    ['90s-rave', '90s-rave-lasers', 'Orbitron'],
+    ['greek', 'greek-mosaic', 'Cinzel'],
+    ['french', 'french-editorial', 'Fraunces'],
+  ])('applies representative Batch 2 identity and display typography for %s', (themeId, backgroundId, fontName) => {
+    const props = quizThemeSurfaceProps(themeId, backgroundId)
+    expect(props['data-quiz-theme']).toBe(themeId)
+    expect(props['data-quiz-background']).toBe(backgroundId)
+    expect(props.style).toMatchObject({
+      '--quiz-font-display': expect.stringContaining(fontName),
+      '--quiz-background-image': `url("/backgrounds/${backgroundId}.webp")`,
+    })
+  })
 })

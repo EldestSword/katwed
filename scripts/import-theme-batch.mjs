@@ -16,6 +16,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
 import sharp from 'sharp'
 import { formatBytes } from './prepare-backgrounds.mjs'
+import {
+  ORIGINAL_BACKGROUND_ID_LIST,
+  ORIGINAL_THEME_ID_LIST,
+  VISUAL_THEME_BATCH_1_CONTRACTS,
+  getVisualThemeBatchConfig,
+} from './theme-batch-configs.mjs'
+
+export { VISUAL_THEME_BATCH_1_CONTRACTS } from './theme-batch-configs.mjs'
 
 export const THEME_BATCH_WEBP_QUALITY = 82
 export const THEME_BATCH_MAX_WIDTH = 1920
@@ -23,18 +31,6 @@ export const THEME_BATCH_MAX_HEIGHT = 1080
 export const THEME_THUMBNAIL_WIDTH = 480
 export const THEME_THUMBNAIL_HEIGHT = 270
 export const THEME_THUMBNAIL_QUALITY = 68
-
-const ORIGINAL_THEME_ID_LIST = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper']
-const ORIGINAL_BACKGROUND_ID_LIST = [
-  'katwed-bubbles', 'katwed-confetti', 'katwed-ribbons',
-  'midnight-aurora', 'midnight-glow', 'midnight-stars',
-  'sunset-horizon', 'sunset-lights', 'sunset-ribbons',
-  'arcade-circuit', 'arcade-grid', 'arcade-neon',
-  'mint-depth', 'mint-shapes', 'mint-waves',
-  'paper-collage', 'paper-geometry', 'paper-notebook',
-]
-const ORIGINAL_THEME_IDS = new Set(ORIGINAL_THEME_ID_LIST)
-const ORIGINAL_BACKGROUND_IDS = new Set(ORIGINAL_BACKGROUND_ID_LIST)
 
 const DISPLAY_FONT_IDS = new Set([
   'bricolage-grotesque', 'space-grotesk', 'oswald', 'fraunces', 'cinzel', 'rye',
@@ -49,69 +45,6 @@ const PROHIBITED_MANIFEST_PATTERNS = [
   { pattern: /rgba?\s*\(/iu, label: 'raw colour CSS' },
   { pattern: /font-family|url\s*\(/iu, label: 'raw font or URL CSS' },
 ]
-
-export const VISUAL_THEME_BATCH_1_CONTRACTS = {
-  'hard-rock': {
-    name: 'Hard Rock', category: 'music', displayFontId: 'oswald', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['hard-rock-stage-lights', 'hard-rock-amps', 'hard-rock-electric-storm'],
-  },
-  jazz: {
-    name: 'Jazz', category: 'music', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['jazz-blue-note', 'jazz-after-hours', 'jazz-brass'],
-  },
-  disco: {
-    name: 'Disco', category: 'music', displayFontId: 'limelight', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['disco-mirror', 'disco-lightfloor', 'disco-starburst'],
-  },
-  '1980s': {
-    name: '1980s', category: 'decades', displayFontId: 'orbitron', uiFontId: 'space-grotesk',
-    backgroundIds: ['1980s-broadcast', '1980s-chrome', '1980s-motion'],
-  },
-  '1990s': {
-    name: '1990s', category: 'decades', displayFontId: 'space-grotesk', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['1990s-shapes', '1990s-airwave', '1990s-studio'],
-  },
-  chiptune: {
-    name: 'Chiptune', category: 'music', displayFontId: 'pixelify-sans', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['chiptune-pixels', 'chiptune-blockworld', 'chiptune-bitstream'],
-  },
-  synthwave: {
-    name: 'Synthwave', category: 'music', displayFontId: 'orbitron', uiFontId: 'space-grotesk',
-    backgroundIds: ['synthwave-horizon', 'synthwave-laser', 'synthwave-chrome'],
-  },
-  'spy-noir': {
-    name: 'Spy Noir', category: 'cinematic', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['spy-noir-shadows', 'spy-noir-venetian', 'spy-noir-smoke'],
-  },
-  'sci-fi': {
-    name: 'Sci-Fi', category: 'cinematic', displayFontId: 'space-grotesk', uiFontId: 'space-grotesk',
-    backgroundIds: ['sci-fi-orbit', 'sci-fi-nebula', 'sci-fi-interface'],
-  },
-  medieval: {
-    name: 'Medieval', category: 'cinematic', displayFontId: 'uncial-antiqua', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['medieval-illuminated', 'medieval-tapestry', 'medieval-candlelight'],
-  },
-  western: {
-    name: 'Western', category: 'cinematic', displayFontId: 'rye', uiFontId: 'roboto-slab',
-    backgroundIds: ['western-sundown', 'western-weathered', 'western-turquoise'],
-  },
-  pirate: {
-    name: 'Pirate', category: 'cinematic', displayFontId: 'cinzel', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['pirate-chart', 'pirate-deepwater', 'pirate-compass'],
-  },
-  halloween: {
-    name: 'Halloween', category: 'seasonal', displayFontId: 'cinzel', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['halloween-moonlight', 'halloween-pumpkin-glow', 'halloween-haunted'],
-  },
-  christmas: {
-    name: 'Christmas', category: 'seasonal', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['christmas-lights', 'christmas-snow', 'christmas-ribbons'],
-  },
-  'retro-game-show': {
-    name: 'Retro Game Show', category: 'entertainment', displayFontId: 'limelight', uiFontId: 'bricolage-grotesque',
-    backgroundIds: ['retro-game-show-panels', 'retro-game-show-rings', 'retro-game-show-studio'],
-  },
-}
 
 sharp.cache(false)
 
@@ -274,7 +207,23 @@ export function compileThemeManifest(manifest) {
   }
 }
 
-function buildGeneratedModule(manifests) {
+const BATCH_1_GENERATED_EXPORTS = {
+  themeIds: 'VISUAL_THEME_BATCH_1_THEME_IDS',
+  backgroundIds: 'VISUAL_THEME_BATCH_1_BACKGROUND_IDS',
+  themes: 'visualThemeBatch1Themes',
+  backgrounds: 'visualThemeBatch1Backgrounds',
+}
+
+function validateGeneratedExports(exports) {
+  for (const [label, value] of Object.entries(exports)) {
+    if (typeof value !== 'string' || !/^[A-Z_a-z][\w]*$/u.test(value)) {
+      throw new Error(`Generated ${label} export must be a safe JavaScript identifier.`)
+    }
+  }
+}
+
+function buildGeneratedModule(manifests, generatedExports) {
+  validateGeneratedExports(generatedExports)
   const themes = manifests.map(compileThemeManifest)
   const backgrounds = manifests.flatMap((manifest) => manifest.backgrounds.map((background) => ({
     id: background.id,
@@ -288,13 +237,13 @@ function buildGeneratedModule(manifests) {
     '// Generated by scripts/import-theme-batch.mjs from a reviewed local source package.',
     '// Do not edit by hand.',
     '',
-    `export const VISUAL_THEME_BATCH_1_THEME_IDS = ${JSON.stringify(themeIds, null, 2)} as const`,
+    `export const ${generatedExports.themeIds} = ${JSON.stringify(themeIds, null, 2)} as const`,
     '',
-    `export const VISUAL_THEME_BATCH_1_BACKGROUND_IDS = ${JSON.stringify(backgroundIds, null, 2)} as const`,
+    `export const ${generatedExports.backgroundIds} = ${JSON.stringify(backgroundIds, null, 2)} as const`,
     '',
-    `export const visualThemeBatch1Themes = ${JSON.stringify(themes, null, 2)} as const`,
+    `export const ${generatedExports.themes} = ${JSON.stringify(themes, null, 2)} as const`,
     '',
-    `export const visualThemeBatch1Backgrounds = ${JSON.stringify(backgrounds, null, 2)} as const`,
+    `export const ${generatedExports.backgrounds} = ${JSON.stringify(backgrounds, null, 2)} as const`,
     '',
   ].join('\n')
 }
@@ -428,7 +377,7 @@ async function buildThumbnail(inputPath, outputPath) {
   return outputStat.size
 }
 
-async function validateManifestFolder({ folderPath, folderName, validateSchema, contract }) {
+async function validateManifestFolder({ batchId, folderPath, folderName, validateSchema, contract }) {
   const manifestPath = join(folderPath, 'theme.json')
   if (!existsSync(manifestPath)) throw new Error(`${folderName}: missing theme.json.`)
   const rawManifest = await readFile(manifestPath, 'utf8')
@@ -451,9 +400,9 @@ async function validateManifestFolder({ folderPath, folderName, validateSchema, 
     if (prohibited.pattern.test(rawManifest)) throw new Error(`${folderName}: manifest contains ${prohibited.label}.`)
   }
   if (!manifest.preview || manifest.preview.kind !== 'thumbnail') {
-    throw new Error(`${folderName}: Batch 1 requires one reviewed thumbnail preview source.`)
+    throw new Error(`${folderName}: ${batchId} requires one reviewed thumbnail preview source.`)
   }
-  if (!contract) throw new Error(`${folderName}: is not part of the reviewed batch contract.`)
+  if (!contract) throw new Error(`${folderName}: is not part of the reviewed ${batchId} contract.`)
   for (const field of ['name', 'category', 'displayFontId', 'uiFontId']) {
     if (manifest[field] !== contract[field]) {
       throw new Error(`${folderName}: ${field} differs from the reviewed batch contract.`)
@@ -491,6 +440,7 @@ async function validateManifestFolder({ folderPath, folderName, validateSchema, 
 }
 
 export async function importThemeBatch({
+  batchId = 'batch-01',
   sourceDir,
   sourceArchivePath,
   expectedSourceContentSha256,
@@ -502,10 +452,17 @@ export async function importThemeBatch({
   reportPath,
   portableSchemaPaths = [],
   expectedContracts = VISUAL_THEME_BATCH_1_CONTRACTS,
+  existingThemeIds = ORIGINAL_THEME_ID_LIST,
+  existingBackgroundIds = ORIGINAL_BACKGROUND_ID_LIST,
+  generatedExports = BATCH_1_GENERATED_EXPORTS,
+  semanticTokenCorrections = [],
   write = false,
   allowExistingOutputs = false,
   log = console.log,
 }) {
+  if (typeof batchId !== 'string' || !/^batch-\d{2,}$/u.test(batchId)) {
+    throw new Error('Theme batch ID must use the form batch-01.')
+  }
   const resolvedSourceDir = resolve(sourceDir)
   if (!existsSync(resolvedSourceDir)) throw new Error(`Theme batch source does not exist: ${resolvedSourceDir}`)
   const expectedContentDigest = normaliseExpectedSha256(
@@ -538,6 +495,13 @@ export async function importThemeBatch({
   const ajv = new Ajv2020({ allErrors: true, strict: true })
   const validateSchema = ajv.compile(schema)
   const expectedThemeIds = Object.keys(expectedContracts)
+  if (expectedThemeIds.length === 0) throw new Error(`${batchId}: reviewed theme contract is empty.`)
+  if (new Set(existingThemeIds).size !== existingThemeIds.length) {
+    throw new Error(`${batchId}: existing theme IDs must be unique.`)
+  }
+  if (new Set(existingBackgroundIds).size !== existingBackgroundIds.length) {
+    throw new Error(`${batchId}: existing background IDs must be unique.`)
+  }
   const entries = await readdir(resolvedSourceDir, { withFileTypes: true })
   const folderNames = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
   if (entries.some((entry) => !entry.isDirectory()) || !exactArray(folderNames, [...expectedThemeIds].sort())) {
@@ -547,6 +511,7 @@ export async function importThemeBatch({
   const validatedById = new Map()
   for (const themeId of expectedThemeIds) {
     const result = await validateManifestFolder({
+      batchId,
       folderPath: join(resolvedSourceDir, themeId),
       folderName: themeId,
       validateSchema,
@@ -558,9 +523,13 @@ export async function importThemeBatch({
   const manifests = validated.map((item) => item.manifest)
   const allBackgroundIds = manifests.flatMap((manifest) => manifest.backgrounds.map((background) => background.id))
   if (new Set(allBackgroundIds).size !== allBackgroundIds.length) throw new Error('Background IDs must be unique across the complete batch.')
-  if (expectedThemeIds.some((id) => ORIGINAL_THEME_IDS.has(id))) throw new Error('A Batch 1 theme ID collides with an existing theme.')
-  if (allBackgroundIds.some((id) => ORIGINAL_BACKGROUND_IDS.has(id))) {
-    throw new Error('A Batch 1 background ID collides with an existing background.')
+  const existingThemeIdSet = new Set(existingThemeIds)
+  const existingBackgroundIdSet = new Set(existingBackgroundIds)
+  if (expectedThemeIds.some((id) => existingThemeIdSet.has(id))) {
+    throw new Error(`${batchId}: a theme ID collides with an existing registered theme.`)
+  }
+  if (allBackgroundIds.some((id) => existingBackgroundIdSet.has(id))) {
+    throw new Error(`${batchId}: a background ID collides with an existing registered background.`)
   }
 
   if (write && !allowExistingOutputs) {
@@ -612,9 +581,9 @@ export async function importThemeBatch({
       })
     }
 
-    const generatedModule = buildGeneratedModule(manifests)
-    const allThemeIds = [...ORIGINAL_THEME_ID_LIST, ...expectedThemeIds]
-    const allRegisteredBackgroundIds = [...ORIGINAL_BACKGROUND_ID_LIST, ...allBackgroundIds]
+    const generatedModule = buildGeneratedModule(manifests, generatedExports)
+    const allThemeIds = [...existingThemeIds, ...expectedThemeIds]
+    const allRegisteredBackgroundIds = [...existingBackgroundIds, ...allBackgroundIds]
     const portableSchemaUpdates = await buildPortableSchemaUpdates(
       portableSchemaPaths,
       allThemeIds,
@@ -629,7 +598,7 @@ export async function importThemeBatch({
       item.productionBytes > largest.productionBytes ? item : largest
     ))
     const report = {
-      batchId: 'batch-01',
+      batchId,
       sourceContentSha256,
       ...(sourceArchiveSha256 ? { sourceArchiveSha256 } : {}),
       themeCount: manifests.length,
@@ -652,7 +621,7 @@ export async function importThemeBatch({
         dimensions: `${THEME_THUMBNAIL_WIDTH}x${THEME_THUMBNAIL_HEIGHT}`,
         totalBytes: thumbnailReport.reduce((total, item) => total + item.thumbnailBytes, 0),
       },
-      semanticTokenCorrections: [],
+      semanticTokenCorrections,
       portableFormat: {
         exportVersion: 5,
         versionBumpRequired: false,
@@ -694,6 +663,7 @@ export async function importThemeBatch({
 
 function parseArguments(arguments_) {
   const options = {
+    batchId: 'batch-01',
     sourceDir: null,
     sourceArchivePath: null,
     expectedSourceContentSha256: null,
@@ -710,7 +680,10 @@ function parseArguments(arguments_) {
     const argument = arguments_[index]
     if (argument === '--write') options.write = true
     else if (argument === '--allow-existing') options.allowExistingOutputs = true
-    else if (argument === '--source') {
+    else if (argument === '--batch') {
+      options.batchId = readValue(argument, index)
+      index += 1
+    } else if (argument === '--source') {
       options.sourceDir = readValue(argument, index)
       index += 1
     } else if (argument === '--source-archive') {
@@ -732,20 +705,35 @@ const runningAsCommand = process.argv[1] && pathToFileURL(resolve(process.argv[1
 
 if (runningAsCommand) {
   const options = parseArguments(process.argv.slice(2))
-  importThemeBatch({
-    sourceDir: options.sourceDir ?? join(repositoryRoot, 'theme-source', 'batch-01'),
-    sourceArchivePath: options.sourceArchivePath,
-    expectedSourceContentSha256: options.expectedSourceContentSha256,
-    expectedSourceArchiveSha256: options.expectedSourceArchiveSha256,
+  const batchConfig = getVisualThemeBatchConfig(options.batchId)
+  if (!batchConfig) {
+    console.error(`Theme batch import failed: unknown reviewed batch ${options.batchId}.`)
+    process.exitCode = 1
+  } else importThemeBatch({
+    batchId: batchConfig.batchId,
+    sourceDir: options.sourceDir ?? join(repositoryRoot, 'theme-source', batchConfig.sourceDirectory),
+    sourceArchivePath: options.sourceArchivePath ?? join(
+      repositoryRoot,
+      'theme-source',
+      batchConfig.sourceArchiveFilename,
+    ),
+    expectedSourceContentSha256: options.expectedSourceContentSha256
+      ?? batchConfig.expectedSourceContentSha256,
+    expectedSourceArchiveSha256: options.expectedSourceArchiveSha256
+      ?? batchConfig.expectedSourceArchiveSha256,
     schemaPath: join(repositoryRoot, 'docs', 'theme-authoring', 'theme-manifest.schema.json'),
     outputBackgroundDir: join(repositoryRoot, 'public', 'backgrounds'),
     outputPreviewDir: join(repositoryRoot, 'public', 'backgrounds', 'previews'),
-    generatedModulePath: join(repositoryRoot, 'src', 'generated', 'visualThemeBatch1.ts'),
-    reportPath: join(repositoryRoot, 'docs', 'visual-theme-batch-1-size-report.json'),
+    generatedModulePath: join(repositoryRoot, 'src', 'generated', batchConfig.generatedModuleFilename),
+    reportPath: join(repositoryRoot, 'docs', batchConfig.reportFilename),
     portableSchemaPaths: [1, 2, 3, 4, 5].map((version) => (
       join(repositoryRoot, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`)
     )),
-    expectedContracts: VISUAL_THEME_BATCH_1_CONTRACTS,
+    expectedContracts: batchConfig.contracts,
+    existingThemeIds: batchConfig.existingThemeIds,
+    existingBackgroundIds: batchConfig.existingBackgroundIds,
+    generatedExports: batchConfig.exports,
+    semanticTokenCorrections: batchConfig.semanticTokenCorrections,
     write: options.write,
     allowExistingOutputs: options.allowExistingOutputs,
   }).catch((reason) => {
