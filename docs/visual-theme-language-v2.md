@@ -69,7 +69,7 @@ theme-source/
       <theme-id>-<composition-c>.png
 ```
 
-`theme-source/` is ignored by Git. `npm run import:theme-batch -- --source <batch-folder>` performs a no-write validation and measured conversion; add `--write` only for a reviewed package. The importer uses the 2020-12 schema, exact reviewed batch contract, approved font roles, safe string checks and full Sharp decoding before it writes production assets, previews, trusted generated metadata, portable enums and a deterministic size report. Source masters are not committed.
+`theme-source/` is ignored by Git. `npm run import:theme-batch -- --source <batch-folder>` performs a no-write validation and measured conversion; add `--write` only for a reviewed package. Supply `--expected-content-sha256 <digest>` to bind an extracted source tree to its reviewed relative paths and bytes. When the original package is available, `--source-archive <batch.zip> --expected-archive-sha256 <digest>` independently verifies its ordinary file checksum. Digest mismatches stop before output preparation or replacement, including with `--allow-existing`, and reports distinguish `sourceContentSha256` from `sourceArchiveSha256`. The importer uses the 2020-12 schema, exact reviewed batch contract, approved font roles, safe string checks and full Sharp decoding before it writes production assets, previews, trusted generated metadata, portable enums and a deterministic size report. Source masters are not committed.
 
 ## Image-generation contract
 

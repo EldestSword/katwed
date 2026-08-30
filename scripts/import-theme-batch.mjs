@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { createReadStream, existsSync } from 'node:fs'
 import {
   copyFile,
   mkdir,
@@ -10,7 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
 import sharp from 'sharp'
@@ -113,6 +114,96 @@ export const VISUAL_THEME_BATCH_1_CONTRACTS = {
 }
 
 sharp.cache(false)
+
+const SOURCE_CONTENT_DIGEST_DOMAIN = 'katwed-theme-source-content-v1\0'
+
+function uint64Buffer(value) {
+  const buffer = Buffer.alloc(8)
+  buffer.writeBigUInt64BE(BigInt(value))
+  return buffer
+}
+
+function normaliseExpectedSha256(value, label) {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string' || !/^[a-f\d]{64}$/iu.test(value)) {
+    throw new Error(`${label} must be a 64-character SHA-256 digest.`)
+  }
+  return value.toLowerCase()
+}
+
+async function collectSourceFiles(directoryPath) {
+  const files = []
+  const entries = await readdir(directoryPath, { withFileTypes: true })
+  for (const entry of entries) {
+    const entryPath = join(directoryPath, entry.name)
+    if (entry.isDirectory()) files.push(...await collectSourceFiles(entryPath))
+    else if (entry.isFile()) files.push(entryPath)
+    else throw new Error(`Theme source contains an unsupported filesystem entry: ${entryPath}`)
+  }
+  return files
+}
+
+async function updateHashFromFile(hash, filePath, expectedBytes) {
+  let bytesRead = 0
+  for await (const chunk of createReadStream(filePath)) {
+    bytesRead += chunk.length
+    hash.update(chunk)
+  }
+  if (expectedBytes !== undefined && bytesRead !== expectedBytes) {
+    throw new Error(`Theme source changed while its digest was being calculated: ${filePath}`)
+  }
+}
+
+export async function calculateSourceContentSha256FromPaths(sourceDir, filePaths) {
+  const resolvedSourceDir = resolve(sourceDir)
+  const entries = []
+  const seenRelativePaths = new Set()
+  for (const filePath of filePaths) {
+    const resolvedFilePath = resolve(filePath)
+    const platformRelativePath = relative(resolvedSourceDir, resolvedFilePath)
+    if (!platformRelativePath || platformRelativePath === '..' || platformRelativePath.startsWith(`..${sep}`) || isAbsolute(platformRelativePath)) {
+      throw new Error(`Theme source digest path is outside the source directory: ${resolvedFilePath}`)
+    }
+    const relativePath = platformRelativePath.replaceAll('\\', '/')
+    if (seenRelativePaths.has(relativePath)) throw new Error(`Duplicate theme source digest path: ${relativePath}`)
+    seenRelativePaths.add(relativePath)
+    entries.push({ filePath: resolvedFilePath, relativePath })
+  }
+  entries.sort((left, right) => left.relativePath < right.relativePath ? -1 : left.relativePath > right.relativePath ? 1 : 0)
+
+  const hash = createHash('sha256')
+  hash.update(SOURCE_CONTENT_DIGEST_DOMAIN, 'utf8')
+  for (const entry of entries) {
+    const pathBytes = Buffer.from(entry.relativePath, 'utf8')
+    const fileStat = await stat(entry.filePath)
+    if (!fileStat.isFile()) throw new Error(`Theme source digest entry is not a file: ${entry.filePath}`)
+    hash.update(uint64Buffer(pathBytes.length))
+    hash.update(pathBytes)
+    hash.update(uint64Buffer(fileStat.size))
+    await updateHashFromFile(hash, entry.filePath, fileStat.size)
+  }
+  return hash.digest('hex')
+}
+
+export async function calculateSourceContentSha256(sourceDir) {
+  const resolvedSourceDir = resolve(sourceDir)
+  return calculateSourceContentSha256FromPaths(resolvedSourceDir, await collectSourceFiles(resolvedSourceDir))
+}
+
+export async function calculateFileSha256(filePath) {
+  const resolvedFilePath = resolve(filePath)
+  const fileStat = await stat(resolvedFilePath)
+  if (!fileStat.isFile()) throw new Error(`SHA-256 source is not a file: ${resolvedFilePath}`)
+  const hash = createHash('sha256')
+  await updateHashFromFile(hash, resolvedFilePath, fileStat.size)
+  return hash.digest('hex')
+}
+
+function verifyDigest({ actual, expected, label }) {
+  if (expected && actual !== expected) {
+    throw new Error(`${label} SHA-256 mismatch: expected ${expected}, calculated ${actual}.`)
+  }
+}
 
 function exactArray(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index])
@@ -401,6 +492,9 @@ async function validateManifestFolder({ folderPath, folderName, validateSchema, 
 
 export async function importThemeBatch({
   sourceDir,
+  sourceArchivePath,
+  expectedSourceContentSha256,
+  expectedSourceArchiveSha256,
   schemaPath,
   outputBackgroundDir,
   outputPreviewDir,
@@ -414,6 +508,32 @@ export async function importThemeBatch({
 }) {
   const resolvedSourceDir = resolve(sourceDir)
   if (!existsSync(resolvedSourceDir)) throw new Error(`Theme batch source does not exist: ${resolvedSourceDir}`)
+  const expectedContentDigest = normaliseExpectedSha256(
+    expectedSourceContentSha256,
+    'Expected source content digest',
+  )
+  const expectedArchiveDigest = normaliseExpectedSha256(
+    expectedSourceArchiveSha256,
+    'Expected source archive digest',
+  )
+  if (expectedArchiveDigest && !sourceArchivePath) {
+    throw new Error('An expected source archive digest requires sourceArchivePath.')
+  }
+  const sourceContentSha256 = await calculateSourceContentSha256(resolvedSourceDir)
+  verifyDigest({
+    actual: sourceContentSha256,
+    expected: expectedContentDigest,
+    label: 'Theme source content',
+  })
+  let sourceArchiveSha256
+  if (sourceArchivePath) {
+    sourceArchiveSha256 = await calculateFileSha256(sourceArchivePath)
+    verifyDigest({
+      actual: sourceArchiveSha256,
+      expected: expectedArchiveDigest,
+      label: 'Theme source archive',
+    })
+  }
   const schema = JSON.parse(await readFile(schemaPath, 'utf8'))
   const ajv = new Ajv2020({ allErrors: true, strict: true })
   const validateSchema = ajv.compile(schema)
@@ -510,7 +630,8 @@ export async function importThemeBatch({
     ))
     const report = {
       batchId: 'batch-01',
-      sourceSha256: '7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045',
+      sourceContentSha256,
+      ...(sourceArchiveSha256 ? { sourceArchiveSha256 } : {}),
       themeCount: manifests.length,
       backgroundCount: backgroundReport.length,
       thumbnailCount: thumbnailReport.length,
@@ -560,6 +681,8 @@ export async function importThemeBatch({
     }
 
     log(`Validated ${manifests.length} themes and ${backgroundReport.length} source backgrounds.`)
+    log(`Source content SHA-256: ${sourceContentSha256}.`)
+    if (sourceArchiveSha256) log(`Source archive SHA-256: ${sourceArchiveSha256}.`)
     log(`Production WebPs: ${formatBytes(report.production.totalSourceBytes)} -> ${formatBytes(report.production.totalProductionBytes)}.`)
     log(`Preview thumbnails: ${formatBytes(report.thumbnails.totalBytes)}.`)
     log(write ? 'Production outputs written.' : 'Dry run only; no production outputs written.')
@@ -570,13 +693,34 @@ export async function importThemeBatch({
 }
 
 function parseArguments(arguments_) {
-  const options = { sourceDir: null, write: false, allowExistingOutputs: false }
+  const options = {
+    sourceDir: null,
+    sourceArchivePath: null,
+    expectedSourceContentSha256: null,
+    expectedSourceArchiveSha256: null,
+    write: false,
+    allowExistingOutputs: false,
+  }
+  const readValue = (argument, index) => {
+    const value = arguments_[index + 1]
+    if (!value || value.startsWith('--')) throw new Error(`${argument} requires a value.`)
+    return value
+  }
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index]
     if (argument === '--write') options.write = true
     else if (argument === '--allow-existing') options.allowExistingOutputs = true
     else if (argument === '--source') {
-      options.sourceDir = arguments_[index + 1]
+      options.sourceDir = readValue(argument, index)
+      index += 1
+    } else if (argument === '--source-archive') {
+      options.sourceArchivePath = readValue(argument, index)
+      index += 1
+    } else if (argument === '--expected-content-sha256') {
+      options.expectedSourceContentSha256 = readValue(argument, index)
+      index += 1
+    } else if (argument === '--expected-archive-sha256') {
+      options.expectedSourceArchiveSha256 = readValue(argument, index)
       index += 1
     } else throw new Error(`Unknown theme import argument: ${argument}`)
   }
@@ -590,6 +734,9 @@ if (runningAsCommand) {
   const options = parseArguments(process.argv.slice(2))
   importThemeBatch({
     sourceDir: options.sourceDir ?? join(repositoryRoot, 'theme-source', 'batch-01'),
+    sourceArchivePath: options.sourceArchivePath,
+    expectedSourceContentSha256: options.expectedSourceContentSha256,
+    expectedSourceArchiveSha256: options.expectedSourceArchiveSha256,
     schemaPath: join(repositoryRoot, 'docs', 'theme-authoring', 'theme-manifest.schema.json'),
     outputBackgroundDir: join(repositoryRoot, 'public', 'backgrounds'),
     outputPreviewDir: join(repositoryRoot, 'public', 'backgrounds', 'previews'),

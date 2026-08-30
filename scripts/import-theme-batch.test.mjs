@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -9,9 +9,14 @@ import {
   THEME_THUMBNAIL_HEIGHT,
   THEME_THUMBNAIL_QUALITY,
   THEME_THUMBNAIL_WIDTH,
+  calculateFileSha256,
+  calculateSourceContentSha256,
+  calculateSourceContentSha256FromPaths,
   compileThemeManifest,
   importThemeBatch,
 } from './import-theme-batch.mjs'
+
+const REVIEWED_BATCH_1_ARCHIVE_SHA256 = '7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045'
 
 const contract = {
   'sample-theme': {
@@ -91,6 +96,13 @@ function options(overrides = {}) {
   }
 }
 
+function sourceFilePaths() {
+  return [
+    join(themeDir, 'theme.json'),
+    ...contract['sample-theme'].backgroundIds.map((id) => join(themeDir, `${id}.png`)),
+  ]
+}
+
 describe('theme batch manifest compilation', () => {
   it('compiles only structured gradients, shadows and trusted local asset paths', () => {
     const compiled = compileThemeManifest(sampleManifest())
@@ -101,13 +113,104 @@ describe('theme batch manifest compilation', () => {
   })
 })
 
+describe('theme source provenance', () => {
+  it('produces the same content digest for the same source tree', async () => {
+    const first = await calculateSourceContentSha256(sourceDir)
+    const second = await calculateSourceContentSha256(sourceDir)
+    expect(second).toBe(first)
+  })
+
+  it('does not depend on filesystem enumeration order', async () => {
+    const filePaths = sourceFilePaths()
+    const forward = await calculateSourceContentSha256FromPaths(sourceDir, filePaths)
+    const reverse = await calculateSourceContentSha256FromPaths(sourceDir, [...filePaths].reverse())
+    expect(reverse).toBe(forward)
+  })
+
+  it('changes the content digest when one PNG byte changes', async () => {
+    const imagePath = join(themeDir, 'sample-theme-one.png')
+    const before = await calculateSourceContentSha256(sourceDir)
+    const changedImage = Buffer.from(await readFile(imagePath))
+    changedImage[changedImage.length - 1] ^= 1
+    await writeFile(imagePath, changedImage)
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when manifest content changes', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    const manifest = sampleManifest()
+    manifest.description = 'The same valid manifest with changed source content.'
+    await writeFile(join(themeDir, 'theme.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when a source file is renamed', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    await rename(
+      join(themeDir, 'sample-theme-one.png'),
+      join(themeDir, 'sample-theme-renamed.png'),
+    )
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when a source file is added or removed', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    const extraPath = join(themeDir, 'extra.txt')
+    await writeFile(extraPath, 'extra source content')
+    const withAddition = await calculateSourceContentSha256(sourceDir)
+    expect(withAddition).not.toBe(before)
+    await rm(extraPath)
+    await rm(join(themeDir, 'sample-theme-three.png'))
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+})
+
 describe('theme batch validation and output', () => {
   it('fully validates and measures a batch without writing during a dry run', async () => {
+    const sourceContentSha256 = await calculateSourceContentSha256(sourceDir)
     const result = await importThemeBatch(options())
-    expect(result.report).toMatchObject({ themeCount: 1, backgroundCount: 3, thumbnailCount: 1 })
+    expect(result.report).toMatchObject({
+      sourceContentSha256,
+      themeCount: 1,
+      backgroundCount: 3,
+      thumbnailCount: 1,
+    })
+    expect(result.report).not.toHaveProperty('sourceSha256')
     expect(result.report.production.totalProductionBytes).toBeGreaterThan(0)
     expect(result.report.thumbnails.totalBytes).toBeGreaterThan(0)
     expect(existsSync(options().generatedModulePath)).toBe(false)
+  })
+
+  it('continues when the expected content digest matches the supplied source', async () => {
+    const expectedSourceContentSha256 = await calculateSourceContentSha256(sourceDir)
+    const result = await importThemeBatch(options({ expectedSourceContentSha256 }))
+    expect(result.report.sourceContentSha256).toBe(expectedSourceContentSha256)
+  })
+
+  it('rejects a mismatched expected digest before writing production outputs', async () => {
+    const paths = options({
+      write: true,
+      expectedSourceContentSha256: '0'.repeat(64),
+    })
+    await expect(importThemeBatch(paths)).rejects.toThrow(/source content SHA-256 mismatch/i)
+    expect(existsSync(paths.outputBackgroundDir)).toBe(false)
+    expect(existsSync(paths.outputPreviewDir)).toBe(false)
+    expect(existsSync(paths.generatedModulePath)).toBe(false)
+    expect(existsSync(paths.reportPath)).toBe(false)
+  })
+
+  it('does not let --allow-existing bypass a mismatched expected digest', async () => {
+    const paths = options({
+      write: true,
+      allowExistingOutputs: true,
+      expectedSourceContentSha256: '0'.repeat(64),
+    })
+    await mkdir(resolve(paths.generatedModulePath, '..'), { recursive: true })
+    await writeFile(paths.generatedModulePath, 'existing reviewed output')
+    await expect(importThemeBatch(paths)).rejects.toThrow(/source content SHA-256 mismatch/i)
+    await expect(readFile(paths.generatedModulePath, 'utf8')).resolves.toBe('existing reviewed output')
+    expect(existsSync(paths.outputBackgroundDir)).toBe(false)
+    expect(existsSync(paths.reportPath)).toBe(false)
   })
 
   it('writes quality-82 production WebPs, a small thumbnail, metadata and controlled portable enums', async () => {
@@ -126,6 +229,8 @@ describe('theme batch validation and output', () => {
       format: 'webp', width: THEME_THUMBNAIL_WIDTH, height: THEME_THUMBNAIL_HEIGHT,
     })
     const report = JSON.parse(await readFile(paths.reportPath, 'utf8'))
+    expect(report.sourceContentSha256).toBe(await calculateSourceContentSha256(sourceDir))
+    expect(report).not.toHaveProperty('sourceSha256')
     expect(report.production.quality).toBe(THEME_BATCH_WEBP_QUALITY)
     expect(report.thumbnails.quality).toBe(THEME_THUMBNAIL_QUALITY)
     const schema = JSON.parse(await readFile(portableSchemaPath, 'utf8'))
@@ -149,4 +254,40 @@ describe('theme batch validation and output', () => {
     await expect(importThemeBatch(options())).rejects.toThrow(/unexpected transparent pixels/)
     expect(existsSync(options().generatedModulePath)).toBe(false)
   })
+})
+
+const reviewedBatchSourceDir = resolve('theme-source/batch-01')
+const reviewedBatchArchivePath = resolve('theme-source/Katwed-Visual-Theme-Batch-01.zip')
+const reviewedBatchAvailable = existsSync(reviewedBatchSourceDir) && existsSync(reviewedBatchArchivePath)
+
+describe('reviewed Visual Theme Batch 1 reproduction', () => {
+  it.runIf(reviewedBatchAvailable)(
+    'reproduces the trusted registry, production measurements and reviewed archive digest',
+    async () => {
+      const trustedReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-1-size-report.json'), 'utf8'))
+      const result = await importThemeBatch({
+        sourceDir: reviewedBatchSourceDir,
+        sourceArchivePath: reviewedBatchArchivePath,
+        expectedSourceArchiveSha256: REVIEWED_BATCH_1_ARCHIVE_SHA256,
+        schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
+        outputBackgroundDir: resolve('public/backgrounds'),
+        outputPreviewDir: resolve('public/backgrounds/previews'),
+        generatedModulePath: resolve('src/generated/visualThemeBatch1.ts'),
+        reportPath: resolve('docs/visual-theme-batch-1-size-report.json'),
+        portableSchemaPaths: [1, 2, 3, 4, 5].map((version) => (
+          resolve(`docs/schemas/katwed-quiz-v${version}.schema.json`)
+        )),
+        log: () => undefined,
+      })
+
+      expect(result.generatedModule).toBe(await readFile(resolve('src/generated/visualThemeBatch1.ts'), 'utf8'))
+      expect(result.report.production).toEqual(trustedReport.production)
+      expect(result.report.thumbnails).toEqual(trustedReport.thumbnails)
+      expect(result.report.backgrounds).toEqual(trustedReport.backgrounds)
+      expect(result.report.previewThumbnails).toEqual(trustedReport.previewThumbnails)
+      expect(result.report.sourceArchiveSha256).toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
+      await expect(calculateFileSha256(reviewedBatchArchivePath)).resolves.toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
+    },
+    120_000,
+  )
 })

@@ -1,6 +1,7 @@
 {
   "batchId": "batch-01",
-  "sourceSha256": "7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045",
+  "sourceContentSha256": "4a364354e1cac3d192c5bcfa836b8811b219a932b1dd70ca183010a0449985f0",
+  "sourceArchiveSha256": "7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045",
   "themeCount": 15,
   "backgroundCount": 45,
   "thumbnailCount": 15,
