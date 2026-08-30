@@ -1,0 +1,293 @@
+import { existsSync } from 'node:fs'
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import sharp from 'sharp'
+import {
+  THEME_BATCH_WEBP_QUALITY,
+  THEME_THUMBNAIL_HEIGHT,
+  THEME_THUMBNAIL_QUALITY,
+  THEME_THUMBNAIL_WIDTH,
+  calculateFileSha256,
+  calculateSourceContentSha256,
+  calculateSourceContentSha256FromPaths,
+  compileThemeManifest,
+  importThemeBatch,
+} from './import-theme-batch.mjs'
+
+const REVIEWED_BATCH_1_ARCHIVE_SHA256 = '7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045'
+
+const contract = {
+  'sample-theme': {
+    name: 'Sample Theme',
+    category: 'abstract',
+    displayFontId: 'space-grotesk',
+    uiFontId: 'system-ui',
+    backgroundIds: ['sample-theme-one', 'sample-theme-two', 'sample-theme-three'],
+  },
+}
+
+function sampleManifest() {
+  return {
+    schemaVersion: 2,
+    id: 'sample-theme',
+    name: 'Sample Theme',
+    category: 'abstract',
+    description: 'A safe and deliberately small importer test theme.',
+    keywords: ['sample', 'safe', 'test'],
+    displayFontId: 'space-grotesk',
+    uiFontId: 'system-ui',
+    swatches: ['#101820', '#F5F7FA', '#4FD1C5'],
+    preview: { kind: 'thumbnail', label: 'Sample theme artwork preview', sourceFilename: 'sample-theme-one.png' },
+    tokens: {
+      canvas: '#101820', surface: '#17232D', surfaceSecondary: '#243542', text: '#FFFFFF',
+      textMuted: '#C5D0D8', border: '#647785', accent: '#4FD1C5', accentSecondary: '#F6C453',
+      accentText: '#101820', focus: '#F6C453', featureBackground: '#F6C453', featureText: '#101820',
+      buttonBackground: '#4FD1C5', buttonText: '#101820', buttonShadow: '#26776F',
+      answerSurface: '#243542', answerSelected: '#365266', leaderboardSurface: '#243542',
+      leaderboardHighlight: '#5D4B25', progress: '#F6C453',
+      stageBackground: { kind: 'radial-gradient', position: 'top-right', inner: '#365266', outer: '#101820', outerStopPercent: 64 },
+      playerBarBackground: '#101820', playerBarText: '#FFFFFF', playerBarMuted: '#C5D0D8',
+      stageText: '#FFFFFF', stageTextMuted: '#C5D0D8', stageSurface: '#17232DE8',
+      stageBorder: '#647785', roomAccent: '#F6C453', stageEyebrow: '#4FD1C5',
+      shadow: { xPx: 0, yPx: 18, blurPx: 48, colour: '#000000B0' },
+    },
+    backgrounds: [
+      { id: 'sample-theme-one', name: 'One', sourceFilename: 'sample-theme-one.png' },
+      { id: 'sample-theme-two', name: 'Two', sourceFilename: 'sample-theme-two.png' },
+      { id: 'sample-theme-three', name: 'Three', sourceFilename: 'sample-theme-three.png' },
+    ],
+  }
+}
+
+let temporaryRoot
+let sourceDir
+let themeDir
+
+beforeEach(async () => {
+  temporaryRoot = await mkdtemp(join(tmpdir(), 'katwed-theme-batch-test-'))
+  sourceDir = join(temporaryRoot, 'source')
+  themeDir = join(sourceDir, 'sample-theme')
+  await mkdir(themeDir, { recursive: true })
+  await writeFile(join(themeDir, 'theme.json'), `${JSON.stringify(sampleManifest(), null, 2)}\n`)
+  for (const id of contract['sample-theme'].backgroundIds) {
+    await sharp({
+      create: { width: 1920, height: 1080, channels: 3, background: { r: 16, g: 24, b: 32 } },
+    }).png().toFile(join(themeDir, `${id}.png`))
+  }
+})
+
+afterEach(async () => {
+  await rm(temporaryRoot, { recursive: true, force: true })
+})
+
+function options(overrides = {}) {
+  return {
+    sourceDir,
+    schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
+    outputBackgroundDir: join(temporaryRoot, 'public', 'backgrounds'),
+    outputPreviewDir: join(temporaryRoot, 'public', 'backgrounds', 'previews'),
+    generatedModulePath: join(temporaryRoot, 'src', 'generated', 'visualThemeBatch1.ts'),
+    reportPath: join(temporaryRoot, 'docs', 'visual-theme-batch-1-size-report.json'),
+    expectedContracts: contract,
+    log: () => undefined,
+    ...overrides,
+  }
+}
+
+function sourceFilePaths() {
+  return [
+    join(themeDir, 'theme.json'),
+    ...contract['sample-theme'].backgroundIds.map((id) => join(themeDir, `${id}.png`)),
+  ]
+}
+
+describe('theme batch manifest compilation', () => {
+  it('compiles only structured gradients, shadows and trusted local asset paths', () => {
+    const compiled = compileThemeManifest(sampleManifest())
+    expect(compiled.tokens.stage.background).toBe('radial-gradient(circle at top right, #365266, #101820 64%)')
+    expect(compiled.tokens.shadow).toBe('0px 18px 48px #000000B0')
+    expect(compiled.preview.thumbnailPath).toBe('/backgrounds/previews/sample-theme.webp')
+    expect(JSON.stringify(compiled)).not.toContain('sourceFilename')
+  })
+})
+
+describe('theme source provenance', () => {
+  it('produces the same content digest for the same source tree', async () => {
+    const first = await calculateSourceContentSha256(sourceDir)
+    const second = await calculateSourceContentSha256(sourceDir)
+    expect(second).toBe(first)
+  })
+
+  it('does not depend on filesystem enumeration order', async () => {
+    const filePaths = sourceFilePaths()
+    const forward = await calculateSourceContentSha256FromPaths(sourceDir, filePaths)
+    const reverse = await calculateSourceContentSha256FromPaths(sourceDir, [...filePaths].reverse())
+    expect(reverse).toBe(forward)
+  })
+
+  it('changes the content digest when one PNG byte changes', async () => {
+    const imagePath = join(themeDir, 'sample-theme-one.png')
+    const before = await calculateSourceContentSha256(sourceDir)
+    const changedImage = Buffer.from(await readFile(imagePath))
+    changedImage[changedImage.length - 1] ^= 1
+    await writeFile(imagePath, changedImage)
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when manifest content changes', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    const manifest = sampleManifest()
+    manifest.description = 'The same valid manifest with changed source content.'
+    await writeFile(join(themeDir, 'theme.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when a source file is renamed', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    await rename(
+      join(themeDir, 'sample-theme-one.png'),
+      join(themeDir, 'sample-theme-renamed.png'),
+    )
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+
+  it('changes the content digest when a source file is added or removed', async () => {
+    const before = await calculateSourceContentSha256(sourceDir)
+    const extraPath = join(themeDir, 'extra.txt')
+    await writeFile(extraPath, 'extra source content')
+    const withAddition = await calculateSourceContentSha256(sourceDir)
+    expect(withAddition).not.toBe(before)
+    await rm(extraPath)
+    await rm(join(themeDir, 'sample-theme-three.png'))
+    await expect(calculateSourceContentSha256(sourceDir)).resolves.not.toBe(before)
+  })
+})
+
+describe('theme batch validation and output', () => {
+  it('fully validates and measures a batch without writing during a dry run', async () => {
+    const sourceContentSha256 = await calculateSourceContentSha256(sourceDir)
+    const result = await importThemeBatch(options())
+    expect(result.report).toMatchObject({
+      sourceContentSha256,
+      themeCount: 1,
+      backgroundCount: 3,
+      thumbnailCount: 1,
+    })
+    expect(result.report).not.toHaveProperty('sourceSha256')
+    expect(result.report.production.totalProductionBytes).toBeGreaterThan(0)
+    expect(result.report.thumbnails.totalBytes).toBeGreaterThan(0)
+    expect(existsSync(options().generatedModulePath)).toBe(false)
+  })
+
+  it('continues when the expected content digest matches the supplied source', async () => {
+    const expectedSourceContentSha256 = await calculateSourceContentSha256(sourceDir)
+    const result = await importThemeBatch(options({ expectedSourceContentSha256 }))
+    expect(result.report.sourceContentSha256).toBe(expectedSourceContentSha256)
+  })
+
+  it('rejects a mismatched expected digest before writing production outputs', async () => {
+    const paths = options({
+      write: true,
+      expectedSourceContentSha256: '0'.repeat(64),
+    })
+    await expect(importThemeBatch(paths)).rejects.toThrow(/source content SHA-256 mismatch/i)
+    expect(existsSync(paths.outputBackgroundDir)).toBe(false)
+    expect(existsSync(paths.outputPreviewDir)).toBe(false)
+    expect(existsSync(paths.generatedModulePath)).toBe(false)
+    expect(existsSync(paths.reportPath)).toBe(false)
+  })
+
+  it('does not let --allow-existing bypass a mismatched expected digest', async () => {
+    const paths = options({
+      write: true,
+      allowExistingOutputs: true,
+      expectedSourceContentSha256: '0'.repeat(64),
+    })
+    await mkdir(resolve(paths.generatedModulePath, '..'), { recursive: true })
+    await writeFile(paths.generatedModulePath, 'existing reviewed output')
+    await expect(importThemeBatch(paths)).rejects.toThrow(/source content SHA-256 mismatch/i)
+    await expect(readFile(paths.generatedModulePath, 'utf8')).resolves.toBe('existing reviewed output')
+    expect(existsSync(paths.outputBackgroundDir)).toBe(false)
+    expect(existsSync(paths.reportPath)).toBe(false)
+  })
+
+  it('writes quality-82 production WebPs, a small thumbnail, metadata and controlled portable enums', async () => {
+    const portableSchemaPath = join(temporaryRoot, 'portable.schema.json')
+    await writeFile(portableSchemaPath, JSON.stringify({
+      marker: { keep: true },
+      $defs: { quiz: { properties: { themeId: { enum: ['katwed'] }, backgroundId: { oneOf: [{ type: 'string' }, { type: 'null' }] } } } },
+    }))
+    const paths = options({ write: true, portableSchemaPaths: [portableSchemaPath] })
+    await importThemeBatch(paths)
+
+    await expect(sharp(join(paths.outputBackgroundDir, 'sample-theme-one.webp')).metadata()).resolves.toMatchObject({
+      format: 'webp', width: 1920, height: 1080,
+    })
+    await expect(sharp(join(paths.outputPreviewDir, 'sample-theme.webp')).metadata()).resolves.toMatchObject({
+      format: 'webp', width: THEME_THUMBNAIL_WIDTH, height: THEME_THUMBNAIL_HEIGHT,
+    })
+    const report = JSON.parse(await readFile(paths.reportPath, 'utf8'))
+    expect(report.sourceContentSha256).toBe(await calculateSourceContentSha256(sourceDir))
+    expect(report).not.toHaveProperty('sourceSha256')
+    expect(report.production.quality).toBe(THEME_BATCH_WEBP_QUALITY)
+    expect(report.thumbnails.quality).toBe(THEME_THUMBNAIL_QUALITY)
+    const schema = JSON.parse(await readFile(portableSchemaPath, 'utf8'))
+    expect(schema.$defs.quiz.properties.themeId.enum).toContain('sample-theme')
+    expect(schema.$defs.quiz.properties.backgroundId.oneOf[0].enum).toContain('sample-theme-three')
+    expect(await readFile(portableSchemaPath, 'utf8')).toContain('{"marker":{"keep":true},')
+    expect(await readFile(paths.generatedModulePath, 'utf8')).toContain('visualThemeBatch1Themes')
+  })
+
+  it('rejects unknown manifest fields before producing any output', async () => {
+    const manifest = { ...sampleManifest(), arbitraryCss: 'body { display: none }' }
+    await writeFile(join(themeDir, 'theme.json'), JSON.stringify(manifest))
+    await expect(importThemeBatch(options())).rejects.toThrow(/does not match the v2 schema/)
+    expect(existsSync(options().generatedModulePath)).toBe(false)
+  })
+
+  it('rejects unexpected source transparency before producing any output', async () => {
+    await sharp({
+      create: { width: 1920, height: 1080, channels: 4, background: { r: 16, g: 24, b: 32, alpha: 0.5 } },
+    }).png().toFile(join(themeDir, 'sample-theme-two.png'))
+    await expect(importThemeBatch(options())).rejects.toThrow(/unexpected transparent pixels/)
+    expect(existsSync(options().generatedModulePath)).toBe(false)
+  })
+})
+
+const reviewedBatchSourceDir = resolve('theme-source/batch-01')
+const reviewedBatchArchivePath = resolve('theme-source/Katwed-Visual-Theme-Batch-01.zip')
+const reviewedBatchAvailable = existsSync(reviewedBatchSourceDir) && existsSync(reviewedBatchArchivePath)
+
+describe('reviewed Visual Theme Batch 1 reproduction', () => {
+  it.runIf(reviewedBatchAvailable)(
+    'reproduces the trusted registry, production measurements and reviewed archive digest',
+    async () => {
+      const trustedReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-1-size-report.json'), 'utf8'))
+      const result = await importThemeBatch({
+        sourceDir: reviewedBatchSourceDir,
+        sourceArchivePath: reviewedBatchArchivePath,
+        expectedSourceArchiveSha256: REVIEWED_BATCH_1_ARCHIVE_SHA256,
+        schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
+        outputBackgroundDir: resolve('public/backgrounds'),
+        outputPreviewDir: resolve('public/backgrounds/previews'),
+        generatedModulePath: resolve('src/generated/visualThemeBatch1.ts'),
+        reportPath: resolve('docs/visual-theme-batch-1-size-report.json'),
+        portableSchemaPaths: [1, 2, 3, 4, 5].map((version) => (
+          resolve(`docs/schemas/katwed-quiz-v${version}.schema.json`)
+        )),
+        log: () => undefined,
+      })
+
+      expect(result.generatedModule).toBe(await readFile(resolve('src/generated/visualThemeBatch1.ts'), 'utf8'))
+      expect(result.report.production).toEqual(trustedReport.production)
+      expect(result.report.thumbnails).toEqual(trustedReport.thumbnails)
+      expect(result.report.backgrounds).toEqual(trustedReport.backgrounds)
+      expect(result.report.previewThumbnails).toEqual(trustedReport.previewThumbnails)
+      expect(result.report.sourceArchiveSha256).toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
+      await expect(calculateFileSha256(reviewedBatchArchivePath)).resolves.toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
+    },
+    120_000,
+  )
+})

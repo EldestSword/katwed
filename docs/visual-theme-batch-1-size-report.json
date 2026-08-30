@@ -1,0 +1,671 @@
+{
+  "batchId": "batch-01",
+  "sourceContentSha256": "4a364354e1cac3d192c5bcfa836b8811b219a932b1dd70ca183010a0449985f0",
+  "sourceArchiveSha256": "7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045",
+  "themeCount": 15,
+  "backgroundCount": 45,
+  "thumbnailCount": 15,
+  "production": {
+    "format": "webp",
+    "quality": 82,
+    "maximumDimensions": "1920x1080",
+    "totalSourceBytes": 98584114,
+    "totalProductionBytes": 5451010,
+    "reductionPercent": 94.47,
+    "averageBytes": 121134,
+    "smallest": {
+      "id": "synthwave-horizon",
+      "bytes": 31166
+    },
+    "largest": {
+      "id": "western-weathered",
+      "bytes": 455438
+    }
+  },
+  "thumbnails": {
+    "format": "webp",
+    "quality": 68,
+    "dimensions": "480x270",
+    "totalBytes": 129520
+  },
+  "semanticTokenCorrections": [],
+  "portableFormat": {
+    "exportVersion": 5,
+    "versionBumpRequired": false,
+    "decision": "Additive controlled-ID expansion; v5 semantics are unchanged and historical imports remain supported."
+  },
+  "backgrounds": [
+    {
+      "id": "hard-rock-stage-lights",
+      "themeId": "hard-rock",
+      "sourceFilename": "hard-rock-stage-lights.png",
+      "sourceBytes": 2131168,
+      "productionFilename": "hard-rock-stage-lights.webp",
+      "productionBytes": 102294,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "hard-rock-amps",
+      "themeId": "hard-rock",
+      "sourceFilename": "hard-rock-amps.png",
+      "sourceBytes": 2090117,
+      "productionFilename": "hard-rock-amps.webp",
+      "productionBytes": 87086,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "hard-rock-electric-storm",
+      "themeId": "hard-rock",
+      "sourceFilename": "hard-rock-electric-storm.png",
+      "sourceBytes": 2557559,
+      "productionFilename": "hard-rock-electric-storm.webp",
+      "productionBytes": 194812,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jazz-blue-note",
+      "themeId": "jazz",
+      "sourceFilename": "jazz-blue-note.png",
+      "sourceBytes": 1794245,
+      "productionFilename": "jazz-blue-note.webp",
+      "productionBytes": 57750,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jazz-after-hours",
+      "themeId": "jazz",
+      "sourceFilename": "jazz-after-hours.png",
+      "sourceBytes": 1876455,
+      "productionFilename": "jazz-after-hours.webp",
+      "productionBytes": 55696,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jazz-brass",
+      "themeId": "jazz",
+      "sourceFilename": "jazz-brass.png",
+      "sourceBytes": 2036524,
+      "productionFilename": "jazz-brass.webp",
+      "productionBytes": 68702,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "disco-mirror",
+      "themeId": "disco",
+      "sourceFilename": "disco-mirror.png",
+      "sourceBytes": 1918990,
+      "productionFilename": "disco-mirror.webp",
+      "productionBytes": 94922,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "disco-lightfloor",
+      "themeId": "disco",
+      "sourceFilename": "disco-lightfloor.png",
+      "sourceBytes": 1881023,
+      "productionFilename": "disco-lightfloor.webp",
+      "productionBytes": 92158,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "disco-starburst",
+      "themeId": "disco",
+      "sourceFilename": "disco-starburst.png",
+      "sourceBytes": 1917884,
+      "productionFilename": "disco-starburst.webp",
+      "productionBytes": 87414,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1980s-broadcast",
+      "themeId": "1980s",
+      "sourceFilename": "1980s-broadcast.png",
+      "sourceBytes": 1757606,
+      "productionFilename": "1980s-broadcast.webp",
+      "productionBytes": 92890,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1980s-chrome",
+      "themeId": "1980s",
+      "sourceFilename": "1980s-chrome.png",
+      "sourceBytes": 1953981,
+      "productionFilename": "1980s-chrome.webp",
+      "productionBytes": 106492,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1980s-motion",
+      "themeId": "1980s",
+      "sourceFilename": "1980s-motion.png",
+      "sourceBytes": 1635739,
+      "productionFilename": "1980s-motion.webp",
+      "productionBytes": 96482,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1990s-shapes",
+      "themeId": "1990s",
+      "sourceFilename": "1990s-shapes.png",
+      "sourceBytes": 1946203,
+      "productionFilename": "1990s-shapes.webp",
+      "productionBytes": 69550,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1990s-airwave",
+      "themeId": "1990s",
+      "sourceFilename": "1990s-airwave.png",
+      "sourceBytes": 1761595,
+      "productionFilename": "1990s-airwave.webp",
+      "productionBytes": 64130,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "1990s-studio",
+      "themeId": "1990s",
+      "sourceFilename": "1990s-studio.png",
+      "sourceBytes": 1947238,
+      "productionFilename": "1990s-studio.webp",
+      "productionBytes": 77840,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "chiptune-pixels",
+      "themeId": "chiptune",
+      "sourceFilename": "chiptune-pixels.png",
+      "sourceBytes": 1160056,
+      "productionFilename": "chiptune-pixels.webp",
+      "productionBytes": 44536,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "chiptune-blockworld",
+      "themeId": "chiptune",
+      "sourceFilename": "chiptune-blockworld.png",
+      "sourceBytes": 1598810,
+      "productionFilename": "chiptune-blockworld.webp",
+      "productionBytes": 61078,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "chiptune-bitstream",
+      "themeId": "chiptune",
+      "sourceFilename": "chiptune-bitstream.png",
+      "sourceBytes": 1664994,
+      "productionFilename": "chiptune-bitstream.webp",
+      "productionBytes": 89350,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "synthwave-horizon",
+      "themeId": "synthwave",
+      "sourceFilename": "synthwave-horizon.png",
+      "sourceBytes": 1519051,
+      "productionFilename": "synthwave-horizon.webp",
+      "productionBytes": 31166,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "synthwave-laser",
+      "themeId": "synthwave",
+      "sourceFilename": "synthwave-laser.png",
+      "sourceBytes": 1420029,
+      "productionFilename": "synthwave-laser.webp",
+      "productionBytes": 34750,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "synthwave-chrome",
+      "themeId": "synthwave",
+      "sourceFilename": "synthwave-chrome.png",
+      "sourceBytes": 1843569,
+      "productionFilename": "synthwave-chrome.webp",
+      "productionBytes": 86848,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "spy-noir-shadows",
+      "themeId": "spy-noir",
+      "sourceFilename": "spy-noir-shadows.png",
+      "sourceBytes": 2041833,
+      "productionFilename": "spy-noir-shadows.webp",
+      "productionBytes": 58752,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "spy-noir-venetian",
+      "themeId": "spy-noir",
+      "sourceFilename": "spy-noir-venetian.png",
+      "sourceBytes": 2186645,
+      "productionFilename": "spy-noir-venetian.webp",
+      "productionBytes": 68108,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "spy-noir-smoke",
+      "themeId": "spy-noir",
+      "sourceFilename": "spy-noir-smoke.png",
+      "sourceBytes": 1902206,
+      "productionFilename": "spy-noir-smoke.webp",
+      "productionBytes": 60086,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sci-fi-orbit",
+      "themeId": "sci-fi",
+      "sourceFilename": "sci-fi-orbit.png",
+      "sourceBytes": 1966624,
+      "productionFilename": "sci-fi-orbit.webp",
+      "productionBytes": 77940,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sci-fi-nebula",
+      "themeId": "sci-fi",
+      "sourceFilename": "sci-fi-nebula.png",
+      "sourceBytes": 2105522,
+      "productionFilename": "sci-fi-nebula.webp",
+      "productionBytes": 82268,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sci-fi-interface",
+      "themeId": "sci-fi",
+      "sourceFilename": "sci-fi-interface.png",
+      "sourceBytes": 1591525,
+      "productionFilename": "sci-fi-interface.webp",
+      "productionBytes": 55790,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "medieval-illuminated",
+      "themeId": "medieval",
+      "sourceFilename": "medieval-illuminated.png",
+      "sourceBytes": 3245546,
+      "productionFilename": "medieval-illuminated.webp",
+      "productionBytes": 281116,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "medieval-tapestry",
+      "themeId": "medieval",
+      "sourceFilename": "medieval-tapestry.png",
+      "sourceBytes": 3699060,
+      "productionFilename": "medieval-tapestry.webp",
+      "productionBytes": 427674,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "medieval-candlelight",
+      "themeId": "medieval",
+      "sourceFilename": "medieval-candlelight.png",
+      "sourceBytes": 2876427,
+      "productionFilename": "medieval-candlelight.webp",
+      "productionBytes": 201306,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "western-sundown",
+      "themeId": "western",
+      "sourceFilename": "western-sundown.png",
+      "sourceBytes": 2564014,
+      "productionFilename": "western-sundown.webp",
+      "productionBytes": 131250,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "western-weathered",
+      "themeId": "western",
+      "sourceFilename": "western-weathered.png",
+      "sourceBytes": 3845537,
+      "productionFilename": "western-weathered.webp",
+      "productionBytes": 455438,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "western-turquoise",
+      "themeId": "western",
+      "sourceFilename": "western-turquoise.png",
+      "sourceBytes": 3454383,
+      "productionFilename": "western-turquoise.webp",
+      "productionBytes": 316602,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "pirate-chart",
+      "themeId": "pirate",
+      "sourceFilename": "pirate-chart.png",
+      "sourceBytes": 2757572,
+      "productionFilename": "pirate-chart.webp",
+      "productionBytes": 176782,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "pirate-deepwater",
+      "themeId": "pirate",
+      "sourceFilename": "pirate-deepwater.png",
+      "sourceBytes": 2361669,
+      "productionFilename": "pirate-deepwater.webp",
+      "productionBytes": 148112,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "pirate-compass",
+      "themeId": "pirate",
+      "sourceFilename": "pirate-compass.png",
+      "sourceBytes": 2489394,
+      "productionFilename": "pirate-compass.webp",
+      "productionBytes": 158786,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "halloween-moonlight",
+      "themeId": "halloween",
+      "sourceFilename": "halloween-moonlight.png",
+      "sourceBytes": 1846377,
+      "productionFilename": "halloween-moonlight.webp",
+      "productionBytes": 52688,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "halloween-pumpkin-glow",
+      "themeId": "halloween",
+      "sourceFilename": "halloween-pumpkin-glow.png",
+      "sourceBytes": 1927839,
+      "productionFilename": "halloween-pumpkin-glow.webp",
+      "productionBytes": 71194,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "halloween-haunted",
+      "themeId": "halloween",
+      "sourceFilename": "halloween-haunted.png",
+      "sourceBytes": 1725179,
+      "productionFilename": "halloween-haunted.webp",
+      "productionBytes": 45786,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "christmas-lights",
+      "themeId": "christmas",
+      "sourceFilename": "christmas-lights.png",
+      "sourceBytes": 2379975,
+      "productionFilename": "christmas-lights.webp",
+      "productionBytes": 133924,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "christmas-snow",
+      "themeId": "christmas",
+      "sourceFilename": "christmas-snow.png",
+      "sourceBytes": 2677800,
+      "productionFilename": "christmas-snow.webp",
+      "productionBytes": 202628,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "christmas-ribbons",
+      "themeId": "christmas",
+      "sourceFilename": "christmas-ribbons.png",
+      "sourceBytes": 2418369,
+      "productionFilename": "christmas-ribbons.webp",
+      "productionBytes": 118774,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "retro-game-show-panels",
+      "themeId": "retro-game-show",
+      "sourceFilename": "retro-game-show-panels.png",
+      "sourceBytes": 2343176,
+      "productionFilename": "retro-game-show-panels.webp",
+      "productionBytes": 93406,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "retro-game-show-rings",
+      "themeId": "retro-game-show",
+      "sourceFilename": "retro-game-show-rings.png",
+      "sourceBytes": 2590079,
+      "productionFilename": "retro-game-show-rings.webp",
+      "productionBytes": 115524,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "retro-game-show-studio",
+      "themeId": "retro-game-show",
+      "sourceFilename": "retro-game-show-studio.png",
+      "sourceBytes": 3174527,
+      "productionFilename": "retro-game-show-studio.webp",
+      "productionBytes": 221130,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    }
+  ],
+  "previewThumbnails": [
+    {
+      "themeId": "hard-rock",
+      "sourceFilename": "hard-rock-stage-lights.png",
+      "thumbnailFilename": "hard-rock.webp",
+      "thumbnailBytes": 8372,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "jazz",
+      "sourceFilename": "jazz-blue-note.png",
+      "thumbnailFilename": "jazz.webp",
+      "thumbnailBytes": 4482,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "disco",
+      "sourceFilename": "disco-mirror.png",
+      "thumbnailFilename": "disco.webp",
+      "thumbnailBytes": 9264,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "1980s",
+      "sourceFilename": "1980s-broadcast.png",
+      "thumbnailFilename": "1980s.webp",
+      "thumbnailBytes": 12964,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "1990s",
+      "sourceFilename": "1990s-airwave.png",
+      "thumbnailFilename": "1990s.webp",
+      "thumbnailBytes": 7788,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "chiptune",
+      "sourceFilename": "chiptune-pixels.png",
+      "thumbnailFilename": "chiptune.webp",
+      "thumbnailBytes": 6550,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "synthwave",
+      "sourceFilename": "synthwave-horizon.png",
+      "thumbnailFilename": "synthwave.webp",
+      "thumbnailBytes": 3022,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "spy-noir",
+      "sourceFilename": "spy-noir-venetian.png",
+      "thumbnailFilename": "spy-noir.webp",
+      "thumbnailBytes": 5214,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "sci-fi",
+      "sourceFilename": "sci-fi-orbit.png",
+      "thumbnailFilename": "sci-fi.webp",
+      "thumbnailBytes": 6316,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "medieval",
+      "sourceFilename": "medieval-illuminated.png",
+      "thumbnailFilename": "medieval.webp",
+      "thumbnailBytes": 20146,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "western",
+      "sourceFilename": "western-sundown.png",
+      "thumbnailFilename": "western.webp",
+      "thumbnailBytes": 4896,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "pirate",
+      "sourceFilename": "pirate-chart.png",
+      "thumbnailFilename": "pirate.webp",
+      "thumbnailBytes": 12840,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "halloween",
+      "sourceFilename": "halloween-pumpkin-glow.png",
+      "thumbnailFilename": "halloween.webp",
+      "thumbnailBytes": 5758,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "christmas",
+      "sourceFilename": "christmas-lights.png",
+      "thumbnailFilename": "christmas.webp",
+      "thumbnailBytes": 13602,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "retro-game-show",
+      "sourceFilename": "retro-game-show-panels.png",
+      "thumbnailFilename": "retro-game-show.webp",
+      "thumbnailBytes": 8306,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    }
+  ]
+}

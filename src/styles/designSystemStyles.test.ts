@@ -36,6 +36,7 @@ describe('design system CSS foundations', () => {
     expect(backstage).toContain('.editor-preview__media .question-media img')
     expect(backstage).toContain('.preview-frame--player .editor-answer-preview')
     expect(backstage).toMatch(/\.controller-response-judgement \.button \{[^}]*min-height: 48px/)
+    expect(readFileSync(resolve('src/styles/global.css'), 'utf8')).toContain('grid-template-columns: minmax(0, 1fr) auto')
     expect(`${shared}\n${presentation}\n${player}`).toMatch(/@media \(prefers-reduced-motion: reduce\)/)
   })
 })

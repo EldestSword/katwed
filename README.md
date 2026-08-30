@@ -81,15 +81,19 @@ The production release applied `202608070003_storage_manager.sql` and deployed t
 
 ### Per-quiz themes and backgrounds
 
-Each quiz selects one of six built-in audience themes: `katwed`, `midnight`, `sunset`, `arcade`, `mint` or `paper`. Katwed is the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview, editor audience preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
+The application catalogue now contains 21 built-in audience themes: the original `katwed`, `midnight`, `sunset`, `arcade`, `mint` and `paper` identities plus Visual Theme Batch 1's 15 music, decade, cinematic, seasonal and entertainment identities. Katwed remains the default and preserves the existing presentation/player character. Themes apply to the full presentation, compact controller preview, editor audience preview and joined player game screens across phases; host dashboard, editor chrome, Storage Manager, landing and pre-join screens retain the standard Katwed interface. The quiz-editor preview changes immediately, while the ordinary Save quiz action persists the choice.
 
 Each theme also offers three curated built-in 16:9 image backgrounds plus Theme default, which uses no image and preserves the existing themed surface. The editor shows only the current theme's backgrounds. Changing theme clears an incompatible selection rather than choosing a replacement. Backgrounds use trusted static assets under `public/backgrounds/`; they are not uploads, Supabase Storage objects or Storage Manager inventory.
 
-Theme definitions use Visual Theme System v2: central typed semantic tokens, browsing category/keywords, approved display/UI font IDs and lightweight preview metadata. A safe registry-backed helper maps the selected definition to scoped CSS custom properties while retaining `data-quiz-theme`; unknown IDs fall back to Katwed and cannot inject CSS or asset URLs. Quiz Settings provides labelled search and category filters while keeping the six-theme card grid immediate. See [`docs/visual-theme-language-v2.md`](docs/visual-theme-language-v2.md).
+Theme definitions use Visual Theme System v2: central typed semantic tokens, browsing category/keywords, approved display/UI font IDs and lightweight preview metadata. A safe registry-backed helper maps the selected definition to scoped CSS custom properties while retaining `data-quiz-theme`; unknown IDs fall back to Katwed and cannot inject CSS or asset URLs. Quiz Settings searches and filters all 21 themes across the seven represented categories. The 15 Batch 1 cards lazy-load dedicated 480×270 preview WebPs rather than any of the 45 full backgrounds, and catalogue names stay in the backstage UI face so browsing does not fetch every decorative font. See [`docs/visual-theme-language-v2.md`](docs/visual-theme-language-v2.md).
+
+Reviewed local packages are ingested with `npm run import:theme-batch -- --source <batch-folder> --expected-content-sha256 <reviewed-content-sha256> --source-archive <batch.zip> --expected-archive-sha256 <reviewed-archive-sha256> --write`. The build-time script calculates a canonical digest from sorted source-relative paths and file bytes, verifies supplied content and archive digests before preparing or replacing any outputs, and reports the two digests separately. It also validates the strict v2 JSON Schema and reviewed Batch 1 contract, fully decodes every PNG, rejects unexpected channels/transparency and unsafe manifest content, produces metadata-stripped quality-82 WebPs without upscaling, generates lightweight previews, and writes trusted generated registry data plus the [measured size report](docs/visual-theme-batch-1-size-report.json). Source ZIPs, manifests and PNG masters remain ignored under `theme-source/` and are never served by the app.
 
 `themeId` and nullable `backgroundId` still travel with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Token objects, category metadata, font files and authoring manifests are never persisted. Covers remain separate library metadata. Duplicate preserves both appearance choices alongside the existing independently remapped quiz definition. Sound Packs and Answer Palettes remain deliberately independent.
 
 The production release applied `202608070004_quiz_themes.sql` and `202608070005_quiz_backgrounds.sql` in order and deployed the matching frontend at `https://katwed.co.uk` with `https://katwed.netlify.app` as the Netlify fallback. Both migrations are now immutable production history.
+
+Forward migration `202608300001_visual_theme_batch_1.sql` expands the exact database theme/background compatibility matrix to 21 themes and 63 backgrounds while preserving the current stale-client save chain. It is committed for review only: this development task does not apply it or deploy Batch 1.
 
 Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
@@ -107,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
+Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. Batch 1 is an additive expansion of the existing controlled theme/background IDs, so it does not change portable semantics or require version 6. All five schemas remain aligned with the trusted 21-theme/63-background registry, and all historical supported imports remain valid. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -409,6 +413,12 @@ Applied production migrations, in order:
 20260828074030_multi_variant_sound_packs.sql
 ```
 
+Pending, deliberately unapplied migration:
+
+```text
+202608300001_visual_theme_batch_1.sql
+```
+
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
 
 `202607310002_answer_reveals_final_results.sql` adds reveal-only multiple-select metadata, withholds totals until leaderboard or finished phases, and enforces the final-question transition.
@@ -528,12 +538,13 @@ Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited,
 
 ### Themes and visual identity
 
-The six curated per-quiz colour themes and 18 optional built-in backgrounds are deployed and manually production-UAT verified. Theme default supplies the themed surface without a static image, while each theme owns three compatible built-in backgrounds.
+The six original per-quiz themes and 18 optional built-in backgrounds are deployed and manually production-UAT verified. Visual Theme Batch 1 adds 15 reviewed themes and 45 production backgrounds locally, with a validated ingestion pipeline, lightweight browser previews and a pending forward migration. Theme default supplies the themed surface without a static image, while each theme owns exactly three compatible built-in backgrounds.
 
 Planned work:
 
 - Katwed! typography;
 - custom themes.
+- deliberate Batch 1 database/frontend release after review.
 
 ### Further question formats
 

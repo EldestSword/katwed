@@ -29,7 +29,7 @@ Exported files contain correct answers. Keep a file closed if the person importi
 }
 ```
 
-All quiz fields shown are required. `title` is 1-120 characters. `quizType` is `standard` or `head-to-head`. Themes are `katwed`, `midnight`, `sunset`, `arcade`, `mint`, and `paper`; a non-null background must belong to its theme. Cover and other image fields contain safe references only, never embedded image bytes.
+All quiz fields shown are required. `title` is 1-120 characters. `quizType` is `standard` or `head-to-head`. `themeId` and non-null `backgroundId` use the shipped controlled registries: 21 themes and exactly three owned backgrounds per theme after Visual Theme Batch 1. Runtime validation remains authoritative for the ownership pair. Cover and other image fields contain safe references only, never embedded image bytes.
 
 Files contain no database IDs, owner, archive state, timestamps, rooms, sessions, players, submitted answers, or scores. Import is create-only: it creates fresh quiz, competitor, roster, question, and option IDs and remaps all portable references.
 
@@ -126,3 +126,5 @@ Options contain `key`, `label`, and optional `imagePath`/`imageAlt`. Roster entr
 The dashboard limits files to 2 MB, rejects unknown fields and executable/inline media schemes, and shows only spoiler-safe metadata before confirmation. It never displays prompts or answers in that preview and never uploads images during import.
 
 Version 1 remains documented in [`katwed-quiz-format-v1.md`](katwed-quiz-format-v1.md), version 2 in [`katwed-quiz-format-v2.md`](katwed-quiz-format-v2.md), version 3 in [`katwed-quiz-format-v3.md`](katwed-quiz-format-v3.md), and version 4 in [`katwed-quiz-format-v4.md`](katwed-quiz-format-v4.md). V1/V2 imports receive fixed scoring (`speedScoringEnabled: false`, `doubleScore: false`) and retain legacy tiles where no grid is present. V1-V3 imports receive the Classic answer palette. V1-V4 imports receive the Katwed Core sound pack. Version 5 is the only export target after this implementation.
+
+Visual Theme Batch 1 is an additive controlled-ID expansion only. It does not alter the stored fields or their meaning, so exports remain version 5 rather than introducing version 6. The v1-v5 schemas are synchronised with the same 21 theme and 63 background IDs; adding valid IDs does not invalidate any historical supported file.

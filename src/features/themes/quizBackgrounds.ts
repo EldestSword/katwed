@@ -3,6 +3,7 @@ import {
   type QuizBackgroundId,
   type QuizThemeId,
 } from '../../types/domain'
+import { visualThemeBatch1Backgrounds } from '../../generated/visualThemeBatch1'
 
 export interface QuizBackgroundDefinition {
   id: QuizBackgroundId
@@ -30,6 +31,7 @@ export const quizBackgrounds: readonly QuizBackgroundDefinition[] = [
   { id: 'paper-collage', name: 'Collage', themeId: 'paper', assetPath: '/backgrounds/paper-collage.webp' },
   { id: 'paper-geometry', name: 'Geometry', themeId: 'paper', assetPath: '/backgrounds/paper-geometry.webp' },
   { id: 'paper-notebook', name: 'Notebook', themeId: 'paper', assetPath: '/backgrounds/paper-notebook.webp' },
+  ...visualThemeBatch1Backgrounds,
 ]
 
 const backgroundIds = new Set<string>(QUIZ_BACKGROUND_IDS)

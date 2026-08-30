@@ -148,13 +148,13 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(within(section).getByLabelText('Choose cover')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
   })
 
-  it('shows all six themes and marks the persisted theme without relying on colour alone', async () => {
+  it('shows all 21 themes and marks the persisted theme without relying on colour alone', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'paper', questions: [] }))
     renderEditor()
     await openQuizSettings()
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
-    expect(themes.querySelectorAll('.quiz-theme-option')).toHaveLength(6)
+    expect(themes.querySelectorAll('.quiz-theme-option')).toHaveLength(21)
     expect(within(themes).getByRole('button', { name: /Paper/ })).toHaveAttribute('aria-pressed', 'true')
     expect(within(themes).getByText('Selected')).toBeVisible()
   })
@@ -223,6 +223,23 @@ describe('QuizEditorPage quiz appearance', () => {
       '/backgrounds/paper-geometry.webp',
       '/backgrounds/paper-notebook.webp',
     ])
+  })
+
+  it('renders only the three production backgrounds owned by a newly imported theme', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await openQuizSettings(user)
+
+    const themes = await screen.findByRole('group', { name: 'Quiz theme' })
+    await user.click(within(themes).getByRole('button', { name: /Hard Rock/ }))
+    const picker = screen.getByRole('group', { name: 'Quiz background' })
+    expect(within(picker).getAllByRole('button')).toHaveLength(4)
+    expect([...picker.querySelectorAll('img')].map((image) => image.getAttribute('src'))).toEqual([
+      '/backgrounds/hard-rock-stage-lights.webp',
+      '/backgrounds/hard-rock-amps.webp',
+      '/backgrounds/hard-rock-electric-storm.webp',
+    ])
+    expect(screen.getByLabelText('Hard Rock theme preview')).toHaveAttribute('data-quiz-theme', 'hard-rock')
   })
 
   it('updates the audience preview and save payload when a background or Theme default is selected', async () => {

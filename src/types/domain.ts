@@ -1,3 +1,8 @@
+import {
+  VISUAL_THEME_BATCH_1_BACKGROUND_IDS,
+  VISUAL_THEME_BATCH_1_THEME_IDS,
+} from '../generated/visualThemeBatch1'
+
 export type GamePhase = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
 export type SessionStatus = 'active' | 'closed'
 export type QuestionType =
@@ -18,7 +23,10 @@ export type PresentationChoiceVisibility = 'show' | 'hide' | 'after-lock'
 export const QUIZ_TYPE_IDS = ['standard', 'head-to-head'] as const
 export type QuizType = typeof QUIZ_TYPE_IDS[number]
 
-export const QUIZ_THEME_IDS = ['katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper'] as const
+export const QUIZ_THEME_IDS = [
+  'katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper',
+  ...VISUAL_THEME_BATCH_1_THEME_IDS,
+] as const
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 export type SoundPackId = string
 export type QuestionPreludeKind = 'double-score' | 'question-type' | null
@@ -58,6 +66,7 @@ export const QUIZ_BACKGROUND_IDS = [
   'paper-collage',
   'paper-geometry',
   'paper-notebook',
+  ...VISUAL_THEME_BATCH_1_BACKGROUND_IDS,
 ] as const
 export type QuizBackgroundId = typeof QUIZ_BACKGROUND_IDS[number]
 

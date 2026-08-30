@@ -2,10 +2,17 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { QUIZ_BACKGROUND_IDS } from '../../types/domain'
 
 const migrationPath = resolve('supabase/migrations/202608070005_quiz_backgrounds.sql')
 const migration = readFileSync(migrationPath, 'utf8')
+const originalBackgroundIds = [
+  'katwed-bubbles', 'katwed-confetti', 'katwed-ribbons',
+  'midnight-aurora', 'midnight-glow', 'midnight-stars',
+  'sunset-horizon', 'sunset-lights', 'sunset-ribbons',
+  'arcade-circuit', 'arcade-grid', 'arcade-neon',
+  'mint-depth', 'mint-shapes', 'mint-waves',
+  'paper-collage', 'paper-geometry', 'paper-notebook',
+]
 
 function definition(functionName: string): string {
   const start = migration.indexOf(`create or replace function public.${functionName}`)
@@ -24,7 +31,7 @@ describe('quiz backgrounds migration', () => {
     const allowedIds = [...constraint.matchAll(/background_id in \(([^)]+)\)/g)]
       .flatMap((match) => match[1].match(/'([^']+)'/g) ?? [])
       .map((value) => value.slice(1, -1))
-    expect(allowedIds).toEqual([...QUIZ_BACKGROUND_IDS])
+    expect(allowedIds).toEqual(originalBackgroundIds)
     expect(constraint).toContain("theme_id = 'katwed'")
     expect(constraint).toContain("theme_id = 'midnight'")
     expect(constraint).toContain("theme_id = 'sunset'")

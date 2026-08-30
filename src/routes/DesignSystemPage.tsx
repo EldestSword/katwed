@@ -99,15 +99,13 @@ export function DesignSystemPage() {
       </section>
 
       <section className="design-system-section" aria-labelledby="themes-heading">
-        <div className="design-system-section__heading"><div><p className="eyebrow">Theme compatibility</p><h2 id="themes-heading">All six quiz themes</h2></div><p>Semantic surface, text, border and accent tokens remain scoped per quiz.</p></div>
+        <div className="design-system-section__heading"><div><p className="eyebrow">Theme compatibility</p><h2 id="themes-heading">Selected quiz theme</h2></div><p>Use discovery below to inspect one semantic surface without rendering the full catalogue twice.</p></div>
         <div className="design-system-theme-grid">
-          {quizThemes.map((theme) => (
-            <article className="design-system-theme-card quiz-themed-surface" {...quizThemeSurfaceProps(theme.id)} key={theme.id}>
-              <GameBadge tone="accent">{theme.name}</GameBadge>
-              <h3>{theme.name}</h3><p>{theme.description}</p>
-              <div className="design-system-theme-card__swatches" aria-label={`${theme.name} key colours`}>{theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }}><span className="sr-only">{colour}</span></i>)}</div>
-            </article>
-          ))}
+          <article className="design-system-theme-card quiz-themed-surface" {...quizThemeSurfaceProps(selectedTheme.id)}>
+            <GameBadge tone="accent">{selectedTheme.name}</GameBadge>
+            <h3>{selectedTheme.name}</h3><p>{selectedTheme.description}</p>
+            <div className="design-system-theme-card__swatches" aria-label={`${selectedTheme.name} key colours`}>{selectedTheme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }}><span className="sr-only">{colour}</span></i>)}</div>
+          </article>
         </div>
       </section>
 
