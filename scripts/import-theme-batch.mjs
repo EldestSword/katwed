@@ -21,6 +21,7 @@ import {
   ORIGINAL_THEME_ID_LIST,
   VISUAL_THEME_BATCH_1_CONTRACTS,
   getVisualThemeBatchConfig,
+  isLatestVisualThemeBatch,
 } from './theme-batch-configs.mjs'
 
 export { VISUAL_THEME_BATCH_1_CONTRACTS } from './theme-batch-configs.mjs'
@@ -31,6 +32,13 @@ export const THEME_BATCH_MAX_HEIGHT = 1080
 export const THEME_THUMBNAIL_WIDTH = 480
 export const THEME_THUMBNAIL_HEIGHT = 270
 export const THEME_THUMBNAIL_QUALITY = 68
+
+export function portableSchemaPathsForBatch(batchId, rootPath) {
+  if (!isLatestVisualThemeBatch(batchId)) return []
+  return [1, 2, 3, 4, 5].map((version) => (
+    join(rootPath, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`)
+  ))
+}
 
 const DISPLAY_FONT_IDS = new Set([
   'bricolage-grotesque', 'space-grotesk', 'oswald', 'fraunces', 'cinzel', 'rye',
@@ -726,9 +734,9 @@ if (runningAsCommand) {
     outputPreviewDir: join(repositoryRoot, 'public', 'backgrounds', 'previews'),
     generatedModulePath: join(repositoryRoot, 'src', 'generated', batchConfig.generatedModuleFilename),
     reportPath: join(repositoryRoot, 'docs', batchConfig.reportFilename),
-    portableSchemaPaths: [1, 2, 3, 4, 5].map((version) => (
-      join(repositoryRoot, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`)
-    )),
+    // Shared portable schemas describe the complete current catalogue. Replaying an
+    // earlier reviewed batch must reproduce its own outputs without shrinking them.
+    portableSchemaPaths: portableSchemaPathsForBatch(batchConfig.batchId, repositoryRoot),
     expectedContracts: batchConfig.contracts,
     existingThemeIds: batchConfig.existingThemeIds,
     existingBackgroundIds: batchConfig.existingBackgroundIds,

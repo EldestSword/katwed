@@ -211,6 +211,12 @@ export const VISUAL_THEME_BATCH_CONFIGS = Object.freeze({
   'batch-02': visualThemeBatch2,
 })
 
+const latestVisualThemeBatchId = Object.keys(VISUAL_THEME_BATCH_CONFIGS).at(-1)
+
 export function getVisualThemeBatchConfig(batchId) {
   return VISUAL_THEME_BATCH_CONFIGS[batchId] ?? null
+}
+
+export function isLatestVisualThemeBatch(batchId) {
+  return batchId === latestVisualThemeBatchId
 }

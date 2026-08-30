@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdtemp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import {
@@ -14,10 +14,12 @@ import {
   calculateSourceContentSha256FromPaths,
   compileThemeManifest,
   importThemeBatch,
+  portableSchemaPathsForBatch,
 } from './import-theme-batch.mjs'
 import {
   VISUAL_THEME_BATCH_CONFIGS,
   getVisualThemeBatchConfig,
+  isLatestVisualThemeBatch,
 } from './theme-batch-configs.mjs'
 
 const sampleGeneratedExports = {
@@ -285,6 +287,14 @@ describe('reviewed theme batch configuration', () => {
     expect(batchTwo.registeredBackgroundIds).toHaveLength(108)
     expect(getVisualThemeBatchConfig('batch-03')).toBeNull()
   })
+
+  it('allows only the latest reviewed batch to rewrite the shared portable schemas', () => {
+    expect(isLatestVisualThemeBatch('batch-01')).toBe(false)
+    expect(isLatestVisualThemeBatch('batch-02')).toBe(true)
+    expect(isLatestVisualThemeBatch('batch-03')).toBe(false)
+    expect(portableSchemaPathsForBatch('batch-01', temporaryRoot)).toEqual([])
+    expect(portableSchemaPathsForBatch('batch-02', temporaryRoot)).toHaveLength(5)
+  })
 })
 
 function reviewedBatchAvailable(batchId) {
@@ -302,6 +312,39 @@ async function reproduceReviewedBatch(batchId) {
   const outputPreviewDir = join(outputBackgroundDir, 'previews')
   const generatedModulePath = join(outputRoot, 'src', 'generated', config.generatedModuleFilename)
   const reportPath = join(outputRoot, 'docs', config.reportFilename)
+  const currentPortableSchemaPaths = [1, 2, 3, 4, 5].map((version) => ({
+    source: resolve('docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
+    output: join(outputRoot, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
+  }))
+  for (const schemaPath of currentPortableSchemaPaths) {
+    await mkdir(dirname(schemaPath.output), { recursive: true })
+    await copyFile(schemaPath.source, schemaPath.output)
+  }
+  const portableSchemaSnapshots = await Promise.all(
+    currentPortableSchemaPaths.map(({ output }) => readFile(output, 'utf8')),
+  )
+
+  const unrelatedBatch2Assets = []
+  if (batchId === 'batch-01') {
+    const batchTwoReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-2-size-report.json'), 'utf8'))
+    await mkdir(outputBackgroundDir, { recursive: true })
+    await mkdir(outputPreviewDir, { recursive: true })
+    for (const background of batchTwoReport.backgrounds) {
+      const output = join(outputBackgroundDir, background.productionFilename)
+      await copyFile(resolve('public', 'backgrounds', background.productionFilename), output)
+      unrelatedBatch2Assets.push(output)
+    }
+    for (const preview of batchTwoReport.previewThumbnails) {
+      const output = join(outputPreviewDir, preview.thumbnailFilename)
+      await copyFile(resolve('public', 'backgrounds', 'previews', preview.thumbnailFilename), output)
+      unrelatedBatch2Assets.push(output)
+    }
+  }
+  const unrelatedAssetSnapshots = await Promise.all(unrelatedBatch2Assets.map(async (path) => ({
+    path,
+    sha256: await calculateFileSha256(path),
+    mtimeMs: (await stat(path)).mtimeMs,
+  })))
   const result = await importThemeBatch({
     batchId: config.batchId,
     sourceDir,
@@ -313,12 +356,14 @@ async function reproduceReviewedBatch(batchId) {
     outputPreviewDir,
     generatedModulePath,
     reportPath,
+    portableSchemaPaths: portableSchemaPathsForBatch(batchId, outputRoot),
     expectedContracts: config.contracts,
     existingThemeIds: config.existingThemeIds,
     existingBackgroundIds: config.existingBackgroundIds,
     generatedExports: config.exports,
     semanticTokenCorrections: config.semanticTokenCorrections,
     write: true,
+    allowExistingOutputs: batchId === 'batch-01',
     log: () => undefined,
   })
   const trustedReport = JSON.parse(await readFile(resolve('docs', config.reportFilename), 'utf8'))
@@ -336,12 +381,24 @@ async function reproduceReviewedBatch(batchId) {
       await calculateFileSha256(resolve('public', 'backgrounds', 'previews', preview.thumbnailFilename)),
     )
   }
+  const latestConfig = Object.values(VISUAL_THEME_BATCH_CONFIGS).at(-1)
+  for (const [index, { output }] of currentPortableSchemaPaths.entries()) {
+    const schemaText = await readFile(output, 'utf8')
+    const schema = JSON.parse(schemaText)
+    expect(schema.$defs.quiz.properties.themeId.enum).toEqual(latestConfig.registeredThemeIds)
+    expect(schema.$defs.quiz.properties.backgroundId.oneOf[0].enum).toEqual(latestConfig.registeredBackgroundIds)
+    if (batchId === 'batch-01') expect(schemaText).toBe(portableSchemaSnapshots[index])
+  }
+  for (const snapshot of unrelatedAssetSnapshots) {
+    await expect(calculateFileSha256(snapshot.path)).resolves.toBe(snapshot.sha256)
+    expect((await stat(snapshot.path)).mtimeMs).toBe(snapshot.mtimeMs)
+  }
   await expect(calculateFileSha256(archivePath)).resolves.toBe(config.expectedSourceArchiveSha256)
 }
 
 describe('reviewed Visual Theme Batch 1 reproduction', () => {
   it.runIf(reviewedBatchAvailable('batch-01'))(
-    'reproduces every trusted registry, report, background, preview and reviewed digest in temporary output',
+    'reproduces trusted outputs while write/allow-existing preserves current schemas and Batch 2 assets',
     () => reproduceReviewedBatch('batch-01'),
     120_000,
   )
