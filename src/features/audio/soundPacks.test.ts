@@ -13,8 +13,11 @@ import {
 describe('sound-pack registry', () => {
   it('registers Core, every prepared local pack and the deliberate silent option', () => {
     expect(soundPacks.map(({ id }) => id)).toEqual([
-      'katwed', '1940s', '1950s', '1960s', '1970s', '1980s', '1990s',
-      'arcade', 'blues', 'hard-rock', 'jazz', 'midnight', 'mint', 'paper', 'pop', 'sunset', 'none',
+      'katwed', '90s-rave', '1940s', '1950s', '1960s', '1970s', '1980s', '1990s',
+      'arcade', 'bluegrass', 'blues', 'chiptune', 'christmas', 'disco', 'french',
+      'grand-orchestra', 'greek', 'halloween', 'hard-rock', 'hip-hop', 'italian', 'jazz',
+      'medieval', 'midnight', 'mint', 'paper', 'pirate', 'pop', 'retro-game-show',
+      'rocksteady', 'sci-fi', 'ska', 'soul', 'spy-noir', 'sunset', 'synthwave', 'western', 'none',
     ])
     expect(getSoundPack('none').assets).toBeNull()
   })

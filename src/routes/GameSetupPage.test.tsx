@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -86,6 +86,25 @@ describe('GameSetupPage', () => {
     expect(await screen.findByRole('heading', { name: 'Controller session-existing' })).toBeVisible()
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
   })
+
+  it('shows and safely selects every newly imported sound pack', async () => {
+    renderSetup()
+
+    const music = await screen.findByRole('group', { name: 'Music theme' })
+    const newPackNames = [
+      '90s Rave', 'Bluegrass', 'Chiptune', 'Christmas', 'Disco', 'French', 'Grand Orchestra',
+      'Greek', 'Halloween', 'Hip-Hop', 'Italian', 'Medieval', 'Pirate', 'Retro Game Show',
+      'Rocksteady', 'Sci-Fi', 'Ska', 'Soul', 'Spy Noir', 'Synthwave', 'Western',
+    ]
+    const buttons = Array.from(music.querySelectorAll('button'))
+    for (const name of newPackNames) {
+      const button = buttons.find((candidate) => candidate.textContent?.includes(name))
+      expect(button).toBeDefined()
+      expect(button).toBeVisible()
+      fireEvent.click(button!)
+      expect(button).toHaveAttribute('aria-pressed', 'true')
+    }
+  }, 10_000)
 
   it('keeps a long, covered single-format quiz legible and omits Standard-only controls for Head-to-Head', async () => {
     repositoryMocks.getQuiz.mockResolvedValue({

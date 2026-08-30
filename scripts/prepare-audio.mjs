@@ -12,6 +12,9 @@ const importReportPath = join(sourceRoot, 'import-report.json')
 const cues = ['lobby', 'question', 'urgent', 'double-score', 'lock', 'reveal', 'leaderboard', 'final']
 const loopCues = new Set(['lobby', 'question'])
 const sourcePattern = /^(lobby|question|urgent|double-score|lock|reveal|leaderboard|final)-(\d{2})\.mp3$/u
+const selectedPackIds = process.env.AUDIO_PREPARE_PACK_IDS
+  ? new Set(process.env.AUDIO_PREPARE_PACK_IDS.split(',').map((entry) => entry.trim()).filter(Boolean))
+  : null
 
 function run(command, args, subject) {
   try {
@@ -130,7 +133,7 @@ if (existsSync(importReportPath)) {
   for (const pack of report.packs ?? []) importedNames.set(pack.packId, pack.name)
 }
 
-const packSources = readdirSync(sourceRoot, { withFileTypes: true })
+const availablePackSources = readdirSync(sourceRoot, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && entry.name !== 'katwed-core')
   .map((entry) => ({
     id: entry.name,
@@ -139,7 +142,19 @@ const packSources = readdirSync(sourceRoot, { withFileTypes: true })
   .filter((pack) => pack.files.length > 0)
   .sort((left, right) => left.id.localeCompare(right.id, 'en-GB', { numeric: true }))
 
-const manifest = []
+if (selectedPackIds) {
+  const availableIds = new Set(availablePackSources.map((pack) => pack.id))
+  const missing = [...selectedPackIds].filter((packId) => !availableIds.has(packId))
+  if (missing.length > 0) throw new Error(`Selected audio source packs were not found: ${missing.join(', ')}.`)
+}
+
+const packSources = selectedPackIds
+  ? availablePackSources.filter((pack) => selectedPackIds.has(pack.id))
+  : availablePackSources
+const existingManifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : []
+const existingReport = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : { packs: [] }
+const preparedManifest = []
+const preparedReports = []
 const report = {
   settings: {
     loudnessTargetLufs: -18, truePeakDb: -1.5, loudnessRange: 12,
@@ -209,8 +224,8 @@ for (const pack of packSources) {
   }
 
   packReport.reductionPercent = Number(((1 - packReport.productionBytes / packReport.sourceBytes) * 100).toFixed(1))
-  report.packs.push(packReport)
-  manifest.push({
+  preparedReports.push(packReport)
+  preparedManifest.push({
     id: pack.id,
     name: packReport.name,
     description: `A varied ${packReport.name} game-show soundtrack with multiple music and sting variants.`,
@@ -218,9 +233,15 @@ for (const pack of packSources) {
   })
 }
 
+const preparedIds = new Set(preparedManifest.map((pack) => pack.id))
+const manifest = [...existingManifest.filter((pack) => !preparedIds.has(pack.id)), ...preparedManifest]
+  .sort((left, right) => left.id.localeCompare(right.id, 'en-GB', { numeric: true }))
+report.packs = [...(existingReport.packs ?? []).filter((pack) => !preparedIds.has(pack.id)), ...preparedReports]
+  .sort((left, right) => left.id.localeCompare(right.id, 'en-GB', { numeric: true }))
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`)
 const sourceBytes = report.packs.reduce((total, pack) => total + pack.sourceBytes, 0)
 const productionBytes = report.packs.reduce((total, pack) => total + pack.productionBytes, 0)
-process.stdout.write(`Prepared ${manifest.length} packs. Source ${sourceBytes} bytes; production ${productionBytes} bytes.\n`)
+process.stdout.write(`Prepared ${preparedManifest.length} selected packs; manifest contains ${manifest.length} imported packs. ` +
+  `Source ${sourceBytes} bytes; production ${productionBytes} bytes.\n`)
 process.stdout.write(`Manifest: ${manifestPath}\nReport: ${reportPath}\n`)

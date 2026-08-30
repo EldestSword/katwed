@@ -19,20 +19,29 @@ Every selectable production pack provides at least one variant for each role:
 
 ## Local source import
 
-Source audio lives under ignored `audio-source/` and is never committed. New supplier ZIPs stay directly under that folder and are preserved after import. Run:
+Source audio lives under ignored `audio-source/` and is never committed. Supplier ZIPs may stay directly under that folder or in an ignored batch subfolder. Run:
 
 ```powershell
 npm run import:audio-sources
 ```
 
-The importer discovers the ZIPs actually present, derives a safe lowercase kebab-case pack ID, recognises role synonyms and common filename spelling errors, and extracts every distinct useful MP3 variant to:
+For a reviewed batch, scope the importer so unrelated archives remain untouched:
+
+```powershell
+$env:AUDIO_ZIP_DIR='audio-source/new imports'
+$env:AUDIO_IMPORT_PACK_IDS='ska,soul,spy-noir'
+$env:AUDIO_PACK_ALIASES='Spy=Spy Noir'
+npm run import:audio-sources
+```
+
+The importer discovers the ZIPs actually present, separates multiple packs in one archive, combines correction archives for the same pack, derives a safe lowercase kebab-case pack ID, recognises role synonyms and common filename spelling errors, and appends every distinct useful MP3 variant to:
 
 ```text
 audio-source/<pack-id>/<role>-01.mp3
 audio-source/<pack-id>/<role>-02.mp3
 ```
 
-Source MP3s remain MP3. Converting lossy MP3 input to WAV would increase storage without recovering quality. The ignored `audio-source/import-report.json` records the original ZIP and filename, final clean filename, role, duration, bitrate, sample rate, channels and byte size. Unclassifiable files are reported and make the command fail rather than being guessed.
+Source MP3s remain MP3. Converting lossy MP3 input to WAV would increase storage without recovering quality. The ignored `audio-source/import-report.json` records the original ZIP and filename, final clean filename, role, source hash, duration, bitrate, sample rate, channels and byte size. Byte-identical variants are not appended again. Unclassifiable files are reported and make the command fail rather than being guessed; incomplete or deliberately unselected packs are reported and skipped.
 
 ## Production preparation
 
@@ -41,6 +50,8 @@ With FFmpeg and FFprobe available, run:
 ```powershell
 npm run prepare:audio
 ```
+
+Use `AUDIO_PREPARE_PACK_IDS` with a comma-separated reviewed batch to prepare only those source folders. The generated manifest and size report merge those results with their existing entries, so previously shipped production packs are not regenerated.
 
 `FFMPEG_PATH` and `FFPROBE_PATH` may point to explicit executables. The generic pipeline scans clean source folders, rejects incomplete packs, and writes committed variants under `public/audio/packs/<pack-id>/`. It deliberately does not regenerate `audio-source/katwed-core`.
 
@@ -59,7 +70,7 @@ Preparation generates two committed data files:
 - `src/features/audio/generatedSoundPackManifest.json` — the runtime registry source for imported packs;
 - `docs/audio-pack-size-report.json` — per-pack role counts, source/production bytes, reduction, prepared Double Score durations and unusual trimming.
 
-The current import contains 15 new packs and 244 variants. Their clean source total is 171,139,013 bytes and production total is 135,568,728 bytes, a reduction of about 20.8%. Katwed Core remains another 2,853,360 production bytes. See the generated size report for exact per-pack figures.
+The current library contains 36 imported packs and 575 variants. Their clean source total is 393,660,746 bytes and production total is 311,677,704 bytes, a reduction of about 20.8%. Katwed Core remains another 2,853,360 production bytes across eight original one-variant roles. See the generated size report for exact per-pack figures.
 
 ## Registry and Game Setup
 
@@ -96,10 +107,10 @@ Playback ending never advances the game. Server timestamps control preludes, dea
 
 ## Adding another pack
 
-1. Place a ZIP directly under ignored `audio-source/`, or a clean folder containing correctly named role MP3s.
-2. Run `npm run import:audio-sources` for ZIP input and review the local traceability report.
+1. Place a ZIP under ignored `audio-source/`, or a clean folder containing correctly named role MP3s.
+2. Run `npm run import:audio-sources` for ZIP input, preferably with reviewed batch/pack selection, and review the local traceability report.
 3. Confirm all eight roles have at least one useful variant.
-4. Run `npm run prepare:audio` and review the generated size report and Double Score durations.
+4. Run `npm run prepare:audio`, preferably scoped with `AUDIO_PREPARE_PACK_IDS`, and review the generated size report and Double Score durations.
 5. Listen for clean loop seams, intact musical tails, consistent relative level and neutral Lock/Reveal meaning.
 6. Run the registry, unit, build and browser validation suites, then commit only production output, generated metadata, code and documentation.
 
