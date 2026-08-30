@@ -11,11 +11,12 @@ const migration = readFileSync(
 )
 
 function sha256(path: string): string {
-  return createHash('sha256').update(readFileSync(resolve(path))).digest('hex')
+  const content = readFileSync(resolve(path), 'utf8').replaceAll('\r\n', '\n')
+  return createHash('sha256').update(content).digest('hex')
 }
 
 describe('Visual Theme Batch 1 migration', () => {
-  it('leaves applied theme, background and latest production migrations immutable', () => {
+  it('leaves applied migration content immutable across checkout line endings', () => {
     expect(sha256('supabase/migrations/202608070004_quiz_themes.sql')).toBe(
       'befcb4c70ea6c5ef23f1149a26f00d3c841c1a9a2bcf2ba621d0f632f07456a7',
     )
@@ -23,7 +24,7 @@ describe('Visual Theme Batch 1 migration', () => {
       '557982df4fb57a3a4e2af06ff4ab1f117b05f2806084580241eef6f50da5af1d',
     )
     expect(sha256('supabase/migrations/20260828074030_multi_variant_sound_packs.sql')).toBe(
-      'cc7d65dd96e6d3a88064b1b48ec58eff717da7a9d98989c87e81cd677c2928bd',
+      '91befa3921f47dcb1ad3685cec808dd9341d09189444fea0e0c1343ae56d3d35',
     )
   })
 
