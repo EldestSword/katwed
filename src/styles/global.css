@@ -780,8 +780,9 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .question-type-picker button { display: grid; text-align: left; border: 1px solid #d7dbea; background: #fafbff; border-radius: .5rem; padding: .55rem; }
 .question-type-picker small { color: #5d6475; }
 .question-navigator ol { list-style: none; padding: 0; display: grid; gap: .35rem; }
-.question-navigator li { display: grid; grid-template-columns: 1fr auto; }
-.question-navigator li > button { display: flex; gap: .55rem; width: 100%; text-align: left; border: 1px solid #d7dbea; background: white; border-radius: .5rem; padding: .55rem; }
+.question-navigator li { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.question-navigator li > button { min-width: 0; display: flex; gap: .55rem; width: 100%; text-align: left; border: 1px solid #d7dbea; background: white; border-radius: .5rem; padding: .55rem; }
+.question-navigator li > button > span:last-child { min-width: 0; }
 .question-navigator li > button.is-selected { border-color: #6045a5; background: #f2edff; }
 .question-navigator li strong, .question-navigator li small { display: block; overflow: hidden; text-overflow: ellipsis; }
 .mini-actions { display: flex; }

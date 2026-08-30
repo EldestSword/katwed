@@ -33,10 +33,11 @@ const expected = [
 ] as const
 
 describe('quiz background registry', () => {
-  it('defines the exact unique 18-item catalogue and static asset paths', () => {
-    expect(QUIZ_BACKGROUND_IDS).toHaveLength(18)
-    expect(new Set(QUIZ_BACKGROUND_IDS).size).toBe(18)
-    expect(quizBackgrounds.map(({ id, name, themeId }) => [id, name, themeId])).toEqual(expected)
+  it('defines the exact unique 63-item catalogue and preserves the original 18 registrations', () => {
+    expect(QUIZ_BACKGROUND_IDS).toHaveLength(63)
+    expect(new Set(QUIZ_BACKGROUND_IDS).size).toBe(63)
+    expect(quizBackgrounds.map(({ id, name, themeId }) => [id, name, themeId]).slice(0, 18)).toEqual(expected)
+    expect(quizBackgrounds).toHaveLength(63)
     expect(quizBackgrounds.map(({ assetPath }) => assetPath)).toEqual(
       QUIZ_BACKGROUND_IDS.map((id) => `/backgrounds/${id}.webp`),
     )
@@ -54,6 +55,12 @@ describe('quiz background registry', () => {
         expect(existsSync(resolve('public', background.assetPath.slice(1))), background.assetPath).toBe(true)
       }
     }
+  })
+
+  it('keeps all Batch 1 preview assets small and separate from production backgrounds', () => {
+    const previews = readdirSync(resolve('public/backgrounds/previews')).filter((filename) => filename.endsWith('.webp'))
+    expect(previews).toHaveLength(15)
+    expect(previews.sort()).toEqual(QUIZ_THEME_IDS.slice(6).map((id) => `${id}.webp`).sort())
   })
 
   it('recognises only registered IDs and resolves their definitions', () => {

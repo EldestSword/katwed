@@ -30,4 +30,21 @@ describe('quizThemeSurfaceProps', () => {
     expect(incompatible).not.toHaveProperty('data-quiz-background')
     expect(incompatible.style).not.toHaveProperty('--quiz-background-image')
   })
+
+  it.each([
+    ['hard-rock', 'hard-rock-stage-lights', 'Oswald'],
+    ['chiptune', 'chiptune-pixels', 'Pixelify Sans'],
+    ['1980s', '1980s-broadcast', 'Orbitron'],
+    ['medieval', 'medieval-illuminated', 'Uncial Antiqua'],
+    ['western', 'western-sundown', 'Rye'],
+    ['retro-game-show', 'retro-game-show-panels', 'Limelight'],
+  ])('applies Batch 1 identity and display typography for %s', (themeId, backgroundId, fontName) => {
+    const props = quizThemeSurfaceProps(themeId, backgroundId)
+    expect(props['data-quiz-theme']).toBe(themeId)
+    expect(props['data-quiz-background']).toBe(backgroundId)
+    expect(props.style).toMatchObject({
+      '--quiz-font-display': expect.stringContaining(fontName),
+      '--quiz-background-image': `url("/backgrounds/${backgroundId}.webp")`,
+    })
+  })
 })

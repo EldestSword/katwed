@@ -1,0 +1,64 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { QUIZ_THEME_IDS } from '../../types/domain'
+import { quizBackgrounds } from '../../features/themes/quizBackgrounds'
+
+const migration = readFileSync(
+  resolve('supabase/migrations/202608300001_visual_theme_batch_1.sql'),
+  'utf8',
+)
+
+function sha256(path: string): string {
+  return createHash('sha256').update(readFileSync(resolve(path))).digest('hex')
+}
+
+describe('Visual Theme Batch 1 migration', () => {
+  it('leaves applied theme, background and latest production migrations immutable', () => {
+    expect(sha256('supabase/migrations/202608070004_quiz_themes.sql')).toBe(
+      'befcb4c70ea6c5ef23f1149a26f00d3c841c1a9a2bcf2ba621d0f632f07456a7',
+    )
+    expect(sha256('supabase/migrations/202608070005_quiz_backgrounds.sql')).toBe(
+      '557982df4fb57a3a4e2af06ff4ab1f117b05f2806084580241eef6f50da5af1d',
+    )
+    expect(sha256('supabase/migrations/20260828074030_multi_variant_sound_packs.sql')).toBe(
+      'cc7d65dd96e6d3a88064b1b48ec58eff717da7a9d98989c87e81cd677c2928bd',
+    )
+  })
+
+  it('expands the controlled theme constraint to the exact 21 registered IDs', () => {
+    const constraint = migration.match(/add constraint quizzes_theme_id_check check \(theme_id in \(([\s\S]*?)\)\)/)?.[1]
+    expect(constraint).toBeTruthy()
+    const ids = [...constraint!.matchAll(/'([^']+)'/g)].map((match) => match[1])
+    expect(ids).toEqual(QUIZ_THEME_IDS)
+    expect(ids).toHaveLength(21)
+  })
+
+  it('uses one strict 63-pair compatibility matrix for the constraint and save wrapper', () => {
+    const matrix = migration.match(/from \(values([\s\S]*?)\) as allowed\(theme_id, background_id\)/)?.[1]
+    expect(matrix).toBeTruthy()
+    const pairs = [...matrix!.matchAll(/\('([^']+)', '([^']+)'\)/g)]
+      .map((match) => [match[1], match[2]])
+    expect(pairs).toEqual(quizBackgrounds.map((background) => [background.themeId, background.id]))
+    expect(pairs).toHaveLength(63)
+    expect(migration).toContain('or public.is_quiz_background_compatible(theme_id, background_id)')
+  })
+
+  it('preserves stale-client background behaviour through the current save chain', () => {
+    expect(migration).toContain('rename to host_save_quiz_without_visual_theme_batch_1')
+    expect(migration).toContain("and not (p_quiz ? 'backgroundId')")
+    expect(migration).toContain("jsonb_set(p_quiz, '{backgroundId}', 'null'::jsonb, true)")
+    expect(migration).toContain('public.is_quiz_background_compatible(')
+    expect(migration).toContain('return public.host_save_quiz_without_visual_theme_batch_1(v_forward_quiz)')
+    expect(migration).toContain('grant execute on function public.host_save_quiz(jsonb) to authenticated')
+  })
+
+  it('does not alter scoring, phases, player-safe state or anonymous answer submission', () => {
+    expect(migration).not.toContain('submit_answer')
+    expect(migration).not.toContain('safe_game_state')
+    expect(migration).not.toContain('game_sessions')
+    expect(migration).not.toContain('player_answers')
+    expect(migration).not.toContain('grant execute on function public.host_save_quiz(jsonb) to anon')
+  })
+})

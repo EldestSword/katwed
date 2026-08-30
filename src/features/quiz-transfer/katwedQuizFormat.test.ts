@@ -124,6 +124,14 @@ describe('Katwed quiz portable parser', () => {
     incompatible.quiz.themeId = 'paper'
     incompatible.quiz.backgroundId = 'arcade-grid'
     expect(() => parse(incompatible)).toThrow('does not belong')
+
+    const batchOne = standardFile()
+    batchOne.quiz.themeId = 'western'
+    batchOne.quiz.backgroundId = 'western-turquoise'
+    expect(parse(batchOne).summary).toMatchObject({
+      themeId: 'western',
+      backgroundId: 'western-turquoise',
+    })
   })
 
   it.each(['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'blob:https://example.test/id']) (

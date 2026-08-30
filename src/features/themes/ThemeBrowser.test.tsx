@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { QuizThemeDefinition } from './quizThemes'
@@ -19,7 +19,8 @@ describe('ThemeBrowser', () => {
     await user.clear(screen.getByRole('searchbox', { name: 'Search themes' }))
     await user.click(screen.getByRole('button', { name: 'Entertainment' }))
     expect(screen.getByRole('button', { name: /Arcade/ })).toBeInTheDocument()
-    expect(screen.getByText('1 theme shown')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Retro Game Show/ })).toBeInTheDocument()
+    expect(screen.getByText('2 themes shown')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Arcade/ }))
     expect(select).toHaveBeenCalledWith('arcade')
 
@@ -27,6 +28,15 @@ describe('ThemeBrowser', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Search themes' }), 'no such visual identity')
     expect(screen.getByText('No themes match that search and category.')).toBeInTheDocument()
     expect(screen.getByText('0 themes shown')).toBeInTheDocument()
+  })
+
+  it('uses lazy lightweight previews without applying every decorative catalogue font', () => {
+    render(<ThemeBrowser selectedId="katwed" onSelect={() => undefined} />)
+    const hardRock = screen.getByRole('button', { name: /Hard Rock/ })
+    const preview = within(hardRock).getByRole('img', { name: 'Hard Rock theme artwork preview' })
+    expect(preview).toHaveAttribute('loading', 'lazy')
+    expect(preview).toHaveAttribute('src', '/backgrounds/previews/hard-rock.webp')
+    expect(within(hardRock).getByText('Hard Rock')).not.toHaveAttribute('style')
   })
 
   it('supports native keyboard selection', async () => {

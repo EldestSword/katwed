@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from 'react'
 import type { QuizThemeId } from '../../types/domain'
 import { getThemeCategory, type ThemeCategoryId } from './themeCategories'
-import { getThemeFont } from './themeFonts'
 import { quizThemes, type QuizThemeDefinition } from './quizThemes'
 
 function normaliseSearch(value: string): string {
@@ -73,7 +72,6 @@ export function ThemeBrowser({
       {visibleThemes.length > 0 ? <div className="quiz-theme-grid">
         {visibleThemes.map((theme) => {
           const selected = theme.id === selectedId
-          const displayFont = getThemeFont(theme.typography.displayFontId)
           const category = getThemeCategory(theme.category)
           return (
             <button
@@ -89,7 +87,7 @@ export function ThemeBrowser({
                     {theme.swatches.map((colour) => <i key={colour} style={{ backgroundColor: colour }} />)}
                   </span>}
               <span className="quiz-theme-option__copy">
-                <strong style={{ fontFamily: displayFont?.family }}>{theme.name}</strong>
+                <strong>{theme.name}</strong>
                 <small>{theme.description}</small>
                 <small className="quiz-theme-option__category">{category?.name}</small>
               </span>
