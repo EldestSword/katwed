@@ -85,7 +85,9 @@ Each quiz selects one of six built-in audience themes: `katwed`, `midnight`, `su
 
 Each theme also offers three curated built-in 16:9 image backgrounds plus Theme default, which uses no image and preserves the existing themed surface. The editor shows only the current theme's backgrounds. Changing theme clears an incompatible selection rather than choosing a replacement. Backgrounds use trusted static assets under `public/backgrounds/`; they are not uploads, Supabase Storage objects or Storage Manager inventory.
 
-Theme palettes and backgrounds use central typed registries rendered through scoped audience-surface CSS. `themeId` and nullable `backgroundId` travel with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Covers remain separate library metadata. Duplicate preserves both appearance choices alongside the existing independently remapped quiz definition.
+Theme definitions use Visual Theme System v2: central typed semantic tokens, browsing category/keywords, approved display/UI font IDs and lightweight preview metadata. A safe registry-backed helper maps the selected definition to scoped CSS custom properties while retaining `data-quiz-theme`; unknown IDs fall back to Katwed and cannot inject CSS or asset URLs. Quiz Settings provides labelled search and category filters while keeping the six-theme card grid immediate. See [`docs/visual-theme-language-v2.md`](docs/visual-theme-language-v2.md).
+
+`themeId` and nullable `backgroundId` still travel with quiz definitions and through the player-safe game state without changing answer-key filtering, scoring or phase behaviour. Token objects, category metadata, font files and authoring manifests are never persisted. Covers remain separate library metadata. Duplicate preserves both appearance choices alongside the existing independently remapped quiz definition. Sound Packs and Answer Palettes remain deliberately independent.
 
 The production release applied `202608070004_quiz_themes.sql` and `202608070005_quiz_backgrounds.sql` in order and deployed the matching frontend at `https://katwed.co.uk` with `https://katwed.netlify.app` as the Netlify fallback. Both migrations are now immutable production history.
 
@@ -151,7 +153,7 @@ The production MP3 pack is 2.72 MiB under `public/audio/packs/katwed/`; raw WAV 
 
 ### Visual design system, pass 1
 
-The first visual redesign pass establishes reusable foundations without redesigning complete screens. Bricolage Grotesque is bundled locally through `@fontsource-variable/bricolage-grotesque`; there are no runtime font requests to third-party services. Semantic CSS is split into tokens, typography, primitives and visual-lab layout under `src/styles/`, while the existing `global.css` remains the screen-layout layer until later redesign passes.
+The first visual redesign pass establishes reusable foundations without redesigning complete screens. Visual Theme v2 retains locally bundled Bricolage Grotesque as the default and adds a restrained approved registry of licensed Latin WOFF2 display/utility faces for future themes; there are no runtime font requests to third-party services and decorative faces are not preloaded. Semantic CSS is split into tokens, typography, primitives and visual-lab layout under `src/styles/`, while the existing `global.css` remains the screen-layout layer until later redesign passes.
 
 Shared game primitives now cover positional answer tiles, eight non-colour SVG markers, selected/disabled/locked/correct/incorrect states, image answers, status badges, circular timers, button hierarchy, focus treatment, form controls, surfaces and reduced-motion behaviour. The player and presentation choice/timer paths use the shared primitives while retaining the established safe-state, scoring, deadline, theme, background and answer-palette contracts.
 

@@ -154,7 +154,7 @@ describe('QuizEditorPage quiz appearance', () => {
     await openQuizSettings()
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
-    expect(within(themes).getAllByRole('button')).toHaveLength(6)
+    expect(themes.querySelectorAll('.quiz-theme-option')).toHaveLength(6)
     expect(within(themes).getByRole('button', { name: /Paper/ })).toHaveAttribute('aria-pressed', 'true')
     expect(within(themes).getByText('Selected')).toBeVisible()
   })

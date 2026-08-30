@@ -8,7 +8,7 @@ The foundation defines the Bricolage Grotesque display voice, semantic tokens an
 
 ## Pass 2 — live stage
 
-Presentation is the expressive, long-distance stage. Player is the compact, touch-first contestant control pad. Both share quiz themes, backgrounds, answer palettes and phase semantics while using layouts suited to their different viewing distances. See [Live-game visual language](live-game-visual-language.md).
+Presentation is the expressive, long-distance stage. Player is the compact, touch-first contestant control pad. Both share quiz themes, backgrounds, answer palettes and phase semantics while using layouts suited to their different viewing distances. See [Live-game visual language](live-game-visual-language.md) and [Visual Theme Language v2](visual-theme-language-v2.md).
 
 ## Pass 3 — backstage
 

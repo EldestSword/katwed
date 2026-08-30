@@ -11,7 +11,7 @@ import type { HeadToHeadGameCompetitor, PlayerSession } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
-import { quizBackgroundSurfaceProps } from '../features/themes/quizBackgroundSurface'
+import { quizThemeSurfaceProps } from '../features/themes/quizThemeSurface'
 import { HeadToHeadResults } from '../features/head-to-head/HeadToHeadResults'
 import { DoubleScoreIntro } from '../features/game/DoubleScoreIntro'
 import { useQuestionPrelude } from '../hooks/useQuestionPrelude'
@@ -95,7 +95,7 @@ export function PlayPage() {
   }
 
   return (
-    <main className="game-screen player-game quiz-themed-surface" data-quiz-theme={state.themeId} {...quizBackgroundSurfaceProps(state.backgroundId, state.themeId)}>
+    <main className="game-screen player-game quiz-themed-surface" {...quizThemeSurfaceProps(state.themeId, state.backgroundId)}>
       <header className="game-bar"><Logo /><div><span className="muted">Room</span><strong>{roomCode}</strong></div><div><span className="muted">Playing as</span><strong>{currentPlayer.nickname}</strong></div></header>
       {(error || reconnectError) && <StatusMessage tone="error">{error || reconnectError}</StatusMessage>}
 

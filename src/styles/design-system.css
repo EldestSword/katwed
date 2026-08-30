@@ -22,6 +22,13 @@
 .design-system-theme-card h3 { margin: auto 0 var(--space-1); font-size: var(--text-xl); }
 .design-system-theme-card p { margin: 0 0 var(--space-4); color: var(--quiz-stage-muted); }
 .design-system-theme-card__swatches { height: 2rem; display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid var(--quiz-stage-border); border-radius: var(--radius-sm); }
+.design-system-theme-browser .quiz-theme-picker { padding: var(--space-5); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-raised); }
+.design-system-theme-browser .quiz-theme-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.design-system-font-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.design-system-font-card { min-width: 0; padding: var(--space-5); display: grid; gap: var(--space-2); }
+.design-system-font-card small { color: var(--text-muted); text-transform: capitalize; }
+.design-system-font-card strong { overflow-wrap: anywhere; font-size: clamp(1.4rem, 3vw, 2.2rem); font-weight: 700; line-height: 1.1; }
+.design-system-font-card span { font-weight: 800; }
 .design-system-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
 .design-system-specimen { min-width: 0; padding: clamp(1rem, 3vw, 2rem); }
 .design-system-specimen h2 { margin-top: 0; }
@@ -51,6 +58,8 @@ form.design-system-specimen label:has(input[type="checkbox"]) { display: flex; a
   .design-system-controls > div { grid-column: 1 / -1; }
   .design-system-answer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .design-system-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .design-system-theme-browser .quiz-theme-grid,
+  .design-system-font-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
@@ -65,7 +74,9 @@ form.design-system-specimen label:has(input[type="checkbox"]) { display: flex; a
   .design-system-stage__intro { grid-template-columns: 1fr auto; }
   .design-system-stage__intro > .game-badge { grid-column: 1 / -1; }
   .design-system-answer-grid,
-  .design-system-theme-grid { grid-template-columns: 1fr; }
+  .design-system-theme-grid,
+  .design-system-theme-browser .quiz-theme-grid,
+  .design-system-font-grid { grid-template-columns: 1fr; }
   .design-system-answer-grid { gap: var(--space-4); }
   .design-system-timers { gap: var(--space-3); }
 }

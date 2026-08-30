@@ -191,7 +191,7 @@ describe('PresentationStage quiz theme', () => {
     const { container } = render(<PresentationStage state={defaultState} />)
     const stage = container.querySelector('.presentation-stage')
     expect(stage).not.toHaveAttribute('data-quiz-background')
-    expect(stage).not.toHaveAttribute('style')
+    expect(stage?.getAttribute('style')).not.toContain('--quiz-background-image')
   })
 
   it('renders the standard lobby join hierarchy, QR code, player count and joined names', () => {

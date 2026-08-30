@@ -15,6 +15,10 @@ supabase/.temp/
 # Local audio masters; commit only compressed public/audio/packs/** assets.
 /audio-source/
 
+# Local theme manifests and generated source artwork; commit only reviewed,
+# optimised registrations and public/backgrounds/*.webp assets.
+/theme-source/
+
 # Local Netlify folder
 .netlify
 

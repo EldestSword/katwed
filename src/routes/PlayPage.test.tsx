@@ -175,7 +175,7 @@ describe('PlayPage quiz background', () => {
 
     const surface = container.querySelector('.player-game')
     expect(surface).not.toHaveAttribute('data-quiz-background')
-    expect(surface).not.toHaveAttribute('style')
+    expect(surface?.getAttribute('style')).not.toContain('--quiz-background-image')
   })
 
   it('shows explicit official and play-along result semantics', async () => {

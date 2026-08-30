@@ -1,0 +1,87 @@
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Space Grotesk Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url("@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Oswald Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 700;
+  src: url("@fontsource-variable/oswald/files/oswald-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Fraunces Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/fraunces/files/fraunces-latin-standard-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Cinzel Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url("@fontsource-variable/cinzel/files/cinzel-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Rye";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/rye/files/rye-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Pixelify Sans Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url("@fontsource-variable/pixelify-sans/files/pixelify-sans-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Orbitron Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url("@fontsource-variable/orbitron/files/orbitron-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Limelight";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/limelight/files/limelight-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Uncial Antiqua";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/uncial-antiqua/files/uncial-antiqua-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto Slab Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/roboto-slab/files/roboto-slab-latin-wght-normal.woff2") format("woff2-variations");
+}

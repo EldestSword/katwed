@@ -12,13 +12,14 @@ describe('design system CSS foundations', () => {
 
   it('self-hosts the display font and makes reduced motion structural', () => {
     const typography = readFileSync(resolve('src/styles/typography.css'), 'utf8')
+    const themeFonts = readFileSync(resolve('src/styles/theme-fonts.css'), 'utf8')
     const css = readFileSync(resolve('src/styles/primitives.css'), 'utf8')
-    expect(typography).toContain('@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2')
-    expect(typography).toContain('font-display: swap')
+    expect(themeFonts).toContain('@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2')
+    expect(themeFonts).toContain('font-display: swap')
     expect(css).toContain('@media (prefers-reduced-motion: reduce)')
     expect(css).toContain('animation-duration: .01ms !important')
     expect(css).toContain('scroll-behavior: auto !important')
-    expect(`${typography}\n${css}`).not.toMatch(/https?:\/\//)
+    expect(`${themeFonts}\n${typography}\n${css}`).not.toMatch(/https?:\/\//)
   })
 
   it('keeps live stage and player layouts split with reduced-motion fallbacks', () => {
