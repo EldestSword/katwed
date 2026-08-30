@@ -66,4 +66,19 @@ describe('quizThemeSurfaceProps', () => {
       '--quiz-background-image': `url("/backgrounds/${backgroundId}.webp")`,
     })
   })
+
+  it.each([
+    ['glass', 'glass-refraction', 'Space Grotesk'],
+    ['comic-book', 'comic-book-halftone', 'Oswald'],
+    ['deep-ocean', 'deep-ocean-current', 'Space Grotesk'],
+    ['summer', 'summer-breeze', 'Space Grotesk'],
+  ])('applies representative Batch 3 identity and display typography for %s', (themeId, backgroundId, fontName) => {
+    const props = quizThemeSurfaceProps(themeId, backgroundId)
+    expect(props['data-quiz-theme']).toBe(themeId)
+    expect(props['data-quiz-background']).toBe(backgroundId)
+    expect(props.style).toMatchObject({
+      '--quiz-font-display': expect.stringContaining(fontName),
+      '--quiz-background-image': `url("/backgrounds/${backgroundId}.webp")`,
+    })
+  })
 })

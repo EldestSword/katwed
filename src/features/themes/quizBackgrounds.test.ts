@@ -33,11 +33,11 @@ const expected = [
 ] as const
 
 describe('quiz background registry', () => {
-  it('defines the exact unique 108-item catalogue and preserves the original 18 registrations', () => {
-    expect(QUIZ_BACKGROUND_IDS).toHaveLength(108)
-    expect(new Set(QUIZ_BACKGROUND_IDS).size).toBe(108)
+  it('defines the exact unique 153-item catalogue and preserves the original 18 registrations', () => {
+    expect(QUIZ_BACKGROUND_IDS).toHaveLength(153)
+    expect(new Set(QUIZ_BACKGROUND_IDS).size).toBe(153)
     expect(quizBackgrounds.map(({ id, name, themeId }) => [id, name, themeId]).slice(0, 18)).toEqual(expected)
-    expect(quizBackgrounds).toHaveLength(108)
+    expect(quizBackgrounds).toHaveLength(153)
     expect(quizBackgrounds.map(({ assetPath }) => assetPath)).toEqual(
       QUIZ_BACKGROUND_IDS.map((id) => `/backgrounds/${id}.webp`),
     )
@@ -59,7 +59,7 @@ describe('quiz background registry', () => {
 
   it('keeps all imported preview assets small and separate from production backgrounds', () => {
     const previews = readdirSync(resolve('public/backgrounds/previews')).filter((filename) => filename.endsWith('.webp'))
-    expect(previews).toHaveLength(30)
+    expect(previews).toHaveLength(45)
     expect(previews.sort()).toEqual(QUIZ_THEME_IDS.slice(6).map((id) => `${id}.webp`).sort())
   })
 

@@ -277,23 +277,31 @@ describe('theme batch validation and output', () => {
 })
 
 describe('reviewed theme batch configuration', () => {
-  it('derives Batch 2 prior and complete IDs from Batch 1 without duplicated registry lists', () => {
+  it('derives each later batch catalogue from its predecessor without duplicated registry lists', () => {
     const batchOne = getVisualThemeBatchConfig('batch-01')
     const batchTwo = getVisualThemeBatchConfig('batch-02')
+    const batchThree = getVisualThemeBatchConfig('batch-03')
     expect(batchOne).toBe(VISUAL_THEME_BATCH_CONFIGS['batch-01'])
     expect(batchTwo.existingThemeIds).toEqual(batchOne.registeredThemeIds)
     expect(batchTwo.existingBackgroundIds).toEqual(batchOne.registeredBackgroundIds)
     expect(batchTwo.registeredThemeIds).toHaveLength(36)
     expect(batchTwo.registeredBackgroundIds).toHaveLength(108)
-    expect(getVisualThemeBatchConfig('batch-03')).toBeNull()
+    expect(batchThree).toBe(VISUAL_THEME_BATCH_CONFIGS['batch-03'])
+    expect(batchThree.existingThemeIds).toEqual(batchTwo.registeredThemeIds)
+    expect(batchThree.existingBackgroundIds).toEqual(batchTwo.registeredBackgroundIds)
+    expect(batchThree.registeredThemeIds).toHaveLength(51)
+    expect(batchThree.registeredBackgroundIds).toHaveLength(153)
+    expect(getVisualThemeBatchConfig('batch-04')).toBeNull()
   })
 
   it('allows only the latest reviewed batch to rewrite the shared portable schemas', () => {
     expect(isLatestVisualThemeBatch('batch-01')).toBe(false)
-    expect(isLatestVisualThemeBatch('batch-02')).toBe(true)
-    expect(isLatestVisualThemeBatch('batch-03')).toBe(false)
+    expect(isLatestVisualThemeBatch('batch-02')).toBe(false)
+    expect(isLatestVisualThemeBatch('batch-03')).toBe(true)
+    expect(isLatestVisualThemeBatch('batch-04')).toBe(false)
     expect(portableSchemaPathsForBatch('batch-01', temporaryRoot)).toEqual([])
-    expect(portableSchemaPathsForBatch('batch-02', temporaryRoot)).toHaveLength(5)
+    expect(portableSchemaPathsForBatch('batch-02', temporaryRoot)).toEqual([])
+    expect(portableSchemaPathsForBatch('batch-03', temporaryRoot)).toHaveLength(5)
   })
 })
 
@@ -324,23 +332,26 @@ async function reproduceReviewedBatch(batchId) {
     currentPortableSchemaPaths.map(({ output }) => readFile(output, 'utf8')),
   )
 
-  const unrelatedBatch2Assets = []
-  if (batchId === 'batch-01') {
-    const batchTwoReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-2-size-report.json'), 'utf8'))
+  const batchConfigs = Object.values(VISUAL_THEME_BATCH_CONFIGS)
+  const batchIndex = batchConfigs.findIndex((candidate) => candidate.batchId === batchId)
+  const laterBatchConfigs = batchConfigs.slice(batchIndex + 1)
+  const unrelatedLaterAssets = []
+  for (const laterConfig of laterBatchConfigs) {
+    const laterReport = JSON.parse(await readFile(resolve('docs', laterConfig.reportFilename), 'utf8'))
     await mkdir(outputBackgroundDir, { recursive: true })
     await mkdir(outputPreviewDir, { recursive: true })
-    for (const background of batchTwoReport.backgrounds) {
+    for (const background of laterReport.backgrounds) {
       const output = join(outputBackgroundDir, background.productionFilename)
       await copyFile(resolve('public', 'backgrounds', background.productionFilename), output)
-      unrelatedBatch2Assets.push(output)
+      unrelatedLaterAssets.push(output)
     }
-    for (const preview of batchTwoReport.previewThumbnails) {
+    for (const preview of laterReport.previewThumbnails) {
       const output = join(outputPreviewDir, preview.thumbnailFilename)
       await copyFile(resolve('public', 'backgrounds', 'previews', preview.thumbnailFilename), output)
-      unrelatedBatch2Assets.push(output)
+      unrelatedLaterAssets.push(output)
     }
   }
-  const unrelatedAssetSnapshots = await Promise.all(unrelatedBatch2Assets.map(async (path) => ({
+  const unrelatedAssetSnapshots = await Promise.all(unrelatedLaterAssets.map(async (path) => ({
     path,
     sha256: await calculateFileSha256(path),
     mtimeMs: (await stat(path)).mtimeMs,
@@ -368,9 +379,12 @@ async function reproduceReviewedBatch(batchId) {
   })
   const trustedReport = JSON.parse(await readFile(resolve('docs', config.reportFilename), 'utf8'))
   expect(result.report).toEqual(trustedReport)
-  expect(await readFile(generatedModulePath, 'utf8')).toBe(
-    await readFile(resolve('src', 'generated', config.generatedModuleFilename), 'utf8'),
-  )
+  const reproducedModule = (await readFile(generatedModulePath, 'utf8')).replaceAll('\r\n', '\n')
+  const trustedModule = (await readFile(
+    resolve('src', 'generated', config.generatedModuleFilename),
+    'utf8',
+  )).replaceAll('\r\n', '\n')
+  expect(reproducedModule).toBe(trustedModule)
   for (const background of result.report.backgrounds) {
     await expect(calculateFileSha256(join(outputBackgroundDir, background.productionFilename))).resolves.toBe(
       await calculateFileSha256(resolve('public', 'backgrounds', background.productionFilename)),
@@ -387,7 +401,7 @@ async function reproduceReviewedBatch(batchId) {
     const schema = JSON.parse(schemaText)
     expect(schema.$defs.quiz.properties.themeId.enum).toEqual(latestConfig.registeredThemeIds)
     expect(schema.$defs.quiz.properties.backgroundId.oneOf[0].enum).toEqual(latestConfig.registeredBackgroundIds)
-    if (batchId === 'batch-01') expect(schemaText).toBe(portableSchemaSnapshots[index])
+    if (!isLatestVisualThemeBatch(batchId)) expect(schemaText).toBe(portableSchemaSnapshots[index])
   }
   for (const snapshot of unrelatedAssetSnapshots) {
     await expect(calculateFileSha256(snapshot.path)).resolves.toBe(snapshot.sha256)
@@ -398,7 +412,7 @@ async function reproduceReviewedBatch(batchId) {
 
 describe('reviewed Visual Theme Batch 1 reproduction', () => {
   it.runIf(reviewedBatchAvailable('batch-01'))(
-    'reproduces trusted outputs while write/allow-existing preserves current schemas and Batch 2 assets',
+    'reproduces trusted outputs while write/allow-existing preserves current schemas and later-batch assets',
     () => reproduceReviewedBatch('batch-01'),
     120_000,
   )
@@ -408,6 +422,14 @@ describe('reviewed Visual Theme Batch 2 provenance', () => {
   it.runIf(reviewedBatchAvailable('batch-02'))(
     'reproduces every trusted registry, report, background, preview and reviewed digest in temporary output',
     () => reproduceReviewedBatch('batch-02'),
+    120_000,
+  )
+})
+
+describe('reviewed Visual Theme Batch 3 provenance', () => {
+  it.runIf(reviewedBatchAvailable('batch-03'))(
+    'reproduces every trusted registry, report, background, preview and reviewed digest in temporary output',
+    () => reproduceReviewedBatch('batch-03'),
     120_000,
   )
 })

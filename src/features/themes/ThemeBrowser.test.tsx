@@ -20,7 +20,8 @@ describe('ThemeBrowser', () => {
     await user.click(screen.getByRole('button', { name: 'Entertainment' }))
     expect(screen.getByRole('button', { name: /Arcade/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Retro Game Show/ })).toBeInTheDocument()
-    expect(screen.getByText('2 themes shown')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sports Broadcast/ })).toBeInTheDocument()
+    expect(screen.getByText('5 themes shown')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Arcade/ }))
     expect(select).toHaveBeenCalledWith('arcade')
 
@@ -30,16 +31,19 @@ describe('ThemeBrowser', () => {
     expect(screen.getByText('0 themes shown')).toBeInTheDocument()
   })
 
-  it('shows represented categories only and filters the three places and culture themes', async () => {
+  it('shows represented categories and filters places, culture and wildcard themes', async () => {
     const user = userEvent.setup()
     render(<ThemeBrowser selectedId="katwed" onSelect={() => undefined} />)
     expect(screen.getByRole('button', { name: 'Places & Culture' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Wildcards' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Wildcards' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Places & Culture' }))
     expect(screen.getByText('3 themes shown')).toBeInTheDocument()
     for (const name of ['Greek', 'French', 'Italian']) {
       expect(screen.getByRole('button', { name: new RegExp(name) })).toBeInTheDocument()
     }
+    await user.click(screen.getByRole('button', { name: 'Wildcards' }))
+    expect(screen.getByText('6 themes shown')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Deep Ocean/ })).toBeInTheDocument()
   })
 
   it('uses lazy lightweight previews without applying every decorative catalogue font', () => {
@@ -50,7 +54,7 @@ describe('ThemeBrowser', () => {
     expect(preview).toHaveAttribute('src', '/backgrounds/previews/hard-rock.webp')
     expect(within(hardRock).getByText('Hard Rock')).not.toHaveAttribute('style')
     const importedPreviews = screen.getAllByRole('img').filter((image) => image.tagName === 'IMG')
-    expect(importedPreviews).toHaveLength(30)
+    expect(importedPreviews).toHaveLength(45)
     for (const image of importedPreviews) {
       expect(image).toHaveAttribute('loading', 'lazy')
       expect(image.getAttribute('src')).toMatch(/^\/backgrounds\/previews\/[^/]+\.webp$/)

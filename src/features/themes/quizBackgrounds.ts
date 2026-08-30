@@ -5,6 +5,7 @@ import {
 } from '../../types/domain'
 import { visualThemeBatch1Backgrounds } from '../../generated/visualThemeBatch1'
 import { visualThemeBatch2Backgrounds } from '../../generated/visualThemeBatch2'
+import { visualThemeBatch3Backgrounds } from '../../generated/visualThemeBatch3'
 
 export interface QuizBackgroundDefinition {
   id: QuizBackgroundId
@@ -34,6 +35,7 @@ export const quizBackgrounds: readonly QuizBackgroundDefinition[] = [
   { id: 'paper-notebook', name: 'Notebook', themeId: 'paper', assetPath: '/backgrounds/paper-notebook.webp' },
   ...visualThemeBatch1Backgrounds,
   ...visualThemeBatch2Backgrounds,
+  ...visualThemeBatch3Backgrounds,
 ]
 
 const backgroundIds = new Set<string>(QUIZ_BACKGROUND_IDS)
