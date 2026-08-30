@@ -35,7 +35,7 @@ describe('Visual Theme Batch 2 migration', () => {
     const constraint = migration.match(/add constraint quizzes_theme_id_check check \(theme_id in \(([\s\S]*?)\)\)/)?.[1]
     expect(constraint).toBeTruthy()
     const ids = [...constraint!.matchAll(/'([^']+)'/g)].map((match) => match[1])
-    expect(ids).toEqual(QUIZ_THEME_IDS)
+    expect(ids).toEqual(QUIZ_THEME_IDS.slice(0, 36))
     expect(ids).toHaveLength(36)
   })
 
@@ -44,7 +44,7 @@ describe('Visual Theme Batch 2 migration', () => {
     expect(matrix).toBeTruthy()
     const pairs = [...matrix!.matchAll(/\('([^']+)', '([^']+)'\)/g)]
       .map((match) => [match[1], match[2]])
-    expect(pairs).toEqual(quizBackgrounds.map((background) => [background.themeId, background.id]))
+    expect(pairs).toEqual(quizBackgrounds.slice(0, 108).map((background) => [background.themeId, background.id]))
     expect(pairs).toHaveLength(108)
     expect(migration).toContain('or public.is_quiz_background_compatible(theme_id, background_id)')
   })

@@ -1,0 +1,679 @@
+{
+  "batchId": "batch-03",
+  "sourceContentSha256": "d02f1a426eb10ec24c68cc186ad0974f4b4805423efc22f0c2a48c33c53e0474",
+  "sourceArchiveSha256": "45bf3227aaa1a175fa4afa8e11b560c6b39f3d6b5b964c111fd9374d61268028",
+  "themeCount": 15,
+  "backgroundCount": 45,
+  "thumbnailCount": 15,
+  "production": {
+    "format": "webp",
+    "quality": 82,
+    "maximumDimensions": "1920x1080",
+    "totalSourceBytes": 90466038,
+    "totalProductionBytes": 4183836,
+    "reductionPercent": 95.38,
+    "averageBytes": 92974,
+    "smallest": {
+      "id": "new-year-confetti",
+      "bytes": 26418
+    },
+    "largest": {
+      "id": "comic-book-halftone",
+      "bytes": 342042
+    }
+  },
+  "thumbnails": {
+    "format": "webp",
+    "quality": 68,
+    "dimensions": "480x270",
+    "totalBytes": 123332
+  },
+  "semanticTokenCorrections": [
+    {
+      "themeId": "autumn",
+      "token": "featureText",
+      "originalValue": "#FFFFFF",
+      "correctedValue": "#111600",
+      "reason": "Reviewed source correction for accessible feature contrast."
+    }
+  ],
+  "portableFormat": {
+    "exportVersion": 5,
+    "versionBumpRequired": false,
+    "decision": "Additive controlled-ID expansion; v5 semantics are unchanged and historical imports remain supported."
+  },
+  "backgrounds": [
+    {
+      "id": "holographic-prism",
+      "themeId": "holographic",
+      "sourceFilename": "holographic-prism.png",
+      "sourceBytes": 1783512,
+      "productionFilename": "holographic-prism.webp",
+      "productionBytes": 53350,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "holographic-foil",
+      "themeId": "holographic",
+      "sourceFilename": "holographic-foil.png",
+      "sourceBytes": 1882189,
+      "productionFilename": "holographic-foil.webp",
+      "productionBytes": 58172,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "holographic-orbit",
+      "themeId": "holographic",
+      "sourceFilename": "holographic-orbit.png",
+      "sourceBytes": 1844639,
+      "productionFilename": "holographic-orbit.webp",
+      "productionBytes": 77672,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "glass-frost",
+      "themeId": "glass",
+      "sourceFilename": "glass-frost.png",
+      "sourceBytes": 1775808,
+      "productionFilename": "glass-frost.webp",
+      "productionBytes": 34536,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "glass-refraction",
+      "themeId": "glass",
+      "sourceFilename": "glass-refraction.png",
+      "sourceBytes": 1705182,
+      "productionFilename": "glass-refraction.webp",
+      "productionBytes": 59972,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "glass-panels",
+      "themeId": "glass",
+      "sourceFilename": "glass-panels.png",
+      "sourceBytes": 1440159,
+      "productionFilename": "glass-panels.webp",
+      "productionBytes": 36004,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "comic-book-halftone",
+      "themeId": "comic-book",
+      "sourceFilename": "comic-book-halftone.png",
+      "sourceBytes": 3367326,
+      "productionFilename": "comic-book-halftone.webp",
+      "productionBytes": 342042,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "comic-book-panels",
+      "themeId": "comic-book",
+      "sourceFilename": "comic-book-panels.png",
+      "sourceBytes": 2968776,
+      "productionFilename": "comic-book-panels.webp",
+      "productionBytes": 233888,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "comic-book-impact",
+      "themeId": "comic-book",
+      "sourceFilename": "comic-book-impact.png",
+      "sourceBytes": 3222890,
+      "productionFilename": "comic-book-impact.webp",
+      "productionBytes": 275030,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "vhs-tracking",
+      "themeId": "vhs",
+      "sourceFilename": "vhs-tracking.png",
+      "sourceBytes": 1835807,
+      "productionFilename": "vhs-tracking.webp",
+      "productionBytes": 64262,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "vhs-chroma",
+      "themeId": "vhs",
+      "sourceFilename": "vhs-chroma.png",
+      "sourceBytes": 1535263,
+      "productionFilename": "vhs-chroma.webp",
+      "productionBytes": 41202,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "vhs-static",
+      "themeId": "vhs",
+      "sourceFilename": "vhs-static.png",
+      "sourceBytes": 2432757,
+      "productionFilename": "vhs-static.webp",
+      "productionBytes": 120458,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "newspaper-columns",
+      "themeId": "newspaper",
+      "sourceFilename": "newspaper-columns.png",
+      "sourceBytes": 2312899,
+      "productionFilename": "newspaper-columns.webp",
+      "productionBytes": 84254,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "newspaper-print",
+      "themeId": "newspaper",
+      "sourceFilename": "newspaper-print.png",
+      "sourceBytes": 2911481,
+      "productionFilename": "newspaper-print.webp",
+      "productionBytes": 170302,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "newspaper-edition",
+      "themeId": "newspaper",
+      "sourceFilename": "newspaper-edition.png",
+      "sourceBytes": 2514598,
+      "productionFilename": "newspaper-edition.webp",
+      "productionBytes": 103164,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "laboratory-molecules",
+      "themeId": "laboratory",
+      "sourceFilename": "laboratory-molecules.png",
+      "sourceBytes": 1556296,
+      "productionFilename": "laboratory-molecules.webp",
+      "productionBytes": 43428,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "laboratory-liquid",
+      "themeId": "laboratory",
+      "sourceFilename": "laboratory-liquid.png",
+      "sourceBytes": 1983483,
+      "productionFilename": "laboratory-liquid.webp",
+      "productionBytes": 111618,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "laboratory-spectrum",
+      "themeId": "laboratory",
+      "sourceFilename": "laboratory-spectrum.png",
+      "sourceBytes": 1821738,
+      "productionFilename": "laboratory-spectrum.webp",
+      "productionBytes": 64154,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jungle-canopy",
+      "themeId": "jungle",
+      "sourceFilename": "jungle-canopy.png",
+      "sourceBytes": 2156537,
+      "productionFilename": "jungle-canopy.webp",
+      "productionBytes": 112516,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jungle-depth",
+      "themeId": "jungle",
+      "sourceFilename": "jungle-depth.png",
+      "sourceBytes": 2098679,
+      "productionFilename": "jungle-depth.webp",
+      "productionBytes": 114044,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "jungle-tropical",
+      "themeId": "jungle",
+      "sourceFilename": "jungle-tropical.png",
+      "sourceBytes": 1925330,
+      "productionFilename": "jungle-tropical.webp",
+      "productionBytes": 108860,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "deep-ocean-abyss",
+      "themeId": "deep-ocean",
+      "sourceFilename": "deep-ocean-abyss.png",
+      "sourceBytes": 1598525,
+      "productionFilename": "deep-ocean-abyss.webp",
+      "productionBytes": 42510,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "deep-ocean-current",
+      "themeId": "deep-ocean",
+      "sourceFilename": "deep-ocean-current.png",
+      "sourceBytes": 1905750,
+      "productionFilename": "deep-ocean-current.webp",
+      "productionBytes": 87656,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "deep-ocean-biolume",
+      "themeId": "deep-ocean",
+      "sourceFilename": "deep-ocean-biolume.png",
+      "sourceBytes": 1394249,
+      "productionFilename": "deep-ocean-biolume.webp",
+      "productionBytes": 38942,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "circus-big-top",
+      "themeId": "circus",
+      "sourceFilename": "circus-big-top.png",
+      "sourceBytes": 1954675,
+      "productionFilename": "circus-big-top.webp",
+      "productionBytes": 97278,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "circus-lights",
+      "themeId": "circus",
+      "sourceFilename": "circus-lights.png",
+      "sourceBytes": 1892872,
+      "productionFilename": "circus-lights.webp",
+      "productionBytes": 72660,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "circus-marquee",
+      "themeId": "circus",
+      "sourceFilename": "circus-marquee.png",
+      "sourceBytes": 2208000,
+      "productionFilename": "circus-marquee.webp",
+      "productionBytes": 60704,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sports-broadcast-motion",
+      "themeId": "sports-broadcast",
+      "sourceFilename": "sports-broadcast-motion.png",
+      "sourceBytes": 1628263,
+      "productionFilename": "sports-broadcast-motion.webp",
+      "productionBytes": 65416,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sports-broadcast-studio",
+      "themeId": "sports-broadcast",
+      "sourceFilename": "sports-broadcast-studio.png",
+      "sourceBytes": 1805945,
+      "productionFilename": "sports-broadcast-studio.webp",
+      "productionBytes": 74894,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "sports-broadcast-arena",
+      "themeId": "sports-broadcast",
+      "sourceFilename": "sports-broadcast-arena.png",
+      "sourceBytes": 1761528,
+      "productionFilename": "sports-broadcast-arena.webp",
+      "productionBytes": 71858,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "awards-show-spotlight",
+      "themeId": "awards-show",
+      "sourceFilename": "awards-show-spotlight.png",
+      "sourceBytes": 2173221,
+      "productionFilename": "awards-show-spotlight.webp",
+      "productionBytes": 109474,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "awards-show-curtain",
+      "themeId": "awards-show",
+      "sourceFilename": "awards-show-curtain.png",
+      "sourceBytes": 1751264,
+      "productionFilename": "awards-show-curtain.webp",
+      "productionBytes": 49624,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "awards-show-sparkle",
+      "themeId": "awards-show",
+      "sourceFilename": "awards-show-sparkle.png",
+      "sourceBytes": 2102465,
+      "productionFilename": "awards-show-sparkle.webp",
+      "productionBytes": 130212,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "new-year-midnight",
+      "themeId": "new-year",
+      "sourceFilename": "new-year-midnight.png",
+      "sourceBytes": 1962809,
+      "productionFilename": "new-year-midnight.webp",
+      "productionBytes": 82352,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "new-year-firework",
+      "themeId": "new-year",
+      "sourceFilename": "new-year-firework.png",
+      "sourceBytes": 1798705,
+      "productionFilename": "new-year-firework.webp",
+      "productionBytes": 90928,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "new-year-confetti",
+      "themeId": "new-year",
+      "sourceFilename": "new-year-confetti.png",
+      "sourceBytes": 1521522,
+      "productionFilename": "new-year-confetti.webp",
+      "productionBytes": 26418,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "autumn-embers",
+      "themeId": "autumn",
+      "sourceFilename": "autumn-embers.png",
+      "sourceBytes": 2461377,
+      "productionFilename": "autumn-embers.webp",
+      "productionBytes": 129854,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "autumn-leaves",
+      "themeId": "autumn",
+      "sourceFilename": "autumn-leaves.png",
+      "sourceBytes": 2366793,
+      "productionFilename": "autumn-leaves.webp",
+      "productionBytes": 105114,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "autumn-harvest",
+      "themeId": "autumn",
+      "sourceFilename": "autumn-harvest.png",
+      "sourceBytes": 3017037,
+      "productionFilename": "autumn-harvest.webp",
+      "productionBytes": 207978,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "winter-frost",
+      "themeId": "winter",
+      "sourceFilename": "winter-frost.png",
+      "sourceBytes": 2192713,
+      "productionFilename": "winter-frost.webp",
+      "productionBytes": 115366,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "winter-snowlight",
+      "themeId": "winter",
+      "sourceFilename": "winter-snowlight.png",
+      "sourceBytes": 1568821,
+      "productionFilename": "winter-snowlight.webp",
+      "productionBytes": 35034,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "winter-ice",
+      "themeId": "winter",
+      "sourceFilename": "winter-ice.png",
+      "sourceBytes": 1715872,
+      "productionFilename": "winter-ice.webp",
+      "productionBytes": 52202,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "summer-sunlight",
+      "themeId": "summer",
+      "sourceFilename": "summer-sunlight.png",
+      "sourceBytes": 1515203,
+      "productionFilename": "summer-sunlight.webp",
+      "productionBytes": 39064,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "summer-pool",
+      "themeId": "summer",
+      "sourceFilename": "summer-pool.png",
+      "sourceBytes": 1552761,
+      "productionFilename": "summer-pool.webp",
+      "productionBytes": 47964,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    },
+    {
+      "id": "summer-breeze",
+      "themeId": "summer",
+      "sourceFilename": "summer-breeze.png",
+      "sourceBytes": 1540319,
+      "productionFilename": "summer-breeze.webp",
+      "productionBytes": 41406,
+      "width": 1920,
+      "height": 1080,
+      "quality": 82
+    }
+  ],
+  "previewThumbnails": [
+    {
+      "themeId": "holographic",
+      "sourceFilename": "holographic-prism.png",
+      "thumbnailFilename": "holographic.webp",
+      "thumbnailBytes": 6536,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "glass",
+      "sourceFilename": "glass-refraction.png",
+      "thumbnailFilename": "glass.webp",
+      "thumbnailBytes": 6238,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "comic-book",
+      "sourceFilename": "comic-book-halftone.png",
+      "thumbnailFilename": "comic-book.webp",
+      "thumbnailBytes": 28966,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "vhs",
+      "sourceFilename": "vhs-chroma.png",
+      "thumbnailFilename": "vhs.webp",
+      "thumbnailBytes": 3520,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "newspaper",
+      "sourceFilename": "newspaper-columns.png",
+      "thumbnailFilename": "newspaper.webp",
+      "thumbnailBytes": 3206,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "laboratory",
+      "sourceFilename": "laboratory-liquid.png",
+      "thumbnailFilename": "laboratory.webp",
+      "thumbnailBytes": 10282,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "jungle",
+      "sourceFilename": "jungle-canopy.png",
+      "thumbnailFilename": "jungle.webp",
+      "thumbnailBytes": 10118,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "deep-ocean",
+      "sourceFilename": "deep-ocean-current.png",
+      "thumbnailFilename": "deep-ocean.webp",
+      "thumbnailBytes": 6250,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "circus",
+      "sourceFilename": "circus-lights.png",
+      "thumbnailFilename": "circus.webp",
+      "thumbnailBytes": 7584,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "sports-broadcast",
+      "sourceFilename": "sports-broadcast-motion.png",
+      "thumbnailFilename": "sports-broadcast.webp",
+      "thumbnailBytes": 6690,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "awards-show",
+      "sourceFilename": "awards-show-spotlight.png",
+      "thumbnailFilename": "awards-show.webp",
+      "thumbnailBytes": 6212,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "new-year",
+      "sourceFilename": "new-year-midnight.png",
+      "thumbnailFilename": "new-year.webp",
+      "thumbnailBytes": 8090,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "autumn",
+      "sourceFilename": "autumn-embers.png",
+      "thumbnailFilename": "autumn.webp",
+      "thumbnailBytes": 6468,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "winter",
+      "sourceFilename": "winter-frost.png",
+      "thumbnailFilename": "winter.webp",
+      "thumbnailBytes": 8298,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    },
+    {
+      "themeId": "summer",
+      "sourceFilename": "summer-breeze.png",
+      "thumbnailFilename": "summer.webp",
+      "thumbnailBytes": 4874,
+      "width": 480,
+      "height": 270,
+      "quality": 68
+    }
+  ]
+}

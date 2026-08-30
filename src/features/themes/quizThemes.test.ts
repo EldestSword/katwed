@@ -7,6 +7,7 @@ import { getThemeFont } from './themeFonts'
 import { validateQuizThemeDefinition } from './themeValidation'
 import { VISUAL_THEME_BATCH_1_THEME_IDS } from '../../generated/visualThemeBatch1'
 import { VISUAL_THEME_BATCH_2_THEME_IDS } from '../../generated/visualThemeBatch2'
+import { VISUAL_THEME_BATCH_3_THEME_IDS } from '../../generated/visualThemeBatch3'
 import {
   DEFAULT_QUIZ_THEME_ID,
   getQuizTheme,
@@ -32,11 +33,12 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe('quiz theme registry', () => {
-  it('defines exactly the 36 stable themes, preserving the original six IDs', () => {
+  it('defines exactly the 51 stable themes, preserving the original six IDs', () => {
     expect(QUIZ_THEME_IDS).toEqual([
       'katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper',
       ...VISUAL_THEME_BATCH_1_THEME_IDS,
       ...VISUAL_THEME_BATCH_2_THEME_IDS,
+      ...VISUAL_THEME_BATCH_3_THEME_IDS,
     ])
     expect(quizThemes.map(({ id, name }) => ({ id, name })).slice(0, 6)).toEqual([
       { id: 'katwed', name: 'Katwed!' },
@@ -46,12 +48,15 @@ describe('quiz theme registry', () => {
       { id: 'mint', name: 'Mint' },
       { id: 'paper', name: 'Paper' },
     ])
-    expect(quizThemes).toHaveLength(36)
+    expect(quizThemes).toHaveLength(51)
     expect(quizThemes.find((theme) => theme.id === 'hard-rock')?.name).toBe('Hard Rock')
     expect(quizThemes.find((theme) => theme.id === 'retro-game-show')?.name).toBe('Retro Game Show')
     expect(quizThemes.find((theme) => theme.id === '90s-rave')?.name).toBe('90s Rave')
     expect(quizThemes.filter((theme) => theme.category === 'places-culture').map((theme) => theme.id)).toEqual([
       'greek', 'french', 'italian',
+    ])
+    expect(quizThemes.filter((theme) => theme.category === 'wildcards').map((theme) => theme.id)).toEqual([
+      'comic-book', 'vhs', 'newspaper', 'laboratory', 'jungle', 'deep-ocean',
     ])
     expect(new Set(quizThemes.map((theme) => theme.id)).size).toBe(quizThemes.length)
     expect(DEFAULT_QUIZ_THEME_ID).toBe('katwed')

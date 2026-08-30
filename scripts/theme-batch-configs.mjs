@@ -137,6 +137,69 @@ export const VISUAL_THEME_BATCH_2_CONTRACTS = {
   },
 }
 
+export const VISUAL_THEME_BATCH_3_CONTRACTS = {
+  holographic: {
+    name: 'Holographic', category: 'abstract', displayFontId: 'space-grotesk', uiFontId: 'space-grotesk',
+    backgroundIds: ['holographic-prism', 'holographic-foil', 'holographic-orbit'],
+  },
+  glass: {
+    name: 'Glass', category: 'abstract', displayFontId: 'space-grotesk', uiFontId: 'system-ui',
+    backgroundIds: ['glass-frost', 'glass-refraction', 'glass-panels'],
+  },
+  'comic-book': {
+    name: 'Comic Book', category: 'wildcards', displayFontId: 'oswald', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['comic-book-halftone', 'comic-book-panels', 'comic-book-impact'],
+  },
+  vhs: {
+    name: 'VHS', category: 'wildcards', displayFontId: 'space-grotesk', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['vhs-tracking', 'vhs-chroma', 'vhs-static'],
+  },
+  newspaper: {
+    name: 'Newspaper', category: 'wildcards', displayFontId: 'roboto-slab', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['newspaper-columns', 'newspaper-print', 'newspaper-edition'],
+  },
+  laboratory: {
+    name: 'Laboratory', category: 'wildcards', displayFontId: 'space-grotesk', uiFontId: 'space-grotesk',
+    backgroundIds: ['laboratory-molecules', 'laboratory-liquid', 'laboratory-spectrum'],
+  },
+  jungle: {
+    name: 'Jungle', category: 'wildcards', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['jungle-canopy', 'jungle-depth', 'jungle-tropical'],
+  },
+  'deep-ocean': {
+    name: 'Deep Ocean', category: 'wildcards', displayFontId: 'space-grotesk', uiFontId: 'space-grotesk',
+    backgroundIds: ['deep-ocean-abyss', 'deep-ocean-current', 'deep-ocean-biolume'],
+  },
+  circus: {
+    name: 'Circus', category: 'entertainment', displayFontId: 'limelight', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['circus-big-top', 'circus-lights', 'circus-marquee'],
+  },
+  'sports-broadcast': {
+    name: 'Sports Broadcast', category: 'entertainment', displayFontId: 'oswald', uiFontId: 'space-grotesk',
+    backgroundIds: ['sports-broadcast-motion', 'sports-broadcast-studio', 'sports-broadcast-arena'],
+  },
+  'awards-show': {
+    name: 'Awards Show', category: 'entertainment', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['awards-show-spotlight', 'awards-show-curtain', 'awards-show-sparkle'],
+  },
+  'new-year': {
+    name: 'New Year', category: 'seasonal', displayFontId: 'limelight', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['new-year-midnight', 'new-year-firework', 'new-year-confetti'],
+  },
+  autumn: {
+    name: 'Autumn', category: 'seasonal', displayFontId: 'fraunces', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['autumn-embers', 'autumn-leaves', 'autumn-harvest'],
+  },
+  winter: {
+    name: 'Winter', category: 'seasonal', displayFontId: 'cinzel', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['winter-frost', 'winter-snowlight', 'winter-ice'],
+  },
+  summer: {
+    name: 'Summer', category: 'seasonal', displayFontId: 'space-grotesk', uiFontId: 'bricolage-grotesque',
+    backgroundIds: ['summer-sunlight', 'summer-pool', 'summer-breeze'],
+  },
+}
+
 function createBatchConfig({
   batchId,
   sourceDirectory,
@@ -148,6 +211,7 @@ function createBatchConfig({
   exports,
   contracts,
   previousBatch = null,
+  semanticTokenCorrections = [],
 }) {
   const themeIds = Object.keys(contracts)
   const backgroundIds = themeIds.flatMap((themeId) => contracts[themeId].backgroundIds)
@@ -167,7 +231,7 @@ function createBatchConfig({
     existingBackgroundIds: [...existingBackgroundIds],
     registeredThemeIds: [...existingThemeIds, ...themeIds],
     registeredBackgroundIds: [...existingBackgroundIds, ...backgroundIds],
-    semanticTokenCorrections: [],
+    semanticTokenCorrections: [...semanticTokenCorrections],
   })
 }
 
@@ -206,9 +270,35 @@ const visualThemeBatch2 = createBatchConfig({
   previousBatch: visualThemeBatch1,
 })
 
+const visualThemeBatch3 = createBatchConfig({
+  batchId: 'batch-03',
+  sourceDirectory: 'batch-03',
+  sourceArchiveFilename: 'Katwed-Visual-Theme-Batch-03.zip',
+  expectedSourceContentSha256: 'd02f1a426eb10ec24c68cc186ad0974f4b4805423efc22f0c2a48c33c53e0474',
+  expectedSourceArchiveSha256: '45bf3227aaa1a175fa4afa8e11b560c6b39f3d6b5b964c111fd9374d61268028',
+  generatedModuleFilename: 'visualThemeBatch3.ts',
+  reportFilename: 'visual-theme-batch-3-size-report.json',
+  exports: {
+    themeIds: 'VISUAL_THEME_BATCH_3_THEME_IDS',
+    backgroundIds: 'VISUAL_THEME_BATCH_3_BACKGROUND_IDS',
+    themes: 'visualThemeBatch3Themes',
+    backgrounds: 'visualThemeBatch3Backgrounds',
+  },
+  contracts: VISUAL_THEME_BATCH_3_CONTRACTS,
+  previousBatch: visualThemeBatch2,
+  semanticTokenCorrections: [{
+    themeId: 'autumn',
+    token: 'featureText',
+    originalValue: '#FFFFFF',
+    correctedValue: '#111600',
+    reason: 'Reviewed source correction for accessible feature contrast.',
+  }],
+})
+
 export const VISUAL_THEME_BATCH_CONFIGS = Object.freeze({
   'batch-01': visualThemeBatch1,
   'batch-02': visualThemeBatch2,
+  'batch-03': visualThemeBatch3,
 })
 
 const latestVisualThemeBatchId = Object.keys(VISUAL_THEME_BATCH_CONFIGS).at(-1)
