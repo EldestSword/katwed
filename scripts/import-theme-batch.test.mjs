@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdtemp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import {
@@ -14,9 +14,20 @@ import {
   calculateSourceContentSha256FromPaths,
   compileThemeManifest,
   importThemeBatch,
+  portableSchemaPathsForBatch,
 } from './import-theme-batch.mjs'
+import {
+  VISUAL_THEME_BATCH_CONFIGS,
+  getVisualThemeBatchConfig,
+  isLatestVisualThemeBatch,
+} from './theme-batch-configs.mjs'
 
-const REVIEWED_BATCH_1_ARCHIVE_SHA256 = '7db2a4d9b60241722dfa6a866a387600b3a52fbcd7c3eeb5c12e4eb64b3a7045'
+const sampleGeneratedExports = {
+  themeIds: 'VISUAL_THEME_BATCH_99_THEME_IDS',
+  backgroundIds: 'VISUAL_THEME_BATCH_99_BACKGROUND_IDS',
+  themes: 'visualThemeBatch99Themes',
+  backgrounds: 'visualThemeBatch99Backgrounds',
+}
 
 const contract = {
   'sample-theme': {
@@ -84,13 +95,15 @@ afterEach(async () => {
 
 function options(overrides = {}) {
   return {
+    batchId: 'batch-99',
     sourceDir,
     schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
     outputBackgroundDir: join(temporaryRoot, 'public', 'backgrounds'),
     outputPreviewDir: join(temporaryRoot, 'public', 'backgrounds', 'previews'),
-    generatedModulePath: join(temporaryRoot, 'src', 'generated', 'visualThemeBatch1.ts'),
-    reportPath: join(temporaryRoot, 'docs', 'visual-theme-batch-1-size-report.json'),
+    generatedModulePath: join(temporaryRoot, 'src', 'generated', 'visualThemeBatch99.ts'),
+    reportPath: join(temporaryRoot, 'docs', 'visual-theme-batch-99-size-report.json'),
     expectedContracts: contract,
+    generatedExports: sampleGeneratedExports,
     log: () => undefined,
     ...overrides,
   }
@@ -170,6 +183,7 @@ describe('theme batch validation and output', () => {
     const sourceContentSha256 = await calculateSourceContentSha256(sourceDir)
     const result = await importThemeBatch(options())
     expect(result.report).toMatchObject({
+      batchId: 'batch-99',
       sourceContentSha256,
       themeCount: 1,
       backgroundCount: 3,
@@ -237,7 +251,7 @@ describe('theme batch validation and output', () => {
     expect(schema.$defs.quiz.properties.themeId.enum).toContain('sample-theme')
     expect(schema.$defs.quiz.properties.backgroundId.oneOf[0].enum).toContain('sample-theme-three')
     expect(await readFile(portableSchemaPath, 'utf8')).toContain('{"marker":{"keep":true},')
-    expect(await readFile(paths.generatedModulePath, 'utf8')).toContain('visualThemeBatch1Themes')
+    expect(await readFile(paths.generatedModulePath, 'utf8')).toContain('visualThemeBatch99Themes')
   })
 
   it('rejects unknown manifest fields before producing any output', async () => {
@@ -254,40 +268,146 @@ describe('theme batch validation and output', () => {
     await expect(importThemeBatch(options())).rejects.toThrow(/unexpected transparent pixels/)
     expect(existsSync(options().generatedModulePath)).toBe(false)
   })
+
+  it('rejects collisions against the supplied prior registered catalogue', async () => {
+    await expect(importThemeBatch(options({ existingThemeIds: ['sample-theme'] })))
+      .rejects.toThrow(/collides with an existing registered theme/i)
+    expect(existsSync(options().generatedModulePath)).toBe(false)
+  })
 })
 
-const reviewedBatchSourceDir = resolve('theme-source/batch-01')
-const reviewedBatchArchivePath = resolve('theme-source/Katwed-Visual-Theme-Batch-01.zip')
-const reviewedBatchAvailable = existsSync(reviewedBatchSourceDir) && existsSync(reviewedBatchArchivePath)
+describe('reviewed theme batch configuration', () => {
+  it('derives Batch 2 prior and complete IDs from Batch 1 without duplicated registry lists', () => {
+    const batchOne = getVisualThemeBatchConfig('batch-01')
+    const batchTwo = getVisualThemeBatchConfig('batch-02')
+    expect(batchOne).toBe(VISUAL_THEME_BATCH_CONFIGS['batch-01'])
+    expect(batchTwo.existingThemeIds).toEqual(batchOne.registeredThemeIds)
+    expect(batchTwo.existingBackgroundIds).toEqual(batchOne.registeredBackgroundIds)
+    expect(batchTwo.registeredThemeIds).toHaveLength(36)
+    expect(batchTwo.registeredBackgroundIds).toHaveLength(108)
+    expect(getVisualThemeBatchConfig('batch-03')).toBeNull()
+  })
+
+  it('allows only the latest reviewed batch to rewrite the shared portable schemas', () => {
+    expect(isLatestVisualThemeBatch('batch-01')).toBe(false)
+    expect(isLatestVisualThemeBatch('batch-02')).toBe(true)
+    expect(isLatestVisualThemeBatch('batch-03')).toBe(false)
+    expect(portableSchemaPathsForBatch('batch-01', temporaryRoot)).toEqual([])
+    expect(portableSchemaPathsForBatch('batch-02', temporaryRoot)).toHaveLength(5)
+  })
+})
+
+function reviewedBatchAvailable(batchId) {
+  const config = getVisualThemeBatchConfig(batchId)
+  return existsSync(resolve('theme-source', config.sourceDirectory))
+    && existsSync(resolve('theme-source', config.sourceArchiveFilename))
+}
+
+async function reproduceReviewedBatch(batchId) {
+  const config = getVisualThemeBatchConfig(batchId)
+  const sourceDir = resolve('theme-source', config.sourceDirectory)
+  const archivePath = resolve('theme-source', config.sourceArchiveFilename)
+  const outputRoot = join(temporaryRoot, batchId)
+  const outputBackgroundDir = join(outputRoot, 'public', 'backgrounds')
+  const outputPreviewDir = join(outputBackgroundDir, 'previews')
+  const generatedModulePath = join(outputRoot, 'src', 'generated', config.generatedModuleFilename)
+  const reportPath = join(outputRoot, 'docs', config.reportFilename)
+  const currentPortableSchemaPaths = [1, 2, 3, 4, 5].map((version) => ({
+    source: resolve('docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
+    output: join(outputRoot, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
+  }))
+  for (const schemaPath of currentPortableSchemaPaths) {
+    await mkdir(dirname(schemaPath.output), { recursive: true })
+    await copyFile(schemaPath.source, schemaPath.output)
+  }
+  const portableSchemaSnapshots = await Promise.all(
+    currentPortableSchemaPaths.map(({ output }) => readFile(output, 'utf8')),
+  )
+
+  const unrelatedBatch2Assets = []
+  if (batchId === 'batch-01') {
+    const batchTwoReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-2-size-report.json'), 'utf8'))
+    await mkdir(outputBackgroundDir, { recursive: true })
+    await mkdir(outputPreviewDir, { recursive: true })
+    for (const background of batchTwoReport.backgrounds) {
+      const output = join(outputBackgroundDir, background.productionFilename)
+      await copyFile(resolve('public', 'backgrounds', background.productionFilename), output)
+      unrelatedBatch2Assets.push(output)
+    }
+    for (const preview of batchTwoReport.previewThumbnails) {
+      const output = join(outputPreviewDir, preview.thumbnailFilename)
+      await copyFile(resolve('public', 'backgrounds', 'previews', preview.thumbnailFilename), output)
+      unrelatedBatch2Assets.push(output)
+    }
+  }
+  const unrelatedAssetSnapshots = await Promise.all(unrelatedBatch2Assets.map(async (path) => ({
+    path,
+    sha256: await calculateFileSha256(path),
+    mtimeMs: (await stat(path)).mtimeMs,
+  })))
+  const result = await importThemeBatch({
+    batchId: config.batchId,
+    sourceDir,
+    sourceArchivePath: archivePath,
+    expectedSourceContentSha256: config.expectedSourceContentSha256,
+    expectedSourceArchiveSha256: config.expectedSourceArchiveSha256,
+    schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
+    outputBackgroundDir,
+    outputPreviewDir,
+    generatedModulePath,
+    reportPath,
+    portableSchemaPaths: portableSchemaPathsForBatch(batchId, outputRoot),
+    expectedContracts: config.contracts,
+    existingThemeIds: config.existingThemeIds,
+    existingBackgroundIds: config.existingBackgroundIds,
+    generatedExports: config.exports,
+    semanticTokenCorrections: config.semanticTokenCorrections,
+    write: true,
+    allowExistingOutputs: batchId === 'batch-01',
+    log: () => undefined,
+  })
+  const trustedReport = JSON.parse(await readFile(resolve('docs', config.reportFilename), 'utf8'))
+  expect(result.report).toEqual(trustedReport)
+  expect(await readFile(generatedModulePath, 'utf8')).toBe(
+    await readFile(resolve('src', 'generated', config.generatedModuleFilename), 'utf8'),
+  )
+  for (const background of result.report.backgrounds) {
+    await expect(calculateFileSha256(join(outputBackgroundDir, background.productionFilename))).resolves.toBe(
+      await calculateFileSha256(resolve('public', 'backgrounds', background.productionFilename)),
+    )
+  }
+  for (const preview of result.report.previewThumbnails) {
+    await expect(calculateFileSha256(join(outputPreviewDir, preview.thumbnailFilename))).resolves.toBe(
+      await calculateFileSha256(resolve('public', 'backgrounds', 'previews', preview.thumbnailFilename)),
+    )
+  }
+  const latestConfig = Object.values(VISUAL_THEME_BATCH_CONFIGS).at(-1)
+  for (const [index, { output }] of currentPortableSchemaPaths.entries()) {
+    const schemaText = await readFile(output, 'utf8')
+    const schema = JSON.parse(schemaText)
+    expect(schema.$defs.quiz.properties.themeId.enum).toEqual(latestConfig.registeredThemeIds)
+    expect(schema.$defs.quiz.properties.backgroundId.oneOf[0].enum).toEqual(latestConfig.registeredBackgroundIds)
+    if (batchId === 'batch-01') expect(schemaText).toBe(portableSchemaSnapshots[index])
+  }
+  for (const snapshot of unrelatedAssetSnapshots) {
+    await expect(calculateFileSha256(snapshot.path)).resolves.toBe(snapshot.sha256)
+    expect((await stat(snapshot.path)).mtimeMs).toBe(snapshot.mtimeMs)
+  }
+  await expect(calculateFileSha256(archivePath)).resolves.toBe(config.expectedSourceArchiveSha256)
+}
 
 describe('reviewed Visual Theme Batch 1 reproduction', () => {
-  it.runIf(reviewedBatchAvailable)(
-    'reproduces the trusted registry, production measurements and reviewed archive digest',
-    async () => {
-      const trustedReport = JSON.parse(await readFile(resolve('docs/visual-theme-batch-1-size-report.json'), 'utf8'))
-      const result = await importThemeBatch({
-        sourceDir: reviewedBatchSourceDir,
-        sourceArchivePath: reviewedBatchArchivePath,
-        expectedSourceArchiveSha256: REVIEWED_BATCH_1_ARCHIVE_SHA256,
-        schemaPath: resolve('docs/theme-authoring/theme-manifest.schema.json'),
-        outputBackgroundDir: resolve('public/backgrounds'),
-        outputPreviewDir: resolve('public/backgrounds/previews'),
-        generatedModulePath: resolve('src/generated/visualThemeBatch1.ts'),
-        reportPath: resolve('docs/visual-theme-batch-1-size-report.json'),
-        portableSchemaPaths: [1, 2, 3, 4, 5].map((version) => (
-          resolve(`docs/schemas/katwed-quiz-v${version}.schema.json`)
-        )),
-        log: () => undefined,
-      })
+  it.runIf(reviewedBatchAvailable('batch-01'))(
+    'reproduces trusted outputs while write/allow-existing preserves current schemas and Batch 2 assets',
+    () => reproduceReviewedBatch('batch-01'),
+    120_000,
+  )
+})
 
-      expect(result.generatedModule).toBe(await readFile(resolve('src/generated/visualThemeBatch1.ts'), 'utf8'))
-      expect(result.report.production).toEqual(trustedReport.production)
-      expect(result.report.thumbnails).toEqual(trustedReport.thumbnails)
-      expect(result.report.backgrounds).toEqual(trustedReport.backgrounds)
-      expect(result.report.previewThumbnails).toEqual(trustedReport.previewThumbnails)
-      expect(result.report.sourceArchiveSha256).toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
-      await expect(calculateFileSha256(reviewedBatchArchivePath)).resolves.toBe(REVIEWED_BATCH_1_ARCHIVE_SHA256)
-    },
+describe('reviewed Visual Theme Batch 2 provenance', () => {
+  it.runIf(reviewedBatchAvailable('batch-02'))(
+    'reproduces every trusted registry, report, background, preview and reviewed digest in temporary output',
+    () => reproduceReviewedBatch('batch-02'),
     120_000,
   )
 })

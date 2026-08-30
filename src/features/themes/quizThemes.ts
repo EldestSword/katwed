@@ -1,5 +1,6 @@
 import { QUIZ_THEME_IDS, type QuizThemeId } from '../../types/domain'
 import { visualThemeBatch1Themes } from '../../generated/visualThemeBatch1'
+import { visualThemeBatch2Themes } from '../../generated/visualThemeBatch2'
 import type { ThemeCategoryId } from './themeCategories'
 import type { ThemeFontId } from './themeFonts'
 
@@ -189,6 +190,7 @@ export const quizThemes: readonly QuizThemeDefinition[] = [
     },
   },
   ...visualThemeBatch1Themes,
+  ...visualThemeBatch2Themes,
 ]
 
 const themesById = new Map(quizThemes.map((theme) => [theme.id, theme]))

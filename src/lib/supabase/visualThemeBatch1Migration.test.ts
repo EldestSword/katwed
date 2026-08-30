@@ -4,6 +4,10 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { QUIZ_THEME_IDS } from '../../types/domain'
 import { quizBackgrounds } from '../../features/themes/quizBackgrounds'
+import {
+  VISUAL_THEME_BATCH_1_BACKGROUND_IDS,
+  VISUAL_THEME_BATCH_1_THEME_IDS,
+} from '../../generated/visualThemeBatch1'
 
 const migration = readFileSync(
   resolve('supabase/migrations/202608300001_visual_theme_batch_1.sql'),
@@ -32,7 +36,7 @@ describe('Visual Theme Batch 1 migration', () => {
     const constraint = migration.match(/add constraint quizzes_theme_id_check check \(theme_id in \(([\s\S]*?)\)\)/)?.[1]
     expect(constraint).toBeTruthy()
     const ids = [...constraint!.matchAll(/'([^']+)'/g)].map((match) => match[1])
-    expect(ids).toEqual(QUIZ_THEME_IDS)
+    expect(ids).toEqual(QUIZ_THEME_IDS.slice(0, 6 + VISUAL_THEME_BATCH_1_THEME_IDS.length))
     expect(ids).toHaveLength(21)
   })
 
@@ -41,7 +45,11 @@ describe('Visual Theme Batch 1 migration', () => {
     expect(matrix).toBeTruthy()
     const pairs = [...matrix!.matchAll(/\('([^']+)', '([^']+)'\)/g)]
       .map((match) => [match[1], match[2]])
-    expect(pairs).toEqual(quizBackgrounds.map((background) => [background.themeId, background.id]))
+    expect(pairs).toEqual(
+      quizBackgrounds
+        .slice(0, 18 + VISUAL_THEME_BATCH_1_BACKGROUND_IDS.length)
+        .map((background) => [background.themeId, background.id]),
+    )
     expect(pairs).toHaveLength(63)
     expect(migration).toContain('or public.is_quiz_background_compatible(theme_id, background_id)')
   })

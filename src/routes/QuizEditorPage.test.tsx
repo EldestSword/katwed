@@ -148,13 +148,13 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(within(section).getByLabelText('Choose cover')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
   })
 
-  it('shows all 21 themes and marks the persisted theme without relying on colour alone', async () => {
+  it('shows all 36 themes and marks the persisted theme without relying on colour alone', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ themeId: 'paper', questions: [] }))
     renderEditor()
     await openQuizSettings()
 
     const themes = await screen.findByRole('group', { name: 'Quiz theme' })
-    expect(themes.querySelectorAll('.quiz-theme-option')).toHaveLength(21)
+    expect(themes.querySelectorAll('.quiz-theme-option')).toHaveLength(36)
     expect(within(themes).getByRole('button', { name: /Paper/ })).toHaveAttribute('aria-pressed', 'true')
     expect(within(themes).getByText('Selected')).toBeVisible()
   })

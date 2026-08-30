@@ -6,6 +6,7 @@ import { getThemeCategory } from './themeCategories'
 import { getThemeFont } from './themeFonts'
 import { validateQuizThemeDefinition } from './themeValidation'
 import { VISUAL_THEME_BATCH_1_THEME_IDS } from '../../generated/visualThemeBatch1'
+import { VISUAL_THEME_BATCH_2_THEME_IDS } from '../../generated/visualThemeBatch2'
 import {
   DEFAULT_QUIZ_THEME_ID,
   getQuizTheme,
@@ -31,10 +32,11 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe('quiz theme registry', () => {
-  it('defines exactly the 21 stable themes, preserving the original six IDs', () => {
+  it('defines exactly the 36 stable themes, preserving the original six IDs', () => {
     expect(QUIZ_THEME_IDS).toEqual([
       'katwed', 'midnight', 'sunset', 'arcade', 'mint', 'paper',
       ...VISUAL_THEME_BATCH_1_THEME_IDS,
+      ...VISUAL_THEME_BATCH_2_THEME_IDS,
     ])
     expect(quizThemes.map(({ id, name }) => ({ id, name })).slice(0, 6)).toEqual([
       { id: 'katwed', name: 'Katwed!' },
@@ -44,9 +46,13 @@ describe('quiz theme registry', () => {
       { id: 'mint', name: 'Mint' },
       { id: 'paper', name: 'Paper' },
     ])
-    expect(quizThemes).toHaveLength(21)
+    expect(quizThemes).toHaveLength(36)
     expect(quizThemes.find((theme) => theme.id === 'hard-rock')?.name).toBe('Hard Rock')
     expect(quizThemes.find((theme) => theme.id === 'retro-game-show')?.name).toBe('Retro Game Show')
+    expect(quizThemes.find((theme) => theme.id === '90s-rave')?.name).toBe('90s Rave')
+    expect(quizThemes.filter((theme) => theme.category === 'places-culture').map((theme) => theme.id)).toEqual([
+      'greek', 'french', 'italian',
+    ])
     expect(new Set(quizThemes.map((theme) => theme.id)).size).toBe(quizThemes.length)
     expect(DEFAULT_QUIZ_THEME_ID).toBe('katwed')
   })
@@ -70,11 +76,7 @@ describe('quiz theme registry', () => {
       expect(theme.description.length).toBeGreaterThan(10)
       expect(theme.keywords.length).toBeGreaterThanOrEqual(3)
       expect(theme.swatches).toHaveLength(3)
-      expect(theme.preview?.kind).toBe(
-        VISUAL_THEME_BATCH_1_THEME_IDS.includes(theme.id as typeof VISUAL_THEME_BATCH_1_THEME_IDS[number])
-          ? 'thumbnail'
-          : 'tokens',
-      )
+      expect(theme.preview?.kind).toBe(QUIZ_THEME_IDS.indexOf(theme.id) >= 6 ? 'thumbnail' : 'tokens')
       expect(theme.preview?.label).toMatch(/preview$/)
       expect(getThemeFont(theme.typography.displayFontId)?.roleSuitability.display).toBe(true)
       expect(getThemeFont(theme.typography.uiFontId)?.roleSuitability.ui).toBe(true)
