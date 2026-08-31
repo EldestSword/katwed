@@ -183,6 +183,18 @@ The final visual polish pass connects Katwed's public entry, loading and recover
 
 See [`docs/visual-language.md`](docs/visual-language.md) for the concise four-pass relationship between the shared design system, live stage, backstage tools and public experience.
 
+### Live-question UX and host-loading hotfix
+
+Live Presentation, compact controller preview, Player and editor previews share deterministic content-density tiers for question prompts. Short prompts retain the established display scale, while medium, long and extra-long prompts step down through responsive `clamp()` values. A visible image or video moves the prompt into a compact tier sooner so question media keeps the larger share of the composition. Live prompts are centred on Presentation and Player screens.
+
+Question media now uses contained intrinsic sizing throughout its shared rendering path. Landscape, portrait, square and unusual aspect ratios remain complete; unused letterbox space is preferred to cropping. The editor Presentation preview no longer limits question media to the previous shallow fixed-height strip. Cover images, backgrounds and other intentionally framed artwork retain their existing crop behaviour.
+
+Standard answer cards use shared answer-density metadata. Longer labels step down in size, ordinary words wrap only at word boundaries, and exceptionally long unbroken labels switch the narrowest Player grid to one column rather than splitting the word. Two-column grids use four internal tracks: each answer occupies two tracks and a final odd answer occupies the centred middle two, so three- and five-answer layouts keep every card the same width.
+
+The authenticated controller derives a human-readable current-answer summary from the full owner-only quiz definition during Question, Locked and Reveal, then hides it for Leaderboard and Final results. This does not add answer fields to `SafeGameState`; the existing parser continues to reject answer keys before Reveal.
+
+Production auth startup uses Supabase's `INITIAL_SESSION` event as the single readiness boundary. Protected host routes remain on their loading state until persisted-session recovery and any token refresh have completed, then authenticated repository work may mount. The previous parallel `getSession()` startup path has been removed, avoiding competing restoration reads under React Strict Mode; invalid sessions still resolve to the protected login route and genuine repository failures remain visible.
+
 ### Next work
 
 Remaining product work includes the deliberately separate audio pass, further question formats, library/storage extensions and formal multi-player load testing. These items are described in [Roadmap](#roadmap); Pass 4 does not add audio controls or placeholders.

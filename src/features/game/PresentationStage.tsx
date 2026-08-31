@@ -21,6 +21,7 @@ import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
 import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
+import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   return question.presentationChoiceVisibility === 'show' ||
@@ -40,8 +41,8 @@ function PresentationChoices({ question, phase, colours }: { question: SafeQuest
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
     const options = orderedQuestionOptions(question)
     return (
-      <div className="presentation-options" data-option-count={options.length}>
-        {options.map((option, position) => <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, position)} optionId={option.id} position={position} label={option.label} key={option.id} />)}
+      <div className="presentation-options" data-option-count={options.length} data-has-extra-long-answer={hasExtraLongAnswer(options.map((option) => option.label)) || undefined}>
+        {options.map((option, position) => <AnswerTile className="answer-colour-tile" style={answerColourStyle(colours, position)} optionId={option.id} position={position} label={option.label} textDensity={answerTextDensity(option.label)} key={option.id} />)}
       </div>
     )
   }
@@ -131,6 +132,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const showMedia = Boolean(question && question.media.type !== 'none' && (question.mediaVisibility === 'presentation' || question.mediaVisibility === 'both'))
   const showChoices = Boolean(question && choicesVisible(question, state.phase))
   const composition = question ? questionComposition(question, showMedia, showChoices) : undefined
+  const promptDensity = question ? questionTextDensity(question.prompt, showMedia) : undefined
 
   return (
     <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live="polite">
@@ -162,7 +164,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
           <div className="presentation-question__body">
-            <div className="presentation-question__copy">{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
+            <div className="presentation-question__copy" data-question-density={promptDensity}>{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
             {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
             {question.type === 'slider' && <SliderContext question={question} />}
             <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
@@ -176,7 +178,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
       {state.phase === 'reveal' && state.reveal && question && (
         <div className="presentation-reveal">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} showTimer={false} />
-          <div className="presentation-reveal__copy"><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
+          <div className="presentation-reveal__copy" data-question-density={questionTextDensity(question.prompt, showMedia)}><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
           {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
           <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
           {state.reveal.caption && <aside className="reveal-caption"><span>More to know</span><p>{state.reveal.caption}</p></aside>}

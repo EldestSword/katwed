@@ -1,5 +1,6 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from 'react'
 import { QuestionImage } from '../QuestionImage'
+import type { ContentDensity } from '../../features/game/liveQuestionTypography'
 import { PositionMarker } from './PositionMarker'
 
 export type AnswerTileState = 'default' | 'locked' | 'correct' | 'incorrect'
@@ -15,6 +16,7 @@ export interface AnswerTileProps {
   selected?: boolean
   disabled?: boolean
   state?: AnswerTileState
+  textDensity?: ContentDensity
   onSelect?: MouseEventHandler<HTMLButtonElement>
   onEnlarge?(): void
 }
@@ -38,6 +40,7 @@ export function AnswerTile({
   selected = false,
   disabled = false,
   state = 'default',
+  textDensity = 'short',
   onSelect,
   onEnlarge,
 }: AnswerTileProps) {
@@ -60,11 +63,11 @@ export function AnswerTile({
   )
 
   if (!onSelect) {
-    return <div className={`${classes} answer-tile--static`} data-option-id={optionId} data-state={state} style={style}>{contents}</div>
+    return <div className={`${classes} answer-tile--static`} data-answer-density={textDensity} data-option-id={optionId} data-state={state} style={style}>{contents}</div>
   }
 
   return (
-    <div className={classes} data-option-id={optionId} data-state={state} style={style}>
+    <div className={classes} data-answer-density={textDensity} data-option-id={optionId} data-state={state} style={style}>
       <button
         className="answer-tile__select"
         type="button"

@@ -266,6 +266,23 @@ test('editor media and narrow Player previews preserve useful proportions', asyn
   expect(Math.abs(positions[0].y - positions[1].y)).toBeLessThan(2)
   expect(Math.abs(positions[0].x - positions[2].x)).toBeLessThan(2)
   expect(positions.every((position) => position.width >= 120 && position.height >= 72)).toBe(true)
+
+  await page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Which shape appears' }).click()
+  await expect(previewAnswers).toHaveAttribute('data-option-count', '3')
+  const oddPositions = await previewAnswers.locator(':scope > span').evaluateAll((elements) => elements.map((element) => {
+    const rect = (element as unknown as BrowserEvaluationElement).getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width }
+  }))
+  const previewBounds = await previewAnswers.boundingBox()
+  if (!previewBounds) throw new Error('Three-answer preview was not visible')
+  expect(oddPositions).toHaveLength(3)
+  expect(Math.abs(oddPositions[0].width - oddPositions[2].width)).toBeLessThan(2)
+  expect(oddPositions[2].y).toBeGreaterThan(oddPositions[0].y)
+  expect(Math.abs((oddPositions[2].x + oddPositions[2].width / 2) - (previewBounds.x + previewBounds.width / 2))).toBeLessThan(2)
+
+  await page.getByLabel('Prompt').fill('A very wordy image question that deliberately contains enough explanatory wording to trigger the most compact automatic live-question typography tier while leaving the complete visual clue dominant.')
+  await expect(preview).toHaveAttribute('data-question-density', 'extra-long')
+  await expect(preview.locator('.editor-preview__media img')).toHaveCSS('object-fit', 'contain')
 })
 
 test('custom answer colours stay aligned and Standard locks only after all four players submit', async ({ context, page }) => {
@@ -1217,6 +1234,8 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await expect(playerOne.getByRole('button', { name: 'Mars' })).toBeVisible()
   await presentation.reload()
   await expect(presentation.getByRole('heading', { name: 'Which planet is known as the Red Planet?' })).toBeVisible()
+  const hostAnswer = page.getByRole('region', { name: 'Current correct answer' })
+  await expect(hostAnswer).toContainText('Mars')
 
   for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)
@@ -1251,6 +1270,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await playerTwo.getByRole('button', { name: 'Venus' }).click()
   await playerTwo.getByRole('button', { name: 'Lock in' }).click()
   await revealRound(/Mars/)
+  await expect(hostAnswer).toContainText('Mars')
   await expect(playerOne.getByRole('heading', { name: 'Mars' })).toBeVisible()
   await expect(playerOne.getByText('Iron minerals in the soil give Mars its rusty colour.')).toBeVisible()
   await expect(playerOne.getByText('The correct option is on the shared presentation.')).toHaveCount(0)
@@ -1266,6 +1286,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await expect(presentation.locator('.presentation-reveal')).toContainText('Mars')
   await expect(zeroScorePlayer.getByRole('group', { name: 'Correct answer' })).toBeVisible()
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
+  await expect(page.getByRole('region', { name: 'Current correct answer' })).toHaveCount(0)
   await expect(presentation.locator('.leaderboard--presentation')).toBeVisible()
   await expect(presentation.locator('.leaderboard--presentation li').filter({ hasText: 'Quinn' })).toContainText('1,000 points')
   await expect(presentation.locator('.leaderboard--presentation li').filter({ hasText: 'A Long Zero Score Player' })).toContainText('0 points')
@@ -1274,6 +1295,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await zeroScorePlayer.reload()
   await expect(zeroScorePlayer.getByRole('heading', { name: 'Leaderboard' })).toBeVisible()
   await page.getByRole('button', { name: 'Next question' }).click()
+  await expect(page.getByRole('region', { name: 'Current correct answer' })).toContainText('Red, Green, Blue')
 
   for (const option of ['Red', 'Green', 'Blue']) await playerOne.getByRole('button', { name: option }).click()
   await playerOne.getByRole('button', { name: 'Lock in' }).click()

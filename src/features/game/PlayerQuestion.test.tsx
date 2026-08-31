@@ -185,3 +185,53 @@ describe('PlayerQuestion answer palettes', () => {
       .toHaveLength(8)
   })
 })
+
+describe('PlayerQuestion responsive live copy', () => {
+  function choiceQuestion(prompt: string, labels: string[], withMedia = false): SafeQuestion {
+    return {
+      id: `responsive-${prompt.length}`, type: 'single-choice', prompt, supportingText: '',
+      media: withMedia
+        ? { type: 'image', path: '/demo/portrait-1.svg', altText: 'Visual clue', revealEffect: 'immediate', revealDurationSeconds: 0 }
+        : { type: 'none' },
+      mediaVisibility: 'both', presentationChoiceVisibility: 'show', points: 1000,
+      speedScoringEnabled: false, doubleScore: false, displayOrder: 0, questionNumber: 1,
+      totalQuestions: 1, timeLimitSeconds: 30, randomiseOptions: false,
+      options: labels.map((label, index) => ({ id: `option-${index}`, label })),
+    }
+  }
+
+  it('marks centred prompts with progressively denser tiers, including earlier compaction for media', () => {
+    const view = render(<PlayerQuestion question={choiceQuestion('Short prompt?', ['One', 'Two'])} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(view.container.querySelector('.player-question__prompt')).toHaveAttribute('data-question-density', 'short')
+
+    const mediumPrompt = 'A'.repeat(100)
+    view.rerender(<PlayerQuestion question={choiceQuestion(mediumPrompt, ['One', 'Two'])} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(view.container.querySelector('.player-question__prompt')).toHaveAttribute('data-question-density', 'medium')
+
+    view.rerender(<PlayerQuestion question={choiceQuestion('A'.repeat(180), ['One', 'Two'])} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(view.container.querySelector('.player-question__prompt')).toHaveAttribute('data-question-density', 'long')
+
+    view.rerender(<PlayerQuestion question={choiceQuestion('A'.repeat(260), ['One', 'Two'])} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(view.container.querySelector('.player-question__prompt')).toHaveAttribute('data-question-density', 'extra-long')
+
+    view.rerender(<PlayerQuestion question={choiceQuestion('A'.repeat(70), ['One', 'Two'], true)} roster={[]} closesAt={null} onSubmit={vi.fn()} />)
+    expect(view.container.querySelector('.player-question__prompt')).toHaveAttribute('data-question-density', 'medium')
+  })
+
+  it('keeps a three-answer orphan as a normal tile and marks an unbroken long word for fitting', () => {
+    const longWord = 'Pneumonoultramicroscopicsilicovolcanoconiosis'
+    const { container } = render(<PlayerQuestion
+      question={choiceQuestion('Choose', ['Short', 'Another answer', longWord])}
+      roster={[]}
+      closesAt={null}
+      onSubmit={vi.fn()}
+    />)
+    const grid = container.querySelector('.answer-grid')
+    const tiles = grid?.querySelectorAll(':scope > .answer-tile') ?? []
+    expect(grid).toHaveAttribute('data-option-count', '3')
+    expect(grid).toHaveAttribute('data-has-extra-long-answer', 'true')
+    expect(tiles).toHaveLength(3)
+    expect(tiles[2]).toHaveAttribute('data-answer-density', 'extra-long')
+    expect(tiles[2].querySelector('.answer-tile__label')).toHaveTextContent(longWord)
+  })
+})

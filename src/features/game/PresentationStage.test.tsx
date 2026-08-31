@@ -377,3 +377,43 @@ describe('PresentationStage quiz theme', () => {
     expect(screen.queryByText(/Also got it right/i)).not.toBeInTheDocument()
   })
 })
+
+describe('PresentationStage responsive live copy', () => {
+  function questionState(prompt: string, optionCount: number, withMedia = false): SafeGameState {
+    return {
+      ...state('question'),
+      currentQuestion: {
+        id: `responsive-${prompt.length}`, type: 'single-choice', prompt, supportingText: '',
+        timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false,
+        displayOrder: 0, media: withMedia
+          ? { type: 'image', path: '/demo/portrait-1.svg', altText: 'Visual clue', revealEffect: 'immediate', revealDurationSeconds: 0 }
+          : { type: 'none' },
+        mediaVisibility: 'both', presentationChoiceVisibility: 'show', questionNumber: 1,
+        totalQuestions: 1, randomiseOptions: false,
+        options: Array.from({ length: optionCount }, (_, index) => ({ id: `option-${index}`, label: `Option ${index + 1}` })),
+      },
+    }
+  }
+
+  it('applies all prompt tiers and compacts a visual question sooner', () => {
+    const view = render(<PresentationStage state={questionState('Short prompt?', 2)} />)
+    const density = () => view.container.querySelector('.presentation-question__copy')
+    expect(density()).toHaveAttribute('data-question-density', 'short')
+
+    view.rerender(<PresentationStage state={questionState('A'.repeat(100), 2)} />)
+    expect(density()).toHaveAttribute('data-question-density', 'medium')
+    view.rerender(<PresentationStage state={questionState('A'.repeat(180), 2)} />)
+    expect(density()).toHaveAttribute('data-question-density', 'long')
+    view.rerender(<PresentationStage state={questionState('A'.repeat(260), 2)} />)
+    expect(density()).toHaveAttribute('data-question-density', 'extra-long')
+    view.rerender(<PresentationStage state={questionState('A'.repeat(70), 2, true)} />)
+    expect(density()).toHaveAttribute('data-question-density', 'medium')
+  })
+
+  it.each([2, 3, 4, 5])('keeps %s standard options as individual cards', (optionCount) => {
+    const { container } = render(<PresentationStage state={questionState('Choose', optionCount)} />)
+    const grid = container.querySelector('.presentation-options')
+    expect(grid).toHaveAttribute('data-option-count', String(optionCount))
+    expect(grid?.querySelectorAll(':scope > .answer-tile')).toHaveLength(optionCount)
+  })
+})

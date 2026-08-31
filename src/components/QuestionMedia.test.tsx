@@ -70,3 +70,21 @@ describe('QuestionMedia tile reveal', () => {
     expect(container.querySelector('.tile-cover')).not.toBeInTheDocument()
   })
 })
+
+describe('QuestionMedia intrinsic ratios', () => {
+  it.each([
+    ['landscape', 1600, 900],
+    ['portrait', 600, 1200],
+    ['square', 800, 800],
+    ['very wide', 2400, 300],
+  ])('keeps the %s image in the shared contained media path', (name, width, height) => {
+    const path = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"/>`
+    const { container } = render(<QuestionMedia media={{
+      type: 'image', path, altText: `${name} clue`, revealEffect: 'immediate', revealDurationSeconds: 0,
+    }} openedAt={null} allowEnlarge={false} />)
+    const image = screen.getByRole('img', { name: `${name} clue` })
+    expect(image).toHaveAttribute('src', path)
+    expect(image.closest('.question-media__image')).not.toBeNull()
+    expect(container.querySelector('.question-media')).toHaveClass('question-media--immediate')
+  })
+})

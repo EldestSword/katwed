@@ -42,6 +42,7 @@ import {
 } from '../features/answer-palettes/answerPalettes'
 import { normaliseHexColour } from '../features/answer-palettes/colourContrast'
 import { orderedQuestionOptions } from '../features/questions/optionOrdering'
+import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from '../features/game/liveQuestionTypography'
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction
@@ -273,6 +274,7 @@ export function QuizEditorPage() {
             <article
               className="question-preview-card quiz-themed-surface"
               data-preview-audience={previewMode}
+              data-question-density={questionTextDensity(selected.prompt, previewShowsMedia(selected, previewMode))}
               {...quizThemeSurfaceProps(quiz.themeId, quiz.backgroundId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
             ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
@@ -528,7 +530,7 @@ function EditorAnswerPreview({
   if (options.length > 0) {
     const choicesHidden = previewMode === 'presentation' && question.presentationChoiceVisibility !== 'show'
     if (choicesHidden) return <p className="editor-preview__context">Choices are hidden on the Presentation during the question.</p>
-    return <div className="editor-answer-preview" aria-label="Answer colour preview" data-option-count={options.length}>{options.map((option, position) => <span className="answer-colour-tile" data-option-id={option.id} style={answerColourStyle(colours, position)} key={option.id}>{option.label}</span>)}</div>
+    return <div className="editor-answer-preview" aria-label="Answer colour preview" data-option-count={options.length} data-has-extra-long-answer={hasExtraLongAnswer(options.map((option) => option.label)) || undefined}>{options.map((option, position) => <span className="answer-colour-tile" data-answer-density={answerTextDensity(option.label)} data-option-id={option.id} style={answerColourStyle(colours, position)} key={option.id}>{option.label}</span>)}</div>
   }
 
   const context = question.type === 'slider'

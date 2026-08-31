@@ -24,6 +24,7 @@ import {
   answerColourStyle,
   resolveAnswerColours,
 } from '../answer-palettes/answerPalettes'
+import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -62,6 +63,7 @@ function ChoiceCard({
         image={option.imagePath ? { path: option.imagePath, alt: option.imageAlt || option.label || 'Answer option image' } : undefined}
         selected={selected}
         style={answerColourStyle(colours, position)}
+        textDensity={answerTextDensity(option.label)}
         onSelect={onSelect}
         onEnlarge={option.imagePath ? () => setEnlarged(true) : undefined}
       />
@@ -144,6 +146,7 @@ export function PlayerQuestion({
   }
 
   const showMedia = question.mediaVisibility === 'players' || question.mediaVisibility === 'both'
+  const visibleVisualMedia = showMedia && question.media.type !== 'none'
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
@@ -151,7 +154,7 @@ export function PlayerQuestion({
         {question.doubleScore && <DoubleScoreBadge />}
         {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
       </div>
-      <div className="player-question__prompt">
+      <div className="player-question__prompt" data-question-density={questionTextDensity(question.prompt, visibleVisualMedia)}>
         <h1 id="question-instruction">{question.prompt}</h1>
         {question.supportingText && <p>{question.supportingText}</p>}
       </div>
@@ -160,7 +163,7 @@ export function PlayerQuestion({
       )}
 
       {question.type === 'single-choice' && (
-        <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose one answer">
+        <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (
             <ChoiceCard
               key={option.id}
@@ -180,7 +183,7 @@ export function PlayerQuestion({
             <span>Select {question.minimumSelections === question.maximumSelections ? question.minimumSelections : `${question.minimumSelections}–${question.maximumSelections}`} options</span>
             <strong>{answer?.type === 'multiple-select' ? answer.optionIds.length : 0} / {question.maximumSelections} selected</strong>
           </div>
-          <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose all applicable answers">
+          <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} role="group" aria-label="Choose all applicable answers">
             {orderedQuestionOptions(question).map((option, position) => {
               const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
               return (

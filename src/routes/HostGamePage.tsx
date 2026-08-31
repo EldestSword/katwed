@@ -14,6 +14,7 @@ import { GameBadge } from '../components/design-system/GameBadge'
 import { HostAudioControls } from '../components/HostAudioControls'
 import { orderedSessionQuestions } from '../features/game/launchSettings'
 import { HostResponseMonitor } from '../features/game/HostResponseMonitor'
+import { HostCorrectAnswer } from '../features/game/HostCorrectAnswer'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -162,6 +163,9 @@ export function HostGamePage() {
               if (window.confirm('Close this room for every player?')) run('close')
             }}>Close room</button>
           </div>
+          {currentQuestionDefinition && ['question', 'locked', 'reveal'].includes(state.phase) && (
+            <HostCorrectAnswer question={currentQuestionDefinition} roster={quiz.roster} />
+          )}
           {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
             <HostResponseMonitor
               players={session.players}
