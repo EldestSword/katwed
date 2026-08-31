@@ -7,6 +7,7 @@ interface BrowserComputedStyle {
   paddingRight: string
   backgroundColor: string
   color: string
+  fontSize: string
 }
 
 interface BrowserEvaluationElement {
@@ -22,12 +23,28 @@ interface BrowserEvaluationRect {
   y: number
   width: number
   height: number
+  left: number
+  right: number
+}
+
+interface BrowserAnswerFitElement extends BrowserEvaluationElement {
+  closest(selector: string): BrowserAnswerFitElement | null
+}
+
+interface BrowserTextRange {
+  selectNodeContents(element: unknown): void
+  getBoundingClientRect(): BrowserEvaluationRect
+  getClientRects(): BrowserEvaluationRect[]
 }
 
 interface BrowserEvaluationGlobal {
   getComputedStyle(element: unknown): BrowserComputedStyle
   document: { documentElement: { clientWidth: number; scrollWidth: number } }
   innerWidth: number
+}
+
+interface BrowserAnswerFitGlobal extends BrowserEvaluationGlobal {
+  document: BrowserEvaluationGlobal['document'] & { createRange(): BrowserTextRange }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -214,6 +231,83 @@ test('public entry and recovery routes remain usable at phone widths', async ({ 
       }
     })
     expect(recoveryGeometry.scrollWidth).toBeLessThanOrEqual(recoveryGeometry.clientWidth)
+  }
+})
+
+test('an unbroken answer word fits its touch target at realistic phone widths', async ({ context, page }) => {
+  const longWord = 'Pneumonoultramicroscopicsilicovolcanoconiosis'
+  await enterHost(page)
+  await page.evaluate((answer) => {
+    const storageKey = 'katwed.demo.state.v2'
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) throw new Error('Demo quiz state was not persisted')
+    const state = JSON.parse(raw) as {
+      quizzes: Array<{ id: string; questions: Array<{ id: string; options?: Array<{ id: string; label: string }> }> }>
+    }
+    const question = state.quizzes.find((quiz) => quiz.id === 'quiz-mixed')
+      ?.questions.find((candidate) => candidate.id === 'mixed-single')
+    const option = question?.options?.find((candidate) => candidate.id === 'jupiter')
+    if (!option) throw new Error('Single-choice demo option was not found')
+    option.label = answer
+    localStorage.setItem(storageKey, JSON.stringify(state))
+  }, longWord)
+  await page.reload()
+
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const player = await joinPlayer(context, roomCode, 'Longword')
+  await page.getByRole('button', { name: 'Start game' }).click()
+  const label = player.locator('.answer-tile__label', { hasText: longWord })
+  const answerGrid = label.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " answer-grid ")]')
+  await expect(label).toBeVisible()
+
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await player.setViewportSize(viewport)
+    await expect.poll(() => label.evaluate((element) => {
+      const answerLabel = element as unknown as BrowserEvaluationElement
+      return answerLabel.scrollWidth <= answerLabel.clientWidth
+    })).toBe(true)
+    await expect(label).toHaveAttribute('data-answer-fit', /^(natural|scaled)$/)
+    await expect(answerGrid).toHaveAttribute('data-answer-fit-wide', 'true')
+    const geometry = await label.evaluate((element) => {
+      const browser = globalThis as unknown as BrowserAnswerFitGlobal
+      const answerLabel = element as unknown as BrowserAnswerFitElement
+      const card = answerLabel.closest('.answer-tile')
+      const touchTarget = answerLabel.closest('button')
+      if (!card || !touchTarget) throw new Error('Answer card geometry was unavailable')
+      const range = browser.document.createRange()
+      range.selectNodeContents(answerLabel)
+      const contentRect = range.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      const touchRect = touchTarget.getBoundingClientRect()
+      return {
+        lineCount: Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0).length,
+        labelClientWidth: answerLabel.clientWidth,
+        labelScrollWidth: answerLabel.scrollWidth,
+        contentLeft: contentRect.left,
+        contentRight: contentRect.right,
+        cardLeft: cardRect.left,
+        cardRight: cardRect.right,
+        cardWidth: cardRect.width,
+        touchHeight: touchRect.height,
+        pageClientWidth: browser.document.documentElement.clientWidth,
+        pageScrollWidth: browser.document.documentElement.scrollWidth,
+        fontSize: Number.parseFloat(browser.getComputedStyle(answerLabel).fontSize),
+      }
+    })
+
+    expect(geometry.lineCount).toBe(1)
+    expect(geometry.labelScrollWidth).toBeLessThanOrEqual(geometry.labelClientWidth)
+    expect(geometry.contentLeft).toBeGreaterThanOrEqual(geometry.cardLeft - 1)
+    expect(geometry.contentRight).toBeLessThanOrEqual(geometry.cardRight + 1)
+    expect(geometry.pageScrollWidth).toBeLessThanOrEqual(geometry.pageClientWidth)
+    expect(geometry.touchHeight).toBeGreaterThanOrEqual(44)
+    expect(geometry.fontSize).toBeGreaterThanOrEqual(11.5)
+    expect(geometry.cardWidth).toBeGreaterThan(viewport.width * .8)
   }
 })
 

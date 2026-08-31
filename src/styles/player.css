@@ -29,10 +29,14 @@
 .player-question .answer-grid[data-option-count="3"] > .answer-tile,
 .player-question .answer-grid[data-option-count="4"] > .answer-tile { grid-column: span 2; }
 .player-question .answer-grid[data-option-count="3"] > .answer-tile:last-child { grid-column: 2 / span 2; }
+.player-question .answer-grid[data-answer-fit-wide="true"] { grid-template-columns: minmax(0, 1fr); }
+.player-question .answer-grid[data-answer-fit-wide="true"] > .answer-tile { grid-column: auto; }
 .player-question .answer-tile { border-radius: var(--radius-md); }
 .player-question .answer-grid .answer-tile { height: 100%; }
 .player-question .answer-tile__select { min-height: 5.75rem; height: 100%; padding: .85rem .8rem; gap: .65rem; font-size: clamp(.96rem, 4vw, 1.25rem); line-height: 1.22; }
 .player-question .answer-tile__label { min-width: 0; max-width: 100%; overflow-wrap: normal; word-break: normal; hyphens: none; text-align: center; }
+.player-question .answer-tile[data-answer-density="extra-long"] .answer-tile__select { padding-inline: .45rem; }
+.player-question .answer-tile[data-answer-density="extra-long"] .answer-tile__label { font-size: clamp(.75rem, 3.4vw, .88rem); }
 .player-question .answer-tile:active:not(.is-disabled) { transform: translateY(.2rem); box-shadow: 0 .1rem 0 color-mix(in srgb, #000 42%, transparent); }
 .player-question .answer-tile__image { aspect-ratio: 16 / 8; }
 .player-question .answer-tile__image img { object-fit: contain; }
@@ -171,11 +175,6 @@
   .final-podium li, .final-podium li[data-rank="1"], .final-podium li[data-rank="2"], .final-podium li[data-rank="3"] { min-height: 5rem; grid-template-columns: auto 1fr auto; place-items: center start; order: initial; transform: none; border-radius: var(--radius-md); }
   .final-podium li > span:last-child { justify-self: end; }
   .head-to-head-final__competitors { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 420px) {
-  .player-question .answer-grid[data-has-extra-long-answer="true"] { grid-template-columns: minmax(0, 1fr); }
-  .player-question .answer-grid[data-has-extra-long-answer="true"] > .answer-tile { grid-column: auto; }
 }
 
 @media (min-width: 900px) {
