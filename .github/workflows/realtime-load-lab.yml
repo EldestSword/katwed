@@ -6,6 +6,14 @@ on:
       - performance/realtime-scaling-free-tier
     paths:
       - '.github/workflows/realtime-load-lab.yml'
+      - 'scripts/test-local-supabase.mjs'
+      - 'scripts/test-local-concurrency.mjs'
+      - 'scripts/run-local-load-matrix.mjs'
+      - 'scripts/load-live-game.mjs'
+      - 'scripts/local-supabase-*.mjs'
+      - 'supabase/**'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
