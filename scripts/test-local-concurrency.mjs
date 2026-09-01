@@ -100,14 +100,17 @@ async function scenarioHostWins(context) {
   assert(!hostLock.error, `Host could not lock first: ${hostLock.error?.message}`)
   const lateAnswer = await submit(fixture.players[0], fixture.session.roomCode)
   assert(lateAnswer.error && /not open/i.test(lateAnswer.error.message),
-    'A late answer was not rejected after the host locked the question.')
-  const answerRows = await context.service
-    .from('player_answers')
-    .select('id', { count: 'exact', head: true })
-    .eq('game_session_id', fixture.session.id)
-  assert(!answerRows.error && answerRows.count === 0, 'A late answer row was written after the host lock.')
+    `A late answer was not rejected after the host locked the question: ${lateAnswer.error?.message ?? 'no error'}`)
+  const databaseAnswerRows = Number(runLocalSql(`
+    select count(*)
+    from public.player_answers
+    where game_session_id = '${fixture.session.id}'::uuid;
+  `))
+  assert(Number.isFinite(databaseAnswerRows), 'Could not obtain a definitive late-answer row count from PostgreSQL.')
+  assert(databaseAnswerRows === 0,
+    `A late answer row was written after the host lock. PostgreSQL row count: ${databaseAnswerRows}.`)
   await closeSession(context, fixture.session.id)
-  return { rejected: true, databaseAnswerRows: answerRows.count, quizId: fixture.quiz.id }
+  return { rejected: true, databaseAnswerRows, quizId: fixture.quiz.id }
 }
 
 export async function runLocalConcurrencyTests() {
