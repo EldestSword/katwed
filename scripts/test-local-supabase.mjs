@@ -116,7 +116,7 @@ async function runStandardFlow(context) {
     p_room_code: session.roomCode,
   }), 'Read Standard presentation lobby')
   assert(controllerLobby.players?.length === 3, 'The controller did not see all Standard Players.')
-  assert(presentationLobby.joinedPlayerCount === 3, 'The presentation state did not see all Standard Players.')
+  assert((presentationLobby.players ?? []).length === 3, 'The presentation state did not see all Standard Players.')
 
   const room = await subscribeToRoom(players[0].client, session.roomCode)
   try {
