@@ -610,7 +610,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 
 .question-media { position: relative; width: min(100%, 58rem); margin: 1rem auto; overflow: hidden; border-radius: 1rem; }
 .question-media__image { transition: filter .1s linear, transform .1s linear; transform-origin: center; }
-.question-media img { width: 100%; max-height: min(52vh, 38rem); object-fit: contain; display: block; }
+.question-media img { width: auto; height: auto; max-width: 100%; max-height: min(52vh, 38rem); object-fit: contain; display: block; margin: auto; }
 .tile-cover { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--tile-columns, 6), minmax(0, 1fr)); grid-template-rows: repeat(var(--tile-rows, 4), minmax(0, 1fr)); gap: 0; pointer-events: none; overflow: hidden; }
 .tile-cover span { min-width: 0; min-height: 0; border: 0; background: #171b35; transition: opacity .25s ease; }
 

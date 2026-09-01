@@ -140,7 +140,21 @@ textarea:disabled { cursor: not-allowed; opacity: .58; }
 }
 .answer-tile__select { cursor: pointer; }
 .answer-tile__select:focus-visible { outline-offset: -5px; box-shadow: inset 0 0 0 3px var(--answer-focus-ring, #fff), inset 0 0 0 7px currentColor; }
-.answer-tile__label { min-width: 0; overflow-wrap: anywhere; }
+.answer-tile__label {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  line-height: 1.16;
+  text-align: center;
+}
+.answer-tile[data-answer-density="medium"] .answer-tile__label { font-size: .88em; }
+.answer-tile[data-answer-density="long"] .answer-tile__label { font-size: clamp(.78rem, .76em, 1rem); }
+.answer-tile[data-answer-density="extra-long"] .answer-tile__label { font-size: clamp(.68rem, .66em, .88rem); }
+.answer-tile[data-answer-density="extra-long"] .answer-tile__select,
+.answer-tile--static[data-answer-density="extra-long"] { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.answer-tile[data-answer-density="extra-long"] .answer-tile__status { grid-column: 1; }
 .answer-tile__image { grid-column: 1 / -1; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius-sm); background: rgba(0, 0, 0, .18); }
 .answer-tile__image img,
 .answer-tile__image > * { width: 100%; height: 100%; object-fit: cover; }

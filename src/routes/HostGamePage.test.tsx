@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -181,5 +181,48 @@ describe('HostGamePage Standard auto-lock', () => {
     expect(screen.getByRole('button', { name: 'Unmute' })).toHaveAttribute('aria-pressed', 'true')
     expect(localStorage.getItem('katwed.audio.preferences.v1')).toContain('"muted":true')
     expect(document.querySelectorAll('audio')).toHaveLength(0)
+  })
+
+  it.each(['question', 'locked', 'reveal'] as const)('shows the private current answer during %s', async (phase) => {
+    renderController(state({
+      phase,
+      currentQuestion: { ...state().currentQuestion!, id: 'mixed-boolean' },
+      reveal: phase === 'reveal'
+        ? { type: 'true-false', correctValue: true, caption: '', counts: { true: 0, false: 0 } }
+        : null,
+    }))
+
+    const answer = await screen.findByRole('region', { name: 'Current correct answer' })
+    expect(within(answer).getByText('Correct answer')).toBeVisible()
+    expect(within(answer).getByText('True')).toBeVisible()
+    expect(within(answer).getByText('Host only')).toBeVisible()
+  })
+
+  it.each(['leaderboard', 'finished'] as const)('hides the private current answer during %s', async (phase) => {
+    renderController(state({ phase, currentQuestion: { ...state().currentQuestion!, id: 'mixed-boolean' } }))
+    await screen.findByText(phase === 'leaderboard' ? 'Leaderboard' : 'Quiz complete')
+    expect(screen.queryByRole('region', { name: 'Current correct answer' })).not.toBeInTheDocument()
+  })
+
+  it('changes the private answer when the authoritative current question changes', async () => {
+    let notify: (() => void) | undefined
+    repositoryMocks.subscribe.mockImplementation((_sessionId: string, callback: () => void) => {
+      notify = callback
+      return () => undefined
+    })
+    renderController(state({ currentQuestion: { ...state().currentQuestion!, id: 'mixed-boolean' } }))
+    expect(within(await screen.findByRole('region', { name: 'Current correct answer' })).getByText('True')).toBeVisible()
+
+    repositoryMocks.getSafeGameState.mockResolvedValue(state({
+      currentQuestion: {
+        ...state().currentQuestion!, id: 'mixed-slider', type: 'slider', prompt: 'How many minutes?',
+        minimum: 0, maximum: 2000, step: 10, prefix: '', suffix: '', unitLabel: 'minutes',
+      },
+    }))
+    await act(async () => notify?.())
+
+    const answer = screen.getByRole('region', { name: 'Current correct answer' })
+    expect(within(answer).getByText('1440 minutes')).toBeVisible()
+    expect(within(answer).getByText('Accepted range: 1430 minutes–1450 minutes')).toBeVisible()
   })
 })

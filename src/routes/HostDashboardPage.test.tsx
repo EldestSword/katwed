@@ -234,6 +234,14 @@ describe('HostDashboardPage quiz library', () => {
     expect(screen.getByRole('heading', { name: 'No archived quizzes' })).toBeVisible()
   })
 
+  it('still surfaces a genuine repository failure after authentication is ready', async () => {
+    repositoryMocks.listQuizzes.mockRejectedValue(new Error('Database unavailable'))
+    renderDashboard()
+
+    expect(await screen.findByText('Database unavailable')).toBeVisible()
+    expect(screen.getByText('Database unavailable').closest('[role="alert"]')).not.toBeNull()
+  })
+
   it('preserves the different Active and Archived card actions', async () => {
     const user = userEvent.setup()
     renderDashboard()

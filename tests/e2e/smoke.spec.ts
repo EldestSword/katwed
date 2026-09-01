@@ -7,6 +7,7 @@ interface BrowserComputedStyle {
   paddingRight: string
   backgroundColor: string
   color: string
+  fontSize: string
 }
 
 interface BrowserEvaluationElement {
@@ -22,12 +23,28 @@ interface BrowserEvaluationRect {
   y: number
   width: number
   height: number
+  left: number
+  right: number
+}
+
+interface BrowserAnswerFitElement extends BrowserEvaluationElement {
+  closest(selector: string): BrowserAnswerFitElement | null
+}
+
+interface BrowserTextRange {
+  selectNodeContents(element: unknown): void
+  getBoundingClientRect(): BrowserEvaluationRect
+  getClientRects(): BrowserEvaluationRect[]
 }
 
 interface BrowserEvaluationGlobal {
   getComputedStyle(element: unknown): BrowserComputedStyle
   document: { documentElement: { clientWidth: number; scrollWidth: number } }
   innerWidth: number
+}
+
+interface BrowserAnswerFitGlobal extends BrowserEvaluationGlobal {
+  document: BrowserEvaluationGlobal['document'] & { createRange(): BrowserTextRange }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -217,6 +234,83 @@ test('public entry and recovery routes remain usable at phone widths', async ({ 
   }
 })
 
+test('an unbroken answer word fits its touch target at realistic phone widths', async ({ context, page }) => {
+  const longWord = 'Pneumonoultramicroscopicsilicovolcanoconiosis'
+  await enterHost(page)
+  await page.evaluate((answer) => {
+    const storageKey = 'katwed.demo.state.v2'
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) throw new Error('Demo quiz state was not persisted')
+    const state = JSON.parse(raw) as {
+      quizzes: Array<{ id: string; questions: Array<{ id: string; options?: Array<{ id: string; label: string }> }> }>
+    }
+    const question = state.quizzes.find((quiz) => quiz.id === 'quiz-mixed')
+      ?.questions.find((candidate) => candidate.id === 'mixed-single')
+    const option = question?.options?.find((candidate) => candidate.id === 'jupiter')
+    if (!option) throw new Error('Single-choice demo option was not found')
+    option.label = answer
+    localStorage.setItem(storageKey, JSON.stringify(state))
+  }, longWord)
+  await page.reload()
+
+  const roomCode = await launchQuiz(page, 'Katwed! Mixed Quiz')
+  const player = await joinPlayer(context, roomCode, 'Longword')
+  await page.getByRole('button', { name: 'Start game' }).click()
+  const label = player.locator('.answer-tile__label', { hasText: longWord })
+  const answerGrid = label.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " answer-grid ")]')
+  await expect(label).toBeVisible()
+
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 360, height: 800 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await player.setViewportSize(viewport)
+    await expect.poll(() => label.evaluate((element) => {
+      const answerLabel = element as unknown as BrowserEvaluationElement
+      return answerLabel.scrollWidth <= answerLabel.clientWidth
+    })).toBe(true)
+    await expect(label).toHaveAttribute('data-answer-fit', /^(natural|scaled)$/)
+    await expect(answerGrid).toHaveAttribute('data-answer-fit-wide', 'true')
+    const geometry = await label.evaluate((element) => {
+      const browser = globalThis as unknown as BrowserAnswerFitGlobal
+      const answerLabel = element as unknown as BrowserAnswerFitElement
+      const card = answerLabel.closest('.answer-tile')
+      const touchTarget = answerLabel.closest('button')
+      if (!card || !touchTarget) throw new Error('Answer card geometry was unavailable')
+      const range = browser.document.createRange()
+      range.selectNodeContents(answerLabel)
+      const contentRect = range.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      const touchRect = touchTarget.getBoundingClientRect()
+      return {
+        lineCount: Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0).length,
+        labelClientWidth: answerLabel.clientWidth,
+        labelScrollWidth: answerLabel.scrollWidth,
+        contentLeft: contentRect.left,
+        contentRight: contentRect.right,
+        cardLeft: cardRect.left,
+        cardRight: cardRect.right,
+        cardWidth: cardRect.width,
+        touchHeight: touchRect.height,
+        pageClientWidth: browser.document.documentElement.clientWidth,
+        pageScrollWidth: browser.document.documentElement.scrollWidth,
+        fontSize: Number.parseFloat(browser.getComputedStyle(answerLabel).fontSize),
+      }
+    })
+
+    expect(geometry.lineCount).toBe(1)
+    expect(geometry.labelScrollWidth).toBeLessThanOrEqual(geometry.labelClientWidth)
+    expect(geometry.contentLeft).toBeGreaterThanOrEqual(geometry.cardLeft - 1)
+    expect(geometry.contentRight).toBeLessThanOrEqual(geometry.cardRight + 1)
+    expect(geometry.pageScrollWidth).toBeLessThanOrEqual(geometry.pageClientWidth)
+    expect(geometry.touchHeight).toBeGreaterThanOrEqual(44)
+    expect(geometry.fontSize).toBeGreaterThanOrEqual(11.5)
+    expect(geometry.cardWidth).toBeGreaterThan(viewport.width * .8)
+  }
+})
+
 test('editor has seven formats and persists a changed title', async ({ page }) => {
   await enterHost(page)
   const card = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
@@ -266,6 +360,23 @@ test('editor media and narrow Player previews preserve useful proportions', asyn
   expect(Math.abs(positions[0].y - positions[1].y)).toBeLessThan(2)
   expect(Math.abs(positions[0].x - positions[2].x)).toBeLessThan(2)
   expect(positions.every((position) => position.width >= 120 && position.height >= 72)).toBe(true)
+
+  await page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Which shape appears' }).click()
+  await expect(previewAnswers).toHaveAttribute('data-option-count', '3')
+  const oddPositions = await previewAnswers.locator(':scope > span').evaluateAll((elements) => elements.map((element) => {
+    const rect = (element as unknown as BrowserEvaluationElement).getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width }
+  }))
+  const previewBounds = await previewAnswers.boundingBox()
+  if (!previewBounds) throw new Error('Three-answer preview was not visible')
+  expect(oddPositions).toHaveLength(3)
+  expect(Math.abs(oddPositions[0].width - oddPositions[2].width)).toBeLessThan(2)
+  expect(oddPositions[2].y).toBeGreaterThan(oddPositions[0].y)
+  expect(Math.abs((oddPositions[2].x + oddPositions[2].width / 2) - (previewBounds.x + previewBounds.width / 2))).toBeLessThan(2)
+
+  await page.getByLabel('Prompt').fill('A very wordy image question that deliberately contains enough explanatory wording to trigger the most compact automatic live-question typography tier while leaving the complete visual clue dominant.')
+  await expect(preview).toHaveAttribute('data-question-density', 'extra-long')
+  await expect(preview.locator('.editor-preview__media img')).toHaveCSS('object-fit', 'contain')
 })
 
 test('custom answer colours stay aligned and Standard locks only after all four players submit', async ({ context, page }) => {
@@ -1217,6 +1328,8 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await expect(playerOne.getByRole('button', { name: 'Mars' })).toBeVisible()
   await presentation.reload()
   await expect(presentation.getByRole('heading', { name: 'Which planet is known as the Red Planet?' })).toBeVisible()
+  const hostAnswer = page.getByRole('region', { name: 'Current correct answer' })
+  await expect(hostAnswer).toContainText('Mars')
 
   for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)
@@ -1251,6 +1364,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await playerTwo.getByRole('button', { name: 'Venus' }).click()
   await playerTwo.getByRole('button', { name: 'Lock in' }).click()
   await revealRound(/Mars/)
+  await expect(hostAnswer).toContainText('Mars')
   await expect(playerOne.getByRole('heading', { name: 'Mars' })).toBeVisible()
   await expect(playerOne.getByText('Iron minerals in the soil give Mars its rusty colour.')).toBeVisible()
   await expect(playerOne.getByText('The correct option is on the shared presentation.')).toHaveCount(0)
@@ -1266,6 +1380,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await expect(presentation.locator('.presentation-reveal')).toContainText('Mars')
   await expect(zeroScorePlayer.getByRole('group', { name: 'Correct answer' })).toBeVisible()
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
+  await expect(page.getByRole('region', { name: 'Current correct answer' })).toHaveCount(0)
   await expect(presentation.locator('.leaderboard--presentation')).toBeVisible()
   await expect(presentation.locator('.leaderboard--presentation li').filter({ hasText: 'Quinn' })).toContainText('1,000 points')
   await expect(presentation.locator('.leaderboard--presentation li').filter({ hasText: 'A Long Zero Score Player' })).toContainText('0 points')
@@ -1274,6 +1389,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await zeroScorePlayer.reload()
   await expect(zeroScorePlayer.getByRole('heading', { name: 'Leaderboard' })).toBeVisible()
   await page.getByRole('button', { name: 'Next question' }).click()
+  await expect(page.getByRole('region', { name: 'Current correct answer' })).toContainText('Red, Green, Blue')
 
   for (const option of ['Red', 'Green', 'Blue']) await playerOne.getByRole('button', { name: option }).click()
   await playerOne.getByRole('button', { name: 'Lock in' }).click()

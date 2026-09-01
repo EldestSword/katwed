@@ -1,5 +1,7 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from 'react'
 import { QuestionImage } from '../QuestionImage'
+import type { ContentDensity } from '../../features/game/liveQuestionTypography'
+import { FittedAnswerLabel } from './FittedAnswerLabel'
 import { PositionMarker } from './PositionMarker'
 
 export type AnswerTileState = 'default' | 'locked' | 'correct' | 'incorrect'
@@ -15,6 +17,9 @@ export interface AnswerTileProps {
   selected?: boolean
   disabled?: boolean
   state?: AnswerTileState
+  textDensity?: ContentDensity
+  fitSingleWords?: boolean
+  onLabelNeedsMoreWidth?(): void
   onSelect?: MouseEventHandler<HTMLButtonElement>
   onEnlarge?(): void
 }
@@ -38,6 +43,9 @@ export function AnswerTile({
   selected = false,
   disabled = false,
   state = 'default',
+  textDensity = 'short',
+  fitSingleWords = false,
+  onLabelNeedsMoreWidth,
   onSelect,
   onEnlarge,
 }: AnswerTileProps) {
@@ -53,18 +61,18 @@ export function AnswerTile({
     <>
       {image && <span className="answer-tile__image"><QuestionImage path={image.path} alt={image.alt} /></span>}
       <PositionMarker position={position} />
-      <span className="answer-tile__label">{label}</span>
+      {fitSingleWords ? <FittedAnswerLabel onNeedsMoreWidth={onLabelNeedsMoreWidth}>{label}</FittedAnswerLabel> : <span className="answer-tile__label">{label}</span>}
       {status && <span className="answer-tile__status">{status}</span>}
       <span className="sr-only">Answer {position + 1}</span>
     </>
   )
 
   if (!onSelect) {
-    return <div className={`${classes} answer-tile--static`} data-option-id={optionId} data-state={state} style={style}>{contents}</div>
+    return <div className={`${classes} answer-tile--static`} data-answer-density={textDensity} data-option-id={optionId} data-state={state} style={style}>{contents}</div>
   }
 
   return (
-    <div className={classes} data-option-id={optionId} data-state={state} style={style}>
+    <div className={classes} data-answer-density={textDensity} data-option-id={optionId} data-state={state} style={style}>
       <button
         className="answer-tile__select"
         type="button"

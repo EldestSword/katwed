@@ -102,6 +102,25 @@ describe('parseSafeGameState', () => {
       reveal: null,
       currentQuestion: { ...safeState.currentQuestion, targetX: .5 },
     })).toThrow(/answer key/)
+    for (const [field, answer] of [
+      ['correctOptionId', 'answer'],
+      ['correctOptionIds', ['answer']],
+      ['correctValue', true],
+      ['tolerance', 1],
+      ['targetY', .5],
+      ['targetRadius', .1],
+      ['correctMemberIds', ['one', 'two']],
+      ['correctAnswer', 'secret'],
+      ['acceptedAnswers', ['secret']],
+      ['answerKey', { secret: true }],
+    ] as const) {
+      expect(() => parseSafeGameState({
+        ...safeState,
+        phase: 'question',
+        reveal: null,
+        currentQuestion: { ...safeState.currentQuestion, [field]: answer },
+      }), field).toThrow(/answer key/)
+    }
   })
 
   it('accepts safe Head-to-Head assignment and scores but rejects early correctness results', () => {

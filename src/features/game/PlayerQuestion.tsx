@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCountdown } from '../../hooks/useCountdown'
 import type {
   AnswerColourTuple,
@@ -24,6 +24,7 @@ import {
   answerColourStyle,
   resolveAnswerColours,
 } from '../answer-palettes/answerPalettes'
+import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -43,12 +44,14 @@ function ChoiceCard({
   position,
   colours,
   onSelect,
+  onNeedsWideLayout,
 }: {
   option: ChoiceOption
   selected: boolean
   position: number
   colours: readonly string[]
   onSelect(): void
+  onNeedsWideLayout(): void
 }) {
   const [enlarged, setEnlarged] = useState(false)
   return (
@@ -62,6 +65,9 @@ function ChoiceCard({
         image={option.imagePath ? { path: option.imagePath, alt: option.imageAlt || option.label || 'Answer option image' } : undefined}
         selected={selected}
         style={answerColourStyle(colours, position)}
+        textDensity={answerTextDensity(option.label)}
+        fitSingleWords
+        onLabelNeedsMoreWidth={onNeedsWideLayout}
         onSelect={onSelect}
         onEnlarge={option.imagePath ? () => setEnlarged(true) : undefined}
       />
@@ -89,9 +95,11 @@ export function PlayerQuestion({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
+  const [wideAnswerLayout, setWideAnswerLayout] = useState(false)
   const remaining = useCountdown(closesAt)
   const timedOut = closesAt !== null && remaining <= 0
   const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
+  const requestWideAnswerLayout = useCallback(() => setWideAnswerLayout(true), [])
 
   useEffect(() => {
     setAnswer(initialAnswer)
@@ -99,6 +107,7 @@ export function PlayerQuestion({
     setSubmitted(Boolean(initialAnswer))
     setError('')
     setLimitMessage('')
+    setWideAnswerLayout(false)
   }, [initialAnswer, question.id])
 
   const canSubmit = useMemo(() => {
@@ -144,6 +153,7 @@ export function PlayerQuestion({
   }
 
   const showMedia = question.mediaVisibility === 'players' || question.mediaVisibility === 'both'
+  const visibleVisualMedia = showMedia && question.media.type !== 'none'
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
@@ -151,7 +161,7 @@ export function PlayerQuestion({
         {question.doubleScore && <DoubleScoreBadge />}
         {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
       </div>
-      <div className="player-question__prompt">
+      <div className="player-question__prompt" data-question-density={questionTextDensity(question.prompt, visibleVisualMedia)}>
         <h1 id="question-instruction">{question.prompt}</h1>
         {question.supportingText && <p>{question.supportingText}</p>}
       </div>
@@ -160,7 +170,7 @@ export function PlayerQuestion({
       )}
 
       {question.type === 'single-choice' && (
-        <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose one answer">
+        <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (
             <ChoiceCard
               key={option.id}
@@ -168,6 +178,7 @@ export function PlayerQuestion({
               selected={answer?.type === 'single-choice' && answer.optionId === option.id}
               position={position}
               colours={answerColours}
+              onNeedsWideLayout={requestWideAnswerLayout}
               onSelect={() => setAnswer({ type: 'single-choice', optionId: option.id })}
             />
           ))}
@@ -180,11 +191,11 @@ export function PlayerQuestion({
             <span>Select {question.minimumSelections === question.maximumSelections ? question.minimumSelections : `${question.minimumSelections}–${question.maximumSelections}`} options</span>
             <strong>{answer?.type === 'multiple-select' ? answer.optionIds.length : 0} / {question.maximumSelections} selected</strong>
           </div>
-          <div className="answer-grid" data-option-count={question.options.length} role="group" aria-label="Choose all applicable answers">
+          <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose all applicable answers">
             {orderedQuestionOptions(question).map((option, position) => {
               const selected = answer?.type === 'multiple-select' ? answer.optionIds : []
               return (
-                <ChoiceCard key={option.id} option={option} selected={selected.includes(option.id)} position={position} colours={answerColours} onSelect={() => {
+                <ChoiceCard key={option.id} option={option} selected={selected.includes(option.id)} position={position} colours={answerColours} onNeedsWideLayout={requestWideAnswerLayout} onSelect={() => {
                   setLimitMessage('')
                   if (selected.includes(option.id)) {
                     setAnswer({ type: 'multiple-select', optionIds: selected.filter((id) => id !== option.id) })
