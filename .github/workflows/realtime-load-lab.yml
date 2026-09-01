@@ -39,6 +39,11 @@ jobs:
       - name: Start local Supabase and apply full migration chain
         run: npm run supabase:local:start
 
+      - name: Bridge Supabase pgTAP compatibility network
+        run: |
+          docker network create supabase_network_katwed >/dev/null 2>&1 || true
+          docker network connect supabase_network_katwed supabase_db_katwed
+
       - name: Run resulting-schema, security and live-flow tests
         run: npm run test:supabase:local
 
