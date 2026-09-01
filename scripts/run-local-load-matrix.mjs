@@ -118,16 +118,46 @@ async function verifyDesiredPhaseBroadcast(context, session) {
   })
   let deliveries = 0
   let subscribedResolve
-  const subscribed = new Promise((resolve) => { subscribedResolve = resolve })
-  const channel = observer.channel(`katwed:${session.roomCode}`)
+  let subscribedReject
+  let replicationReadyResolve
+  let replicationReadyReject
+  const subscribed = new Promise((resolve, reject) => {
+    subscribedResolve = resolve
+    subscribedReject = reject
+  })
+  const replicationReady = new Promise((resolve, reject) => {
+    replicationReadyResolve = resolve
+    replicationReadyReject = reject
+  })
+  const channel = observer.channel(`katwed:${session.roomCode}`, {
+    config: { broadcast: { replication_ready: true } },
+  })
     .on('broadcast', { event: 'game_changed' }, () => { deliveries += 1 })
-  channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') subscribedResolve()
+    .on('system', {}, (payload) => {
+      if (payload?.extension !== 'system') return
+      if (payload.status === 'ok') {
+        replicationReadyResolve()
+      } else if (payload.status === 'error') {
+        replicationReadyReject(new Error(
+          `Realtime replication was not ready for phase-broadcast check: ${payload.message ?? 'unknown error'}`,
+        ))
+      }
+    })
+  channel.subscribe((status, error) => {
+    if (status === 'SUBSCRIBED') {
+      subscribedResolve()
+    } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+      subscribedReject(error ?? new Error(`Phase-broadcast channel ended with ${status}.`))
+    }
   })
   try {
     await Promise.race([
       subscribed,
       delay(10_000).then(() => { throw new Error('Timed out subscribing for the phase-broadcast check.') }),
+    ])
+    await Promise.race([
+      replicationReady,
+      delay(10_000).then(() => { throw new Error('Timed out waiting for Realtime replication for the phase-broadcast check.') }),
     ])
     const lockedAt = performance.now()
     const lock = await context.owner.client.rpc('host_lock_game', { p_session_id: session.id })
@@ -141,6 +171,26 @@ async function verifyDesiredPhaseBroadcast(context, session) {
   } finally {
     await observer.removeChannel(channel)
   }
+}
+
+function authoritativeLoadState(sessionId) {
+  return JSON.parse(runLocalSql(`
+    with answer_counts as (
+      select
+        count(*)::integer as answer_row_count,
+        (count(*) - count(distinct (player_id, question_id)))::integer as duplicate_answer_row_count
+      from public.player_answers
+      where game_session_id = '${sessionId}'::uuid
+    )
+    select json_build_object(
+      'answerRowCount', ac.answer_row_count,
+      'duplicateAnswerRowCount', ac.duplicate_answer_row_count,
+      'phase', gs.phase
+    )
+    from answer_counts ac
+    cross join public.game_sessions gs
+    where gs.id = '${sessionId}'::uuid;
+  `))
 }
 
 async function runEntry(context, entry) {
@@ -176,23 +226,14 @@ async function runEntry(context, entry) {
     })
     clearInterval(sampler)
 
-    const answerRows = await context.service.from('player_answers')
-      .select('player_id,question_id')
-      .eq('game_session_id', launched.session.id)
-    if (answerRows.error) throw new Error(`Read authoritative answer rows: ${answerRows.error.message}`)
-    const uniqueAnswers = new Set(answerRows.data.map(({ player_id, question_id }) => `${player_id}:${question_id}`))
-    const sessionRow = await context.service.from('game_sessions')
-      .select('phase')
-      .eq('id', launched.session.id)
-      .single()
-    if (sessionRow.error) throw new Error(`Read authoritative session phase: ${sessionRow.error.message}`)
+    const authoritative = authoritativeLoadState(launched.session.id)
     const phaseBroadcast = await verifyDesiredPhaseBroadcast(context, launched.session)
 
     return {
       ...result,
-      databaseAnswerRowCount: answerRows.data.length,
-      duplicateAnswerRowCount: answerRows.data.length - uniqueAnswers.size,
-      databasePhaseAfterBurst: sessionRow.data.phase,
+      databaseAnswerRowCount: authoritative.answerRowCount,
+      duplicateAnswerRowCount: authoritative.duplicateAnswerRowCount,
+      databasePhaseAfterBurst: authoritative.phase,
       phaseBroadcast,
       postgresSamples: pgSamples,
       containerResourcesAfter: containerSnapshot(),
