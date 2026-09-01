@@ -17,7 +17,7 @@ import type {
   Unsubscribe,
 } from '../../types/domain'
 import { scoreQuestion, sortLeaderboard } from '../../utils/scoring'
-import type { GameRepository, QuizDeleteResult, QuizSaveInput } from '../../services/gameRepository'
+import type { GameRepository, QuizDeleteResult, QuizSaveInput, RealtimeStatusCallback } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
 import { sampleQuizzes } from './sampleData'
 import { validateQuizSave } from '../../features/quiz-editor/validation'
@@ -63,6 +63,7 @@ interface DemoState {
 }
 
 const STORAGE_KEY = 'katwed.demo.state.v2'
+const REFRESH_STORAGE_KEY = 'katwed.demo.refresh.v1'
 const CHANNEL_NAME = 'katwed-demo-realtime-v2'
 
 function prepareQuestionTiming(session: GameSession, question: Question, transitionMs: number) {
@@ -355,10 +356,13 @@ export class DemoGameRepository implements GameRepository {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     if (notify) {
       const at = Date.now()
-      this.channel?.postMessage({ subject, at })
       const session = state.sessions.find((candidate) => candidate.id === subject || candidate.roomCode === subject)
-      if (session && session.id !== subject) this.channel?.postMessage({ subject: session.id, at })
-      if (session && session.roomCode !== subject) this.channel?.postMessage({ subject: session.roomCode, at })
+      const subjects = [...new Set([
+        subject,
+        ...(session ? [session.id, session.roomCode] : []),
+      ])]
+      subjects.forEach((changedSubject) => this.channel?.postMessage({ subject: changedSubject, at }))
+      localStorage.setItem(REFRESH_STORAGE_KEY, JSON.stringify({ subjects, at, nonce: crypto.randomUUID() }))
     }
   }
 
@@ -571,6 +575,14 @@ export class DemoGameRepository implements GameRepository {
     return quiz ? clone({ session: hostSessionView(session, quiz), quiz }) : null
   }
 
+  async getHostLiveSession(sessionId: string): Promise<GameSession | null> {
+    const state = this.read()
+    const session = state.sessions.find((candidate) => candidate.id === sessionId)
+    if (!session) return null
+    const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+    return clone(quiz ? hostSessionView(session, quiz) : null)
+  }
+
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
     const state = this.read()
     const session = state.sessions.find((candidate) => candidate.quizId === quizId && candidate.status === 'active')
@@ -635,7 +647,7 @@ export class DemoGameRepository implements GameRepository {
       const reconnectToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
       session.players.push(player)
       state.reconnectTokens[player.id] = reconnectToken
-      this.write(state, true, session.id)
+      this.write(state, false, session.id)
       return clone({ player, reconnectToken })
     })
   }
@@ -687,10 +699,10 @@ export class DemoGameRepository implements GameRepository {
       const player = session.players.find((candidate) => candidate.id === saved.playerId)
       if (!player || state.reconnectTokens[player.id] !== saved.reconnectToken) return null
       player.connected = true
-      this.write(state, true, session.id)
       const scoresVisible = ['leaderboard', 'finished'].includes(session.phase)
       const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
       const headToHead = quiz?.quizType === 'head-to-head'
+      this.write(state, headToHead, session.id)
       return clone({
         player: scoresVisible || headToHead ? player : {
           ...player,
@@ -715,7 +727,8 @@ export class DemoGameRepository implements GameRepository {
       }
       if (player.connected === connected) return
       player.connected = connected
-      this.write(state, true, session.id)
+      const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
+      this.write(state, quiz?.quizType === 'head-to-head', session.id)
     })
   }
 
@@ -869,7 +882,7 @@ export class DemoGameRepository implements GameRepository {
         if (quiz.quizType === 'standard') player.totalCorrectResponseMs += responseTimeMs
       }
       if (quiz.quizType === 'head-to-head') revealHeadToHeadWhenComplete(state, session, question)
-      this.write(state, true, session.id)
+      this.write(state, quiz.quizType === 'head-to-head', session.id)
     })
   }
 
@@ -1092,15 +1105,24 @@ export class DemoGameRepository implements GameRepository {
     })
   }
 
-  subscribe(subject: string, callback: () => void): Unsubscribe {
+  subscribe(subject: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {
     const handleMessage = (event: MessageEvent<{ subject?: string }>): void => {
       if (event.data.subject === '*' || event.data.subject === subject) callback()
     }
     const handleStorage = (event: StorageEvent): void => {
-      if (event.key === STORAGE_KEY) callback()
+      if (event.key !== REFRESH_STORAGE_KEY || !event.newValue) return
+      try {
+        const notification = JSON.parse(event.newValue) as { subjects?: unknown }
+        if (Array.isArray(notification.subjects) && notification.subjects.some(
+          (changedSubject) => changedSubject === '*' || changedSubject === subject,
+        )) callback()
+      } catch {
+        // Ignore malformed cross-tab hints; the next legitimate write or poll recovers.
+      }
     }
     this.channel?.addEventListener('message', handleMessage)
     window.addEventListener('storage', handleStorage)
+    queueMicrotask(() => onStatus?.('SUBSCRIBED'))
     return () => {
       this.channel?.removeEventListener('message', handleMessage)
       window.removeEventListener('storage', handleStorage)

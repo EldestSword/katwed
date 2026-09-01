@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "loadtest:live": "node scripts/load-live-game.mjs",
     "prepare:backgrounds": "node scripts/prepare-backgrounds.mjs",
     "import:theme-batch": "node scripts/import-theme-batch.mjs",
     "import:audio-sources": "node scripts/import-audio-sources.mjs",

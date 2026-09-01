@@ -10,7 +10,7 @@ import type {
   SafeGameState,
   Unsubscribe,
 } from '../../types/domain'
-import type { GameRepository, QuizDeleteResult, QuizSaveInput } from '../../services/gameRepository'
+import type { GameRepository, QuizDeleteResult, QuizSaveInput, RealtimeStatusCallback, RealtimeSubscriptionStatus } from '../../services/gameRepository'
 import { RepositoryError } from '../../services/gameRepository'
 import { removeQuestionImages } from '../../services/questionImages'
 import { config } from '../config'
@@ -184,6 +184,11 @@ export class SupabaseGameRepository implements GameRepository {
     return { session: normaliseGameSession(bundle.session, quiz.soundPackId), quiz }
   }
 
+  async getHostLiveSession(sessionId: string): Promise<GameSession | null> {
+    const session = await this.rpc<GameSession | null>('host_get_live_session', { p_session_id: sessionId })
+    return session ? normaliseGameSession(session) : null
+  }
+
   async getActiveSessionForQuiz(quizId: string): Promise<GameSession | null> {
     const session = await this.rpc<GameSession | null>('host_get_active_game', { p_quiz_id: quizId })
     return session ? normaliseGameSession(session) : null
@@ -291,11 +296,11 @@ export class SupabaseGameRepository implements GameRepository {
     await this.rpc(`host_${action}_game`, { p_session_id: sessionId })
   }
 
-  subscribe(subject: string, callback: () => void): Unsubscribe {
+  subscribe(subject: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {
     let channel: RealtimeChannel = this.client.channel(`katwed:${subject}`, { config: { private: false } })
     channel = channel
       .on('broadcast', { event: 'game_changed' }, callback)
-      .subscribe()
+      .subscribe((status) => onStatus?.(status as RealtimeSubscriptionStatus))
     return () => {
       void this.client.removeChannel(channel)
     }

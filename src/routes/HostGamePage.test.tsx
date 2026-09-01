@@ -9,6 +9,7 @@ import { HostGamePage } from './HostGamePage'
 
 const repositoryMocks = vi.hoisted(() => ({
   getHostSession: vi.fn(),
+  getHostLiveSession: vi.fn(),
   getSafeGameState: vi.fn(),
   changePhase: vi.fn(),
   setTypedAnswerOverride: vi.fn(),
@@ -66,6 +67,7 @@ describe('HostGamePage Standard auto-lock', () => {
     vi.clearAllMocks()
     localStorage.clear()
     repositoryMocks.getHostSession.mockResolvedValue({ session, quiz: mixedDemoQuiz })
+    repositoryMocks.getHostLiveSession.mockResolvedValue(session)
     repositoryMocks.changePhase.mockResolvedValue(undefined)
     repositoryMocks.setTypedAnswerOverride.mockResolvedValue(undefined)
     repositoryMocks.subscribe.mockReturnValue(() => undefined)
@@ -221,8 +223,23 @@ describe('HostGamePage Standard auto-lock', () => {
     }))
     await act(async () => notify?.())
 
-    const answer = screen.getByRole('region', { name: 'Current correct answer' })
-    expect(within(answer).getByText('1440 minutes')).toBeVisible()
+    const answer = await screen.findByRole('region', { name: 'Current correct answer' })
+    await waitFor(() => expect(within(answer).getByText('1440 minutes')).toBeVisible())
     expect(within(answer).getByText('Accepted range: 1430 minutes–1450 minutes')).toBeVisible()
+  })
+
+  it('loads the complete quiz once and uses the lightweight live-session reader thereafter', async () => {
+    let notify: (() => void) | undefined
+    repositoryMocks.subscribe.mockImplementation((_sessionId: string, callback: () => void) => {
+      notify = callback
+      return () => undefined
+    })
+    renderController(state())
+    await screen.findByRole('button', { name: 'Close answers now' })
+
+    await act(async () => notify?.())
+    await waitFor(() => expect(repositoryMocks.getHostLiveSession).toHaveBeenCalled())
+    expect(repositoryMocks.getHostSession).toHaveBeenCalledTimes(1)
+    expect(repositoryMocks.getHostLiveSession).toHaveBeenCalledWith('session')
   })
 })

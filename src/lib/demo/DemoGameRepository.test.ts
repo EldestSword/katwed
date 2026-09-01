@@ -1093,4 +1093,63 @@ describe('DemoGameRepository multi-format game state', () => {
     expect(finished?.leaderboard[0]).toMatchObject({ nickname: 'Finalist', totalScore: 1000 })
     await expect(repository.changePhase(session.id, 'finish')).rejects.toMatchObject({ code: 'invalid-phase' })
   })
+
+  it('does not broadcast Standard joins, presence, or answers but still broadcasts phase changes', async () => {
+    const repository = new DemoGameRepository()
+    const observer = new DemoGameRepository()
+    const session = await repository.launchGame('quiz-mixed')
+    const onRoomChange = vi.fn()
+    const unsubscribe = observer.subscribe(session.roomCode, onRoomChange)
+
+    const joined = await repository.joinRoom(session.roomCode, 'Quiet Player')
+    expect(onRoomChange).not.toHaveBeenCalled()
+    await repository.setPlayerPresence({
+      playerId: joined.player.id,
+      roomCode: session.roomCode,
+      nickname: joined.player.nickname,
+      reconnectToken: joined.reconnectToken,
+    }, false)
+    expect(onRoomChange).not.toHaveBeenCalled()
+
+    await repository.changePhase(session.id, 'start')
+    expect(onRoomChange).toHaveBeenCalledTimes(1)
+    onRoomChange.mockClear()
+    await reachQuestionOpening(repository, session.id)
+    const quiz = (await repository.getQuiz('quiz-mixed'))!
+    await repository.submitAnswer(
+      session.roomCode,
+      joined.player.id,
+      joined.reconnectToken,
+      correctAnswer(quiz.questions[0]),
+    )
+    expect(onRoomChange).not.toHaveBeenCalled()
+
+    const liveSession = await repository.getHostLiveSession(session.id)
+    expect(liveSession?.players).toHaveLength(1)
+    expect(liveSession?.hostResponses).toHaveLength(1)
+    expect((await repository.getSafeGameState(session.roomCode))?.submittedCount).toBe(1)
+    unsubscribe()
+  })
+
+  it('accepts a simulated 100-Player Standard answer burst without losing submissions', async () => {
+    const repository = new DemoGameRepository()
+    const session = await repository.launchGame('quiz-mixed')
+    const players = await Promise.all(Array.from(
+      { length: 100 },
+      (_, index) => repository.joinRoom(session.roomCode, `Burst ${index + 1}`),
+    ))
+    await repository.changePhase(session.id, 'start')
+    await reachQuestionOpening(repository, session.id)
+    const quiz = (await repository.getQuiz('quiz-mixed'))!
+
+    await Promise.all(players.map((joined) => repository.submitAnswer(
+      session.roomCode,
+      joined.player.id,
+      joined.reconnectToken,
+      correctAnswer(quiz.questions[0]),
+    )))
+
+    expect((await repository.getSafeGameState(session.roomCode))?.submittedCount).toBe(100)
+    expect((await repository.getHostLiveSession(session.id))?.hostResponses).toHaveLength(100)
+  })
 })

@@ -31,6 +31,14 @@ export interface QuizDeleteResult {
   failedMediaCount: number
 }
 
+export type RealtimeSubscriptionStatus =
+  | 'SUBSCRIBED'
+  | 'TIMED_OUT'
+  | 'CLOSED'
+  | 'CHANNEL_ERROR'
+
+export type RealtimeStatusCallback = (status: RealtimeSubscriptionStatus) => void
+
 export interface GameRepository {
   readonly mode: 'demo' | 'supabase' | 'unconfigured'
   listQuizzes(): Promise<Quiz[]>
@@ -45,6 +53,7 @@ export interface GameRepository {
   cleanupUnusedImages(paths: readonly string[]): Promise<StorageCleanupResult>
   launchGame(quizId: string, settings?: LaunchGameSettings): Promise<GameSession>
   getHostSession(sessionId: string): Promise<{ session: GameSession; quiz: Quiz } | null>
+  getHostLiveSession(sessionId: string): Promise<GameSession | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
   getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null>
   joinRoom(roomCode: string, nickname: string): Promise<JoinResult>
@@ -58,7 +67,7 @@ export interface GameRepository {
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
-  subscribe(roomOrSessionId: string, callback: () => void): Unsubscribe
+  subscribe(roomOrSessionId: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe
 }
 
 export class RepositoryError extends Error {

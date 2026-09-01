@@ -93,11 +93,7 @@ Reviewed local packages are ingested with `npm run import:theme-batch -- --batch
 
 The production release applied `202608070004_quiz_themes.sql` and `202608070005_quiz_backgrounds.sql` in order and deployed the matching frontend at `https://katwed.co.uk` with `https://katwed.netlify.app` as the Netlify fallback. Both migrations are now immutable production history.
 
-Forward migration `202608300001_visual_theme_batch_1.sql` expands the exact database theme/background compatibility matrix to 21 themes and 63 backgrounds while preserving the current stale-client save chain. It is committed for review only: this development task does not apply it or deploy Batch 1.
-
-Forward migration `202608300002_visual_theme_batch_2.sql` builds on Batch 1 and expands the same strict matrix to 36 themes and 108 backgrounds. Batch 1 and Batch 2 remain deliberately unapplied; Batch 2 must be applied only after Batch 1 in a future approved release. No production migration or frontend deployment is performed by this development change.
-
-Forward migration `202608300003_visual_theme_batch_3.sql` builds on Batch 2 and expands the matrix to 51 themes and 153 backgrounds. All three visual-theme migrations remain deliberately unapplied and must be applied in order during a future approved release.
+Migrations `202608300001_visual_theme_batch_1.sql`, `202608300002_visual_theme_batch_2.sql` and `202608300003_visual_theme_batch_3.sql` expand the exact database theme/background compatibility matrix in order to 51 themes and 153 backgrounds while preserving the stale-client save chain. The read-only production inspection on 1 September 2026 confirmed that all three are applied; this realtime-scaling change did not apply or deploy them.
 
 Authenticated production UAT confirmed host login and existing quiz/editor loading, all six themes, three compatible backgrounds per theme plus Theme default, immediate editor preview, incompatible-theme reset, Save/reload persistence with Arcade + Grid, matching presentation/player rendering through question, submitted/locked, reveal, leaderboard and final results, the controller preview, the `katwed.co.uk` join/QR origin, and Theme default removing the static image after Save/reload. Automated tests continue to cover broader validation, database constraints, normalisation and compatibility behaviour; the manual run did not exercise every theme/background combination or Storage/permanent-deletion scenarios for built-ins.
 
@@ -345,6 +341,26 @@ Screens use the `GameRepository` contract:
 
 See [`docs/architecture.md`](docs/architecture.md) for the data flow, safe payloads and extension points.
 
+### Live-room realtime and polling model
+
+Before the realtime scaling pass, every answer and routine Player-row update could emit a room-wide `game_changed` broadcast. Every subscribed Player then fetched the full safe state, while every Player also polled every five seconds. The answer RPCs retained an exclusive lock on the shared GameSession row, so a simultaneous answer burst could queue behind that row. The controller also fetched and serialised the complete quiz definition on every refresh.
+
+After forward migration `20260901094653_realtime_scaling_free_tier.sql` is deliberately released:
+
+- public room broadcasts represent shared GameSession transitions such as question open, lock, reveal, leaderboard, finish, restart and close;
+- Standard joins, answer rows, score/last-seen updates and presence heartbeats do not generate room-wide broadcasts;
+- Head-to-Head retains a narrow two-competitor Player-change broadcast because readiness and connectivity are part of its live control flow;
+- the controller polls owner-only dynamic session data every second in the lobby, every 750 ms during an open question and every five seconds in other phases;
+- the presentation polls safe live state every second in the lobby and during an open question, and every five seconds in other phases;
+- both host views still refresh immediately on GameSession broadcasts, while a shared single-flight scheduler coalesces bursts and permits at most one trailing fetch;
+- each Player uses Realtime plus a 45-second sanity refresh while subscribed, temporarily polls every three seconds after a timeout/channel error/closure, and refreshes immediately after online, focus or visible recovery events;
+- Standard answer validation takes a shared GameSession row lock, allowing concurrent submissions while remaining ordered against the host's conflicting phase update; Head-to-Head alone takes an exclusive lock before its resolution path because that path can advance the session itself;
+- the controller loads the complete quiz once, then calls the authenticated, owner-only `host_get_live_session` reader for changing roster/response data; its existing current-question and raw-response bounds remain intact.
+
+The Standard Player lobby intentionally shows confirmation and waits for the host without an exact live room count. Controller and presentation lobby counts remain live. Player presence remains database-backed with a 30-second heartbeat, page-hide disconnect attempt and reconnect restoration, but routine presence writes no longer fan out.
+
+This is designed for efficient larger-room operation; formal measured capacity depends on the load-test results.
+
 ## Answer-key protection
 
 Before reveal, player-safe state omits:
@@ -368,7 +384,7 @@ The browser never receives a Supabase service-role credential.
 
 ## Supabase production and setup
 
-The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. Production currently has every migration through `20260828074030_multi_variant_sound_packs.sql` applied. No matching multi-variant audio Netlify deployment has been performed by this development change.
+The live Katwed! deployment uses Supabase Auth, PostgreSQL, Storage and Realtime. Host authentication, quiz persistence, image upload, multiplayer updates, anonymous joining, reconnect, scoring and reveal behaviour have all been verified against the real project. A read-only check on 1 September 2026 confirmed that production has every committed migration through `202608300003_visual_theme_batch_3.sql` applied. The realtime-scaling migration in this branch has not been applied, and this development change does not perform a Netlify deployment.
 
 Audio Pass 2 added applied migration `20260828074030_multi_variant_sound_packs.sql`. It generalises persisted quiz and session pack IDs to safe slugs, keeps the stale-client-compatible quiz-save wrapper, validates and persists Double Score duration arrays, and adds an authoritative server shuffle bag without removing either deployed `host_launch_game` overload. The matching Netlify release remains deliberate.
 
@@ -427,14 +443,15 @@ Applied production migrations, in order:
 202608270009_host_intelligence_and_typed_overrides.sql
 202608270010_bound_host_response_serialisation.sql
 20260828074030_multi_variant_sound_packs.sql
+202608300001_visual_theme_batch_1.sql
+202608300002_visual_theme_batch_2.sql
+202608300003_visual_theme_batch_3.sql
 ```
 
 Pending, deliberately unapplied migration:
 
 ```text
-202608300001_visual_theme_batch_1.sql
-202608300002_visual_theme_batch_2.sql
-202608300003_visual_theme_batch_3.sql
+20260901094653_realtime_scaling_free_tier.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -471,7 +488,9 @@ Applied migration `202608270010_bound_host_response_serialisation.sql` bounds au
 
 Applied migration `20260828074030_multi_variant_sound_packs.sql` expands both permanent quiz and session pack IDs to the same bounded safe-slug rule, updates the existing stale-client-compatible save wrapper, adds bounded duration and shuffle-bag state for session-level audio variants, preserves old one- and two-argument launch calls with a five-second fallback, accepts no client asset URLs, and exposes the selected Double Score index without changing the player answer-key boundary.
 
-Pending migration `202608300001_visual_theme_batch_1.sql` expands the exact theme/background matrix to 21 themes and 63 backgrounds while preserving stale-client saves. Pending migration `202608300002_visual_theme_batch_2.sql` depends on it and expands that matrix to 36 themes and 108 backgrounds. Pending migration `202608300003_visual_theme_batch_3.sql` then expands it to 51 themes and 153 backgrounds. None has been applied to production; all three remain part of a deliberate future database/frontend release.
+Applied migrations `202608300001_visual_theme_batch_1.sql`, `202608300002_visual_theme_batch_2.sql` and `202608300003_visual_theme_batch_3.sql` expand the exact theme/background matrix in order to 51 themes and 153 backgrounds while preserving stale-client saves.
+
+Pending migration `20260901094653_realtime_scaling_free_tier.sql` removes broad Standard Player/answer broadcast triggers, narrows GameSession transition broadcasts, retains a Head-to-Head-only Player exception, adds the owner-only live-session reader and changes retained submit implementations to shared session locking with an exclusive Head-to-Head wrapper. It must be reviewed and applied before deploying its matching frontend.
 
 ### Production pgcrypto repair
 
@@ -545,6 +564,20 @@ This section records planning assumptions, not guaranteed capacity. The Supabase
 
 Planned test points are approximately 25, 50, 75 and 100 simultaneous players. These room sizes must not be advertised as supported until the relevant tests pass.
 
+The safe-by-default public-client harness joins simulated Players, subscribes each one to the same room topic, waits for the host to open a disposable Standard True/False or Single Choice question, submits over a configurable spread and reports joins, failures, timeouts, Realtime errors, answer-burst room event deliveries and latency percentiles. It rejects service-role JWTs and refuses the known production project or `katwed.co.uk` without an exact dangerous opt-in. Use a separate disposable Supabase project where possible.
+
+```powershell
+$env:KATWED_LOADTEST_SUPABASE_URL='https://YOUR-DISPOSABLE-PROJECT.supabase.co'
+$env:KATWED_LOADTEST_SUPABASE_KEY='YOUR_ANON_OR_PUBLISHABLE_KEY'
+$env:KATWED_LOADTEST_ROOM_CODE='123456'
+$env:KATWED_LOADTEST_DISPOSABLE_ROOM='YES'
+$env:KATWED_LOADTEST_PLAYERS='25'
+$env:KATWED_LOADTEST_SPREAD_MS='500'
+npm run loadtest:live
+```
+
+Run separate 25, 50, 75 and 100 Player tests and try answer spreads of 0, 500, 2,000 and 10,000 ms. Start the disposable lobby before the harness, then use its host controller to open the supported question after all joins complete. A Standard answer-only burst should report zero `roomGameChangedDeliveriesDuringAnswerBurst`; any non-zero result needs investigation. During a real run, also inspect the Supabase Realtime dashboard's concurrent connections, messages/events per second, channel joins and errors, together with API/database latency. The harness does not create, advance or close rooms and does not install a scheduled service.
+
 ## Roadmap
 
 ### Quiz library and storage management
@@ -558,13 +591,13 @@ Archive, restore, safer permanent deletion, duplicate quiz, Search, Last edited,
 
 ### Themes and visual identity
 
-The six original per-quiz themes and 18 optional built-in backgrounds are deployed and manually production-UAT verified. Visual Theme Batches 1, 2 and 3 add 45 reviewed themes and 135 production backgrounds locally, with one reusable provenance-checked ingestion pipeline, lightweight browser previews and three ordered pending forward migrations. Theme default supplies the themed surface without a static image, while each theme owns exactly three compatible built-in backgrounds.
+The six original per-quiz themes and 18 optional built-in backgrounds are deployed and manually production-UAT verified. Visual Theme Batches 1, 2 and 3 add 45 reviewed themes and 135 production backgrounds locally, with one reusable provenance-checked ingestion pipeline and lightweight browser previews; their three ordered migrations are applied in production. Theme default supplies the themed surface without a static image, while each theme owns exactly three compatible built-in backgrounds.
 
 Planned work:
 
 - Katwed! typography;
 - custom themes.
-- deliberate ordered Batch 1, Batch 2 and Batch 3 database/frontend release after review.
+- deliberate review and release verification for the expanded theme frontend.
 
 ### Further question formats
 

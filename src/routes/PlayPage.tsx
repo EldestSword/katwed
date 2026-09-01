@@ -56,7 +56,7 @@ export function PlayPage() {
       void repository.setPlayerPresence(playerSession, connected).catch(() => undefined)
     }
     updatePresence(true)
-    const heartbeat = window.setInterval(() => updatePresence(true), 15_000)
+    const heartbeat = window.setInterval(() => updatePresence(true), 30_000)
     const disconnect = (): void => updatePresence(false)
     window.addEventListener('pagehide', disconnect)
     return () => {
@@ -110,7 +110,7 @@ export function PlayPage() {
           {competitors.some((competitor) => !competitor.claimed) && <p>Both competitors must join before starting.</p>}
         </section>
       ) : (
-        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p><strong>{state.players.length} {state.players.length === 1 ? 'player' : 'players'} in the lobby</strong></section>
+        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p></section>
       ))}
 
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
@@ -131,7 +131,7 @@ export function PlayPage() {
               await repository.submitAnswer(roomCode, playerSession.playerId, playerSession.reconnectToken, payload)
               saveSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt, payload)
               setLocalResolution({ questionId: question.id, status: 'answered' })
-              await refresh()
+              if (headToHead) await refresh()
             }} />
           {headToHead && !assigned && !resolution && !submittedAnswer && <button className="button button--ghost button--wide head-to-head-skip" disabled={working} type="button" onClick={() => runPlayerAction(
             () => repository.skipHeadToHead(roomCode, currentPlayer.id, playerSession.reconnectToken, question.id), 'The question could not be skipped.',
