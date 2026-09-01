@@ -31,15 +31,45 @@ function unwrap(result, operation) {
 async function subscribeToRoom(client, roomCode) {
   let deliveries = 0
   let resolveSubscribed
-  const subscribed = new Promise((resolve) => { resolveSubscribed = resolve })
-  const channel = client.channel(`katwed:${roomCode}`)
+  let rejectSubscribed
+  let resolveReplicationReady
+  let rejectReplicationReady
+  const subscribed = new Promise((resolve, reject) => {
+    resolveSubscribed = resolve
+    rejectSubscribed = reject
+  })
+  const replicationReady = new Promise((resolve, reject) => {
+    resolveReplicationReady = resolve
+    rejectReplicationReady = reject
+  })
+  const channel = client.channel(`katwed:${roomCode}`, {
+    config: { broadcast: { replication_ready: true } },
+  })
     .on('broadcast', { event: 'game_changed' }, () => { deliveries += 1 })
-  channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') resolveSubscribed()
+    .on('system', {}, (payload) => {
+      if (payload?.extension !== 'system') return
+      if (payload.status === 'ok') {
+        resolveReplicationReady()
+      } else if (payload.status === 'error') {
+        rejectReplicationReady(new Error(
+          `Realtime replication was not ready for local room ${roomCode}: ${payload.message ?? 'unknown error'}`,
+        ))
+      }
+    })
+  channel.subscribe((status, error) => {
+    if (status === 'SUBSCRIBED') {
+      resolveSubscribed()
+    } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+      rejectSubscribed(error ?? new Error(`Realtime channel ${roomCode} ended with ${status}.`))
+    }
   })
   await Promise.race([
     subscribed,
     delay(10_000).then(() => { throw new Error(`Timed out subscribing to local room ${roomCode}.`) }),
+  ])
+  await Promise.race([
+    replicationReady,
+    delay(10_000).then(() => { throw new Error(`Timed out waiting for local Realtime replication for room ${roomCode}.`) }),
   ])
   return {
     channel,
