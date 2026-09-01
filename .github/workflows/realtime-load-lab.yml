@@ -36,11 +36,8 @@ jobs:
           docker version
           docker compose version
 
-      - name: Start local Supabase
+      - name: Start local Supabase and apply full migration chain
         run: npm run supabase:local:start
-
-      - name: Reset and apply full migration chain
-        run: npm run supabase:local:reset
 
       - name: Run resulting-schema, security and live-flow tests
         run: npm run test:supabase:local
