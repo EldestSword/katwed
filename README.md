@@ -492,6 +492,32 @@ Applied migrations `202608300001_visual_theme_batch_1.sql`, `202608300002_visual
 
 Pending migration `20260901094653_realtime_scaling_free_tier.sql` removes broad Standard Player/answer broadcast triggers, narrows GameSession transition broadcasts, retains a Head-to-Head-only Player exception, adds the owner-only live-session reader and changes retained submit implementations to shared session locking with an exclusive Head-to-Head wrapper. It must be reviewed and applied before deploying its matching frontend.
 
+### Disposable Codespaces Supabase lab
+
+The repository includes a local-only load lab in `.devcontainer/devcontainer.json`. It uses the maintained Microsoft Node 22 dev-container image and the maintained Docker-in-Docker feature, so Supabase's child containers run inside the Codespace rather than requiring Docker on the Windows host. The configuration does not select a Codespaces machine size. Before creating a Codespace, check the GitHub account's current Codespaces entitlement and usage and choose only a machine covered by the available allowance; repository configuration is not evidence that a Codespace will be free.
+
+Create the Codespace manually from this branch after that billing check. Supabase API, database, Studio, Mailpit and Analytics forwarded ports are explicitly private. The Vite port is private too. The post-create step runs `npm ci`; it does not start Docker workloads or Supabase automatically.
+
+In the Codespace terminal:
+
+```bash
+export KATWED_LOCAL_SUPABASE=YES
+npm run supabase:local:start
+npm run supabase:local:reset
+npm run test:supabase:local
+npm run test:supabase:concurrency
+npm run loadtest:supabase:local
+npm run supabase:local:stop
+```
+
+The start wrapper first checks `docker version` and `docker compose version`, creates or validates a dedicated Docker network whose published ports bind to `127.0.0.1`, then starts the pinned Supabase CLI stack. The reset command recreates the disposable local database from every committed migration with seeding disabled. The integration command runs the resulting-schema pgTAP assertions, migration listing, local database lint, owner/non-owner/anonymous security checks and real Standard and Head-to-Head RPC flows. The concurrency command installs a temporary local trigger outside the migration chain to hold actual answer transactions for one second, proves concurrent Standard answers overlap, checks that a host phase update waits behind answer shared locks, and verifies a host-first lock rejects the late answer without writing a row. It removes the helper in `finally`.
+
+The default load command runs the priority matrix: 25/50/75/100 Players at 0 ms, then 100 Players at 500 ms and 10,000 ms. Set `KATWED_LOCAL_LOAD_FULL_MATRIX=YES` to add 25/50/75 at 500 ms and 10,000 ms. Set `KATWED_LOCAL_MAX_PLAYERS=75` if the included Codespace cannot safely run 100 clients. The orchestrator refuses non-loopback endpoints, requires the local confirmation above, creates a fresh synthetic host/quiz/session per run, gives Player clients only the local anonymous key, keeps auto-lock disabled, checks database row/duplicate counts and phase, separately verifies the desired host-lock broadcast, samples PostgreSQL/container resources, and writes ignored reports under `artifacts/local-supabase/`.
+
+For optional browser inspection, create an ignored `.env.local` containing only the loopback `VITE_SUPABASE_URL` and the local anonymous key reported by `npm run supabase:local:status`; never put the local service-role key in a `VITE_` variable. Generated local credentials, `.env.local`, Supabase temporary state and load reports must not be committed.
+
+These commands have no path for `supabase link`, remote database operations or hosted project URLs. The local CLI database lint is available, but the managed Supabase Security Advisor is not a local-stack service. Local success demonstrates Katwed's migrations, security boundary, locking, Realtime and application architecture on that Codespaces VM; it does **not** certify managed Supabase Free-plan quotas or cloud capacity. Production Supabase, the separate Car HQ project and Netlify must remain untouched throughout this workflow.
+
 ### Production pgcrypto repair
 
 The first live anonymous-player test exposed `function gen_random_bytes(integer) does not exist`. Supabase had installed pgcrypto in the `extensions` schema, while the hardened RPCs deliberately retained `search_path = public` and called pgcrypto functions without qualification.

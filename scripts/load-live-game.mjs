@@ -211,8 +211,16 @@ export async function runLoadTest(config, dependencies = {}) {
     })))
 
     if (joined.length === 0) throw new Error('No Players joined; no answer test can run.')
+    if (dependencies.onPlayersReady) {
+      await dependencies.onPlayersReady({
+        joinedPlayers: joined.length,
+        requestedPlayers: config.players,
+        successfulSubscriptions,
+      })
+    }
     const subscriptionLabel = successfulSubscriptions === 1 ? 'subscription is' : 'subscriptions are'
-    console.warn(`${joined.length} Players joined; ${successfulSubscriptions} Realtime ${subscriptionLabel} ready. Open the disposable test question now.`)
+    const questionInstruction = dependencies.onPlayersReady ? '' : ' Open the disposable test question now.'
+    console.warn(`${joined.length} Players joined; ${successfulSubscriptions} Realtime ${subscriptionLabel} ready.${questionInstruction}`)
     const stateBeforeBurst = await waitForQuestion(joined[0].client, config, sleep)
     const payload = answerFor(stateBeforeBurst.currentQuestion)
     console.warn('Keep the host in the open Question phase: do not manually close, reveal or advance during the measured answer window.')

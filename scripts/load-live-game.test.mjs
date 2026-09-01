@@ -90,6 +90,21 @@ describe('live-game load harness safety', () => {
       failures: { verification: [] },
     })
   })
+
+  it('offers local orchestration a hook after joins and subscriptions are ready', async () => {
+    const fixture = loadClientFixture(questionState(false), questionState(false, { submittedCount: 1 }))
+    const onPlayersReady = vi.fn()
+    await runLoadTest(loadConfig(), {
+      createClient: () => fixture.client,
+      delay: async () => {},
+      onPlayersReady,
+    })
+    expect(onPlayersReady).toHaveBeenCalledWith({
+      joinedPlayers: 1,
+      requestedPlayers: 1,
+      successfulSubscriptions: 1,
+    })
+  })
 })
 
 function questionState(autoLockWhenAllAnswered, overrides = {}) {
