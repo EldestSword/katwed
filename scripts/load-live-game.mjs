@@ -3,6 +3,8 @@ import { pathToFileURL } from 'node:url'
 
 const KNOWN_PRODUCTION_REF = 'gekkvhsnykknmklqinkb'
 const DANGEROUS_OPT_IN = 'I_UNDERSTAND_THIS_TARGETS_PRODUCTION'
+export const AUTO_LOCK_ENABLED_ERROR = 'This load test requires Auto-lock when all answered to be disabled so legitimate phase-change broadcasts are not mistaken for answer fan-out. Relaunch the disposable Standard game with Auto-lock when all answered disabled.'
+export const AUTO_LOCK_SETTINGS_ERROR = 'This load test could not verify the Auto-lock when all answered setting. Relaunch the disposable Standard game and confirm that Auto-lock when all answered is disabled.'
 
 export function percentile(values, percentage) {
   if (values.length === 0) return null
@@ -73,6 +75,8 @@ export function parseLoadTestConfig(environment) {
     spreadMs: nonNegativeInteger(environment.KATWED_LOADTEST_SPREAD_MS, 'KATWED_LOADTEST_SPREAD_MS', 0),
     requestTimeoutMs: positiveInteger(environment.KATWED_LOADTEST_REQUEST_TIMEOUT_MS, 'KATWED_LOADTEST_REQUEST_TIMEOUT_MS', 15_000),
     questionWaitMs: positiveInteger(environment.KATWED_LOADTEST_QUESTION_WAIT_MS, 'KATWED_LOADTEST_QUESTION_WAIT_MS', 120_000),
+    broadcastDrainMs: positiveInteger(environment.KATWED_LOADTEST_BROADCAST_DRAIN_MS, 'KATWED_LOADTEST_BROADCAST_DRAIN_MS', 750),
+    broadcastSettleMs: positiveInteger(environment.KATWED_LOADTEST_BROADCAST_SETTLE_MS, 'KATWED_LOADTEST_BROADCAST_SETTLE_MS', 750),
     production,
   }
 }
@@ -103,13 +107,32 @@ function answerFor(question) {
   throw new Error('The disposable room must have an open True/False or Single Choice question.')
 }
 
-async function waitForQuestion(client, config) {
+export function validateMeasuredQuestionState(state) {
+  if (!state || typeof state !== 'object') {
+    throw new Error('The disposable room did not return a valid Player game state.')
+  }
+  if (state.quizType !== 'standard') {
+    throw new Error('The load test requires a disposable Standard game.')
+  }
+  if (state.phase !== 'question' || !state.currentQuestion) {
+    throw new Error('The load test requires an open question.')
+  }
+  const autoLock = state.sessionSettings?.autoLockWhenAllAnswered
+  if (autoLock === true) throw new Error(AUTO_LOCK_ENABLED_ERROR)
+  if (autoLock !== false) throw new Error(AUTO_LOCK_SETTINGS_ERROR)
+  if (!Number.isInteger(state.submittedCount) || state.submittedCount < 0) {
+    throw new Error('The load test could not read the authoritative Answered count before measurement.')
+  }
+  return state
+}
+
+export async function waitForQuestion(client, config, sleep = delay) {
   const deadline = Date.now() + config.questionWaitMs
   while (Date.now() < deadline) {
     const { data, error } = await client.rpc('get_player_game_state', { p_room_code: config.roomCode })
     if (error) throw error
-    if (data?.phase === 'question' && data.currentQuestion) return data.currentQuestion
-    await delay(500)
+    if (data?.phase === 'question' && data.currentQuestion) return validateMeasuredQuestionState(data)
+    await sleep(500)
   }
   throw new Error(`No open supported question appeared within ${config.questionWaitMs} ms.`)
 }
@@ -123,9 +146,11 @@ function summaryFor(values) {
   }
 }
 
-export async function runLoadTest(config) {
+export async function runLoadTest(config, dependencies = {}) {
+  const createLoadClient = dependencies.createClient ?? createClient
+  const sleep = dependencies.delay ?? delay
   const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-  const clients = Array.from({ length: config.players }, () => createClient(config.url, config.key, {
+  const clients = Array.from({ length: config.players }, () => createLoadClient(config.url, config.key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   }))
   const joined = []
@@ -134,6 +159,7 @@ export async function runLoadTest(config) {
   const latencies = []
   const realtimeErrors = []
   let burstDeliveries = 0
+  let successfulSubscriptions = 0
   let recordingBurst = false
   let monitoringSubscriptions = true
   const channels = []
@@ -158,6 +184,7 @@ export async function runLoadTest(config) {
     }))
 
     await Promise.all(joined.map(({ client, index }) => new Promise((resolve) => {
+      let initialStatusSettled = false
       const channel = client.channel(`katwed:${config.roomCode}`)
         .on('broadcast', { event: 'game_changed' }, () => {
           if (recordingBurst) burstDeliveries += 1
@@ -165,14 +192,18 @@ export async function runLoadTest(config) {
       channels.push({ client, channel })
       const timer = setTimeout(() => {
         realtimeErrors.push({ index: index + 1, status: 'SUBSCRIBE_TIMEOUT' })
+        initialStatusSettled = true
         resolve()
       }, config.requestTimeoutMs)
       channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
+          if (!initialStatusSettled) successfulSubscriptions += 1
+          initialStatusSettled = true
           clearTimeout(timer)
           resolve()
         } else if (monitoringSubscriptions && ['TIMED_OUT', 'CLOSED', 'CHANNEL_ERROR'].includes(status)) {
           realtimeErrors.push({ index: index + 1, status })
+          initialStatusSettled = true
           clearTimeout(timer)
           resolve()
         }
@@ -180,19 +211,22 @@ export async function runLoadTest(config) {
     })))
 
     if (joined.length === 0) throw new Error('No Players joined; no answer test can run.')
-    console.warn(`${joined.length} Players joined and subscribed. Open the disposable test question now.`)
-    const question = await waitForQuestion(joined[0].client, config)
-    const payload = answerFor(question)
+    const subscriptionLabel = successfulSubscriptions === 1 ? 'subscription is' : 'subscriptions are'
+    console.warn(`${joined.length} Players joined; ${successfulSubscriptions} Realtime ${subscriptionLabel} ready. Open the disposable test question now.`)
+    const stateBeforeBurst = await waitForQuestion(joined[0].client, config, sleep)
+    const payload = answerFor(stateBeforeBurst.currentQuestion)
+    console.warn('Keep the host in the open Question phase: do not manually close, reveal or advance during the measured answer window.')
     // Let the legitimate question-open broadcast drain before measuring only
-    // the answer burst's event deliveries.
-    await delay(750)
+    // the bounded answer window's event deliveries. Broadcast payloads do not
+    // identify their database source, so host phase changes must stay outside it.
+    await sleep(config.broadcastDrainMs)
     burstDeliveries = 0
     recordingBurst = true
     const burstStartedAt = performance.now()
 
     await Promise.all(joined.map(async ({ client, index, player, reconnectToken }, order) => {
       if (config.spreadMs > 0 && joined.length > 1) {
-        await delay(Math.round((order / (joined.length - 1)) * config.spreadMs))
+        await sleep(Math.round((order / (joined.length - 1)) * config.spreadMs))
       }
       const startedAt = performance.now()
       try {
@@ -208,8 +242,36 @@ export async function runLoadTest(config) {
         submitFailures.push({ index: index + 1, message: error instanceof Error ? error.message : String(error) })
       }
     }))
-    await delay(750)
+    await sleep(config.broadcastSettleMs)
     recordingBurst = false
+
+    const verificationFailures = []
+    let stateAfterBurst = null
+    try {
+      const { data, error } = await withTimeout(
+        joined[0].client.rpc('get_player_game_state', { p_room_code: config.roomCode }),
+        config.requestTimeoutMs,
+        'Post-burst authoritative state check',
+      )
+      if (error) throw error
+      stateAfterBurst = data
+    } catch (error) {
+      verificationFailures.push(error instanceof Error ? error.message : String(error))
+    }
+
+    const submittedCountAfter = Number.isInteger(stateAfterBurst?.submittedCount)
+      ? stateAfterBurst.submittedCount
+      : null
+    const expectedSubmittedCount = stateBeforeBurst.submittedCount + latencies.length
+    const authoritativeSubmissionCountMatches = submittedCountAfter === expectedSubmittedCount
+    if (submittedCountAfter === null) {
+      verificationFailures.push('The post-burst Player state did not contain a valid authoritative Answered count.')
+    } else if (!authoritativeSubmissionCountMatches) {
+      verificationFailures.push(`Expected authoritative Answered count ${expectedSubmittedCount}, received ${submittedCountAfter}.`)
+    }
+    if (stateAfterBurst?.phase !== 'question') {
+      verificationFailures.push(`Expected the disposable game to remain in Question phase, received ${stateAfterBurst?.phase ?? 'no phase'}.`)
+    }
 
     const timeoutCount = [...joinFailures, ...submitFailures]
       .filter(({ message }) => /timed out/i.test(message)).length
@@ -220,14 +282,26 @@ export async function runLoadTest(config) {
       answerSpreadMs: config.spreadMs,
       joinSuccess: joined.length,
       joinFailure: joinFailures.length,
+      realtimeSubscriptionSuccess: successfulSubscriptions,
       submitSuccess: latencies.length,
       submitFailure: submitFailures.length,
       timeoutCount,
       realtimeSubscriptionErrors: realtimeErrors.length,
       roomGameChangedDeliveriesDuringAnswerBurst: burstDeliveries,
+      broadcastMeasurement: {
+        drainMs: config.broadcastDrainMs,
+        settleMs: config.broadcastSettleMs,
+      },
       burstWallTimeMs: Math.round(performance.now() - burstStartedAt),
       submissionLatency: summaryFor(latencies.map(Math.round)),
-      failures: { joins: joinFailures, submissions: submitFailures, realtime: realtimeErrors },
+      authoritativeState: {
+        phaseAfterBurst: stateAfterBurst?.phase ?? null,
+        submittedCountBefore: stateBeforeBurst.submittedCount,
+        submittedCountAfter,
+        expectedSubmittedCount,
+        submissionCountMatches: authoritativeSubmissionCountMatches,
+      },
+      failures: { joins: joinFailures, submissions: submitFailures, realtime: realtimeErrors, verification: verificationFailures },
     }
   } finally {
     recordingBurst = false
@@ -250,9 +324,13 @@ Optional:
   KATWED_LOADTEST_SPREAD_MS=0            try 0, 500, 2000, 10000
   KATWED_LOADTEST_REQUEST_TIMEOUT_MS=15000
   KATWED_LOADTEST_QUESTION_WAIT_MS=120000
+  KATWED_LOADTEST_BROADCAST_DRAIN_MS=750
+  KATWED_LOADTEST_BROADCAST_SETTLE_MS=750
 
 The harness joins first, subscribes, then waits for the host to open a supported
-True/False or Single Choice question. It never creates or closes the room.`)
+True/False or Single Choice question. The disposable Standard game must have
+Auto-lock when all answered disabled. Do not manually close, reveal or advance
+during the measured answer window. The harness never creates or closes the room.`)
 }
 
 async function main() {
@@ -263,7 +341,8 @@ async function main() {
   const config = parseLoadTestConfig(process.env)
   const result = await runLoadTest(config)
   console.log(JSON.stringify(result, null, 2))
-  if (result.joinFailure || result.submitFailure || result.realtimeSubscriptionErrors || result.roomGameChangedDeliveriesDuringAnswerBurst) {
+  if (result.joinFailure || result.submitFailure || result.realtimeSubscriptionErrors
+    || result.roomGameChangedDeliveriesDuringAnswerBurst || result.failures.verification.length) {
     process.exitCode = 1
   }
 }

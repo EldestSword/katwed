@@ -573,10 +573,16 @@ $env:KATWED_LOADTEST_ROOM_CODE='123456'
 $env:KATWED_LOADTEST_DISPOSABLE_ROOM='YES'
 $env:KATWED_LOADTEST_PLAYERS='25'
 $env:KATWED_LOADTEST_SPREAD_MS='500'
+$env:KATWED_LOADTEST_BROADCAST_DRAIN_MS='750'
+$env:KATWED_LOADTEST_BROADCAST_SETTLE_MS='750'
 npm run loadtest:live
 ```
 
-Run separate 25, 50, 75 and 100 Player tests and try answer spreads of 0, 500, 2,000 and 10,000 ms. Start the disposable lobby before the harness, then use its host controller to open the supported question after all joins complete. A Standard answer-only burst should report zero `roomGameChangedDeliveriesDuringAnswerBurst`; any non-zero result needs investigation. During a real run, also inspect the Supabase Realtime dashboard's concurrent connections, messages/events per second, channel joins and errors, together with API/database latency. The harness does not create, advance or close rooms and does not install a scheduled service.
+Run separate 25, 50, 75 and 100 Player tests and try answer spreads of 0, 500, 2,000 and 10,000 ms. Start the disposable Standard lobby with **Auto-close answers when everyone has locked in** disabled, then use its host controller to open the supported question after all joins complete. The harness reads `sessionSettings.autoLockWhenAllAnswered` from the public safe state and refuses to submit if the value is enabled, absent or invalid; it never changes host settings or needs owner credentials.
+
+The default broadcast-measurement window drains the question-open event for 750 ms, records during the answer burst, waits a further 750 ms for answer-associated deliveries, then stops recording and fetches public safe state to verify the authoritative Answered count and that the session remains in Question. Do not manually close, reveal or advance the game during that window. Realtime payloads do not identify the database row or trigger that caused a room event, so the harness reports deliveries observed during this carefully bounded window rather than claiming their source. With no host phase transition in the window, a Standard answer-only burst should report zero `roomGameChangedDeliveriesDuringAnswerBurst`; any non-zero result needs investigation.
+
+During a real run, also inspect the Supabase Realtime dashboard's concurrent connections, messages/events per second, channel joins and errors, together with API/database latency. The harness does not create, advance or close rooms and does not install a scheduled service.
 
 ## Roadmap
 
