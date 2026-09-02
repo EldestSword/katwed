@@ -2,11 +2,10 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
 const MIN_READABLE_FONT_SIZE_PX = 11.5
 const MIN_READABLE_LETTER_SPACING_EM = -0.08
-const FIT_TOLERANCE_PX = 0.5
-const FIT_PASSES = 8
+const FIT_PASSES = 10
 
 function contentFits(element: HTMLSpanElement): boolean {
-  return element.scrollWidth <= element.clientWidth + FIT_TOLERANCE_PX
+  return element.scrollWidth <= element.clientWidth
 }
 
 export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: ReactNode; onNeedsMoreWidth?(): void }) {
@@ -50,6 +49,7 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
           else overflowingSpacing = candidateSpacing
         }
         label.style.letterSpacing = `${fittingSpacing}em`
+        if (!contentFits(label)) label.style.letterSpacing = `${MIN_READABLE_LETTER_SPACING_EM}em`
         label.dataset.answerFit = 'scaled'
         return
       }
@@ -62,6 +62,7 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
       }
 
       label.style.fontSize = `${fittingSize}px`
+      if (!contentFits(label)) label.style.fontSize = `${MIN_READABLE_FONT_SIZE_PX}px`
       label.dataset.answerFit = 'scaled'
     }
 
