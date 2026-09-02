@@ -1,0 +1,50 @@
+{
+  "name": "Katwed local Supabase lab",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:5-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [],
+  "portsAttributes": {
+    "5173": {
+      "label": "Katwed Vite",
+      "onAutoForward": "notify",
+      "visibility": "private"
+    },
+    "54321": {
+      "label": "Supabase API",
+      "onAutoForward": "silent",
+      "visibility": "private"
+    },
+    "54322": {
+      "label": "Supabase database",
+      "onAutoForward": "silent",
+      "visibility": "private"
+    },
+    "54323": {
+      "label": "Supabase Studio",
+      "onAutoForward": "notify",
+      "visibility": "private"
+    },
+    "54324": {
+      "label": "Supabase Mailpit",
+      "onAutoForward": "silent",
+      "visibility": "private"
+    },
+    "54327": {
+      "label": "Supabase Analytics",
+      "onAutoForward": "silent",
+      "visibility": "private"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent",
+    "visibility": "private"
+  },
+  "remoteUser": "node"
+}

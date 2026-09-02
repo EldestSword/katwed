@@ -15,6 +15,8 @@ import { HostAudioControls } from '../components/HostAudioControls'
 import { orderedSessionQuestions } from '../features/game/launchSettings'
 import { HostResponseMonitor } from '../features/game/HostResponseMonitor'
 import { HostCorrectAnswer } from '../features/game/HostCorrectAnswer'
+import { createRefreshScheduler, type RefreshScheduler } from '../services/refreshScheduler'
+import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 
 type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -29,32 +31,57 @@ export function HostGamePage() {
   const [error, setError] = useState('')
   const actionInFlight = useRef(false)
   const autoLockAttempt = useRef<string | null>(null)
+  const quizRef = useRef<Quiz | null>(null)
+  const schedulerRef = useRef<RefreshScheduler | null>(null)
   const navigate = useNavigate()
   const remaining = useCountdown(state?.questionClosesAt ?? null)
   const configuredPrelude = state?.questionPreludeKind ?? (state?.currentQuestion?.doubleScore ? 'double-score' : null)
   const activePrelude = useQuestionPrelude(configuredPrelude, state?.questionOpenedAt ?? null)
 
-  const refresh = useCallback(async () => {
-    try {
-      const bundle = await repository.getHostSession(sessionId)
-      if (!bundle) throw new Error('That game session could not be found.')
-      setSession(bundle.session)
-      setQuiz(bundle.quiz)
-      setState(await repository.getSafeGameState(bundle.session.roomCode))
-      setError('')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The controller could not be refreshed.')
-    } finally {
-      setLoading(false)
+  const refresh = useCallback(() => (
+    schedulerRef.current?.request({ immediate: true }) ?? Promise.resolve()
+  ), [])
+
+  useEffect(() => {
+    const scheduler = createRefreshScheduler(async ({ isCurrent }) => {
+      try {
+        const bundle = quizRef.current
+          ? null
+          : await repository.getHostSession(sessionId)
+        const nextSession = bundle?.session ?? await repository.getHostLiveSession(sessionId)
+        const nextQuiz = bundle?.quiz ?? quizRef.current
+        if (!nextSession || !nextQuiz) throw new Error('That game session could not be found.')
+        const nextState = await repository.getSafeGameState(nextSession.roomCode)
+        if (!isCurrent()) return
+        quizRef.current = nextQuiz
+        setSession(nextSession)
+        setQuiz(nextQuiz)
+        setState(nextState)
+        setError('')
+      } catch (reason) {
+        if (isCurrent()) setError(reason instanceof Error ? reason.message : 'The controller could not be refreshed.')
+      } finally {
+        if (isCurrent()) setLoading(false)
+      }
+    })
+    schedulerRef.current = scheduler
+    const unsubscribe = repository.subscribe(sessionId, () => void scheduler.request())
+    void scheduler.request({ immediate: true })
+    return () => {
+      unsubscribe()
+      scheduler.dispose()
+      if (schedulerRef.current === scheduler) schedulerRef.current = null
+      quizRef.current = null
     }
   }, [sessionId])
 
   useEffect(() => {
-    void refresh()
-    const unsubscribe = repository.subscribe(sessionId, () => void refresh())
-    const poll = window.setInterval(() => void refresh(), 5000)
-    return () => { unsubscribe(); window.clearInterval(poll) }
-  }, [refresh, sessionId])
+    const poll = window.setInterval(
+      () => void schedulerRef.current?.request(),
+      liveViewPollInterval('controller', state?.phase),
+    )
+    return () => window.clearInterval(poll)
+  }, [state?.phase])
 
   const action = useCallback(async (kind: HostAction) => {
     if (actionInFlight.current) return

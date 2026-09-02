@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { Logo } from '../components/AppShell'
@@ -6,6 +6,8 @@ import { PresentationStage } from '../features/game/PresentationStage'
 import { repository } from '../services/repository'
 import type { SafeGameState } from '../types/domain'
 import { usePresentationAudio } from '../hooks/usePresentationAudio'
+import { createRefreshScheduler, type RefreshScheduler } from '../services/refreshScheduler'
+import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 
 export function PresentationPage() {
   const sessionId = useParams().sessionId ?? ''
@@ -13,26 +15,47 @@ export function PresentationPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cursorHidden, setCursorHidden] = useState(false)
+  const roomCodeRef = useRef<string | null>(null)
+  const schedulerRef = useRef<RefreshScheduler | null>(null)
 
-  const refresh = useCallback(async () => {
-    try {
-      const bundle = await repository.getHostSession(sessionId)
-      if (!bundle) throw new Error('That presentation could not be found.')
-      setState(await repository.getSafeGameState(bundle.session.roomCode))
-      setError('')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The presentation could not be refreshed.')
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const scheduler = createRefreshScheduler(async ({ isCurrent }) => {
+      try {
+        let roomCode = roomCodeRef.current
+        if (!roomCode) {
+          const bundle = await repository.getHostSession(sessionId)
+          if (!bundle) throw new Error('That presentation could not be found.')
+          roomCode = bundle.session.roomCode
+        }
+        const nextState = await repository.getSafeGameState(roomCode)
+        if (!isCurrent()) return
+        roomCodeRef.current = roomCode
+        setState(nextState)
+        setError('')
+      } catch (reason) {
+        if (isCurrent()) setError(reason instanceof Error ? reason.message : 'The presentation could not be refreshed.')
+      } finally {
+        if (isCurrent()) setLoading(false)
+      }
+    })
+    schedulerRef.current = scheduler
+    const unsubscribe = repository.subscribe(sessionId, () => void scheduler.request())
+    void scheduler.request({ immediate: true })
+    return () => {
+      unsubscribe()
+      scheduler.dispose()
+      if (schedulerRef.current === scheduler) schedulerRef.current = null
+      roomCodeRef.current = null
     }
   }, [sessionId])
 
   useEffect(() => {
-    void refresh()
-    const unsubscribe = repository.subscribe(sessionId, () => void refresh())
-    const poll = window.setInterval(() => void refresh(), 5000)
-    return () => { unsubscribe(); window.clearInterval(poll) }
-  }, [refresh, sessionId])
+    const poll = window.setInterval(
+      () => void schedulerRef.current?.request(),
+      liveViewPollInterval('presentation', state?.phase),
+    )
+    return () => window.clearInterval(poll)
+  }, [state?.phase])
 
   useEffect(() => {
     let timer = window.setTimeout(() => setCursorHidden(true), 2500)

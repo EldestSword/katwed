@@ -48,6 +48,8 @@ const mocks = vi.hoisted(() => ({
   startHeadToHead: vi.fn(),
   skipHeadToHead: vi.fn(),
   continueHeadToHead: vi.fn(),
+  submitAnswer: vi.fn(),
+  refresh: vi.fn(),
 }))
 
 vi.mock('../hooks/useSafeGameState', () => ({ useSafeGameState: mocks.useSafeGameState }))
@@ -58,7 +60,7 @@ vi.mock('../services/repository', () => ({
     startHeadToHead: mocks.startHeadToHead,
     skipHeadToHead: mocks.skipHeadToHead,
     continueHeadToHead: mocks.continueHeadToHead,
-    submitAnswer: vi.fn(),
+    submitAnswer: mocks.submitAnswer,
   },
 }))
 vi.mock('../services/playerSession', () => ({
@@ -79,9 +81,11 @@ function renderPage() {
 describe('PlayPage quiz background', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useSafeGameState.mockReturnValue({ state: gameState, loading: false, error: '', refresh: vi.fn() })
+    mocks.useSafeGameState.mockReturnValue({ state: gameState, loading: false, error: '', refresh: mocks.refresh })
     mocks.reconnectPlayer.mockResolvedValue({ player, reconnectToken: savedSession.reconnectToken })
     mocks.setPlayerPresence.mockResolvedValue(undefined)
+    mocks.submitAnswer.mockResolvedValue(undefined)
+    mocks.refresh.mockResolvedValue(undefined)
   })
 
   afterEach(() => vi.useRealTimers())
@@ -162,6 +166,83 @@ describe('PlayPage quiz background', () => {
     expect(surface).toHaveAttribute('data-quiz-theme', 'paper')
     expect(surface).toHaveAttribute('data-quiz-background', 'paper-collage')
     expect(surface?.getAttribute('style')).toContain('/backgrounds/paper-collage.webp')
+  })
+
+  it('keeps the Standard lobby coherent without a room-wide live player count', async () => {
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'You’re in, Quizzer!' })).toBeVisible()
+    expect(screen.getByText('Waiting for the host to start.')).toBeVisible()
+    expect(screen.queryByText(/players? in the lobby/i)).not.toBeInTheDocument()
+  })
+
+  it('uses a 30-second presence heartbeat and keeps the page-hide disconnect path', async () => {
+    vi.useFakeTimers()
+    renderPage()
+    await act(async () => { await Promise.resolve() })
+    expect(mocks.setPlayerPresence).toHaveBeenCalledWith(savedSession, true)
+    const initialCalls = mocks.setPlayerPresence.mock.calls.length
+
+    await act(async () => vi.advanceTimersByTimeAsync(29_999))
+    expect(mocks.setPlayerPresence).toHaveBeenCalledTimes(initialCalls)
+    await act(async () => vi.advanceTimersByTimeAsync(1))
+    expect(mocks.setPlayerPresence).toHaveBeenCalledTimes(initialCalls + 1)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('pagehide'))
+      await Promise.resolve()
+    })
+    expect(mocks.setPlayerPresence).toHaveBeenLastCalledWith(expect.objectContaining(savedSession), false)
+  })
+
+  it('uses local submitted state without a Standard post-submit refresh', async () => {
+    const user = userEvent.setup()
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState,
+        quizType: 'standard',
+        phase: 'question',
+        currentQuestion: {
+          id: 'question', type: 'true-false', prompt: 'True?', supportingText: '', timeLimitSeconds: 30,
+          points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+          questionNumber: 1, totalQuestions: 1,
+        },
+      },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'True' }))
+    await user.click(screen.getByRole('button', { name: 'Lock in' }))
+
+    expect(await screen.findByRole('heading', { name: 'Answer locked' })).toBeVisible()
+    expect(mocks.submitAnswer).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).not.toHaveBeenCalled()
+  })
+
+  it('retains the Head-to-Head post-submit refresh', async () => {
+    const user = userEvent.setup()
+    const headToHeadPlayer = { ...player, competitorId: 'quizzer' }
+    mocks.reconnectPlayer.mockResolvedValue({ player: headToHeadPlayer, reconnectToken: savedSession.reconnectToken })
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState,
+        quizType: 'head-to-head', players: [headToHeadPlayer], phase: 'question',
+        headToHeadCompetitors: [{ competitorId: 'quizzer', displayName: 'Quizzer', displayOrder: 0, claimed: true, connected: true, playerId: player.id, totalScore: 0, correctAnswerCount: 0 }],
+        headToHeadResolutions: [], headToHeadResults: [],
+        currentQuestion: {
+          id: 'question', type: 'true-false', assignedCompetitorId: 'quizzer', prompt: 'True?',
+          supportingText: '', timeLimitSeconds: 30, points: 1000, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+          questionNumber: 1, totalQuestions: 1,
+        },
+      },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'True' }))
+    await user.click(screen.getByRole('button', { name: 'Lock in' }))
+    await screen.findByRole('heading', { name: 'Answer locked' })
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
   })
 
   it('leaves Theme default without a static image', async () => {
