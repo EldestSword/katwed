@@ -92,7 +92,7 @@ describe('HostStoragePage', () => {
     const preview = document.querySelector('.storage-image-card__preview img')
     if (!(preview instanceof HTMLImageElement)) throw new Error('Decorative preview missing')
     fireEvent.error(preview)
-    expect(screen.getByRole('img', { name: 'Stored image preview unavailable' })).toBeVisible()
+    expect(await screen.findByRole('img', { name: 'Stored image preview unavailable' })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Refresh Storage' }))
     expect(repositoryMocks.getStorageReport).toHaveBeenCalledTimes(2)
