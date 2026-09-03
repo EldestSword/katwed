@@ -25,6 +25,7 @@ const players: Player[] = Array.from({ length: 4 }, (_, index) => ({
 }))
 
 const session: GameSession = {
+  currentRoundId: null,
   id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'question',
   currentQuestionIndex: 0, questionOpenedAt: '2026-08-26T12:00:00.000Z',
   questionClosesAt: '2026-08-26T12:01:00.000Z', startedAt: '2026-08-26T12:00:00.000Z',

@@ -33,7 +33,7 @@ describe('scoreExactPair', () => {
 
 describe('scoreQuestion', () => {
   const base = {
-    id: 'q', quizId: 'quiz', prompt: 'Question', supportingText: '', timeLimitSeconds: 30,
+    id: 'q', quizId: 'quiz', roundId: 'round-1', prompt: 'Question', supportingText: '', timeLimitSeconds: 30,
     assignedCompetitorId: null,
     points: 1000, speedScoringEnabled: false, doubleScore: false, displayOrder: 0, revealCaption: '', media: { type: 'none' as const },
     mediaVisibility: 'both' as const, presentationChoiceVisibility: 'show' as const,

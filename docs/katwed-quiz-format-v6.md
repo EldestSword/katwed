@@ -1,8 +1,8 @@
 # Katwed quiz format v6
 
-Version 6 is the export target for Visual Pinpoint Authoring. It retains all v5 quiz, media, theme, audio, scoring and reference semantics and replaces the three Pinpoint answer coordinates with one `target` object. See [v5](katwed-quiz-format-v5.md) for unchanged fields and the [v6 JSON Schema](schemas/katwed-quiz-v6.schema.json) for the complete structure.
+Version 6 introduced Visual Pinpoint Authoring. The current export target is [v7 Core Rounds](katwed-quiz-format-v7.md); v6 remains importable. It retains all v5 quiz, media, theme, audio, scoring and reference semantics and replaces the three Pinpoint answer coordinates with one `target` object. See [v5](katwed-quiz-format-v5.md) for unchanged fields and the [v6 JSON Schema](schemas/katwed-quiz-v6.schema.json) for the complete structure.
 
-The importer continues to accept **versions 1–5**. Their `targetX`, `targetY` and `targetRadius` fields become `{ "kind": "circle", "x": targetX, "y": targetY, "radius": targetRadius }` automatically. Re-export always writes v6. Versions 1–5 do not accept the new `target` field; v6 does not accept the legacy fields. No images or game history are embedded.
+The importer continues to accept **versions 1–5**. Their `targetX`, `targetY` and `targetRadius` fields become `{ "kind": "circle", "x": targetX, "y": targetY, "radius": targetRadius }` automatically. Re-export now writes v7, preserving the target and adding a silent default round. Versions 1–5 do not accept the new `target` field; v6 does not accept the legacy fields. No images or game history are embedded.
 
 ## Pinpoint targets
 

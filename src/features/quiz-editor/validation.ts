@@ -1,3 +1,4 @@
+import { roundValidation } from './rounds'
 import { isPinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
@@ -158,6 +159,7 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
 
 export function validateQuizSave(input: QuizSaveInput): string[] {
   const messages: string[] = []
+  if (input.rounds !== undefined) messages.push(...roundValidation({ ...input, rounds: input.rounds }))
   const title = input.title.trim()
   if (!isQuizType(input.quizType)) messages.push('Choose a supported quiz type.')
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')

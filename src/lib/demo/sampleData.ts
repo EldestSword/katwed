@@ -1,3 +1,4 @@
+import { defaultRound } from '../../features/quiz-editor/rounds'
 import type { Question, Quiz, QuestionMedia } from '../../types/domain'
 import { CLASSIC_ANSWER_COLOURS } from '../../features/answer-palettes/answerPalettes'
 
@@ -20,6 +21,7 @@ const mashup = (
 ): Question => ({
   id,
   quizId,
+  roundId: quizId,
   assignedCompetitorId: null,
   type: 'mashup',
   prompt: 'Who is in this mash-up?',
@@ -38,6 +40,7 @@ const mashup = (
 
 export const sampleQuiz: Quiz = {
   id: quizId,
+  rounds: [defaultRound(quizId)],
   title: 'The Curious Crew',
   quizType: 'standard',
   headToHeadCompetitors: [],
@@ -69,6 +72,7 @@ const mixedId = 'quiz-mixed'
 const common = (id: string, type: Question['type'], prompt: string, displayOrder: number) => ({
   id,
   quizId: mixedId,
+  roundId: mixedId,
   assignedCompetitorId: null,
   type,
   prompt,
@@ -86,6 +90,7 @@ const common = (id: string, type: Question['type'], prompt: string, displayOrder
 
 export const mixedDemoQuiz: Quiz = {
   id: mixedId,
+  rounds: [defaultRound(mixedId)],
   title: 'Katwed! Mixed Quiz',
   quizType: 'standard',
   headToHeadCompetitors: [],
@@ -160,6 +165,7 @@ export const mixedDemoQuiz: Quiz = {
     {
       ...mashup('mixed-mashup', '/demo/portrait-1.svg', ['member-alex', 'member-bailey'], 5, 'Alex and Bailey were the fictional pair.'),
       quizId: mixedId,
+      roundId: mixedId,
     },
     {
       ...common('mixed-typed', 'typed-answer', 'Name the science-fiction programme featuring the spaceship Red Dwarf.', 6),
@@ -191,6 +197,7 @@ const headToHeadCompetitorIds = ['competitor-ross', 'competitor-jess'] as const
 export const headToHeadDemoQuiz: Quiz = {
   ...structuredClone(mixedDemoQuiz),
   id: headToHeadId,
+  rounds: [defaultRound(headToHeadId)],
   title: 'Ross vs Jess',
   quizType: 'head-to-head',
   headToHeadCompetitors: [
@@ -201,6 +208,7 @@ export const headToHeadDemoQuiz: Quiz = {
   questions: mixedDemoQuiz.questions.map((question, index) => ({
     ...structuredClone(question),
     quizId: headToHeadId,
+    roundId: headToHeadId,
     assignedCompetitorId: headToHeadCompetitorIds[index % 2],
     speedScoringEnabled: false,
     doubleScore: false,

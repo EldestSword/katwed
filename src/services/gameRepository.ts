@@ -12,6 +12,7 @@ import type {
 import type { StorageCleanupResult, StorageReport } from '../features/storage-manager/storageManager'
 
 export interface QuizSaveInput {
+  rounds?: Quiz['rounds']
   id?: string
   title: string
   quizType: Quiz['quizType']
@@ -66,7 +67,7 @@ export interface GameRepository {
   skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void>
-  changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
+  changePhase(sessionId: string, action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe
 }
 

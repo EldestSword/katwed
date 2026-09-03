@@ -1,3 +1,4 @@
+import { normaliseQuizRounds, canonicaliseRounds, defaultRound, orderedRounds, roundValidation, safeRound } from '../../features/quiz-editor/rounds'
 import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import type {
   GameSession,
@@ -108,7 +109,7 @@ function normaliseState(state: DemoState): DemoState {
       (quiz as { answerPaletteId?: unknown }).answerPaletteId,
       (quiz as { customAnswerColours?: unknown }).customAnswerColours,
     )
-    return normaliseQuizHeadToHead({
+    return normaliseQuizRounds(normaliseQuizHeadToHead({
       ...quiz,
       questions: quiz.questions.map(normalisePinpointQuestion),
       ...answerPalette,
@@ -117,7 +118,7 @@ function normaliseState(state: DemoState): DemoState {
       themeId,
       backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
       archivedAt: quiz.archivedAt ?? null,
-    })
+    }))
   })
   return {
     ...state,
@@ -132,7 +133,7 @@ function normaliseState(state: DemoState): DemoState {
         : createGameSessionSettings(undefined, quiz, session.id)
       const questionOrder = Array.isArray((session as Partial<GameSession>).questionOrder)
         ? (session as Partial<GameSession>).questionOrder as string[]
-        : createSessionQuestionOrder(quiz.questions, false, session.id)
+        : createSessionQuestionOrder(quiz.questions, false, session.id, quiz.rounds)
       const answers = (session.answers ?? []).map((answer) => ({
         ...answer,
         automaticCorrect: typeof answer.automaticCorrect === 'boolean' ? answer.automaticCorrect : answer.correct,
@@ -147,6 +148,7 @@ function normaliseState(state: DemoState): DemoState {
       return {
         ...session,
         settings,
+        currentRoundId: session.currentRoundId ?? orderedSessionQuestions(quiz.questions, questionOrder)[session.currentQuestionIndex]?.roundId ?? quiz.rounds[0].id,
         questionOrder,
         doubleScoreVariantOrder: Array.isArray(session.doubleScoreVariantOrder)
           ? session.doubleScoreVariantOrder
@@ -393,6 +395,12 @@ export class DemoGameRepository implements GameRepository {
       const now = new Date().toISOString()
       const existing = input.id ? state.quizzes.find((quiz) => quiz.id === input.id) : undefined
       const quizId = existing?.id ?? uid('quiz')
+      if (!input.rounds && existing && existing.rounds.length !== 1) {
+        throw new RepositoryError('database', 'Reload the editor before saving a quiz with multiple rounds.')
+      }
+      if (input.rounds?.some((round) => state.quizzes.some((quiz) => quiz.id !== quizId && quiz.rounds.some((other) => other.id === round.id)))) {
+        throw new RepositoryError('database', 'Round belongs to another quiz.')
+      }
       const answerPalette = normaliseAnswerPalette(
         input.answerPaletteId ?? existing?.answerPaletteId,
         input.customAnswerColours ?? existing?.customAnswerColours,
@@ -401,6 +409,7 @@ export class DemoGameRepository implements GameRepository {
         id: quizId,
         title: input.title.trim() || 'Untitled quiz',
         quizType: input.quizType,
+        rounds: (input.rounds ?? existing?.rounds ?? [defaultRound(quizId)]).map((round) => ({ ...round, quizId })),
         headToHeadCompetitors: input.headToHeadCompetitors.map((competitor, displayOrder) => ({
           ...competitor,
           quizId,
@@ -421,6 +430,7 @@ export class DemoGameRepository implements GameRepository {
         questions: input.questions.map((question, index) => ({
           ...question,
           id: question.id || uid('question'),
+          roundId: input.rounds ? question.roundId : existing?.questions.find((item) => item.id === question.id)?.roundId ?? existing?.rounds[0]?.id ?? quizId,
           quizId,
           displayOrder: index,
         })),
@@ -428,11 +438,14 @@ export class DemoGameRepository implements GameRepository {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
+      const roundMessages = roundValidation(quiz)
+      if (roundMessages.length) throw new RepositoryError('database', roundMessages[0])
+      const canonical = canonicaliseRounds(quiz)
       state.quizzes = existing
-        ? state.quizzes.map((candidate) => candidate.id === quiz.id ? quiz : candidate)
-        : [...state.quizzes, quiz]
+        ? state.quizzes.map((candidate) => candidate.id === quiz.id ? canonical : candidate)
+        : [...state.quizzes, canonical]
       this.write(state, true, quiz.id)
-      return clone(quiz)
+      return clone(canonical)
     })
   }
 
@@ -532,6 +545,7 @@ export class DemoGameRepository implements GameRepository {
           throw new RepositoryError('database', 'Complete both competitors and every question assignment before launching.')
         }
       }
+      if (quiz.rounds.some((round) => !quiz.questions.some((question) => question.roundId === round.id))) throw new RepositoryError('database', 'Add a question to every round before launching.')
       const active = state.sessions.find((session) => session.quizId === quizId && session.status === 'active')
       if (active) return clone(hostSessionView(active, quiz))
       const usedCodes = new Set(state.sessions.map((session) => session.roomCode))
@@ -547,6 +561,7 @@ export class DemoGameRepository implements GameRepository {
         roomCode,
         status: 'active',
         phase: 'lobby',
+        currentRoundId: orderedRounds(quiz.rounds)[0].id,
         currentQuestionIndex: 0,
         questionOpenedAt: null,
         questionClosesAt: null,
@@ -556,7 +571,7 @@ export class DemoGameRepository implements GameRepository {
         doubleScoreVariantOrder,
         doubleScoreVariantCursor: 0,
         currentDoubleScoreVariantIndex: null,
-        questionOrder: createSessionQuestionOrder(quiz.questions, settings.shuffleQuestionOrder, sessionId),
+        questionOrder: createSessionQuestionOrder(quiz.questions, settings.shuffleQuestionOrder, sessionId, quiz.rounds),
         players: [],
         hostResponses: [],
         answers: [],
@@ -739,7 +754,7 @@ export class DemoGameRepository implements GameRepository {
     const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
     if (!quiz) return null
     const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
-    const question = orderedQuestions[session.currentQuestionIndex] ?? null
+    const question = session.phase === 'round-intro' ? null : orderedQuestions[session.currentQuestionIndex] ?? null
     const headToHead = quiz.quizType === 'head-to-head'
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
     const scoresVisible = headToHead || ['leaderboard', 'finished'].includes(session.phase)
@@ -761,6 +776,7 @@ export class DemoGameRepository implements GameRepository {
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,
+      currentRound: safeRound(quiz, session.currentRoundId),
       currentQuestion: question
         ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings)
         : null,
@@ -1002,7 +1018,7 @@ export class DemoGameRepository implements GameRepository {
 
   async changePhase(
     sessionId: string,
-    action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
+    action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
     return this.withMutation(() => {
       const state = this.read()
@@ -1015,9 +1031,18 @@ export class DemoGameRepository implements GameRepository {
       }
       const now = new Date()
       const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
-      const openCurrentQuestion = (): void => {
+      const openCurrentQuestion = (allowIntro = false): void => {
         const question = orderedQuestions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
+        const enteringRound = action === 'start' || question.roundId !== session.currentRoundId
+        session.currentRoundId = question.roundId
+        if (allowIntro && enteringRound && quiz.rounds.find((round) => round.id === question.roundId)?.introEnabled) {
+          session.phase = 'round-intro'
+          session.questionOpenedAt = null
+          session.questionClosesAt = null
+          session.currentDoubleScoreVariantIndex = null
+          return
+        }
         const timingWindow = prepareQuestionTiming(session, question, now.getTime())
         session.phase = 'question'
         session.questionOpenedAt = timingWindow.openedAt
@@ -1029,6 +1054,10 @@ export class DemoGameRepository implements GameRepository {
           if (!orderedQuestions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
           session.startedAt = now.toISOString()
           session.currentQuestionIndex = 0
+          openCurrentQuestion(true)
+          break
+        case 'start-round':
+          if (session.phase !== 'round-intro') throw new RepositoryError('invalid-phase', 'Show the round intro before starting the round.')
           openCurrentQuestion()
           break
         case 'lock':
@@ -1056,7 +1085,7 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'There is no next question.')
           }
           session.currentQuestionIndex += 1
-          openCurrentQuestion()
+          openCurrentQuestion(true)
           break
         case 'finish':
           if (session.phase === 'question' && session.questionOpenedAt && now.getTime() < new Date(session.questionOpenedAt).getTime()) {
@@ -1081,6 +1110,7 @@ export class DemoGameRepository implements GameRepository {
         case 'restart':
           if (session.phase !== 'finished') throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
           session.phase = 'lobby'
+          session.currentRoundId = orderedRounds(quiz.rounds)[0].id
           session.currentQuestionIndex = 0
           session.questionOpenedAt = null
           session.questionClosesAt = null

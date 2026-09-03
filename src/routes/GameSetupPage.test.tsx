@@ -15,6 +15,7 @@ const repositoryMocks = vi.hoisted(() => ({
 vi.mock('../services/repository', () => ({ repository: repositoryMocks }))
 
 const session: GameSession = {
+  currentRoundId: null,
   id: 'session-new', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'lobby',
   currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null, startedAt: null, endedAt: null,
   settings: {

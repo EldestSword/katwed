@@ -62,6 +62,19 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     throw new Error('The server returned an invalid safe game state.')
   }
 
+  const round = value.currentRound
+  if (round !== undefined && round !== null && (!isRecord(round) ||
+    Object.keys(round).some((key) => !['id', 'title', 'subtitle', 'introEnabled', 'roundNumber', 'totalRounds', 'questionCount'].includes(key)) ||
+    typeof round.id !== 'string' || typeof round.title !== 'string' || !round.title.trim() || round.title.length > 80 ||
+    typeof round.subtitle !== 'string' || round.subtitle.length > 200 || typeof round.introEnabled !== 'boolean' ||
+    !Number.isInteger(round.roundNumber) || Number(round.roundNumber) < 1 ||
+    !Number.isInteger(round.totalRounds) || Number(round.totalRounds) < Number(round.roundNumber) ||
+    !Number.isInteger(round.questionCount) || Number(round.questionCount) < 0)) {
+    throw new Error('The server returned invalid round metadata.')
+  }
+  if (value.phase === 'round-intro' && (!round || value.currentQuestion !== null || value.questionOpenedAt !== null || value.questionClosesAt !== null || value.submittedCount !== 0)) {
+    throw new Error('The server returned question data during a round intro.')
+  }
   const revealAllowed = ['reveal', 'leaderboard', 'finished'].includes(value.phase)
   if ((!revealAllowed && value.reveal !== null) || (value.reveal !== null && !isRevealPayload(value.reveal))) {
     throw new Error('The server returned reveal data in an invalid phase.')

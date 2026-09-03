@@ -1182,3 +1182,5 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   .head-to-head-scoreboard,
   .head-to-head-results { grid-template-columns: 1fr; }
 }
+
+.player-round-intro h1 { overflow-wrap: anywhere; }

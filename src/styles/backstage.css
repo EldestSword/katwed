@@ -339,3 +339,17 @@
 .pinpoint-editor details { margin-top: .5rem; }
 .pinpoint-editor summary { cursor: pointer; }
 .editor-preview__media .pinpoint-coordinate-surface { height: min(35vh, 23rem); min-height: 10rem; }
+
+/* Core round authoring stays inside the existing three-panel navigator. */
+.round-navigator { gap: .75rem; }
+.round-group { padding: .65rem; border: 1px solid var(--host-line); border-radius: .75rem; }
+.round-group > header { display: flex; justify-content: space-between; gap: .5rem; overflow-wrap: anywhere; }
+.round-group ol { margin: .5rem 0; }
+.round-settings { margin: .5rem 0; }
+.round-settings summary { cursor: pointer; padding: .5rem 0; }
+.round-settings label { margin-top: .6rem; }
+.round-intro-toggle { display: flex; align-items: center; gap: .5rem; }
+.round-intro-toggle input { width: auto; }
+.round-actions { display: flex; gap: .4rem; margin-top: .7rem; }
+.round-actions button { min-height: 44px; min-width: 44px; }
+.round-navigator__hint { font-size: .8rem; line-height: 1.5; margin: .5rem 0; }

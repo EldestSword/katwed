@@ -4,7 +4,7 @@ import { optionPosition, orderedQuestionOptions } from './optionOrdering'
 
 function question(randomiseOptions: boolean): SingleChoiceQuestion {
   return {
-    id: 'stable-question', quizId: 'quiz', assignedCompetitorId: null, type: 'single-choice',
+    id: 'stable-question', quizId: 'quiz', roundId: 'round-1', assignedCompetitorId: null, type: 'single-choice',
     prompt: 'Choose', supportingText: '', timeLimitSeconds: 30, points: 1000,
     speedScoringEnabled: false, doubleScore: false, displayOrder: 0, revealCaption: '',
     media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',

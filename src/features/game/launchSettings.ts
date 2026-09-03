@@ -1,9 +1,11 @@
+import { orderedRounds } from '../quiz-editor/rounds'
 import type {
   GameSessionSettings,
   LaunchGameSettings,
   Question,
   QuestionPreludeKind,
   Quiz,
+  QuizRound,
 } from '../../types/domain'
 import {
   getSoundPack,
@@ -117,10 +119,12 @@ function stableScore(seed: string, value: string): number {
 }
 
 export function createSessionQuestionOrder(
-  questions: readonly Pick<Question, 'id' | 'displayOrder'>[],
+  questions: readonly (Pick<Question, 'id' | 'displayOrder'> & Partial<Pick<Question, 'roundId'>>)[],
   shuffle: boolean,
   seed: string,
+  rounds?: readonly QuizRound[],
 ): string[] {
+  if (rounds) return orderedRounds(rounds).flatMap((round) => createSessionQuestionOrder(questions.filter((question) => question.roundId === round.id), shuffle, `${seed}:${round.id}`))
   const authored = [...questions].sort((left, right) => left.displayOrder - right.displayOrder)
   if (!shuffle) return authored.map((question) => question.id)
   return authored.sort((left, right) => (

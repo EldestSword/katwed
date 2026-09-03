@@ -11,7 +11,7 @@ import {
   VISUAL_THEME_BATCH_3_THEME_IDS,
 } from '../generated/visualThemeBatch3'
 
-export type GamePhase = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
+export type GamePhase = 'lobby' | 'round-intro' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
 export type SessionStatus = 'active' | 'closed'
 export type QuestionType =
   | 'single-choice'
@@ -130,6 +130,7 @@ export interface ChoiceOption {
 }
 
 interface QuestionBase {
+  roundId: string
   id: string
   quizId: string
   assignedCompetitorId: string | null
@@ -229,13 +230,13 @@ export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
 export type HeadToHeadResultStatus = 'correct' | 'incorrect' | 'skipped'
 
 export type SafeQuestion =
-  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<PinpointQuestion, 'target' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<PinpointQuestion, 'target' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
 
 interface SafeAssignment {
   assignedCompetitorId?: string | null
@@ -310,7 +311,23 @@ export interface HeadToHeadCompetitor {
   displayOrder: 0 | 1
 }
 
+export interface QuizRound {
+  id: string
+  quizId: string
+  title: string
+  subtitle: string
+  displayOrder: number
+  introEnabled: boolean
+}
+
+export interface SafeRound extends Omit<QuizRound, 'quizId' | 'displayOrder'> {
+  roundNumber: number
+  totalRounds: number
+  questionCount: number
+}
+
 export interface Quiz {
+  rounds: QuizRound[]
   id: string
   title: string
   quizType: QuizType
@@ -365,6 +382,7 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  currentRoundId: string | null
   id: string
   quizId: string
   roomCode: string
@@ -395,6 +413,7 @@ export interface LeaderboardEntry {
 }
 
 export interface SafeGameState {
+  currentRound?: SafeRound | null
   sessionId: string
   quizTitle: string
   quizType?: QuizType

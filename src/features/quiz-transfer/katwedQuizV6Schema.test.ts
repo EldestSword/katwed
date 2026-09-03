@@ -9,7 +9,10 @@ const validate = ajv.compile(JSON.parse(readFileSync('docs/schemas/katwed-quiz-v
 
 describe('portable v6 schema', () => {
   it('validates complete exports with all three target variants', () => {
-    const file = exportQuizToPortable(mixedDemoQuiz)
+    const exported = exportQuizToPortable(mixedDemoQuiz)
+    const { rounds, ...quiz } = exported.quiz
+    expect(rounds).toHaveLength(1)
+    const file = { ...exported, formatVersion: 6, quiz: { ...quiz, questions: quiz.questions.map(({ roundKey, ...question }) => { expect(roundKey).toBeTruthy(); return question }) } }
     expect(validate(file), JSON.stringify(validate.errors)).toBe(true)
     const question = file.quiz.questions.find((q) => q.type === 'pinpoint')!
     if (question.type !== 'pinpoint') throw new Error('Missing fixture')

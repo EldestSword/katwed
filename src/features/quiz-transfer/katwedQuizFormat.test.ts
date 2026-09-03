@@ -30,12 +30,18 @@ function uuidFactory() {
   return () => `00000000-0000-4000-8000-${String(next++).padStart(12, '0')}`
 }
 
+function asV6(file: ReturnType<typeof exportQuizToPortable>): KatwedQuizFileV6 {
+  const { rounds, ...quiz } = file.quiz
+  expect(rounds).toHaveLength(1)
+  return { ...file, formatVersion: 6, quiz: { ...quiz, questions: quiz.questions.map(({ roundKey, ...question }) => { expect(roundKey).toBeTruthy(); return question }) } }
+}
+
 function standardFile(): KatwedQuizFileV6 {
-  return structuredClone(exportQuizToPortable(mixedDemoQuiz))
+  return asV6(exportQuizToPortable(mixedDemoQuiz))
 }
 
 function headToHeadFile(): KatwedQuizFileV6 {
-  return structuredClone(exportQuizToPortable(headToHeadDemoQuiz))
+  return asV6(exportQuizToPortable(headToHeadDemoQuiz))
 }
 
 function parse(file: KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4 | KatwedQuizFileV6) {
@@ -46,6 +52,8 @@ function quizFromInput(parsed: ReturnType<typeof parse>, id = 'new-quiz'): Quiz 
   return {
     id,
     ...structuredClone(parsed.input),
+    rounds: parsed.input.rounds!.map((round) => ({ ...round, quizId: id })),
+    questions: parsed.input.questions.map((question) => ({ ...structuredClone(question), quizId: id })),
     answerPaletteId: parsed.input.answerPaletteId ?? 'classic',
     customAnswerColours: parsed.input.customAnswerColours ?? mixedDemoQuiz.customAnswerColours,
     soundPackId: parsed.input.soundPackId ?? 'katwed',
@@ -69,7 +77,7 @@ describe('Katwed quiz portable parser', () => {
     expect(imported.input.questions[0]).toMatchObject({ target: { kind: 'circle', x: .5, y: .43, radius: .12 } })
     expect(imported.input.questions[0]).not.toHaveProperty('targetX')
     const exported = exportQuizToPortable(quizFromInput(imported))
-    expect(exported.formatVersion).toBe(6)
+    expect(exported.formatVersion).toBe(7)
     expect(exported.quiz.questions[0]).not.toHaveProperty('targetRadius')
   })
 
@@ -82,7 +90,7 @@ describe('Katwed quiz portable parser', () => {
     const question = file.quiz.questions.find((q) => q.type === 'pinpoint')!
     if (question.type !== 'pinpoint') throw new Error('Missing fixture')
     question.target = target
-    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+    expect(asV6(exportQuizToPortable(quizFromInput(parse(file))))).toEqual(file)
   })
 
   it('rejects malformed shapes and shape fields in older versions', () => {
@@ -100,7 +108,7 @@ describe('Katwed quiz portable parser', () => {
     expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), format: 'another-format' }))).toThrow(
       'not a Katwed quiz file',
     )
-    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 7 }))).toThrow(
+    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 8 }))).toThrow(
       'format version is not supported',
     )
   })
@@ -305,7 +313,7 @@ describe('Katwed quiz portable parser', () => {
       type: 'typed-answer', correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
     })
     const exported = exportQuizToPortable(quizFromInput(parsed))
-    expect(exported.formatVersion).toBe(6)
+    expect(exported.formatVersion).toBe(7)
     expect(exported.quiz.questions[0]).toMatchObject({ type: 'typed-answer', correctAnswer: 'Red Dwarf' })
   })
 
@@ -366,7 +374,7 @@ describe('Katwed quiz portable parser', () => {
     expect(parsed.input.answerPaletteId).toBe('classic')
     expect(parsed.input.customAnswerColours).toEqual(mixedDemoQuiz.customAnswerColours)
     expect(exportQuizToPortable(quizFromInput(parsed))).toMatchObject({
-      formatVersion: 6,
+      formatVersion: 7,
       quiz: {
         answerPaletteId: 'classic',
         customAnswerColours: mixedDemoQuiz.customAnswerColours,
@@ -381,14 +389,14 @@ describe('Katwed quiz portable parser', () => {
       '#102030', '#203040', '#304050', '#405060',
       '#506070', '#607080', '#708090', '#8090A0',
     ]
-    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+    expect(asV6(exportQuizToPortable(quizFromInput(parse(file))))).toEqual(file)
 
     file.quiz.soundPackId = 'none'
-    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+    expect(asV6(exportQuizToPortable(quizFromInput(parse(file))))).toEqual(file)
 
     file.quiz.soundPackId = 'hard-rock'
     expect(parse(file).input.soundPackId).toBe('hard-rock')
-    expect(exportQuizToPortable(quizFromInput(parse(file)))).toEqual(file)
+    expect(asV6(exportQuizToPortable(quizFromInput(parse(file))))).toEqual(file)
 
     const unsupportedSound = standardFile() as unknown as { quiz: { soundPackId: string } }
     unsupportedSound.quiz.soundPackId = 'future-pack'
@@ -521,7 +529,7 @@ describe('Katwed quiz portable v2 ID remapping and round trip', () => {
     const sourceJson = JSON.stringify(file)
     const parsed = parse(file)
     const roundTrip = exportQuizToPortable(quizFromInput(parsed))
-    expect(roundTrip).toEqual(file)
+    expect(asV6(roundTrip)).toEqual(file)
     expect(JSON.stringify(roundTrip)).not.toContain(mixedDemoQuiz.id)
     expect(JSON.stringify(parsed.input)).not.toContain('competitor-1')
     expect(JSON.stringify(parsed.input)).not.toContain('person-1')
@@ -533,7 +541,7 @@ describe('Katwed quiz portable v2 ID remapping and round trip', () => {
     const serialised = serialiseKatwedQuiz(headToHeadDemoQuiz)
     const portable = JSON.parse(serialised) as KatwedQuizFileV6
     expect(portable.format).toBe('katwed-quiz')
-    expect(portable.formatVersion).toBe(6)
+    expect(portable.formatVersion).toBe(7)
     expect(portable.quiz.competitors.map((competitor) => competitor.key)).toEqual(['competitor-1', 'competitor-2'])
     expect(portable.quiz.questions[0].key).toBe('q1')
     expect(portable.quiz.questions[0].assignedTo).toBe('competitor-1')

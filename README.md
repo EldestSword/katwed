@@ -111,9 +111,17 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 6 is the export target on the Visual Pinpoint Authoring branch. It adds circle, rectangle and polygon target objects while importing versions 1–5 and automatically translating legacy Pinpoint coordinates into equivalent circles. Version 5's sound-pack and version 4's answer-palette semantics are retained. All six schemas remain aligned with the trusted 51-theme/153-background registry. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v6.md`](docs/katwed-quiz-format-v6.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v6.schema.json); the v1–v5 documentation and schemas remain available for existing generators.
+Version 7 is the export target on the Core Rounds branch. It adds ordered rounds and required question-to-round references; versions 1–6 import into a silent default Round 1. V6 circle, rectangle and polygon targets are retained, and legacy Pinpoint coordinates still become equivalent circles. Version 5's sound-pack and version 4's answer-palette semantics are retained. All seven schemas remain aligned with the trusted 51-theme/153-background registry. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v7.md`](docs/katwed-quiz-format-v7.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v7.schema.json); the v1–v6 documentation and schemas remain available for existing generators.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
+
+### Core Rounds (implemented locally, pending release)
+
+Standard quizzes now contain ordered rounds. The three-panel editor groups questions by round and supports round titles, subtitles, intro toggles, reordering and moving questions between rounds. New quizzes and legacy imports begin with a silent Round 1; added rounds default to an intro. Empty rounds are allowed while drafting and must receive questions before launch. Head-to-Head remains a single structural round with its existing competitor controls.
+
+Enabled rounds pause on a themed, host-controlled intro across Presentation, the compact controller preview and Player. **Start round** opens the first question with its full normal timer. **Next round** appears at round boundaries, session shuffle stays within rounds and final results still require explicit host reveal. Safe round metadata contains no question or answer key. The existing session broadcasts cover these transitions without extra polling or answer/player fan-out.
+
+Forward migration `20260903221013_core_rounds.sql` backfills one silent round per quiz and preserves existing question order and session timestamps. It follows the pending Visual Pinpoint migration and has not been applied to production. See [Core Rounds architecture and local verification](docs/core-rounds.md) and [portable format v7](docs/katwed-quiz-format-v7.md).
 
 ### Typed Answer and deterministic tile reveal
 
@@ -452,10 +460,12 @@ Applied production migrations, in order:
 202608300003_visual_theme_batch_3.sql
 ```
 
-Pending, deliberately unapplied migration:
+Pending, deliberately unapplied migrations:
 
 ```text
 20260901094653_realtime_scaling_free_tier.sql
+20260903203203_visual_pinpoint_targets.sql
+20260903221013_core_rounds.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
