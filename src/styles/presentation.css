@@ -140,6 +140,15 @@
 .presentation-stage .leaderboard--presentation li.is-top-rank { min-height: clamp(3.8rem, 7vh, 5.6rem); border-color: var(--quiz-room-accent); }
 .presentation-stage .leaderboard__points { font-weight: 900; }
 
+.animated-leaderboard { width: 100%; min-width: 0; }
+.presentation-stage .leaderboard--animated li { animation: none; }
+.leaderboard--animated .leaderboard__points { display: flex; justify-content: flex-end; align-items: center; gap: .6em; font-variant-numeric: tabular-nums; }
+.leaderboard__movement { min-width: 3em; display: inline-flex; justify-content: center; padding: .2em .35em; border: 1px solid var(--quiz-border); border-radius: var(--radius-round); color: var(--quiz-text); background: var(--quiz-surface-secondary); font-size: .65em; }
+.leaderboard__movement[data-direction="up"] { border-color: var(--quiz-progress); }
+.presentation-stage .leaderboard--animated li.is-moving-highlight { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--quiz-room-accent), 0 .6rem 1.6rem color-mix(in srgb, var(--quiz-room-accent) 35%, transparent); }
+.leaderboard-commentary { min-height: clamp(4rem, 9vh, 7rem); display: grid; place-items: center; padding: .4rem 1rem; }
+.leaderboard-commentary p { max-width: 70rem; margin: 0; padding: .45em .85em; border: 2px solid var(--quiz-room-accent); border-radius: var(--radius-md); color: var(--quiz-text); background: var(--quiz-surface); font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2.8rem); font-weight: 900; line-height: 1.12; text-transform: uppercase; overflow-wrap: anywhere; }
+
 .presentation-stage--compact { width: 100%; min-height: 100%; aspect-ratio: 16 / 9; overflow: hidden; padding: .65rem; font-size: .68rem; }
 .presentation-stage--compact::after { display: none; }
 .presentation-stage--compact .presentation-lobby,
@@ -208,6 +217,8 @@
 .presentation-stage--compact .leaderboard--presentation .leaderboard__rank { width: 1.35rem; height: 1.35rem; font-size: .62rem; }
 .presentation-stage--compact .leaderboard--presentation .leaderboard__name { font-size: .76rem; }
 .presentation-stage--compact .leaderboard--presentation .leaderboard__points { font-size: .68rem; }
+.presentation-stage--compact .leaderboard-commentary { min-height: 2.2rem; padding: .2rem; }
+.presentation-stage--compact .leaderboard-commentary p { font-size: .85rem; padding: .3em .6em; border-width: 1px; }
 .presentation-stage--compact .final-results__celebration { display: none; }
 .presentation-stage--compact .final-podium { margin: .35rem; gap: .3rem; }
 .presentation-stage--compact .final-podium li { min-height: 3.5rem; padding: .3rem; border-radius: .45rem .45rem .2rem .2rem; }

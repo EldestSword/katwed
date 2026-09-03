@@ -128,6 +128,10 @@
 .player-game .leaderboard li { grid-template-columns: 2.5rem minmax(0, 1fr) auto; border-radius: var(--radius-md); }
 .player-game .leaderboard li.is-top-rank { border-color: var(--quiz-room-accent); }
 .player-game .leaderboard__points { font-size: .82rem; font-weight: 850; }
+.player-rank-movement { display: grid; gap: .25rem; margin: .8rem 0; padding: .8rem 1rem; border: 2px solid var(--quiz-border); border-radius: var(--radius-md); color: var(--quiz-text); background: var(--quiz-surface-secondary); text-align: center; }
+.player-rank-movement strong { font-family: var(--font-display); font-size: clamp(1.25rem, 5vw, 1.8rem); text-transform: uppercase; }
+.player-rank-movement[data-direction="up"] { border-color: var(--quiz-progress); }
+.player-rank-movement > span { color: var(--quiz-muted); }
 .finished-state { width: min(calc(100% - 1.25rem), 54rem); overflow: hidden; }
 .finished-state .final-results, .finished-state .head-to-head-final { min-height: 0; }
 .finished-state .final-results__celebration { opacity: .55; }
