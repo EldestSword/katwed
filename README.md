@@ -276,7 +276,7 @@ Large, accessible True and False controls. Visual order is stable.
 
 ### Slider
 
-Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player sees the current numeric value and can use a keyboard.
+Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player control starts at a snapped midpoint labelled as unchosen; Lock in stays disabled until an interaction selects a value. `PlayerSliderAnswer` retains a native keyboard-accessible range with a 40px thumb and 56px touch area, immediate pointer dragging and track taps, a travelling formatted value bubble, and decimal-safe single-step −/+ buttons. Pointer capture keeps dragging on the control and only the range suppresses touch scrolling. The player payload, scoring, authoring and presentation range context are unchanged; this player UI update requires no database migration.
 
 ### Pinpoint
 

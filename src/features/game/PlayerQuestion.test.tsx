@@ -102,6 +102,8 @@ describe('PlayerQuestion slider', () => {
     expect(slider.tagName).toBe('INPUT')
     expect(slider.type).toBe('range')
     expect(slider.closest('.slider-answer__interaction')).not.toBeNull()
+    expect(slider).toHaveValue('50')
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
     fireEvent.change(slider, { target: { value: '60' } })
     expect(slider.value).toBe('60')
     expect(screen.getByText(/60 units/)).toBeVisible()
@@ -113,6 +115,31 @@ describe('PlayerQuestion slider', () => {
     await user.click(screen.getByRole('button', { name: 'Lock in' }))
     expect(onSubmit).toHaveBeenCalledWith({ type: 'slider', value: Number(slider.value) })
     expect(container.querySelector('.slider-answer')).not.toBeInTheDocument()
+  })
+
+  it('only submits a nudged decimal answer on Lock in and clears selection for the next question', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const decimalQuestion = { ...sliderQuestion, minimum: -2.5, maximum: 2.5, step: .25 }
+    const { rerender } = render(<PlayerQuestion question={decimalQuestion} roster={[]} closesAt={null} onSubmit={onSubmit} />)
+    await user.click(screen.getByRole('button', { name: 'Increase answer' }))
+    await user.click(screen.getByRole('button', { name: 'Increase answer' }))
+    await user.click(screen.getByRole('button', { name: 'Decrease answer' }))
+    expect(screen.getByRole('slider')).toHaveValue('0.25')
+    expect(onSubmit).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Lock in' }))
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ type: 'slider', value: .25 })
+    expect(screen.getByRole('heading', { name: 'Answer locked' })).toBeVisible()
+    rerender(<PlayerQuestion question={{ ...decimalQuestion, id: 'next-slider' }} roster={[]} closesAt={null} onSubmit={onSubmit} />)
+    expect(screen.getByRole('slider')).toHaveValue('0')
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
+  })
+
+  it('restores a submitted slider answer without offering another selection', () => {
+    render(<PlayerQuestion question={sliderQuestion} roster={[]} closesAt={null} initialAnswer={{ type: 'slider', value: 60 }} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'Answer locked' })).toBeVisible()
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+    expect(screen.queryByText(/correct/i)).not.toBeInTheDocument()
   })
 })
 

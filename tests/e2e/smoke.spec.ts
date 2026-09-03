@@ -570,12 +570,12 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
     }
   })
   expect(sliderStyle).toMatchObject({
-    inputTouchAction: 'pan-y',
-    interactionTouchAction: 'pan-y',
-    overscrollBehaviorX: 'contain',
+    inputTouchAction: 'none',
+    interactionTouchAction: 'auto',
+    overscrollBehaviorX: 'auto',
   })
-  expect(sliderStyle.paddingLeft).toBeGreaterThanOrEqual(24)
-  expect(sliderStyle.paddingRight).toBeGreaterThanOrEqual(24)
+  expect(sliderStyle.paddingLeft).toBe(0)
+  expect(sliderStyle.paddingRight).toBe(0)
   await expect(sliderInteraction).toBeVisible()
   const sliderBox = await slider.boundingBox()
   if (!sliderBox) throw new Error('Slider was not visible')
@@ -585,6 +585,7 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   expect(sliderBox.x).toBeGreaterThanOrEqual(24)
   expect(viewport.width - sliderBox.x - sliderBox.width).toBeGreaterThanOrEqual(24)
   await slider.focus()
+  await slider.press('Home')
   await slider.press('ArrowRight')
   await expect(slider).toHaveValue('1')
   await slider.fill('0')

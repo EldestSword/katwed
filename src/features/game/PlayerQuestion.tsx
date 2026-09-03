@@ -15,6 +15,7 @@ import { AnswerTile } from '../../components/design-system/AnswerTile'
 import { GameTimer } from '../../components/design-system/GameTimer'
 import { QuestionProgressBadge } from '../../components/design-system/LiveGamePrimitives'
 import { PinpointSurface } from './PinpointSurface'
+import { PlayerSliderAnswer } from './PlayerSliderAnswer'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
@@ -227,17 +228,10 @@ export function PlayerQuestion({
       )}
 
       {question.type === 'slider' && (
-        <div className="slider-answer">
-          <p className="eyebrow">Your value</p>
-          <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix}{question.unitLabel ? ` ${question.unitLabel}` : ''}</output>
-          <div className="slider-answer__interaction">
-            <input type="range" min={question.minimum} max={question.maximum} step={question.step}
-              value={answer?.type === 'slider' ? answer.value : question.minimum}
-              aria-label={question.unitLabel || 'Answer value'}
-              onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
-          </div>
-          <div className="slider-answer__limits"><span><small>Minimum</small>{question.prefix}{question.minimum}{question.suffix}</span><span><small>Maximum</small>{question.prefix}{question.maximum}{question.suffix}</span></div>
-        </div>
+        <PlayerSliderAnswer key={question.id} question={question}
+          value={answer?.type === 'slider' ? answer.value : null}
+          disabled={submitting || timedOut}
+          onChange={(value) => setAnswer({ type: 'slider', value })} />
       )}
 
       {question.type === 'pinpoint' && (
