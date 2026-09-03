@@ -1,3 +1,4 @@
+import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
 import type { RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
@@ -31,9 +32,7 @@ function isRevealPayload(value: unknown): value is RevealPayload {
     case 'slider':
       return isFiniteNumber(value.correctValue) && isFiniteNumber(value.tolerance) && Array.isArray(value.values)
     case 'pinpoint':
-      return isFiniteNumber(value.targetX) && value.targetX >= 0 && value.targetX <= 1 &&
-        isFiniteNumber(value.targetY) && value.targetY >= 0 && value.targetY <= 1 &&
-        isFiniteNumber(value.targetRadius) && value.targetRadius > 0 && value.targetRadius <= 1 &&
+      return normalisePinpointTarget(value) !== null &&
         Array.isArray(value.points) && value.points.every((point) =>
           isRecord(point) && isFiniteNumber(point.x) && point.x >= 0 && point.x <= 1 &&
           isFiniteNumber(point.y) && point.y >= 0 && point.y <= 1)
@@ -52,6 +51,7 @@ function outcomeNeutralReveal(reveal: RevealPayload | null): RevealPayload | nul
   if (!reveal) return null
   return {
     ...reveal,
+    ...(reveal.type === 'pinpoint' ? { target: normalisePinpointTarget(reveal)! } : {}),
     caption: reveal.caption.replace(/^Correct:\s*/i, ''),
   }
 }
@@ -90,6 +90,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
       'correctOptionIds',
       'correctValue',
       'tolerance',
+      'target',
       'targetX',
       'targetY',
       'targetRadius',

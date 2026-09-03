@@ -43,6 +43,18 @@ const safeState = {
 }
 
 describe('parseSafeGameState', () => {
+  it.each([
+    { kind: 'rectangle', x: .2, y: .3, width: .4, height: .5 },
+    { kind: 'polygon', points: [{ x: .1, y: .1 }, { x: .9, y: .1 }, { x: .4, y: .9 }] },
+  ])('accepts a $kind target only after reveal', (target) => {
+    const reveal = { type: 'pinpoint', target, caption: '', points: [] }
+    expect(parseSafeGameState({ ...safeState, reveal }).reveal).toEqual(reveal)
+    for (const phase of ['lobby', 'question', 'locked']) {
+      expect(() => parseSafeGameState({ ...safeState, phase, reveal })).toThrow(/reveal data/)
+      expect(() => parseSafeGameState({ ...safeState, phase, reveal: null, currentQuestion: { ...safeState.currentQuestion, target } })).toThrow(/answer key/)
+    }
+    expect(parseSafeGameState(safeState).reveal).toMatchObject({ target: { kind: 'circle', x: .5, y: .43, radius: .12 } })
+  })
   it('retains supported themes and normalises unknown backend values safely', () => {
     expect(parseSafeGameState(safeState).themeId).toBe('midnight')
     expect(parseSafeGameState(safeState).backgroundId).toBe('midnight-stars')

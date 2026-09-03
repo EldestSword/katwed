@@ -93,7 +93,7 @@ function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPa
     case 'pinpoint':
       return question.type === 'pinpoint' ? (
         <div className="presentation-pinpoint-reveal">
-          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} allowEnlarge={!compact} />
+          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={reveal.target} allowEnlarge={!compact} />
           <div className="pinpoint-legend" aria-label="Pinpoint answer legend"><span><i className="pinpoint-key pinpoint-key--response" />Player answers</span><span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div>
           <p className="sr-only">The correct target location has been displayed.</p>
         </div>

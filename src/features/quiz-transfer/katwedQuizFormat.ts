@@ -1,6 +1,8 @@
+import { isPinpointTarget, normalisePinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES } from '../../types/domain'
 import type {
   ChoiceOption,
+  PinpointTarget,
   AnswerColourTuple,
   AnswerPaletteId,
   ImageRevealEffect,
@@ -27,7 +29,8 @@ import {
 import { isSoundPackId } from '../audio/soundPacks'
 
 export const KATWED_QUIZ_FORMAT = 'katwed-quiz' as const
-export const KATWED_QUIZ_FORMAT_VERSION = 5 as const
+export const KATWED_QUIZ_FORMAT_VERSION = 6 as const
+export const KATWED_QUIZ_V5_FORMAT_VERSION = 5 as const
 export const KATWED_QUIZ_V4_FORMAT_VERSION = 4 as const
 export const KATWED_QUIZ_V3_FORMAT_VERSION = 3 as const
 export const KATWED_QUIZ_V2_FORMAT_VERSION = 2 as const
@@ -188,13 +191,25 @@ export interface PortableQuizV5 extends PortableQuizV4 {
 
 export interface KatwedQuizFileV5 {
   format: typeof KATWED_QUIZ_FORMAT
-  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  formatVersion: typeof KATWED_QUIZ_V5_FORMAT_VERSION
   quiz: PortableQuizV5
 }
 
-export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4 | KatwedQuizFileV5
-type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3 | PortableQuizV4 | PortableQuizV5
-type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3
+export type PortableQuestionV6 = Exclude<PortableQuestionV3, { type: 'pinpoint' }> | (
+  Omit<Extract<PortableQuestionV3, { type: 'pinpoint' }>, 'targetX' | 'targetY' | 'targetRadius'> & { target: PinpointTarget }
+)
+export interface PortableQuizV6 extends Omit<PortableQuizV5, 'questions'> { questions: PortableQuestionV6[] }
+export interface KatwedQuizFileV6 {
+  format: typeof KATWED_QUIZ_FORMAT
+  formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION
+  quiz: PortableQuizV6
+}
+
+export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4 | KatwedQuizFileV5 | KatwedQuizFileV6
+type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3 | PortableQuizV4 | PortableQuizV5 | PortableQuizV6
+type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3 | PortableQuestionV6
+// Common metadata is normalised while each question retains its source-version fields.
+type ParsedPortableQuiz = Omit<PortableQuizV6, 'questions'> & { questions: PortableQuestion[] }
 
 export interface QuizImportSummary {
   title: string
@@ -304,7 +319,7 @@ function safeMediaReference(value: unknown, subject: string): string {
   return value.trim()
 }
 
-function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3 | 4 | 5): QuestionMedia {
+function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3 | 4 | 5 | 6): QuestionMedia {
   const media = record(value, `${subject} media`)
   const type = stringField(media, 'type', `${subject} media`)
   switch (type) {
@@ -370,7 +385,7 @@ const commonQuestionKeys = [
   'revealCaption', 'media', 'mediaVisibility', 'presentationChoiceVisibility',
 ] as const
 
-function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 | 4 | 5): PortableQuestion {
+function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 | 4 | 5 | 6): PortableQuestion {
   const subject = `Question ${index + 1}`
   const question = record(value, subject)
   const type = stringField(question, 'type', subject)
@@ -379,7 +394,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
     'multiple-select': ['options', 'correctOptionKeys', 'minimumSelections', 'maximumSelections', 'scoringMode', 'randomiseOptions'],
     'true-false': ['correctValue'],
     slider: ['minimum', 'maximum', 'step', 'correctValue', 'tolerance', 'prefix', 'suffix', 'unitLabel'],
-    pinpoint: ['targetX', 'targetY', 'targetRadius'],
+    pinpoint: formatVersion >= 6 ? ['target'] : ['targetX', 'targetY', 'targetRadius'],
     'typed-answer': ['correctAnswer', 'acceptedAnswers'],
     mashup: ['correctPersonKeys'],
   }
@@ -470,6 +485,10 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
       }
     case 'pinpoint': {
       if (base.media.type !== 'image') fail(`${subject} must use image media for Pinpoint.`)
+      if (formatVersion >= 6) {
+        if (!isPinpointTarget(question.target)) fail(`${subject} has an invalid Pinpoint target area.`)
+        return { ...base, type, media: base.media, target: structuredClone(question.target) }
+      }
       return {
         ...base,
         type,
@@ -504,7 +523,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
   }
 }
 
-function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5): PortableQuizV5 {
+function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5 | 6): ParsedPortableQuiz {
   const quiz = record(value, 'The quiz')
   exactKeys(quiz, [
     'title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions',
@@ -612,7 +631,7 @@ function mapOption(option: PortableChoiceOptionV1, id: string): ChoiceOption {
 }
 
 export function createQuizSaveInputFromPortable(
-  quiz: PortableQuiz,
+  quiz: PortableQuiz | ParsedPortableQuiz,
   createId: IdFactory = () => crypto.randomUUID(),
 ): QuizSaveInput {
   const quizId = createId()
@@ -704,9 +723,7 @@ export function createQuizSaveInputFromPortable(
           ...base,
           type: question.type,
           media: structuredClone(question.media),
-          targetX: question.targetX,
-          targetY: question.targetY,
-          targetRadius: question.targetRadius,
+          target: normalisePinpointTarget(question),
         }
       case 'typed-answer':
         return {
@@ -744,7 +761,7 @@ export function createQuizSaveInputFromPortable(
   return input
 }
 
-function hasReferencedMedia(quiz: PortableQuiz): boolean {
+function hasReferencedMedia(quiz: PortableQuiz | ParsedPortableQuiz): boolean {
   return Boolean(quiz.coverImagePath) || quiz.questions.some((question) => (
     question.media?.type === 'image' ||
     ('options' in question && question.options.some((option) => Boolean(option.imagePath)))
@@ -772,11 +789,12 @@ export function parseKatwedQuizJson(
     file.formatVersion !== KATWED_QUIZ_V2_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_V3_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_V4_FORMAT_VERSION &&
+    file.formatVersion !== KATWED_QUIZ_V5_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION
   ) {
     fail('This Katwed quiz format version is not supported.')
   }
-  const formatVersion = file.formatVersion as 1 | 2 | 3 | 4 | 5
+  const formatVersion = file.formatVersion as 1 | 2 | 3 | 4 | 5 | 6
   const quiz = parsePortableQuiz(file.quiz, formatVersion)
   const portable = {
     format: KATWED_QUIZ_FORMAT,
@@ -838,12 +856,12 @@ function exportOptions(options: readonly ChoiceOption[]): { options: PortableCho
   return { options: portable, keys }
 }
 
-export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV5 {
+export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV6 {
   const competitors = [...quiz.headToHeadCompetitors].sort((a, b) => a.displayOrder - b.displayOrder)
   const competitorKeys = new Map(competitors.map((competitor, index) => [competitor.id, `competitor-${index + 1}`]))
   const roster = [...quiz.roster].sort((a, b) => a.displayOrder - b.displayOrder)
   const rosterKeys = new Map(roster.map((member, index) => [member.id, `person-${index + 1}`]))
-  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV3 => {
+  const questions = [...quiz.questions].sort((a, b) => a.displayOrder - b.displayOrder).map((question, index): PortableQuestionV6 => {
     const base = {
       key: `q${index + 1}`,
       assignedTo: question.assignedCompetitorId === null
@@ -904,9 +922,7 @@ export function exportQuizToPortable(quiz: Quiz): KatwedQuizFileV5 {
           ...base,
           type: question.type,
           media: structuredClone(question.media),
-          targetX: question.targetX,
-          targetY: question.targetY,
-          targetRadius: question.targetRadius,
+          target: normalisePinpointTarget(question)!,
         }
       case 'typed-answer':
         return {

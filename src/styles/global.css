@@ -665,7 +665,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .pinpoint-coordinate-surface img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .pinpoint-coordinate-layer { position: absolute; touch-action: manipulation; }
 .pinpoint-coordinate-layer.is-interactive { cursor: crosshair; }
-.pinpoint-marker, .pinpoint-target { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+.pinpoint-marker { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
 .pinpoint-marker--player {
   width: 1.6rem;
   height: 1.6rem;
@@ -682,33 +682,9 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   background: #fff;
   transform: translate(-50%, -50%) rotate(45deg);
 }
-.pinpoint-target {
-  min-width: 1rem;
-  min-height: 1rem;
-  border: clamp(3px, .45vw, 7px) solid #ff4f8b;
-  border-radius: 50%;
-  background: #ffda4e55;
-  box-shadow: 0 0 0 clamp(2px, .18vw, 4px) #fff, 0 0 1.2rem #11162daa;
-}
-.pinpoint-target__centre {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: clamp(.75rem, 2vw, 1.4rem);
-  height: clamp(.75rem, 2vw, 1.4rem);
-  transform: translate(-50%, -50%);
-}
-.pinpoint-target__centre::before, .pinpoint-target__centre::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 100%;
-  height: 3px;
-  background: #11162d;
-  transform: translate(-50%, -50%);
-}
-.pinpoint-target__centre::after { transform: translate(-50%, -50%) rotate(90deg); }
+.pinpoint-target-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+.pinpoint-target-overlay > * { fill: #ffda4e44; stroke: #ff4f8b; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.pinpoint-coordinate-layer.is-drawing { cursor: crosshair; touch-action: none; user-select: none; }
 .pinpoint-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem 1.4rem; margin: .75rem auto; font-weight: 900; }
 .pinpoint-legend span { display: inline-flex; align-items: center; gap: .5rem; }
 .pinpoint-key { display: inline-block; width: 1.15rem; height: 1.15rem; }

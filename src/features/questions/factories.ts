@@ -71,9 +71,7 @@ export function createQuestion(
         ...base,
         type,
         media: { type: 'image', path: '', altText: 'Question image', revealEffect: 'immediate', revealDurationSeconds: 0 },
-        targetX: 0.5,
-        targetY: 0.5,
-        targetRadius: 0.08,
+        target: null,
       }
     case 'typed-answer':
       return { ...base, type, correctAnswer: '', acceptedAnswers: [] }

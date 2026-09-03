@@ -1,3 +1,4 @@
+import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   GameSession,
@@ -46,6 +47,7 @@ function normaliseQuiz(quiz: Quiz): Quiz {
   )
   return normaliseQuizHeadToHead({
     ...quiz,
+    questions: quiz.questions.map(normalisePinpointQuestion),
     ...answerPalette,
     soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
     themeId,

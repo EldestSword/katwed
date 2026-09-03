@@ -1,6 +1,6 @@
 # Katwed quiz portable format v5
 
-Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 5 supports Standard and Head-to-Head quizzes, all seven question types, Standard speed scoring, Double Score, configurable tile grids, quiz-wide positional answer palettes, and a quiz-selected shared Presentation sound pack. New exports use version 5. The importer continues to accept versions 1, 2, 3 and 4.
+Katwed quiz files are UTF-8 JSON documents with the filename suffix `.katwed.json`. Version 5 supports Standard and Head-to-Head quizzes, all seven question types, Standard speed scoring, Double Score, configurable tile grids, quiz-wide positional answer palettes, and a quiz-selected shared Presentation sound pack. This document describes the preserved v5 format. Visual Pinpoint Authoring exports [version 6](katwed-quiz-format-v6.md) and continues to import versions 1–5.
 
 Exported files contain correct answers. Keep a file closed if the person importing it intends to play the quiz blind. The machine-readable companion is [`schemas/katwed-quiz-v5.schema.json`](schemas/katwed-quiz-v5.schema.json). Runtime import remains authoritative for cross-references, safe media references, theme/background compatibility, Typed Answer normalisation, and normal quiz-save validation.
 

@@ -1,3 +1,5 @@
+import { PinpointTargetEditor } from '../features/quiz-editor/PinpointTargetEditor'
+import { PinpointSurface } from '../features/game/PinpointSurface'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
@@ -277,7 +279,7 @@ export function QuizEditorPage() {
               data-question-density={questionTextDensity(selected.prompt, previewShowsMedia(selected, previewMode))}
               {...quizThemeSurfaceProps(quiz.themeId, quiz.backgroundId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
-            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media">{selected.type === 'pinpoint' ? <PinpointSurface path={selected.media.path} alt={selected.media.altText} mode="author" target={selected.target} allowEnlarge={false} /> : <QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} />}</div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
@@ -793,7 +795,7 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
   }
   if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
   if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
-  if (question.type === 'pinpoint') return <fieldset><legend>Target</legend>{(['targetX', 'targetY', 'targetRadius'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" min="0" max="1" step="0.01" value={question[field]} onChange={(event) => update((current) => current.type === 'pinpoint' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  if (question.type === 'pinpoint') return <PinpointTargetEditor key={question.id + question.media.path} question={question} onChange={(target) => update((current) => current.type === 'pinpoint' ? { ...current, target } : current)} />
   if (question.type === 'typed-answer') return <fieldset><legend>Typed answer</legend>
     <label><span>Primary answer</span><input maxLength={MAX_TYPED_ANSWER_LENGTH} value={question.correctAnswer} onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, correctAnswer: event.target.value } : current)} /></label>
     <label><span>Also accept</span><textarea key={question.id} rows={6} defaultValue={question.acceptedAnswers.join('\n')} placeholder="One alternative per line" onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, acceptedAnswers: parseTypedAnswerAlternatives(event.target.value) } : current)} /></label>

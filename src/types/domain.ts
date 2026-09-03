@@ -180,12 +180,19 @@ export interface SliderQuestion extends QuestionBase {
   unitLabel: string
 }
 
+export interface PinpointPoint { x: number; y: number }
+
+/** Coordinates use the image's unit square; rectangles start at their top-left. */
+export type PinpointTarget =
+  | { kind: 'circle'; x: number; y: number; radius: number }
+  | { kind: 'rectangle'; x: number; y: number; width: number; height: number }
+  | { kind: 'polygon'; points: PinpointPoint[] }
+
 export interface PinpointQuestion extends QuestionBase {
   type: 'pinpoint'
   media: Extract<QuestionMedia, { type: 'image' }>
-  targetX: number
-  targetY: number
-  targetRadius: number
+  /** Null is an unfinished editor draft and cannot be saved. */
+  target: PinpointTarget | null
 }
 
 export interface TypedAnswerQuestion extends QuestionBase {
@@ -226,7 +233,7 @@ export type SafeQuestion =
   | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<PinpointQuestion, 'target' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
 
@@ -270,9 +277,7 @@ export type RevealPayload =
     }
   | {
       type: 'pinpoint'
-      targetX: number
-      targetY: number
-      targetRadius: number
+      target: PinpointTarget
       caption: string
       points: Array<{ x: number; y: number }>
     }

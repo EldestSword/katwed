@@ -1,3 +1,4 @@
+import { normalisePinpointTarget, pinpointContains } from '../features/game/pinpointTargets'
 import type {
   LeaderboardEntry,
   Player,
@@ -100,8 +101,7 @@ export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): 
         payload.y < 0 ||
         payload.y > 1
       ) return invalid('invalid-coordinates')
-      const distance = Math.hypot(payload.x - question.targetX, payload.y - question.targetY)
-      const correct = distance <= question.targetRadius + Number.EPSILON
+      const correct = pinpointContains(normalisePinpointTarget(question), payload)
       return { valid: true, correct, points: correct ? question.points : 0 }
     }
     case 'typed-answer': {

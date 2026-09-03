@@ -1,3 +1,4 @@
+import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import type {
   GameSession,
   GameSessionSettings,
@@ -109,6 +110,7 @@ function normaliseState(state: DemoState): DemoState {
     )
     return normaliseQuizHeadToHead({
       ...quiz,
+      questions: quiz.questions.map(normalisePinpointQuestion),
       ...answerPalette,
       soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
       coverImagePath: quiz.coverImagePath ?? null,
@@ -302,9 +304,7 @@ function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Q
     case 'pinpoint':
       return {
         type: question.type,
-        targetX: question.targetX,
-        targetY: question.targetY,
-        targetRadius: question.targetRadius,
+        target: question.target!,
         caption: question.revealCaption,
         points: answers.flatMap((answer) => answer.payload.type === 'pinpoint'
           ? [{ x: answer.payload.x, y: answer.payload.y }]

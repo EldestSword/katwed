@@ -1,3 +1,4 @@
+import { isPinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
@@ -118,13 +119,7 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
       }
       break
     case 'pinpoint':
-      if (
-        question.targetX < 0 || question.targetX > 1 ||
-        question.targetY < 0 || question.targetY > 1
-      ) messages.push('Pinpoint coordinates must be normalised between 0 and 1.')
-      if (question.targetRadius <= 0 || question.targetRadius > 1) {
-        messages.push('Pinpoint radius must be greater than 0 and no more than 1.')
-      }
+      if (!isPinpointTarget(question.target)) messages.push('Draw a valid correct answer area on the image.')
       break
     case 'typed-answer': {
       const answers = [question.correctAnswer, ...question.acceptedAnswers]

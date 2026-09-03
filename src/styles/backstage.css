@@ -325,3 +325,17 @@
   .app-shell--host .quiz-card, .preview-frame { transition: none; }
   .app-shell--host .quiz-card:hover { transform: none; }
 }
+
+/* Visual Pinpoint authoring shares the contained image geometry with live play. */
+.pinpoint-editor { min-width: 0; }
+.pinpoint-editor .pinpoint-coordinate-surface { height: 22rem; min-height: 14rem; border-width: 1px; border-radius: .6rem; }
+.pinpoint-editor__tools, .pinpoint-editor__actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.pinpoint-editor button, .pinpoint-editor summary, .pinpoint-editor input { min-height: 44px; }
+.pinpoint-editor__tools button[aria-pressed="true"] { background: var(--ink); color: white; }
+.pinpoint-editor__numbers, .pinpoint-editor__vertex { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: .65rem 0; }
+.pinpoint-editor__vertex { padding-bottom: .75rem; border-bottom: 1px solid var(--border); }
+.pinpoint-editor input { width: 100%; min-width: 0; }
+.pinpoint-editor__status { min-height: 1.4em; }
+.pinpoint-editor details { margin-top: .5rem; }
+.pinpoint-editor summary { cursor: pointer; }
+.editor-preview__media .pinpoint-coordinate-surface { height: min(35vh, 23rem); min-height: 10rem; }

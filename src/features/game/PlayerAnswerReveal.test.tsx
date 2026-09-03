@@ -1,3 +1,4 @@
+import { loadPinpointImage } from '../../test/pinpointImage'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { RevealPayload, SafeQuestion } from '../../types/domain'
@@ -118,7 +119,7 @@ describe('PlayerAnswerReveal', () => {
   it('distinguishes a player pin from the correct pinpoint target', async () => {
     render(
       <PlayerAnswerReveal
-        reveal={{ type: 'pinpoint', targetX: .5, targetY: .43, targetRadius: .12, caption: '', points: [] }}
+        reveal={{ type: 'pinpoint', target: { kind: 'circle', x: .5, y: .43, radius: .12 }, caption: '', points: [] }}
         question={{
           ...base, type: 'pinpoint',
           media: { type: 'image', path: '/target.svg', altText: 'Target', revealEffect: 'immediate', revealDurationSeconds: 0 },
@@ -127,6 +128,7 @@ describe('PlayerAnswerReveal', () => {
       />,
     )
     expectAnswerCard()
+    await loadPinpointImage('Target')
     expect(await screen.findByTestId('pinpoint-player-marker')).toBeInTheDocument()
     expect(screen.getByTestId('pinpoint-correct-target')).toBeInTheDocument()
     expect(screen.getAllByText('Your pin')).toHaveLength(2)

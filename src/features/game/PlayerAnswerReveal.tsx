@@ -1,3 +1,4 @@
+import { pinpointContains } from './pinpointTargets'
 import { GameBadge } from '../../components/design-system/GameBadge'
 import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RevealPayload, RosterMember, SafeQuestion } from '../../types/domain'
 import { CLASSIC_ANSWER_COLOURS, answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
@@ -26,7 +27,7 @@ function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null
     }
     case 'true-false': return answer.type === 'true-false' && answer.value === reveal.correctValue ? 'correct' : 'incorrect'
     case 'slider': return answer.type === 'slider' && Math.abs(answer.value - reveal.correctValue) <= reveal.tolerance ? 'correct' : 'incorrect'
-    case 'pinpoint': return answer.type === 'pinpoint' && Math.hypot(answer.x - reveal.targetX, answer.y - reveal.targetY) <= reveal.targetRadius ? 'correct' : 'incorrect'
+    case 'pinpoint': return answer.type === 'pinpoint' && pinpointContains(reveal.target, answer) ? 'correct' : 'incorrect'
     case 'mashup': return answer.type === 'mashup' && sameSet(answer.memberIds, reveal.correctMemberIds) ? 'correct' : 'incorrect'
     case 'typed-answer':
       if (answer.type !== 'typed-answer') return 'unknown'
@@ -94,7 +95,7 @@ export function PlayerAnswerReveal({
     case 'pinpoint': {
       if (question.type === 'pinpoint') {
         const playerMarker = submittedAnswer?.type === 'pinpoint' ? [{ x: submittedAnswer.x, y: submittedAnswer.y, kind: 'player' as const, label: 'Your pin' }] : []
-        correctAnswer = <div className="player-pinpoint-reveal"><RevealAnswerCard><p>Correct answer</p><h2>Target area</h2></RevealAnswerCard><PinpointSurface path={question.media.path} alt={question.media.altText} mode="player-reveal" markers={playerMarker} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} /><div className="pinpoint-legend" aria-label="Pinpoint answer legend">{playerMarker.length > 0 && <span><i className="pinpoint-key pinpoint-key--player" />Your pin</span>}<span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div><p className="sr-only">The correct target location has been displayed.</p></div>
+        correctAnswer = <div className="player-pinpoint-reveal"><RevealAnswerCard><p>Correct answer</p><h2>Target area</h2></RevealAnswerCard><PinpointSurface path={question.media.path} alt={question.media.altText} mode="player-reveal" markers={playerMarker} target={reveal.target} /><div className="pinpoint-legend" aria-label="Pinpoint answer legend">{playerMarker.length > 0 && <span><i className="pinpoint-key pinpoint-key--player" />Your pin</span>}<span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div><p className="sr-only">The correct target location has been displayed.</p></div>
       }
       break
     }
