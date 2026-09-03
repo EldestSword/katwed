@@ -339,6 +339,14 @@ Screens use the `GameRepository` contract:
 
 `PresentationStage` is shared by the controller preview and real presentation. The controller never uses an iframe or starts a second audible video.
 
+### Revealed leaderboard movement and commentary
+
+The presentation and Player page retain their own last revealed leaderboard in component memory through the next question, lock and answer reveal. `useRevealedLeaderboard` reads only the existing leaderboard-phase safe payload, freezes a comparison for that reveal and promotes the current board after settling (or immediately if the host advances early). Refresh, a different session, lobby/restart or finished phase clears the baseline. Identical polling updates do not replay animations; corrections within the same revealed question display immediately without a second announcement. No history is persisted and no extra fetch, polling, subscription, broadcast or database write is involved.
+
+`AnimatedLeaderboard` uses one shared score count-up clock followed by FLIP row movement with stable player IDs. Layout is measured only before and after reordering; browser transforms perform the movement. Scores count for 750ms, rows move for 900ms and temporary movement badges clear within 2.6 seconds. Phase changes cancel pending frames, timers and row animations. The full presentation still renders every supplied row; the compact preview retains its six-row limit. Final-results rendering is unchanged.
+
+Pure snapshot comparisons select at most one presentation commentary event: a known player taking first place, entering the top three, climbing at least three places, or a proven direct overtake within the top five, in that order. New players and first/refresh baselines never receive invented movement. Authoritative ranks and tie ordering are preserved. Phones show final standings with only their own up/down movement and new ordinal rank, without global commentary. Reduced motion skips score counting and row travel while preserving true movement indicators and commentary; animated score frames are excluded from live announcements.
+
 See [`docs/architecture.md`](docs/architecture.md) for the data flow, safe payloads and extension points.
 
 ### Live-room realtime and polling model

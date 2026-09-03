@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SafeGameState } from '../types/domain'
 import { PlayPage } from './PlayPage'
+import { currentBoard, previousBoard, standingsState } from '../test/leaderboardFixtures'
 
 const player = {
   id: 'player-1',
@@ -89,6 +90,43 @@ describe('PlayPage quiz background', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('retains revealed leaderboard history for personal movement without extra repository work or hidden-phase scores', async () => {
+    const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
+    const stateFor = (phase: SafeGameState['phase'], entries = previousBoard, questionNumber = 1): SafeGameState => ({
+      ...standingsState(phase, entries, questionNumber), sessionId: player.sessionId,
+      players: [player], leaderboard: phase === 'leaderboard' ? entries.map((entry) => entry.playerId === 'jaki' ? { ...entry, playerId: player.id } : entry) : [],
+    })
+    const show = (state: SafeGameState) => mocks.useSafeGameState.mockReturnValue({ state, loading: false, error: '', refresh: mocks.refresh })
+    show(stateFor('leaderboard'))
+    const view = render(page())
+    await screen.findByRole('heading', { name: 'Leaderboard' })
+    expect(screen.queryByText(/You’re now/)).toBeNull()
+    const presenceCalls = mocks.setPlayerPresence.mock.calls.length
+    for (const phase of ['question', 'locked', 'reveal'] as const) {
+      show(stateFor(phase, [], 2))
+      view.rerender(page())
+      expect(screen.queryByRole('list', { name: 'Leaderboard' })).toBeNull()
+      expect(screen.queryByText(/You’re now/)).toBeNull()
+      expect(screen.queryByText('4,400 points')).toBeNull()
+    }
+    show(stateFor('leaderboard', currentBoard, 2))
+    view.rerender(page())
+    expect(screen.getByRole('status')).toHaveTextContent('↑ 2')
+    expect(screen.getByRole('status')).toHaveTextContent('You’re now 1st')
+    expect(screen.queryByText(/takes the lead/)).toBeNull()
+    show(stateFor('leaderboard', [...currentBoard], 2))
+    view.rerender(page())
+    expect(screen.getByRole('status')).toHaveTextContent('↑ 2')
+    expect(mocks.setPlayerPresence).toHaveBeenCalledTimes(presenceCalls)
+    expect(mocks.reconnectPlayer).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).not.toHaveBeenCalled()
+    expect(mocks.submitAnswer).not.toHaveBeenCalled()
+    view.unmount()
+    render(page())
+    await screen.findByRole('heading', { name: 'Leaderboard' })
+    expect(screen.queryByText(/You’re now/)).toBeNull()
+  })
 
   it('keeps the player question hidden until the authoritative Double Score opening', async () => {
     vi.useFakeTimers()

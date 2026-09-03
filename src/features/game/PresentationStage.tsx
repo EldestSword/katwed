@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Logo } from '../../components/AppShell'
-import { Leaderboard } from '../../components/Leaderboard'
+import { AnimatedLeaderboard } from '../../components/AnimatedLeaderboard'
 import { QuestionMedia } from '../../components/QuestionMedia'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import { GameBadge } from '../../components/design-system/GameBadge'
@@ -9,6 +9,7 @@ import { GameTimer } from '../../components/design-system/GameTimer'
 import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionStatus } from '../../components/design-system/LiveGamePrimitives'
 import { useCountdown } from '../../hooks/useCountdown'
 import { useQuestionPrelude } from '../../hooks/useQuestionPrelude'
+import { useRevealedLeaderboard } from '../../hooks/useRevealedLeaderboard'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
@@ -121,6 +122,7 @@ function StageHeader({ question, compact, remaining, headToHead, showTimer = tru
 }
 
 export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
+  const leaderboard = useRevealedLeaderboard(state)
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
@@ -135,7 +137,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const promptDensity = question ? questionTextDensity(question.prompt, showMedia) : undefined
 
   return (
-    <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live="polite">
+    <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live={state.phase === 'leaderboard' ? 'off' : 'polite'}>
       {state.phase === 'lobby' && (
         <div className={`presentation-lobby ${headToHead ? 'presentation-lobby--head-to-head' : ''}`}>
           <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">Lobby</GameBadge></header>
@@ -186,7 +188,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'leaderboard' && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><Leaderboard entries={compact ? state.leaderboard.slice(0, 6) : state.leaderboard} variant="presentation" /></div>}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} /></div>}
       {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : <FinalResults entries={state.leaderboard} variant="presentation" />)}
     </section>
   )

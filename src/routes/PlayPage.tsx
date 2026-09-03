@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Leaderboard } from '../components/Leaderboard'
+import { PlayerLeaderboard } from '../features/game/PlayerLeaderboard'
+import { useRevealedLeaderboard } from '../hooks/useRevealedLeaderboard'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { PlayerQuestion } from '../features/game/PlayerQuestion'
@@ -28,6 +29,7 @@ export function PlayPage() {
   const [working, setWorking] = useState(false)
   const [localResolution, setLocalResolution] = useState<{ questionId: string; status: 'answered' | 'skipped' } | null>(null)
   const { state, loading, error, refresh } = useSafeGameState(roomCode)
+  const leaderboard = useRevealedLeaderboard(state)
 
   useEffect(() => {
     const saved = loadPlayerSession(roomCode)
@@ -156,7 +158,7 @@ export function PlayPage() {
           </> : question.questionNumber === question.totalQuestions && <p className="final-results-wait">Waiting for the host to reveal the final results.</p>}
         </section>
       )}
-      {state.phase === 'leaderboard' && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><Leaderboard entries={state.leaderboard} currentPlayerId={currentPlayer.id} /><p>Waiting for the next question…</p></section>}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={currentPlayer.id} onSettled={leaderboard.settle} /><p>Waiting for the next question…</p></section>}
       {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : <FinalResults entries={state.leaderboard} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
     </main>
   )
