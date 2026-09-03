@@ -2,10 +2,16 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
 const MIN_READABLE_FONT_SIZE_PX = 11.5
 const MIN_READABLE_LETTER_SPACING_EM = -0.08
+const EMERGENCY_SINGLE_WORD_LETTER_SPACING_EM = -0.16
 const FIT_PASSES = 10
 
 function contentFits(element: HTMLSpanElement): boolean {
   return element.scrollWidth <= element.clientWidth
+}
+
+function isSingleUnbrokenWord(element: HTMLSpanElement): boolean {
+  const text = element.textContent?.trim() ?? ''
+  return text.length > 0 && !/\s/.test(text)
 }
 
 export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: ReactNode; onNeedsMoreWidth?(): void }) {
@@ -26,6 +32,7 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
 
     const fit = () => {
       if (!active) return
+      label.style.width = '100%'
       label.style.removeProperty('font-size')
       label.style.removeProperty('letter-spacing')
       const preferredSize = Number.parseFloat(window.getComputedStyle(label).fontSize)
@@ -50,10 +57,17 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
             wideningRetry = window.requestAnimationFrame(() => {
               wideningRetry = window.requestAnimationFrame(fit)
             })
-          } else {
-            label.dataset.answerFit = 'minimum'
+            return
           }
-          return
+
+          if (isSingleUnbrokenWord(label)) {
+            fittingSpacing = EMERGENCY_SINGLE_WORD_LETTER_SPACING_EM
+            label.style.letterSpacing = `${fittingSpacing}em`
+          }
+          if (!contentFits(label)) {
+            label.dataset.answerFit = 'minimum'
+            return
+          }
         }
         for (let pass = 0; pass < FIT_PASSES; pass += 1) {
           const candidateSpacing = (fittingSpacing + overflowingSpacing) / 2
@@ -62,7 +76,7 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
           else overflowingSpacing = candidateSpacing
         }
         label.style.letterSpacing = `${fittingSpacing}em`
-        if (!contentFits(label)) label.style.letterSpacing = `${MIN_READABLE_LETTER_SPACING_EM}em`
+        if (!contentFits(label)) label.style.letterSpacing = `${fittingSpacing - 0.002}em`
         label.dataset.answerFit = contentFits(label) ? 'scaled' : 'minimum'
         return
       }
@@ -75,7 +89,7 @@ export function FittedAnswerLabel({ children, onNeedsMoreWidth }: { children: Re
       }
 
       label.style.fontSize = `${fittingSize}px`
-      if (!contentFits(label)) label.style.fontSize = `${MIN_READABLE_FONT_SIZE_PX}px`
+      if (!contentFits(label)) label.style.fontSize = `${Math.max(MIN_READABLE_FONT_SIZE_PX, fittingSize - 0.02)}px`
       label.dataset.answerFit = contentFits(label) ? 'scaled' : 'minimum'
     }
 
