@@ -9,6 +9,7 @@ import { progressiveSafeMedia } from '../../features/scoring/progressiveReveal'
 import type {
   GameSession,
   GameSessionSettings,
+  HostTieBreakerState,
   HostResponseRecord,
   JoinResult,
   LaunchGameSettings,
@@ -66,6 +67,13 @@ import {
   survivorStandings,
   validateSurvivorLaunch,
 } from '../../features/game/survivor'
+import {
+  applyTieBreakerWinner,
+  normaliseTieBreakerValue,
+  resolveTieBreakerAnswers,
+  TIE_BREAKER_TIME_LIMIT_SECONDS,
+  winningTiePlayerIds,
+} from '../../features/game/tieBreakers'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -73,9 +81,40 @@ interface DemoHeadToHeadSkip {
   playerId: string
 }
 
+interface DemoTieBreakerQuestion {
+  id: string
+  category: string
+  prompt: string
+  answer: string
+  unit: string
+  sourceTitle: string
+  sourceUrl: string
+  sourceNote: string
+}
+
+interface DemoTieBreakerAnswer {
+  round: number
+  questionId: string
+  playerId: string
+  value: string
+  submittedAt: string
+  responseTimeMs: number
+}
+
+interface DemoGameSession extends GameSession {
+  tieBreakerQuestion: DemoTieBreakerQuestion | null
+  tieBreakerRound: number
+  tieBreakerWinnerPlayerId: string | null
+  tieBreakerUsedQuestionIds: string[]
+  tieBreakerContenderRounds: Array<{ round: number; playerIds: string[] }>
+  tieBreakerAnswers: DemoTieBreakerAnswer[]
+  tieBreakerOpenedAt: string | null
+  tieBreakerClosesAt: string | null
+}
+
 interface DemoState {
   quizzes: Quiz[]
-  sessions: GameSession[]
+  sessions: DemoGameSession[]
   reconnectTokens: Record<string, string>
   headToHeadSkips: DemoHeadToHeadSkip[]
 }
@@ -83,6 +122,124 @@ interface DemoState {
 const STORAGE_KEY = 'katwed.demo.state.v2'
 const REFRESH_STORAGE_KEY = 'katwed.demo.refresh.v1'
 const CHANNEL_NAME = 'katwed-demo-realtime-v2'
+
+// Demo mode is a browser-only development environment. Production sessions use
+// the private 200-row database bank seeded by the forward migration.
+const DEMO_TIE_BREAKER_BANK: readonly DemoTieBreakerQuestion[] = [
+  { id: 'DEMO-TB01', category: 'Landmarks', prompt: 'How tall is the Eiffel Tower today?', answer: '330', unit: 'metres', sourceTitle: 'Eiffel Tower', sourceUrl: 'https://www.toureiffel.paris/en/the-monument/key-figures', sourceNote: '' },
+  { id: 'DEMO-TB02', category: 'Space', prompt: 'How many kilometres is the Moon’s mean radius?', answer: '1737.4', unit: 'kilometres', sourceTitle: 'NASA Moon facts', sourceUrl: 'https://science.nasa.gov/moon/facts/', sourceNote: '' },
+  { id: 'DEMO-TB03', category: 'Sport', prompt: 'How many metres long is an Olympic swimming pool?', answer: '50', unit: 'metres', sourceTitle: 'World Aquatics facilities rules', sourceUrl: 'https://www.worldaquatics.com/rules/facilities-rules', sourceNote: '' },
+  { id: 'DEMO-TB04', category: 'History', prompt: 'In what year did the first modern Olympic Games open?', answer: '1896', unit: 'year', sourceTitle: 'International Olympic Committee', sourceUrl: 'https://olympics.com/ioc/ancient-olympic-games/history', sourceNote: '' },
+]
+
+function demoTieScore(sessionId: string, round: number, questionId: string): number {
+  return [...`${sessionId}:${round}:${questionId}`].reduce((value, character) =>
+    (Math.imul(value, 31) + character.charCodeAt(0)) | 0, 0)
+}
+
+function currentTieBreakerContenders(session: DemoGameSession): string[] {
+  return session.tieBreakerContenderRounds.find((entry) => entry.round === session.tieBreakerRound)?.playerIds ?? []
+}
+
+function selectDemoTieBreakerQuestion(session: DemoGameSession): DemoTieBreakerQuestion {
+  const unused = DEMO_TIE_BREAKER_BANK.filter((question) => !session.tieBreakerUsedQuestionIds.includes(question.id))
+  if (!unused.length) throw new RepositoryError('database', 'No unused tie-breaker questions remain.')
+  const previousCategory = session.tieBreakerQuestion?.category
+  return [...unused].sort((left, right) => {
+    const leftRepeat = previousCategory && left.category === previousCategory ? 1 : 0
+    const rightRepeat = previousCategory && right.category === previousCategory ? 1 : 0
+    return leftRepeat - rightRepeat || demoTieScore(session.id, session.tieBreakerRound + 1, left.id) - demoTieScore(session.id, session.tieBreakerRound + 1, right.id) || left.id.localeCompare(right.id)
+  })[0]
+}
+
+function beginDemoTieBreaker(session: DemoGameSession, playerIds: readonly string[], now = Date.now()): void {
+  if (playerIds.length < 2 || playerIds.some((id) => !session.players.some((player) => player.id === id))) {
+    throw new RepositoryError('database', 'Tie-breaker contenders are invalid.')
+  }
+  const question = selectDemoTieBreakerQuestion(session)
+  const round = session.tieBreakerRound + 1
+  session.tieBreakerRound = round
+  session.tieBreakerQuestion = question
+  session.tieBreakerWinnerPlayerId = null
+  session.tieBreakerUsedQuestionIds.push(question.id)
+  session.tieBreakerContenderRounds.push({ round, playerIds: [...playerIds] })
+  session.phase = 'tiebreaker'
+  session.questionOpenedAt = null
+  session.questionClosesAt = null
+  session.buzz = null
+  const openedAt = new Date(now).toISOString()
+  session.tieBreakerOpenedAt = openedAt
+  session.tieBreakerClosesAt = new Date(now + TIE_BREAKER_TIME_LIMIT_SECONDS * 1_000).toISOString()
+}
+
+function demoTieBreakerState(session: DemoGameSession): HostTieBreakerState | null {
+  const question = session.tieBreakerQuestion
+  if (!question || session.tieBreakerRound < 1 || !['tiebreaker', 'tiebreaker-result', 'finished'].includes(session.phase)) return null
+  const contenderPlayerIds = currentTieBreakerContenders(session)
+  const answers = session.tieBreakerAnswers.filter((answer) => answer.round === session.tieBreakerRound)
+  const openedAt = session.tieBreakerOpenedAt ?? ''
+  const closesAt = session.tieBreakerClosesAt ?? ''
+  const shared = {
+    round: session.tieBreakerRound,
+    questionId: question.id,
+    prompt: question.prompt,
+    category: question.category,
+    unit: question.unit,
+    openedAt,
+    closesAt,
+    contenderPlayerIds,
+    submittedCount: answers.length,
+    submittedPlayerIds: answers.map((answer) => answer.playerId),
+  }
+  if (session.phase === 'tiebreaker') return { ...shared, status: 'question' }
+  const resolution = resolveTieBreakerAnswers(contenderPlayerIds.map((playerId) => {
+    const player = session.players.find((candidate) => candidate.id === playerId)!
+    const answer = answers.find((candidate) => candidate.playerId === playerId)
+    return { playerId, nickname: player.nickname, value: answer?.value ?? null, responseTimeMs: answer?.responseTimeMs ?? null }
+  }), question.answer)
+  return {
+    ...shared,
+    status: 'result',
+    correctAnswer: question.answer,
+    results: resolution.results,
+    winnerPlayerId: session.tieBreakerWinnerPlayerId,
+    unresolvedPlayerIds: resolution.unresolvedPlayerIds,
+    sourceTitle: question.sourceTitle,
+    sourceUrl: question.sourceUrl,
+    sourceNote: question.sourceNote,
+  }
+}
+
+function safeDemoTieBreakerState(session: DemoGameSession) {
+  const state = demoTieBreakerState(session)
+  if (!state) return null
+  return {
+    round: state.round, status: state.status, questionId: state.questionId, prompt: state.prompt,
+    category: state.category, unit: state.unit, openedAt: state.openedAt, closesAt: state.closesAt,
+    contenderPlayerIds: state.contenderPlayerIds, submittedCount: state.submittedCount,
+    ...(state.status === 'result' ? {
+      correctAnswer: state.correctAnswer, results: state.results, winnerPlayerId: state.winnerPlayerId,
+      unresolvedPlayerIds: state.unresolvedPlayerIds,
+    } : {}),
+  }
+}
+
+function resolveDemoSessionTieBreaker(session: DemoGameSession, now = Date.now()) {
+  if (session.phase !== 'tiebreaker' || !session.tieBreakerQuestion) {
+    throw new RepositoryError('invalid-phase', 'The tie-breaker is not open.')
+  }
+  const contenderPlayerIds = currentTieBreakerContenders(session)
+  const roundAnswers = session.tieBreakerAnswers.filter((answer) => answer.round === session.tieBreakerRound)
+  const resolution = resolveTieBreakerAnswers(contenderPlayerIds.map((playerId) => {
+    const player = session.players.find((candidate) => candidate.id === playerId)!
+    const answer = roundAnswers.find((candidate) => candidate.playerId === playerId)
+    return { playerId, nickname: player.nickname, value: answer?.value ?? null, responseTimeMs: answer?.responseTimeMs ?? null }
+  }), session.tieBreakerQuestion.answer)
+  session.tieBreakerWinnerPlayerId = resolution.winnerPlayerId
+  session.phase = 'tiebreaker-result'
+  if (session.tieBreakerClosesAt) session.tieBreakerClosesAt = new Date(Math.min(Date.parse(session.tieBreakerClosesAt), now)).toISOString()
+  return resolution
+}
 
 function prepareQuestionTiming(session: GameSession, question: Question, transitionMs: number) {
   if (question.doubleScore) {
@@ -163,6 +320,14 @@ function normaliseState(state: DemoState): DemoState {
         : [settings.doubleScoreIntroMs]
       return {
         ...session,
+        tieBreakerQuestion: session.tieBreakerQuestion ?? null,
+        tieBreakerRound: Number.isInteger(session.tieBreakerRound) ? session.tieBreakerRound : 0,
+        tieBreakerWinnerPlayerId: session.tieBreakerWinnerPlayerId ?? null,
+        tieBreakerUsedQuestionIds: Array.isArray(session.tieBreakerUsedQuestionIds) ? session.tieBreakerUsedQuestionIds : [],
+        tieBreakerContenderRounds: Array.isArray(session.tieBreakerContenderRounds) ? session.tieBreakerContenderRounds : [],
+        tieBreakerAnswers: Array.isArray(session.tieBreakerAnswers) ? session.tieBreakerAnswers : [],
+        tieBreakerOpenedAt: session.tieBreakerOpenedAt ?? null,
+        tieBreakerClosesAt: session.tieBreakerClosesAt ?? null,
         buzz: session.buzz ?? null,
         teams: session.teams ?? [],
         players: session.players.map((player) => normaliseSurvivorPlayer({ ...player, ...normaliseStreaks(player), teamId: player.teamId ?? null }, settings)),
@@ -183,7 +348,7 @@ function normaliseState(state: DemoState): DemoState {
   }
 }
 
-function hostSessionView(session: GameSession, quiz: Quiz): GameSession {
+function hostSessionView(session: DemoGameSession, quiz: Quiz): GameSession {
   const questionId = orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]?.id
   const hostResponses = questionId
     ? session.hostResponses.filter((response) => response.questionId === questionId)
@@ -192,7 +357,18 @@ function hostSessionView(session: GameSession, quiz: Quiz): GameSession {
       session.players.length <= HOST_RESPONSE_DETAIL_LIMIT
     ? session.answers.filter((answer) => answer.questionId === questionId)
     : []
-  return { ...session, hostResponses, answers }
+  const visible = { ...session }
+  for (const key of [
+    'tieBreakerQuestion',
+    'tieBreakerRound',
+    'tieBreakerWinnerPlayerId',
+    'tieBreakerUsedQuestionIds',
+    'tieBreakerContenderRounds',
+    'tieBreakerAnswers',
+    'tieBreakerOpenedAt',
+    'tieBreakerClosesAt',
+  ] as const) Reflect.deleteProperty(visible, key)
+  return { ...visible, tieBreaker: demoTieBreakerState(session), hostResponses, answers }
 }
 
 function isDemoState(value: unknown): value is DemoState {
@@ -601,7 +777,15 @@ export class DemoGameRepository implements GameRepository {
       const sessionId = uid('game')
       const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
       const doubleScoreVariantOrder = shuffledVariantIndices(settings.doubleScoreVariantDurationsMs?.length ?? 1)
-      const session: GameSession = {
+      const session: DemoGameSession = {
+        tieBreakerQuestion: null,
+        tieBreakerRound: 0,
+        tieBreakerWinnerPlayerId: null,
+        tieBreakerUsedQuestionIds: [],
+        tieBreakerContenderRounds: [],
+        tieBreakerAnswers: [],
+        tieBreakerOpenedAt: null,
+        tieBreakerClosesAt: null,
         buzz: null,
         teams: settings.playMode === 'teams' ? (launchSettings?.teamNames ?? ['Team 1', 'Team 2']).map((name, displayOrder) => ({ id: uid('team'), sessionId, name: name.trim(), displayOrder })) : [],
         id: sessionId,
@@ -797,6 +981,10 @@ export class DemoGameRepository implements GameRepository {
           totalCorrectResponseMs: 0,
         },
         reconnectToken: saved.reconnectToken,
+        tieBreakerSubmission: session.tieBreakerAnswers.some((answer) =>
+          answer.round === session.tieBreakerRound && answer.playerId === player.id)
+          ? { round: session.tieBreakerRound, questionId: session.tieBreakerQuestion?.id ?? '' }
+          : null,
       })
     })
   }
@@ -825,7 +1013,8 @@ export class DemoGameRepository implements GameRepository {
     const quiz = state.quizzes.find((candidate) => candidate.id === session.quizId)
     if (!quiz) return null
     const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
-    const question = session.phase === 'round-intro' ? null : orderedQuestions[session.currentQuestionIndex] ?? null
+    const tieBreakerPhase = session.phase === 'tiebreaker' || session.phase === 'tiebreaker-result'
+    const question = session.phase === 'round-intro' || tieBreakerPhase ? null : orderedQuestions[session.currentQuestionIndex] ?? null
     const headToHead = quiz.quizType === 'head-to-head'
     const mayReveal = ['reveal', 'leaderboard', 'finished'].includes(session.phase)
     const scoresVisible = headToHead || ['leaderboard', 'finished'].includes(session.phase)
@@ -848,6 +1037,7 @@ export class DemoGameRepository implements GameRepository {
       roomCode: session.roomCode,
       status: session.status,
       phase: session.phase,
+      tieBreaker: safeDemoTieBreakerState(session),
       currentRound: safeRound(quiz, session.currentRoundId),
       currentQuestion: question
         ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings, session.connectionClueCount ?? 0, mayReveal)
@@ -894,11 +1084,14 @@ export class DemoGameRepository implements GameRepository {
           pointsAwarded: (answer?.pointsAwarded ?? 0) as 0 | 1,
         }
       }) : [],
-      submittedCount: currentAnswers.length + (question ? state.headToHeadSkips.filter((skip) => skip.sessionId === session.id && skip.questionId === question.id).length : 0),
-      eligibleResponderCount: question?.buzzInEnabled ? (session.buzz ? 1 : 0) : isSurvivorSettings(session.settings) ? survivorAliveCount(session.players) : session.players.length,
+      submittedCount: tieBreakerPhase
+        ? session.tieBreakerAnswers.filter((answer) => answer.round === session.tieBreakerRound).length
+        : currentAnswers.length + (question ? state.headToHeadSkips.filter((skip) => skip.sessionId === session.id && skip.questionId === question.id).length : 0),
+      eligibleResponderCount: tieBreakerPhase ? currentTieBreakerContenders(session).length
+        : question?.buzzInEnabled ? (session.buzz ? 1 : 0) : isSurvivorSettings(session.settings) ? survivorAliveCount(session.players) : session.players.length,
       survivorAliveCount: isSurvivorSettings(session.settings) ? survivorAliveCount(session.players) : session.players.length,
       leaderboard: !headToHead && scoresVisible
-        ? (isSurvivorSettings(session.settings) ? survivorStandings(session.players) : sortLeaderboard(session.players))
+        ? applyTieBreakerWinner(isSurvivorSettings(session.settings) ? survivorStandings(session.players) : sortLeaderboard(session.players), session.tieBreakerWinnerPlayerId)
         : [],
       reveal: mayReveal && question ? revealFor(question, currentAnswers, quiz) : null,
       questionOpenedAt: session.questionOpenedAt,
@@ -995,6 +1188,77 @@ export class DemoGameRepository implements GameRepository {
         session.buzz = session.buzz ? { ...session.buzz, answerDeadlineAt: new Date(submittedAt).toISOString() } : null
       }
       this.write(state, quiz.quizType === 'head-to-head' || buzzAutoLocked, session.id)
+    })
+  }
+
+  async submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, rawValue: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.roomCode === roomCode && candidate.status === 'active')
+      const player = session?.players.find((candidate) => candidate.id === playerId)
+      if (!session) throw new RepositoryError('invalid-room', 'This room is not active.')
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      if (session.phase !== 'tiebreaker' || !session.tieBreakerQuestion) throw new RepositoryError('invalid-phase', 'Tie-breaker answers are not open.')
+      if (!currentTieBreakerContenders(session).includes(playerId)) throw new RepositoryError('unauthorised', 'Only the tied finalists can answer this tie-breaker.')
+      const value = normaliseTieBreakerValue(rawValue)
+      if (value === null) throw new RepositoryError('invalid-selection', 'Enter a valid number.')
+      const now = Date.now()
+      const openedAt = Date.parse(session.tieBreakerOpenedAt ?? '')
+      const closesAt = Date.parse(session.tieBreakerClosesAt ?? '')
+      if (!Number.isFinite(openedAt) || !Number.isFinite(closesAt) || now < openedAt) throw new RepositoryError('invalid-phase', 'Wait for the tie-breaker to open.')
+      if (now >= closesAt) throw new RepositoryError('late-submission', 'Time is up for this tie-breaker.')
+      if (session.tieBreakerAnswers.some((answer) => answer.round === session.tieBreakerRound && answer.playerId === playerId)) {
+        throw new RepositoryError('duplicate-submission', 'You have already answered this tie-breaker.')
+      }
+      session.tieBreakerAnswers.push({
+        round: session.tieBreakerRound,
+        questionId: session.tieBreakerQuestion.id,
+        playerId,
+        value,
+        submittedAt: new Date(now).toISOString(),
+        responseTimeMs: Math.max(0, now - openedAt),
+      })
+      const complete = session.tieBreakerAnswers.filter((answer) => answer.round === session.tieBreakerRound).length === currentTieBreakerContenders(session).length
+      if (complete) resolveDemoSessionTieBreaker(session, now)
+      this.write(state, complete, session.id)
+    })
+  }
+
+  async resolveTieBreaker(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId && candidate.status === 'active')
+      if (!session) throw new RepositoryError('invalid-room', 'This room is not active.')
+      resolveDemoSessionTieBreaker(session)
+      this.write(state, true, session.id)
+    })
+  }
+
+  async nextTieBreaker(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId && candidate.status === 'active')
+      if (!session || session.phase !== 'tiebreaker-result' || !session.tieBreakerQuestion || session.tieBreakerWinnerPlayerId) {
+        throw new RepositoryError('invalid-phase', 'Another tie-breaker is not available.')
+      }
+      const resolution = demoTieBreakerState(session)
+      const unresolved = resolution?.unresolvedPlayerIds ?? []
+      if (unresolved.length < 2) throw new RepositoryError('database', 'The unresolved finalists could not be determined.')
+      beginDemoTieBreaker(session, unresolved)
+      this.write(state, true, session.id)
+    })
+  }
+
+  async revealTieBreakerFinal(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find((candidate) => candidate.id === sessionId && candidate.status === 'active')
+      if (!session || session.phase !== 'tiebreaker-result' || !session.tieBreakerWinnerPlayerId) {
+        throw new RepositoryError('invalid-phase', 'Resolve the tie-breaker before revealing Final Results.')
+      }
+      session.phase = 'finished'
+      session.endedAt = new Date().toISOString()
+      this.write(state, true, session.id)
     })
   }
 
@@ -1183,6 +1447,13 @@ export class DemoGameRepository implements GameRepository {
             completedQuestionCount, session.settings.survivorStartingLives ?? 3)
         }
       }
+      const beginAutomaticTieBreaker = (): boolean => {
+        if (!session.settings.automaticTieBreakersEnabled || session.settings.playMode === 'teams' || quiz.quizType !== 'standard') return false
+        const contenders = winningTiePlayerIds(session.players, session.settings.competitionMode)
+        if (contenders.length < 2) return false
+        beginDemoTieBreaker(session, contenders, now.getTime())
+        return true
+      }
       const openCurrentQuestion = (allowIntro = false): void => {
         session.connectionClueCount = 0
         session.buzz = null
@@ -1257,6 +1528,7 @@ export class DemoGameRepository implements GameRepository {
           }
           if (session.phase === 'reveal') {
             finaliseCompletedQuestions(session.currentQuestionIndex + 1)
+            if (session.currentQuestionIndex + 1 >= orderedQuestions.length && beginAutomaticTieBreaker()) break
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()
@@ -1267,6 +1539,7 @@ export class DemoGameRepository implements GameRepository {
             if (!isSurvivorSettings(session.settings) || survivorAliveCount(session.players) > 1) {
               throw new RepositoryError('invalid-phase', 'The Survivor game is not ready for its final result.')
             }
+            if (beginAutomaticTieBreaker()) break
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()
@@ -1295,6 +1568,14 @@ export class DemoGameRepository implements GameRepository {
           session.endedAt = null
           session.hostResponses = []
           session.answers = []
+          session.tieBreakerQuestion = null
+          session.tieBreakerRound = 0
+          session.tieBreakerWinnerPlayerId = null
+          session.tieBreakerUsedQuestionIds = []
+          session.tieBreakerContenderRounds = []
+          session.tieBreakerAnswers = []
+          session.tieBreakerOpenedAt = null
+          session.tieBreakerClosesAt = null
           session.players.forEach((player) => {
             player.totalScore = 0
             player.correctAnswerCount = 0
@@ -1310,6 +1591,10 @@ export class DemoGameRepository implements GameRepository {
           session.phase = 'finished'
           session.endedAt = now.toISOString()
           session.buzz = null
+          session.tieBreakerQuestion = null
+          session.tieBreakerWinnerPlayerId = null
+          session.tieBreakerOpenedAt = null
+          session.tieBreakerClosesAt = null
           break
       }
       this.write(state, true, session.id)

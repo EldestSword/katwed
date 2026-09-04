@@ -292,6 +292,27 @@ export class SupabaseGameRepository implements GameRepository {
     })
   }
 
+  async submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, value: string): Promise<void> {
+    await this.rpc('submit_tiebreaker_answer', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+      p_value: value,
+    })
+  }
+
+  async resolveTieBreaker(sessionId: string): Promise<void> {
+    await this.rpc('host_resolve_tiebreaker', { p_session_id: sessionId })
+  }
+
+  async nextTieBreaker(sessionId: string): Promise<void> {
+    await this.rpc('host_next_tiebreaker', { p_session_id: sessionId })
+  }
+
+  async revealTieBreakerFinal(sessionId: string): Promise<void> {
+    await this.rpc('host_reveal_tiebreaker_final', { p_session_id: sessionId })
+  }
+
   async startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void> {
     await this.rpc('start_head_to_head_game', {
       p_room_code: roomCode,

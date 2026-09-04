@@ -68,6 +68,10 @@ export interface GameRepository {
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
   claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
+  submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, value: string): Promise<void>
+  resolveTieBreaker(sessionId: string): Promise<void>
+  nextTieBreaker(sessionId: string): Promise<void>
+  revealTieBreakerFinal(sessionId: string): Promise<void>
   startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void>
   skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>

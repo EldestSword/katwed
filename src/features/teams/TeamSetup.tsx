@@ -6,7 +6,7 @@ export function TeamSetup({ settings, onChange, teamsDisabledReason }: { setting
   const error = validateTeamLaunch(settings, 'standard')
   const updateNames = (teamNames: string[]) => onChange({ ...settings, teamNames })
   return <fieldset className="team-setup"><legend>Play as</legend>
-    <div className="team-choice-grid">{(['individual', 'teams'] as const).map((mode) => <button type="button" key={mode} disabled={mode === 'teams' && Boolean(teamsDisabledReason)} aria-pressed={(settings.playMode ?? 'individual') === mode} onClick={() => onChange({ ...settings, playMode: mode })}>{mode === 'teams' ? 'Teams' : 'Individuals'}</button>)}</div>
+    <div className="team-choice-grid">{(['individual', 'teams'] as const).map((mode) => <button type="button" key={mode} disabled={mode === 'teams' && Boolean(teamsDisabledReason)} aria-pressed={(settings.playMode ?? 'individual') === mode} onClick={() => onChange({ ...settings, playMode: mode, automaticTieBreakersEnabled: mode === 'individual' })}>{mode === 'teams' ? 'Teams' : 'Individuals'}</button>)}</div>
     {teamsDisabledReason && <p className="setting-guidance">{teamsDisabledReason}</p>}
     {settings.playMode === 'teams' && <>
       <h3>Team setup</h3><p>Combined scores from every member. Balance teams in the lobby if needed.</p>

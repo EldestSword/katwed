@@ -29,3 +29,12 @@ it('shows total wipeout without inventing a winner and supports several natural-
   expect(screen.getByRole('heading', { name: 'SURVIVOR WINNER' })).toBeVisible()
   expect(screen.getAllByText('Carol').length).toBeGreaterThan(0)
 })
+
+it('keeps Total Wipeout while presenting the resolved tie-break winner first', () => {
+  render(<SurvivorFinalResults variant="presentation" tieBreakerWinnerPlayerId="roger" players={[
+    player('Carol', 0, 12, 200), player('Roger', 0, 12, 200), player('Jaki', 0, 10, 500),
+  ]} />)
+  expect(screen.getByRole('heading', { name: 'TOTAL WIPEOUT' })).toBeVisible()
+  expect(screen.getByText('Roger wins the tie-breaker.')).toBeVisible()
+  expect(screen.getByRole('list', { name: 'Top final survival positions' }).querySelector('[data-rank="1"]')).toHaveTextContent('Roger')
+})

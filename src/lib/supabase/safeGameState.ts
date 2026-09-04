@@ -3,7 +3,7 @@ import { PROGRESSIVE_NEUTRAL_ALT, progressiveRevealValidation } from '../../feat
 import type { SafeQuestion } from '../../types/domain'
 import { onlyFields, validTextItems, validMatchingPairs, validPermutation } from '../../features/questions/arrangementQuestions'
 import { connectionStagePoints, validConnectionClues } from '../../features/questions/connections'
-import type { GameTeam, RevealPayload, SafeGameState } from '../../types/domain'
+import type { GameTeam, RevealPayload, SafeGameState, SafeTieBreakerState, TieBreakerResultEntry } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
@@ -12,6 +12,7 @@ import { normaliseGameSessionSettings } from '../../features/game/launchSettings
 import { normaliseStreaks } from '../../features/game/streaks'
 import { buzzInValidation, normaliseBuzzState } from '../../features/game/buzz'
 import { eligibleResponderCount, isSurvivorSettings, normaliseSurvivorPlayer, survivorAliveCount, survivorPlayerStateIsValid } from '../../features/game/survivor'
+import { normaliseTieBreakerValue } from '../../features/game/tieBreakers'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -23,6 +24,74 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+}
+
+function isCanonicalTieBreakerNumber(value: unknown): value is string {
+  return typeof value === 'string' && normaliseTieBreakerValue(value) === value
+}
+
+function parseTieBreakerResult(value: unknown, playerIds: ReadonlySet<string>): TieBreakerResultEntry {
+  if (!isRecord(value) || !onlyFields(value, ['playerId', 'nickname', 'value', 'absoluteError', 'responseTimeMs']) ||
+    typeof value.playerId !== 'string' || !playerIds.has(value.playerId) || typeof value.nickname !== 'string' || !value.nickname.trim() ||
+    !(value.value === null || isCanonicalTieBreakerNumber(value.value)) ||
+    !(value.absoluteError === null || isCanonicalTieBreakerNumber(value.absoluteError) && !value.absoluteError.startsWith('-')) ||
+    !(value.responseTimeMs === null || Number.isInteger(value.responseTimeMs) && Number(value.responseTimeMs) >= 0) ||
+    ((value.value === null) !== (value.absoluteError === null)) || ((value.value === null) !== (value.responseTimeMs === null))) {
+    throw new Error('The server returned an invalid tie-breaker result.')
+  }
+  return value as unknown as TieBreakerResultEntry
+}
+
+function parseTieBreakerState(value: unknown, phase: unknown, players: SafeGameState['players']): SafeTieBreakerState | null {
+  const tiePhase = phase === 'tiebreaker' || phase === 'tiebreaker-result'
+  if (value === undefined || value === null) {
+    if (tiePhase) throw new Error('The server omitted the active tie-breaker.')
+    return null
+  }
+  const allowedFields = [
+    'round', 'status', 'questionId', 'prompt', 'category', 'unit', 'openedAt', 'closesAt',
+    'contenderPlayerIds', 'submittedCount', 'correctAnswer', 'results', 'winnerPlayerId', 'unresolvedPlayerIds',
+  ]
+  if (!isRecord(value) || Object.keys(value).some((key) => !allowedFields.includes(key)) || !Number.isInteger(value.round) || Number(value.round) < 1 ||
+    (value.status !== 'question' && value.status !== 'result') || typeof value.questionId !== 'string' || !value.questionId ||
+    typeof value.prompt !== 'string' || !value.prompt.trim() || value.prompt.length > 500 ||
+    !(value.category === undefined || typeof value.category === 'string') || typeof value.unit !== 'string' || !value.unit.trim() ||
+    typeof value.openedAt !== 'string' || !Number.isFinite(Date.parse(value.openedAt)) ||
+    typeof value.closesAt !== 'string' || !Number.isFinite(Date.parse(value.closesAt)) || Date.parse(value.closesAt) <= Date.parse(value.openedAt) ||
+    !isStringArray(value.contenderPlayerIds) || value.contenderPlayerIds.length < 2 ||
+    new Set(value.contenderPlayerIds).size !== value.contenderPlayerIds.length || !Number.isInteger(value.submittedCount) || Number(value.submittedCount) < 0) {
+    throw new Error('The server returned an invalid tie-breaker state.')
+  }
+  const contenderPlayerIds = value.contenderPlayerIds as string[]
+  const playerIds = new Set(players.map((player) => player.id))
+  if (contenderPlayerIds.some((id) => !playerIds.has(id)) || Number(value.submittedCount) > contenderPlayerIds.length) {
+    throw new Error('The server returned invalid tie-breaker contenders.')
+  }
+  if ((tiePhase && value.status !== (phase === 'tiebreaker' ? 'question' : 'result')) ||
+    (!tiePhase && phase !== 'finished') ||
+    (phase === 'finished' && value.status !== 'result')) {
+    throw new Error('The server returned tie-breaker data in an invalid phase.')
+  }
+  if (value.status === 'question') {
+    if ('correctAnswer' in value || 'results' in value || 'winnerPlayerId' in value || 'unresolvedPlayerIds' in value) {
+      throw new Error('The server revealed the tie-breaker answer too early.')
+    }
+    return value as unknown as SafeTieBreakerState
+  }
+  if (!isCanonicalTieBreakerNumber(value.correctAnswer) || !Array.isArray(value.results) ||
+    !(value.winnerPlayerId === null || typeof value.winnerPlayerId === 'string') || !isStringArray(value.unresolvedPlayerIds)) {
+    throw new Error('The server returned an invalid tie-breaker outcome.')
+  }
+  const results = value.results.map((entry) => parseTieBreakerResult(entry, playerIds))
+  if (results.length !== contenderPlayerIds.length || new Set(results.map((entry) => entry.playerId)).size !== results.length ||
+    results.some((entry) => !contenderPlayerIds.includes(entry.playerId)) ||
+    (value.winnerPlayerId !== null && !contenderPlayerIds.includes(value.winnerPlayerId)) ||
+    new Set(value.unresolvedPlayerIds).size !== value.unresolvedPlayerIds.length ||
+    value.unresolvedPlayerIds.some((id) => !contenderPlayerIds.includes(id)) ||
+    (value.winnerPlayerId === null) !== (value.unresolvedPlayerIds.length > 0)) {
+    throw new Error('The server returned an inconsistent tie-breaker outcome.')
+  }
+  return { ...value, results } as unknown as SafeTieBreakerState
 }
 
 function isGameTeam(value: unknown, sessionId: unknown): value is GameTeam {
@@ -100,6 +169,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     if (!survivorPlayerStateIsValid(player, sessionSettings)) throw new Error('The server returned invalid Survivor player state.')
     return normaliseSurvivorPlayer(player as unknown as SafeGameState['players'][number], sessionSettings)
   })
+  const tieBreaker = parseTieBreakerState(value.tieBreaker, value.phase, players)
   const leaderboard = value.leaderboard.map(withStreaks)
   const teams = value.teams ?? []
   if (!Array.isArray(teams) || !teams.every((team): team is GameTeam => isGameTeam(team, value.sessionId)) ||
@@ -125,6 +195,10 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
   if (!revealAllowed && Array.isArray(value.headToHeadResults) && value.headToHeadResults.length > 0) {
     throw new Error('The server returned Head-to-Head results before the reveal.')
+  }
+  if ((value.phase === 'tiebreaker' || value.phase === 'tiebreaker-result') &&
+    (value.currentQuestion !== null || value.reveal !== null || value.questionOpenedAt !== null || value.questionClosesAt !== null || value.leaderboard.length > 0 || value.buzz != null)) {
+    throw new Error('The server mixed quiz question data into a tie-breaker.')
   }
 
   const scoresAllowed = normaliseQuizType(value.quizType) === 'head-to-head' || ['leaderboard', 'finished'].includes(value.phase)
@@ -195,12 +269,14 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     Date.parse(buzz.answerDeadlineAt) > Date.parse(value.questionClosesAt))) throw new Error('Buzz state is outside the question window.')
   const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
   const aliveCount = isSurvivorSettings(sessionSettings) ? survivorAliveCount(players) : players.length
-  const expectedEligible = eligibleResponderCount({
+  const expectedEligible = tieBreaker && (value.phase === 'tiebreaker' || value.phase === 'tiebreaker-result')
+    ? tieBreaker.contenderPlayerIds.length
+    : eligibleResponderCount({
     buzz,
     currentQuestion: isRecord(value.currentQuestion) ? value.currentQuestion as unknown as SafeGameState['currentQuestion'] : null,
     players,
     sessionSettings,
-  })
+    })
   if (value.survivorAliveCount !== undefined && (!Number.isInteger(value.survivorAliveCount) || value.survivorAliveCount !== aliveCount)) {
     throw new Error('The server returned an invalid Survivor alive count.')
   }
@@ -221,6 +297,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     eligibleResponderCount: expectedEligible,
     survivorAliveCount: aliveCount,
     teams,
+    tieBreaker,
     buzz,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: sessionSettings.soundPackId,

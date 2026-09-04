@@ -11,7 +11,7 @@ import { PlayerQuestion } from '../features/game/PlayerQuestion'
 import { useSafeGameState } from '../hooks/useSafeGameState'
 import { repository } from '../services/repository'
 import { clearPlayerSession, loadPlayerSession, loadSubmittedAnswer, saveSubmittedAnswer } from '../services/playerSession'
-import type { HeadToHeadGameCompetitor, PlayerSession } from '../types/domain'
+import type { HeadToHeadGameCompetitor, PlayerSession, TieBreakerSubmissionStatus } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
@@ -26,6 +26,8 @@ import { questionTypeRegistry } from '../features/questions/registry'
 import { isSurvivorGame, survivorAliveCount } from '../features/game/survivor'
 import { SurvivorFinalResults } from '../features/game/SurvivorFinalResults'
 import { useSurvivorHistory } from '../hooks/useSurvivorHistory'
+import { TieBreakerPlayer } from '../features/game/TieBreakerScreens'
+import { leaderboardBeforeTieBreaker } from '../features/game/tieBreakers'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -34,6 +36,7 @@ export function PlayPage() {
   const [reconnectError, setReconnectError] = useState('')
   const [working, setWorking] = useState(false)
   const [localResolution, setLocalResolution] = useState<{ questionId: string; status: 'answered' | 'skipped' } | null>(null)
+  const [tieBreakerSubmission, setTieBreakerSubmission] = useState<TieBreakerSubmissionStatus | null>(null)
   const { state, loading, error, refresh } = useSafeGameState(roomCode)
   const teamMode = isTeamGame(state)
   const survivorMode = isSurvivorGame(state)
@@ -49,7 +52,10 @@ export function PlayPage() {
         clearPlayerSession(roomCode)
         setPlayerSession(null)
         setReconnectError('Your saved player session has expired.')
-      } else setPlayerSession({ ...saved, competitorId: result.player.competitorId ?? null })
+      } else {
+        setPlayerSession({ ...saved, competitorId: result.player.competitorId ?? null })
+        setTieBreakerSubmission(result.tieBreakerSubmission ?? null)
+      }
     }).catch(() => setReconnectError('Connection lost. We’ll keep trying when the game updates.'))
       .finally(() => setReconnecting(false))
   }, [roomCode])
@@ -179,7 +185,18 @@ export function PlayPage() {
         </section>
       )}
       {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">{survivorMode ? 'Survival standings' : teamMode ? 'Team standings' : 'How everybody stands'}</p><h1>{survivorMode && survivorAliveCount(state.players) === 0 ? 'TOTAL WIPEOUT' : survivorMode && survivorAliveCount(state.players) === 1 ? 'LAST PLAYER STANDING' : 'Leaderboard'}</h1>{currentTeam && <p>Playing for <strong>{currentTeam.name}</strong></p>}<PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={teamMode ? currentTeam?.id ?? '' : currentPlayer.id} teamName={currentTeam?.name} personalStreak={currentPlayer.currentCorrectStreak} players={teamMode ? undefined : state.players} survivor={survivorMode} newlyEliminated={survivorEvent?.eliminatedPlayerIds.includes(currentPlayer.id)} onSettled={leaderboard.settle} /><p>{survivorMode && survivorAliveCount(state.players) <= 1 ? 'Waiting for the final result…' : 'Waiting for the next question…'}</p></section>}
-      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : teamMode ? <TeamFinalResults state={state} currentPlayerId={currentPlayer.id} variant="player" /> : survivorMode ? <SurvivorFinalResults players={state.players} currentPlayerId={currentPlayer.id} variant="player" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
+      {(state.phase === 'tiebreaker' || state.phase === 'tiebreaker-result') && state.tieBreaker && <TieBreakerPlayer state={state.tieBreaker} players={state.players} playerId={currentPlayer.id} working={working} alreadySubmitted={tieBreakerSubmission?.questionId === state.tieBreaker.questionId} onSubmit={async (value) => {
+        setWorking(true)
+        setReconnectError('')
+        try {
+          await repository.submitTieBreakerAnswer(roomCode, currentPlayer.id, playerSession.reconnectToken, value)
+          setTieBreakerSubmission({ questionId: state.tieBreaker!.questionId, round: state.tieBreaker!.round })
+          await refresh()
+        } catch (reason) {
+          setReconnectError(reason instanceof Error ? reason.message : 'Your tie-breaker answer could not be submitted.')
+        } finally { setWorking(false) }
+      }} />}
+      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : teamMode ? <TeamFinalResults state={state} currentPlayerId={currentPlayer.id} variant="player" /> : survivorMode ? <SurvivorFinalResults players={state.players} tieBreakerWinnerPlayerId={state.tieBreaker?.winnerPlayerId} currentPlayerId={currentPlayer.id} variant="player" /> : <FinalResults entries={state.leaderboard} awardEntries={state.tieBreaker?.winnerPlayerId ? leaderboardBeforeTieBreaker(state.leaderboard) : undefined} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
     </main>
   )
 }

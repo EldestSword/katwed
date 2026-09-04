@@ -73,6 +73,7 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
+      automaticTieBreakersEnabled: true,
       competitionMode: 'points',
       survivorStartingLives: 3,
       playMode: 'individual',
@@ -140,6 +141,7 @@ describe('GameSetupPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'A deliberately long single-format quiz title for the projector desk' })).toBeVisible()
     expect(screen.getByText('Head to Head')).toBeVisible()
+    expect(screen.queryByText('Automatic · On')).not.toBeInTheDocument()
     expect(screen.getByText('Single format')).toBeVisible()
     expect(screen.getByText('No question-type intros are needed for this quiz.')).toBeVisible()
     expect(document.querySelector('.game-setup-summary__cover img')).toBeInTheDocument()

@@ -101,6 +101,7 @@ export function GameSetupPage() {
             <div><dt>Questions</dt><dd>{quiz.questions.length}</dd></div>
             <div><dt>Quiz type</dt><dd>{quiz.quizType === 'head-to-head' ? 'Head to Head' : 'Standard'}</dd></div>
             {quiz.quizType === 'standard' && <div><dt>Game mode</dt><dd>{settings.competitionMode === 'survivor' ? `Survivor · ${settings.survivorStartingLives ?? 3} lives` : 'Points'}</dd></div>}
+            {quiz.quizType === 'standard' && settings.playMode !== 'teams' && <div><dt>Winner tie-breakers</dt><dd>Automatic · On</dd></div>}
             <div><dt>Format</dt><dd>{mixed ? 'Mixed format' : 'Single format'}</dd></div>
           </dl>
           <div className="game-setup-summary__types" aria-label="Question types present">

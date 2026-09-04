@@ -7,6 +7,7 @@ import {
   orderedSessionQuestions,
   questionPreludeKind,
   quizUsesMixedQuestionTypes,
+  normaliseLaunchGameSettings,
 } from './launchSettings'
 
 describe('game-session launch settings', () => {
@@ -37,6 +38,13 @@ describe('game-session launch settings', () => {
   it('lets Double Score replace rather than stack with the mixed-format intro', () => {
     const settings = createGameSessionSettings(undefined, mixedDemoQuiz, 'session')
     expect(questionPreludeKind({ doubleScore: true }, settings)).toBe('double-score')
+  })
+
+  it('enables automatic winner tie-breakers only for supported new sessions', () => {
+    expect(createGameSessionSettings(undefined, mixedDemoQuiz, 'new').automaticTieBreakersEnabled).toBe(true)
+    expect(normaliseLaunchGameSettings({ playMode: 'teams', automaticTieBreakersEnabled: true }, mixedDemoQuiz).automaticTieBreakersEnabled).toBe(false)
+    expect(normaliseLaunchGameSettings({ automaticTieBreakersEnabled: true }, { ...mixedDemoQuiz, quizType: 'head-to-head' }).automaticTieBreakersEnabled).toBe(false)
+    expect(createGameSessionSettings({ automaticTieBreakersEnabled: false }, mixedDemoQuiz, 'legacy').automaticTieBreakersEnabled).toBe(false)
   })
 
   it('copies the selected production pack Double Score durations into the session settings', () => {

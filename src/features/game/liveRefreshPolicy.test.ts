@@ -6,6 +6,8 @@ describe('liveViewPollInterval', () => {
     expect(liveViewPollInterval('controller', 'lobby')).toBe(1_000)
     expect(liveViewPollInterval('controller', 'question')).toBe(750)
     expect(liveViewPollInterval('presentation', 'question')).toBe(1_000)
+    expect(liveViewPollInterval('controller', 'tiebreaker')).toBe(750)
+    expect(liveViewPollInterval('presentation', 'tiebreaker')).toBe(1_000)
   })
 
   it('uses a slower safety poll outside active play', () => {

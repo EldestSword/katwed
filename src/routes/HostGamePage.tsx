@@ -21,6 +21,7 @@ import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 import { TeamLobby } from '../features/teams/TeamLobby'
 import { isTeamGame } from '../features/teams/teams'
 import { isSurvivorGame, isTerminalSurvivor, survivorAliveCount } from '../features/game/survivor'
+import { HostTieBreakerPanel } from '../features/game/TieBreakerScreens'
 
 type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close' | 'clue' | 'reset-buzz'
 
@@ -179,6 +180,14 @@ export function HostGamePage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Teams could not be updated.') }
     finally { actionInFlight.current = false; setWorking(false) }
   }
+  const tieBreakerState = session.tieBreaker ?? (state.tieBreaker ? { ...state.tieBreaker } : null)
+  const tieBreakerAction = async (operation: () => Promise<void>) => {
+    if (actionInFlight.current) return
+    actionInFlight.current = true; setWorking(true); setError('')
+    try { await operation(); await refresh() }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'The tie-breaker action failed.') }
+    finally { actionInFlight.current = false; setWorking(false) }
+  }
 
   return (
     <main className="controller-page">
@@ -197,7 +206,7 @@ export function HostGamePage() {
           <div className="controller-preview"><PresentationStage state={state} compact /></div>
         </section>
         <aside className="controller-panel">
-          <div className="controller-panel__heading"><div><p className="eyebrow">{survivorMode ? `Survivor · ${state.sessionSettings?.survivorStartingLives ?? 3} lives each` : 'Current state'}</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'round-intro' ? state.currentRound?.title : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
+          <div className="controller-panel__heading"><div><p className="eyebrow">{survivorMode ? `Survivor · ${state.sessionSettings?.survivorStartingLives ?? 3} lives each` : 'Current state'}</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'round-intro' ? state.currentRound?.title : state.phase === 'finished' ? 'Quiz complete' : tieBreakerState ? `Tie-breaker round ${tieBreakerState.round}` : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && !tieBreakerState && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
           {state.phase === 'round-intro' && state.currentRound && <p>{state.currentRound.subtitle}<br />Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds} · {state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p>}
           <dl className="controller-stats">
             <div><dt>Time</dt><dd>{activePrelude === 'double-score' ? 'Double Score' : activePrelude === 'question-type' ? 'Intro' : headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
@@ -206,6 +215,7 @@ export function HostGamePage() {
             {survivorMode && <div><dt>Remaining</dt><dd>{aliveCount}</dd></div>}
           </dl>
           <div className="controller-actions" role="group" aria-label="Game controls">
+            {tieBreakerState && (state.phase === 'tiebreaker' || state.phase === 'tiebreaker-result') && <HostTieBreakerPanel state={tieBreakerState} players={state.players} working={working} onResolve={() => void tieBreakerAction(() => repository.resolveTieBreaker(sessionId))} onNext={() => void tieBreakerAction(() => repository.nextTieBreaker(sessionId))} onFinal={() => void tieBreakerAction(() => repository.revealTieBreakerFinal(sessionId))} />}
             {!headToHead && state.phase === 'question' && question?.buzzInEnabled && <section className="controller-buzz"><p className="eyebrow" role="status">{state.buzz ? `${buzzWinner?.nickname ?? 'A player'}${buzzTeam ? ` · ${buzzTeam.name}` : ''} buzzed first` : 'Buzzers open'}</p><strong aria-hidden="true">{state.buzz ? (buzzRemaining > 0 ? `Answer window: ${buzzRemaining} seconds` : 'Answer window closed') : 'No winner yet'}</strong><span className="sr-only">{state.buzz ? (buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.') : 'No winner yet.'}</span>{state.buzz && !buzzWinnerAnswered && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('reset-buzz')}>Reset buzz</button>}</section>}
             {!headToHead && state.phase === 'question' && question?.type === 'connections' && currentQuestionDefinition?.type === 'connections' && <HostConnectionsControls question={question} definition={currentQuestionDefinition} disabled={working || Boolean(activePrelude) || remaining <= 0} onReveal={() => run('clue')} />}
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
@@ -228,7 +238,7 @@ export function HostGamePage() {
             <HostCorrectAnswer question={currentQuestionDefinition} roster={quiz.roster} />
           )}
           {teamMode && state.phase === 'lobby' && <section aria-label="Manage teams"><h2>Teams</h2><button type="button" className="button button--secondary" disabled={working || !state.players.length} onClick={() => void teamAction()}>Balance teams</button><TeamLobby teams={state.teams ?? []} players={state.players} disabled={working} onAssign={(playerId, teamId) => void teamAction(playerId, teamId)} /></section>}
-          {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
+          {!headToHead && currentQuestionDefinition && !['lobby', 'tiebreaker', 'tiebreaker-result'].includes(state.phase) && (
             <HostResponseMonitor
               players={session.players}
               teams={teamMode ? state.teams : undefined}
@@ -248,12 +258,12 @@ export function HostGamePage() {
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
             <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{survivorMode ? (player.survivorLivesRemaining ?? 0) > 0 ? `${player.survivorLivesRemaining} ${(player.survivorLivesRemaining ?? 0) === 1 ? 'life' : 'lives'}` : 'OUT' : player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>
           </section>}
-          <section className="controller-up-next">
+          {!['tiebreaker', 'tiebreaker-result'].includes(state.phase) && <section className="controller-up-next">
             <p className="eyebrow">Up next</p>
             <h2>{upcoming ? `Question ${currentIndex + (state.phase === 'round-intro' ? 1 : 2)}` : 'Final results'}</h2>
             <p>{upcoming ? upcoming.prompt : 'The final scoreboard and podium.'}</p>
             {upcoming && <small>{questionTypeRegistry[upcoming.type].name}{upcoming.media.type !== 'none' ? ` · Media: ${upcoming.media.type}` : ''}</small>}
-          </section>
+          </section>}
         </aside>
       </div>
     </main>

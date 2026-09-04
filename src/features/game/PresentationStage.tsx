@@ -35,6 +35,8 @@ import { ConnectionClues } from './ConnectionClues'
 import { WagerIndicator } from './WagerControl'
 import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
+import { TieBreakerPresentation } from './TieBreakerScreens'
+import { leaderboardBeforeTieBreaker } from './tieBreakers'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
   if (question.type === 'connections') return true
@@ -222,7 +224,8 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
       )}
 
       {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">{survivorMode ? 'Survival standings' : 'Current standings'}</p><h1>{survivorMode && aliveCount === 0 ? 'TOTAL WIPEOUT' : survivorMode && aliveCount === 1 ? 'LAST PLAYER STANDING' : 'Leaderboard'}</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} streakEvent={streakEvent} survivorEvent={survivorEvent} survivorMode={survivorMode} players={teamMode ? undefined : state.players} /></div>}
-      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : survivorMode ? <SurvivorFinalResults players={state.players} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
+      {(state.phase === 'tiebreaker' || state.phase === 'tiebreaker-result') && state.tieBreaker && <TieBreakerPresentation state={state.tieBreaker} players={state.players} compact={compact} />}
+      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : survivorMode ? <SurvivorFinalResults players={state.players} tieBreakerWinnerPlayerId={state.tieBreaker?.winnerPlayerId} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardEntries={state.tieBreaker?.winnerPlayerId ? leaderboardBeforeTieBreaker(state.leaderboard) : undefined} awardsBaseline={awardsBaseline} variant="presentation" />)}
     </section>
   )
 }

@@ -1,0 +1,2015 @@
+{
+  "bankName": "Katwed Researched Tie-Breaker Bank v1.2",
+  "purpose": "Built-in closest-number tie-breakers. Closest numeric answer wins; exact distance ties can fall back to fastest authoritative submission time.",
+  "questionCount": 200,
+  "researchPolicy": [
+    "Prefer fixed or historically anchored numerical facts.",
+    "Prefer first-party, governing-body or authoritative reference sources.",
+    "Avoid live populations, prices, rankings and records that can drift unless explicitly date-stamped.",
+    "Film runtime questions use the BBFC page's approximate running-minutes figure to avoid mixing cuts.",
+    "Music duration questions identify a published track/version where version differences could matter."
+  ],
+  "questions": [
+    {
+      "id": "TB001",
+      "category": "Space & science",
+      "question": "What is Mercury's average orbit distance from the Sun, in million kilometres?",
+      "answer": 57.909227,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB002",
+      "category": "Space & science",
+      "question": "What is Venus's average orbit distance from the Sun, in million kilometres?",
+      "answer": 108.209475,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB003",
+      "category": "Space & science",
+      "question": "What is Earth's average orbit distance from the Sun, in million kilometres?",
+      "answer": 149.598262,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB004",
+      "category": "Space & science",
+      "question": "What is Mars's average orbit distance from the Sun, in million kilometres?",
+      "answer": 227.943824,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB005",
+      "category": "Space & science",
+      "question": "What is Jupiter's average orbit distance from the Sun, in million kilometres?",
+      "answer": 778.340821,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB006",
+      "category": "Space & science",
+      "question": "What is Saturn's average orbit distance from the Sun, in million kilometres?",
+      "answer": 1426.666422,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB007",
+      "category": "Space & science",
+      "question": "What is Uranus's average orbit distance from the Sun, in million kilometres?",
+      "answer": 2870.658186,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB008",
+      "category": "Space & science",
+      "question": "What is Neptune's average orbit distance from the Sun, in million kilometres?",
+      "answer": 4498.396441,
+      "unit": "million km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": "NASA orbit distance converted from km to million km."
+    },
+    {
+      "id": "TB009",
+      "category": "Space & science",
+      "question": "What is Mercury's equatorial radius, in kilometres?",
+      "answer": 2439.7,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB010",
+      "category": "Space & science",
+      "question": "What is Venus's equatorial radius, in kilometres?",
+      "answer": 6051.8,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB011",
+      "category": "Space & science",
+      "question": "What is Earth's equatorial radius, in kilometres?",
+      "answer": 6371.0,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB012",
+      "category": "Space & science",
+      "question": "What is Mars's equatorial radius, in kilometres?",
+      "answer": 3389.5,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB013",
+      "category": "Space & science",
+      "question": "What is Jupiter's equatorial radius, in kilometres?",
+      "answer": 69911,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB014",
+      "category": "Space & science",
+      "question": "What is Saturn's equatorial radius, in kilometres?",
+      "answer": 58232,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB015",
+      "category": "Space & science",
+      "question": "What is Uranus's equatorial radius, in kilometres?",
+      "answer": 25362,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB016",
+      "category": "Space & science",
+      "question": "What is Neptune's equatorial radius, in kilometres?",
+      "answer": 24622,
+      "unit": "km",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB017",
+      "category": "Space & science",
+      "question": "What is Mercury's average density, in grams per cubic centimetre?",
+      "answer": 5.427,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB018",
+      "category": "Space & science",
+      "question": "What is Venus's average density, in grams per cubic centimetre?",
+      "answer": 5.243,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB019",
+      "category": "Space & science",
+      "question": "What is Earth's average density, in grams per cubic centimetre?",
+      "answer": 5.513,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB020",
+      "category": "Space & science",
+      "question": "What is Mars's average density, in grams per cubic centimetre?",
+      "answer": 3.934,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB021",
+      "category": "Space & science",
+      "question": "What is Jupiter's average density, in grams per cubic centimetre?",
+      "answer": 1.326,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB022",
+      "category": "Space & science",
+      "question": "What is Saturn's average density, in grams per cubic centimetre?",
+      "answer": 0.687,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB023",
+      "category": "Space & science",
+      "question": "What is Uranus's average density, in grams per cubic centimetre?",
+      "answer": 1.27,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB024",
+      "category": "Space & science",
+      "question": "What is Neptune's average density, in grams per cubic centimetre?",
+      "answer": 1.638,
+      "unit": "g/cm³",
+      "sourceTitle": "NASA Planet Compare",
+      "sourceUrl": "https://solarsystem.nasa.gov/planet-compare/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB025",
+      "category": "Space & science",
+      "question": "About how old is the Sun, in billions of years?",
+      "answer": 4.5,
+      "unit": "billion years",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB026",
+      "category": "Space & science",
+      "question": "About how wide is the Sun, in kilometres?",
+      "answer": 1400000,
+      "unit": "km",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB027",
+      "category": "Space & science",
+      "question": "About how far is Earth from the Sun on average, in million kilometres?",
+      "answer": 150,
+      "unit": "million km",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB028",
+      "category": "Space & science",
+      "question": "About how hot is the Sun's core, in degrees Celsius?",
+      "answer": 15000000,
+      "unit": "°C",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB029",
+      "category": "Space & science",
+      "question": "About how hot is the Sun's visible surface, the photosphere, in degrees Celsius?",
+      "answer": 5500,
+      "unit": "°C",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB030",
+      "category": "Space & science",
+      "question": "About how hot can the Sun's corona get, in degrees Celsius?",
+      "answer": 2000000,
+      "unit": "°C",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB031",
+      "category": "Space & science",
+      "question": "Roughly how many Earths would equal the Sun's mass?",
+      "answer": 330000,
+      "unit": "Earth masses",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB032",
+      "category": "Space & science",
+      "question": "Roughly how many Earths could fit inside the Sun by volume?",
+      "answer": 1300000,
+      "unit": "Earth volumes",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB033",
+      "category": "Space & science",
+      "question": "About how many Earth days does the Sun take to rotate at its equator?",
+      "answer": 25,
+      "unit": "days",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB034",
+      "category": "Space & science",
+      "question": "About how many Earth days does the Sun take to rotate at its poles?",
+      "answer": 36,
+      "unit": "days",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB035",
+      "category": "Space & science",
+      "question": "About how many million years does the Sun take to orbit the centre of the Milky Way?",
+      "answer": 230,
+      "unit": "million years",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB036",
+      "category": "Space & science",
+      "question": "About how fast does our solar system move through the Milky Way, in kilometres per hour?",
+      "answer": 720000,
+      "unit": "km/h",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB037",
+      "category": "Space & science",
+      "question": "What percentage of the solar system's mass is in the Sun?",
+      "answer": 99.8,
+      "unit": "%",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB038",
+      "category": "Space & science",
+      "question": "About how thick is the Sun's core, in kilometres?",
+      "answer": 138000,
+      "unit": "km",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB039",
+      "category": "Space & science",
+      "question": "About how thick is the Sun's photosphere, in miles?",
+      "answer": 250,
+      "unit": "miles",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB040",
+      "category": "Space & science",
+      "question": "About how many years can radiation take to travel through the Sun's radiative zone?",
+      "answer": 170000,
+      "unit": "years",
+      "sourceTitle": "NASA Sun Facts",
+      "sourceUrl": "https://science.nasa.gov/sun/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB041",
+      "category": "Space & science",
+      "question": "Approximately what percentage of the Sun is hydrogen in NASA's educational fact sheet?",
+      "answer": 70,
+      "unit": "%",
+      "sourceTitle": "NASA Solar Viewer Activity",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/10/Solar-Viewer-Activity.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB042",
+      "category": "Space & science",
+      "question": "Approximately what percentage of the Sun is helium in NASA's educational fact sheet?",
+      "answer": 28,
+      "unit": "%",
+      "sourceTitle": "NASA Solar Viewer Activity",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/10/Solar-Viewer-Activity.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB043",
+      "category": "Space & science",
+      "question": "About how fast can the solar wind travel, in kilometres per second, in NASA's educational fact sheet?",
+      "answer": 450,
+      "unit": "km/s",
+      "sourceTitle": "NASA Solar Viewer Activity",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/10/Solar-Viewer-Activity.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB044",
+      "category": "Space & science",
+      "question": "What is the Moon's average distance from Earth, in kilometres?",
+      "answer": 384400,
+      "unit": "km",
+      "sourceTitle": "NASA Moon Facts",
+      "sourceUrl": "https://science.nasa.gov/moon/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB045",
+      "category": "Space & science",
+      "question": "About what is the Moon's radius, in kilometres?",
+      "answer": 1740,
+      "unit": "km",
+      "sourceTitle": "NASA Moon Facts",
+      "sourceUrl": "https://science.nasa.gov/moon/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB046",
+      "category": "Space & science",
+      "question": "About what is the Moon's equatorial diameter, in kilometres?",
+      "answer": 3476,
+      "unit": "km",
+      "sourceTitle": "NASA StarChild Moon Facts",
+      "sourceUrl": "https://starchild.gsfc.nasa.gov/docs/StarChild/solar_system_level1/moon_facts.html",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB047",
+      "category": "Space & science",
+      "question": "How many Earth days does the Moon take to revolve around Earth?",
+      "answer": 27.3,
+      "unit": "days",
+      "sourceTitle": "NASA StarChild Moon Facts",
+      "sourceUrl": "https://starchild.gsfc.nasa.gov/docs/StarChild/solar_system_level1/moon_facts.html",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB048",
+      "category": "Space & science",
+      "question": "The Moon's gravity is about what percentage of Earth's?",
+      "answer": 16,
+      "unit": "%",
+      "sourceTitle": "NASA StarChild Moon Facts",
+      "sourceUrl": "https://starchild.gsfc.nasa.gov/docs/StarChild/solar_system_level1/moon_facts.html",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB049",
+      "category": "Space & science",
+      "question": "Roughly how many inches farther from Earth does the Moon move each year?",
+      "answer": 1,
+      "unit": "inch/year",
+      "sourceTitle": "NASA Moon Facts",
+      "sourceUrl": "https://science.nasa.gov/moon/facts/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB050",
+      "category": "Space & science",
+      "question": "About how much does the James Webb Space Telescope payload weigh, in kilograms?",
+      "answer": 6200,
+      "unit": "kg",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB051",
+      "category": "Space & science",
+      "question": "What is the diameter of Webb's primary mirror, in metres?",
+      "answer": 6.5,
+      "unit": "m",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB052",
+      "category": "Space & science",
+      "question": "What is Webb's primary mirror clear aperture area, in square metres?",
+      "answer": 25,
+      "unit": "m²",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB053",
+      "category": "Space & science",
+      "question": "About how much does Webb's primary mirror weigh, in kilograms?",
+      "answer": 705,
+      "unit": "kg",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB054",
+      "category": "Space & science",
+      "question": "How many primary mirror segments does the James Webb Space Telescope have?",
+      "answer": 18,
+      "unit": "segments",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB055",
+      "category": "Space & science",
+      "question": "What is Webb's focal length, in metres?",
+      "answer": 131.4,
+      "unit": "m",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB056",
+      "category": "Space & science",
+      "question": "About how long is Webb's sunshield, in metres?",
+      "answer": 21.197,
+      "unit": "m",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB057",
+      "category": "Space & science",
+      "question": "About how wide is Webb's sunshield, in metres?",
+      "answer": 14.162,
+      "unit": "m",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB058",
+      "category": "Space & science",
+      "question": "About how far from Earth is Webb's L2 orbit, in million kilometres?",
+      "answer": 1.5,
+      "unit": "million km",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB059",
+      "category": "Space & science",
+      "question": "About how many grams of gold coat Webb's primary mirror?",
+      "answer": 48.25,
+      "unit": "g",
+      "sourceTitle": "NASA Webb Fact Sheet",
+      "sourceUrl": "https://science.nasa.gov/mission/webb/fact-sheet/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB060",
+      "category": "Space & science",
+      "question": "What is the exact speed of light in a vacuum, in metres per second?",
+      "answer": 299792458,
+      "unit": "m/s",
+      "sourceTitle": "NIST CODATA: speed of light in vacuum",
+      "sourceUrl": "https://physics.nist.gov/cuu/Constants/Value/c.html",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB061",
+      "category": "Landmarks & geography",
+      "question": "How tall is the Eiffel Tower today, in metres?",
+      "answer": 330,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB062",
+      "category": "Landmarks & geography",
+      "question": "How tall was the Eiffel Tower initially with its original flagpole, in metres?",
+      "answer": 312,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB063",
+      "category": "Landmarks & geography",
+      "question": "How wide is the Eiffel Tower across the ground, in metres?",
+      "answer": 125,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB064",
+      "category": "Landmarks & geography",
+      "question": "How wide is one Eiffel Tower pillar at ground level, in metres?",
+      "answer": 25,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB065",
+      "category": "Landmarks & geography",
+      "question": "How high is the Eiffel Tower's first floor, in metres?",
+      "answer": 57,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB066",
+      "category": "Landmarks & geography",
+      "question": "How high is the Eiffel Tower's second floor, in metres?",
+      "answer": 115,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB067",
+      "category": "Landmarks & geography",
+      "question": "How high is the Eiffel Tower's third floor, in metres?",
+      "answer": 276,
+      "unit": "m",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB068",
+      "category": "Landmarks & geography",
+      "question": "How much does the Eiffel Tower's metal framework weigh, in tonnes?",
+      "answer": 7300,
+      "unit": "tonnes",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB069",
+      "category": "Landmarks & geography",
+      "question": "About how much does the Eiffel Tower weigh in total, in tonnes?",
+      "answer": 10100,
+      "unit": "tonnes",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB070",
+      "category": "Landmarks & geography",
+      "question": "About how many rivets were used in the Eiffel Tower?",
+      "answer": 2500000,
+      "unit": "rivets",
+      "sourceTitle": "Eiffel Tower official key figures",
+      "sourceUrl": "https://www.toureiffel.paris/fr/le-monument/chiffres-cle",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB071",
+      "category": "Landmarks & geography",
+      "question": "How tall is The Shard, in metres?",
+      "answer": 309.6,
+      "unit": "m",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB072",
+      "category": "Landmarks & geography",
+      "question": "How many storeys does The Shard have?",
+      "answer": 95,
+      "unit": "storeys",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB073",
+      "category": "Landmarks & geography",
+      "question": "What is the highest habitable floor level in The Shard?",
+      "answer": 72,
+      "unit": "floor",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB074",
+      "category": "Landmarks & geography",
+      "question": "How many lifts serve The Shard?",
+      "answer": 36,
+      "unit": "lifts",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB075",
+      "category": "Landmarks & geography",
+      "question": "About how many glass panels cover The Shard?",
+      "answer": 11000,
+      "unit": "panels",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB076",
+      "category": "Landmarks & geography",
+      "question": "About how many kilometres of wiring are inside The Shard?",
+      "answer": 320,
+      "unit": "km",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB077",
+      "category": "Landmarks & geography",
+      "question": "At the busiest point, about how many workers were helping build The Shard?",
+      "answer": 1450,
+      "unit": "workers",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB078",
+      "category": "Landmarks & geography",
+      "question": "How fast can lifts in The Shard travel, in metres per second?",
+      "answer": 6,
+      "unit": "m/s",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB079",
+      "category": "Landmarks & geography",
+      "question": "Roughly how many people are allowed inside The Shard at once?",
+      "answer": 9500,
+      "unit": "people",
+      "sourceTitle": "The Shard official facts",
+      "sourceUrl": "https://www.the-shard.com/about/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB080",
+      "category": "Landmarks & geography",
+      "question": "How tall is the Empire State Building including its spire and antenna, in metres?",
+      "answer": 443,
+      "unit": "m",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB081",
+      "category": "Landmarks & geography",
+      "question": "How tall is the Empire State Building to the roof of the 102nd floor, in metres?",
+      "answer": 380,
+      "unit": "m",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB082",
+      "category": "Landmarks & geography",
+      "question": "How many steps are there from street level to the Empire State Building's 102nd-floor observatory?",
+      "answer": 1860,
+      "unit": "steps",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB083",
+      "category": "Landmarks & geography",
+      "question": "How many elevators does the Empire State Building have?",
+      "answer": 73,
+      "unit": "elevators",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB084",
+      "category": "Landmarks & geography",
+      "question": "How high is the Empire State Building's 86th-floor observatory, in metres?",
+      "answer": 320,
+      "unit": "m",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB085",
+      "category": "Landmarks & geography",
+      "question": "How high is its 102nd-floor observation deck, in metres?",
+      "answer": 381,
+      "unit": "m",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB086",
+      "category": "Landmarks & geography",
+      "question": "About how much does the Empire State Building weigh, in tonnes?",
+      "answer": 365000,
+      "unit": "tonnes",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB087",
+      "category": "Landmarks & geography",
+      "question": "About how many bricks were used in the Empire State Building?",
+      "answer": 10000000,
+      "unit": "bricks",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB088",
+      "category": "Landmarks & geography",
+      "question": "How many windows does the Empire State Building have?",
+      "answer": 6514,
+      "unit": "windows",
+      "sourceTitle": "Empire State Building official facts",
+      "sourceUrl": "https://www.esbnyc.com/about/facts-figures",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB089",
+      "category": "Landmarks & geography",
+      "question": "What is the total length of the Golden Gate Bridge including approaches, in metres?",
+      "answer": 2737,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB090",
+      "category": "Landmarks & geography",
+      "question": "How long is the Golden Gate Bridge's suspension span including side spans, in metres?",
+      "answer": 1966,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB091",
+      "category": "Landmarks & geography",
+      "question": "How long is the Golden Gate Bridge's main span between its towers, in metres?",
+      "answer": 1280,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB092",
+      "category": "Landmarks & geography",
+      "question": "How long is one Golden Gate Bridge side span, in metres?",
+      "answer": 343,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB093",
+      "category": "Landmarks & geography",
+      "question": "How wide is the Golden Gate Bridge, in metres?",
+      "answer": 27,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB094",
+      "category": "Landmarks & geography",
+      "question": "How wide is its roadway between curbs, in metres?",
+      "answer": 19,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB095",
+      "category": "Landmarks & geography",
+      "question": "What is the bridge's clearance above mean higher high water, in metres?",
+      "answer": 67,
+      "unit": "m",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB096",
+      "category": "Landmarks & geography",
+      "question": "About how many million kilograms does each Golden Gate Bridge anchorage weigh?",
+      "answer": 54.4,
+      "unit": "million kg",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB097",
+      "category": "Landmarks & geography",
+      "question": "What was the Golden Gate Bridge's total construction cost in 1930s US dollars, in millions?",
+      "answer": 35,
+      "unit": "million US dollars",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/exhibits/facts-and-figures-about-the-bridge/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB098",
+      "category": "Landmarks & geography",
+      "question": "How long is each Golden Gate Bridge main cable, in feet?",
+      "answer": 6800,
+      "unit": "ft",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/file.aspx?DocumentId=515",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB099",
+      "category": "Landmarks & geography",
+      "question": "What is the outside diameter of each Golden Gate Bridge main cable, in inches?",
+      "answer": 36.375,
+      "unit": "in",
+      "sourceTitle": "Golden Gate Bridge official facts",
+      "sourceUrl": "https://www.goldengate.org/file.aspx?DocumentId=515",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB100",
+      "category": "Landmarks & geography",
+      "question": "How long is the Channel Tunnel, in kilometres?",
+      "answer": 50.5,
+      "unit": "km",
+      "sourceTitle": "Eurotunnel: The Channel Tunnel",
+      "sourceUrl": "https://www.getlinkgroup.com/en/our-group/eurotunnel/channel-tunnel/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB101",
+      "category": "Landmarks & geography",
+      "question": "How long is the Channel Tunnel's undersea section, in kilometres?",
+      "answer": 37,
+      "unit": "km",
+      "sourceTitle": "Eurotunnel: The Channel Tunnel",
+      "sourceUrl": "https://www.getlinkgroup.com/en/our-group/eurotunnel/channel-tunnel/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB102",
+      "category": "Landmarks & geography",
+      "question": "How many kilometres off the English coast is the Channel Tunnel's nearer crossover?",
+      "answer": 7,
+      "unit": "km",
+      "sourceTitle": "Eurotunnel: The Channel Tunnel",
+      "sourceUrl": "https://www.getlinkgroup.com/en/our-group/eurotunnel/channel-tunnel/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB103",
+      "category": "Landmarks & geography",
+      "question": "How many kilometres off the French coast is the Channel Tunnel's other crossover?",
+      "answer": 13,
+      "unit": "km",
+      "sourceTitle": "Eurotunnel: The Channel Tunnel",
+      "sourceUrl": "https://www.getlinkgroup.com/en/our-group/eurotunnel/channel-tunnel/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB104",
+      "category": "Landmarks & geography",
+      "question": "About how many hectares does the Coquelles Channel Tunnel terminal cover?",
+      "answer": 650,
+      "unit": "hectares",
+      "sourceTitle": "Eurotunnel: The Channel Tunnel",
+      "sourceUrl": "https://www.getlinkgroup.com/en/our-group/eurotunnel/channel-tunnel/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB105",
+      "category": "Landmarks & geography",
+      "question": "How tall is the CN Tower, in metres?",
+      "answer": 553.33,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB106",
+      "category": "Landmarks & geography",
+      "question": "How high is 'The Top' level of the CN Tower, in metres?",
+      "answer": 447,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB107",
+      "category": "Landmarks & geography",
+      "question": "How high is the CN Tower EdgeWalk, in metres?",
+      "answer": 356,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB108",
+      "category": "Landmarks & geography",
+      "question": "How high is the CN Tower's 360 Restaurant, in metres?",
+      "answer": 351,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB109",
+      "category": "Landmarks & geography",
+      "question": "How high is the CN Tower's main observation level, in metres?",
+      "answer": 346,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB110",
+      "category": "Landmarks & geography",
+      "question": "How high is the CN Tower's lower observation level, in metres?",
+      "answer": 342,
+      "unit": "m",
+      "sourceTitle": "CN Tower official discovery facts",
+      "sourceUrl": "https://www.cntower.ca/media/2216/download?inline=",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB111",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Nile, in kilometres?",
+      "answer": 6650,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB112",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Amazon, in kilometres?",
+      "answer": 6436,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB113",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Yangtze, in kilometres?",
+      "answer": 6300,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB114",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Mississippi-Missouri, in kilometres?",
+      "answer": 6275,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB115",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Yenisey-Angara, in kilometres?",
+      "answer": 5539,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB116",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Yellow River (Huang He), in kilometres?",
+      "answer": 5464,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB117",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Ob-Irtysh, in kilometres?",
+      "answer": 5410,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB118",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Congo, in kilometres?",
+      "answer": 4700,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB119",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Amur, in kilometres?",
+      "answer": 4444,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB120",
+      "category": "Landmarks & geography",
+      "question": "According to the CIA World Factbook's archived river table, about how long is the Lena, in kilometres?",
+      "answer": 4400,
+      "unit": "km",
+      "sourceTitle": "CIA World Factbook: major rivers by length",
+      "sourceUrl": "https://www.cia.gov/the-world-factbook/about/archives/2023/field/major-rivers-by-length-in-km/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB121",
+      "category": "Sport",
+      "question": "How far is a football penalty mark from the midpoint of the goal, in metres?",
+      "answer": 11,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB122",
+      "category": "Sport",
+      "question": "How wide is a full-size football goal between the inside of the posts, in metres?",
+      "answer": 7.32,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB123",
+      "category": "Sport",
+      "question": "How high is a full-size football goal from ground to crossbar, in metres?",
+      "answer": 2.44,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB124",
+      "category": "Sport",
+      "question": "How far does the football penalty area extend from the inside of each goalpost, in metres?",
+      "answer": 16.5,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB125",
+      "category": "Sport",
+      "question": "How far does the football goal area extend from the inside of each goalpost, in metres?",
+      "answer": 5.5,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB126",
+      "category": "Sport",
+      "question": "What is the maximum permitted width or depth of a football goalpost or crossbar, in centimetres?",
+      "answer": 12,
+      "unit": "cm",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB127",
+      "category": "Sport",
+      "question": "What is the minimum touchline length for an international football match, in metres?",
+      "answer": 100,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB128",
+      "category": "Sport",
+      "question": "What is the maximum touchline length for an international football match, in metres?",
+      "answer": 110,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB129",
+      "category": "Sport",
+      "question": "What is the minimum goal-line width for an international football match, in metres?",
+      "answer": 64,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB130",
+      "category": "Sport",
+      "question": "What is the maximum goal-line width for an international football match, in metres?",
+      "answer": 75,
+      "unit": "m",
+      "sourceTitle": "IFAB Laws of the Game: Field of Play",
+      "sourceUrl": "https://www.theifab.com/laws/latest/the-field-of-play/?side-menu-category=laws-of-the-game",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB131",
+      "category": "Sport",
+      "question": "How long is a standard tennis court, in metres?",
+      "answer": 23.77,
+      "unit": "m",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB132",
+      "category": "Sport",
+      "question": "How wide is a singles tennis court, in metres?",
+      "answer": 8.23,
+      "unit": "m",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB133",
+      "category": "Sport",
+      "question": "How wide is a doubles tennis court, in metres?",
+      "answer": 10.97,
+      "unit": "m",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB134",
+      "category": "Sport",
+      "question": "How high are the tennis net posts, in metres?",
+      "answer": 1.07,
+      "unit": "m",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB135",
+      "category": "Sport",
+      "question": "How high is a tennis net at the centre, in metres?",
+      "answer": 0.914,
+      "unit": "m",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB136",
+      "category": "Sport",
+      "question": "What is the maximum diameter of a tennis net's cord or metal cable, in centimetres?",
+      "answer": 0.8,
+      "unit": "cm",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB137",
+      "category": "Sport",
+      "question": "What is the maximum width of the centre strap holding a tennis net down, in centimetres?",
+      "answer": 5,
+      "unit": "cm",
+      "sourceTitle": "ITF Tennis Court Layout",
+      "sourceUrl": "https://www.itftennis.com/en/about-us/organisation/tennis-glossary/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB138",
+      "category": "Sport",
+      "question": "How long is a cricket pitch, in metres?",
+      "answer": 20.12,
+      "unit": "m",
+      "sourceTitle": "ICC cricket playing conditions",
+      "sourceUrl": "https://www.icc-cricket.com/news/mens-odi-match-clause-6-the-pitch",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB139",
+      "category": "Sport",
+      "question": "How wide is the rectangular cricket pitch area in the ICC ODI clause, in metres?",
+      "answer": 3.05,
+      "unit": "m",
+      "sourceTitle": "ICC cricket playing conditions",
+      "sourceUrl": "https://www.icc-cricket.com/news/mens-odi-match-clause-6-the-pitch",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB140",
+      "category": "Sport",
+      "question": "What is the radius of the restricted fielding circle in ICC cricket, in metres?",
+      "answer": 27.5,
+      "unit": "m",
+      "sourceTitle": "ICC cricket playing conditions",
+      "sourceUrl": "https://images.icc-cricket.com/image/upload/prd/vsldugyo8ez8ezbaz9e6.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB141",
+      "category": "Sport",
+      "question": "What is the minimum distance behind the stumps for certain on-field advertising logos in ICC venue guidance, in metres?",
+      "answer": 23,
+      "unit": "m",
+      "sourceTitle": "ICC cricket playing conditions",
+      "sourceUrl": "https://images.icc-cricket.com/image/upload/prd/vsldugyo8ez8ezbaz9e6.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB142",
+      "category": "Sport",
+      "question": "What is the maximum field-of-play length in rugby union, in metres?",
+      "answer": 100,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB143",
+      "category": "Sport",
+      "question": "What is the minimum field-of-play length in rugby union, in metres?",
+      "answer": 94,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB144",
+      "category": "Sport",
+      "question": "What is the maximum rugby union field width, in metres?",
+      "answer": 70,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB145",
+      "category": "Sport",
+      "question": "What is the minimum rugby union field width, in metres?",
+      "answer": 68,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB146",
+      "category": "Sport",
+      "question": "What is the maximum in-goal length in rugby union, in metres?",
+      "answer": 22,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB147",
+      "category": "Sport",
+      "question": "What is the minimum in-goal length in rugby union, in metres?",
+      "answer": 6,
+      "unit": "m",
+      "sourceTitle": "World Rugby Laws: The Ground",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/1-the-ground/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB148",
+      "category": "Sport",
+      "question": "What is the maximum number of players one rugby union team may have on the playing area?",
+      "answer": 15,
+      "unit": "players",
+      "sourceTitle": "World Rugby Laws: Team",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/3-team/?overridelang=1",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB149",
+      "category": "Sport",
+      "question": "For an international rugby union match, how many replacements may a union nominate?",
+      "answer": 8,
+      "unit": "replacements",
+      "sourceTitle": "World Rugby Laws: Team",
+      "sourceUrl": "https://passport.world.rugby/laws-of-the-game/laws-by-number/3-team/?overridelang=1",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB150",
+      "category": "Sport",
+      "question": "How long is a standard marathon, in kilometres?",
+      "answer": 42.195,
+      "unit": "km",
+      "sourceTitle": "World Athletics",
+      "sourceUrl": "https://worldathletics.org/news/news/ultrarunning-introduction",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB151",
+      "category": "Sport",
+      "question": "What is the official diameter of a PDC-style bristle dartboard, in millimetres?",
+      "answer": 451,
+      "unit": "mm",
+      "sourceTitle": "Darts Regulation Authority Rules",
+      "sourceUrl": "https://www.pdc.tv/sites/default/files/2020-08/DRA-Rules.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB152",
+      "category": "Sport",
+      "question": "How high is the centre of the bull on a competition dartboard, in metres?",
+      "answer": 1.73,
+      "unit": "m",
+      "sourceTitle": "Darts Regulation Authority Rules",
+      "sourceUrl": "https://www.pdc.tv/sites/default/files/2020-08/DRA-Rules.pdf",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB153",
+      "category": "Sport",
+      "question": "How long is a FIBA basketball court, in metres?",
+      "answer": 28,
+      "unit": "m",
+      "sourceTitle": "FIBA Venue Guide",
+      "sourceUrl": "https://www.venueguide.fiba.basketball/vanue-design",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB154",
+      "category": "Sport",
+      "question": "How wide is a FIBA basketball court, in metres?",
+      "answer": 15,
+      "unit": "m",
+      "sourceTitle": "FIBA Venue Guide",
+      "sourceUrl": "https://www.venueguide.fiba.basketball/vanue-design",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB155",
+      "category": "Sport",
+      "question": "How far is the pitcher's plate from the rear point of home plate in Major League Baseball, in feet?",
+      "answer": 60.5,
+      "unit": "ft",
+      "sourceTitle": "MLB official field basics",
+      "sourceUrl": "https://www.mlb.com/official-information/basics/field",
+      "sourceNote": "60 feet 6 inches = 60.5 feet."
+    },
+    {
+      "id": "TB156",
+      "category": "Technology & gaming",
+      "question": "In what year was the original iPhone introduced?",
+      "answer": 2007,
+      "unit": "year",
+      "sourceTitle": "Apple: iPhone at ten",
+      "sourceUrl": "https://www.apple.com/newsroom/2017/01/iphone-at-ten-the-revolution-continues/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB157",
+      "category": "Technology & gaming",
+      "question": "What was the US starting price of the original 4GB iPhone, in dollars?",
+      "answer": 499,
+      "unit": "US dollars",
+      "sourceTitle": "Apple: iPhone premieres",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/06/28iPhone-Premieres-This-Friday-Night-at-Apple-Retail-Stores/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB158",
+      "category": "Technology & gaming",
+      "question": "What was the larger of the two original iPhone storage capacities, in gigabytes?",
+      "answer": 8,
+      "unit": "GB",
+      "sourceTitle": "Apple: iPhone premieres",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/06/28iPhone-Premieres-This-Friday-Night-at-Apple-Retail-Stores/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB159",
+      "category": "Technology & gaming",
+      "question": "How large was the original iPhone display, in inches?",
+      "answer": 3.5,
+      "unit": "inches",
+      "sourceTitle": "Apple: iPhone battery and display",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/06/18iPhone-Delivers-Up-to-Eight-Hours-of-Talk-Time/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB160",
+      "category": "Technology & gaming",
+      "question": "Apple advertised up to how many hours of talk time for the original iPhone?",
+      "answer": 8,
+      "unit": "hours",
+      "sourceTitle": "Apple: iPhone battery and display",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/06/18iPhone-Delivers-Up-to-Eight-Hours-of-Talk-Time/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB161",
+      "category": "Technology & gaming",
+      "question": "Apple advertised up to how many hours of standby time for the original iPhone?",
+      "answer": 250,
+      "unit": "hours",
+      "sourceTitle": "Apple: iPhone battery and display",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/06/18iPhone-Delivers-Up-to-Eight-Hours-of-Talk-Time/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB162",
+      "category": "Technology & gaming",
+      "question": "How many days did Apple say it took to sell the one-millionth original iPhone?",
+      "answer": 74,
+      "unit": "days",
+      "sourceTitle": "Apple: one millionth iPhone",
+      "sourceUrl": "https://www.apple.com/newsroom/2007/09/10Apple-Sells-One-Millionth-iPhone/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB163",
+      "category": "Technology & gaming",
+      "question": "In what year did Apple introduce the iPad?",
+      "answer": 2010,
+      "unit": "year",
+      "sourceTitle": "Apple launches iPad",
+      "sourceUrl": "https://www.apple.com/newsroom/2010/01/27Apple-Launches-iPad/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB164",
+      "category": "Technology & gaming",
+      "question": "How thick was the original iPad, in inches?",
+      "answer": 0.5,
+      "unit": "inches",
+      "sourceTitle": "Apple launches iPad",
+      "sourceUrl": "https://www.apple.com/newsroom/2010/01/27Apple-Launches-iPad/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB165",
+      "category": "Technology & gaming",
+      "question": "How much did the original iPad weigh, in pounds?",
+      "answer": 1.5,
+      "unit": "lb",
+      "sourceTitle": "Apple launches iPad",
+      "sourceUrl": "https://www.apple.com/newsroom/2010/01/27Apple-Launches-iPad/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB166",
+      "category": "Technology & gaming",
+      "question": "What was the starting US price of the original iPad, in dollars?",
+      "answer": 499,
+      "unit": "US dollars",
+      "sourceTitle": "Apple launches iPad",
+      "sourceUrl": "https://www.apple.com/newsroom/2010/01/27Apple-Launches-iPad/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB167",
+      "category": "Technology & gaming",
+      "question": "Apple advertised up to how many hours of battery life for the original iPad?",
+      "answer": 10,
+      "unit": "hours",
+      "sourceTitle": "Apple launches iPad",
+      "sourceUrl": "https://www.apple.com/newsroom/2010/01/27Apple-Launches-iPad/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB168",
+      "category": "Technology & gaming",
+      "question": "How many days did Apple say it took to sell the one-millionth iPad?",
+      "answer": 28,
+      "unit": "days",
+      "sourceTitle": "Apple: one million iPads",
+      "sourceUrl": "https://www.apple.com/uk/newsroom/2010/05/03Apple-Sells-One-Million-iPads/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB169",
+      "category": "Technology & gaming",
+      "question": "In what year did the Xbox 360 launch?",
+      "answer": 2005,
+      "unit": "year",
+      "sourceTitle": "Xbox 25th Anniversary",
+      "sourceUrl": "https://www.xbox.com/en-GB/xbox-25th-anniversary",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB170",
+      "category": "Technology & gaming",
+      "question": "In what year did the Xbox One launch?",
+      "answer": 2013,
+      "unit": "year",
+      "sourceTitle": "Xbox 25th Anniversary",
+      "sourceUrl": "https://www.xbox.com/en-GB/xbox-25th-anniversary",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB171",
+      "category": "Technology & gaming",
+      "question": "In what year did the Xbox Series X|S launch?",
+      "answer": 2020,
+      "unit": "year",
+      "sourceTitle": "Xbox 25th Anniversary",
+      "sourceUrl": "https://www.xbox.com/en-GB/xbox-25th-anniversary",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB172",
+      "category": "Technology & gaming",
+      "question": "In what year did the original PlayStation launch in Japan?",
+      "answer": 1994,
+      "unit": "year",
+      "sourceTitle": "PlayStation history timeline",
+      "sourceUrl": "https://www.playstation.com/en-us/playstation-history/1994-ps-one/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB173",
+      "category": "Technology & gaming",
+      "question": "In what year was the smaller PS one model released?",
+      "answer": 2000,
+      "unit": "year",
+      "sourceTitle": "PlayStation history timeline",
+      "sourceUrl": "https://www.playstation.com/en-us/playstation-history/1994-ps-one/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB174",
+      "category": "Technology & gaming",
+      "question": "How many million copies of Windows 95 did Microsoft say sold in its first five weeks?",
+      "answer": 7,
+      "unit": "million copies",
+      "sourceTitle": "Microsoft: Launch of Windows 95",
+      "sourceUrl": "https://news.microsoft.com/announcement/launch-of-windows-95/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB175",
+      "category": "Technology & gaming",
+      "question": "In what year was Windows 95 launched?",
+      "answer": 1995,
+      "unit": "year",
+      "sourceTitle": "Microsoft: Launch of Windows 95",
+      "sourceUrl": "https://news.microsoft.com/announcement/launch-of-windows-95/",
+      "sourceNote": ""
+    },
+    {
+      "id": "TB176",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Oppenheimer?",
+      "answer": 173,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/oppenheimer-q29sbgvjdglvbjpwwc0xmda2mjm0",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB177",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Avengers: Endgame?",
+      "answer": 174,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/avengers-endgame-q29sbgvjdglvbjpwwc00mde4oda",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB178",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Back to the Future?",
+      "answer": 111,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/back-to-the-future-q29sbgvjdglvbjpwwc0xmda2mjg5",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB179",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Jurassic Park?",
+      "answer": 127,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/jurassic-park-q29sbgvjdglvbjpwwc0yodc1mdu",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB180",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Titanic?",
+      "answer": 195,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/titanic-q29sbgvjdglvbjpwwc0zmdu3oty",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB181",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Pulp Fiction?",
+      "answer": 154,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/pulp-fiction-q29sbgvjdglvbjpwwc0zmdgwotc",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB182",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is The Matrix?",
+      "answer": 136,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/the-matrix-q29sbgvjdglvbjpwwc0zmde2mjk",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB183",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is The Dark Knight?",
+      "answer": 146,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/the-dark-knight-q29sbgvjdglvbjpwwc00ntc5mtc",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB184",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Barbie?",
+      "answer": 114,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/barbie-q29sbgvjdglvbjpwwc0xmda5otq3",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB185",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Toy Story?",
+      "answer": 81,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/toy-story-q29sbgvjdglvbjpwwc0zndq0mjc",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB186",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Toy Story 3?",
+      "answer": 98,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/toy-story-3-q29sbgvjdglvbjpwwc00nzawoty",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB187",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Toy Story 4?",
+      "answer": 96,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/toy-story-4-q29sbgvjdglvbjpwwc00mdiwntu",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB188",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Jaws?",
+      "answer": 124,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/jaws-q29sbgvjdglvbjpwwc0yodqwmdm",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB189",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Alien?",
+      "answer": 112,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/alien-q29sbgvjdglvbjpwwc0yotgxodk",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB190",
+      "category": "Film & TV",
+      "question": "According to the BBFC listing, approximately how many minutes long is Shrek?",
+      "answer": 90,
+      "unit": "minutes",
+      "sourceTitle": "BBFC",
+      "sourceUrl": "https://www.bbfc.co.uk/release/shrek-q29sbgvjdglvbjpwwc0zndmxnte",
+      "sourceNote": "Uses the BBFC page's 'Approx. running minutes' figure."
+    },
+    {
+      "id": "TB191",
+      "category": "Music",
+      "question": "How long is the Beatles track 'Hey Jude', in seconds?",
+      "answer": 431,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Hey Jude",
+      "sourceUrl": "https://www.thebeatles.com/hey-jude",
+      "sourceNote": "Published track length: 7:11."
+    },
+    {
+      "id": "TB192",
+      "category": "Music",
+      "question": "How long is the Beatles track 'Let It Be (7-inch single version)', in seconds?",
+      "answer": 230,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Let It Be (7-inch single version)",
+      "sourceUrl": "https://www.thebeatles.com/let-it-be-1",
+      "sourceNote": "Published track length: 3:50."
+    },
+    {
+      "id": "TB193",
+      "category": "Music",
+      "question": "How long is the Beatles track 'I Want to Hold Your Hand', in seconds?",
+      "answer": 144,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for I Want to Hold Your Hand",
+      "sourceUrl": "https://www.thebeatles.com/i-want-hold-your-hand",
+      "sourceNote": "Published track length: 2:24."
+    },
+    {
+      "id": "TB194",
+      "category": "Music",
+      "question": "How long is the Beatles track 'This Boy', in seconds?",
+      "answer": 133,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for This Boy",
+      "sourceUrl": "https://www.thebeatles.com/boy",
+      "sourceNote": "Published track length: 2:13."
+    },
+    {
+      "id": "TB195",
+      "category": "Music",
+      "question": "How long is the Beatles track 'Two of Us', in seconds?",
+      "answer": 213,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Two of Us",
+      "sourceUrl": "https://www.thebeatles.com/two-us",
+      "sourceNote": "Published track length: 3:33."
+    },
+    {
+      "id": "TB196",
+      "category": "Music",
+      "question": "How long is the Beatles track 'Come Together', in seconds?",
+      "answer": 258,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Come Together",
+      "sourceUrl": "https://www.thebeatles.com/come-together",
+      "sourceNote": "Published track length: 4:18."
+    },
+    {
+      "id": "TB197",
+      "category": "Music",
+      "question": "How long is Green Day's 'Basket Case', in seconds?",
+      "answer": 181,
+      "unit": "seconds",
+      "sourceTitle": "Spotify: Basket Case by Green Day",
+      "sourceUrl": "https://open.spotify.com/track/6L89mwZXSOwYl76YXfX13s",
+      "sourceNote": "Spotify lists the Dookie album track at 3:01."
+    },
+    {
+      "id": "TB198",
+      "category": "Music",
+      "question": "How long is Green Day's 'American Idiot', in seconds?",
+      "answer": 174,
+      "unit": "seconds",
+      "sourceTitle": "Spotify: American Idiot by Green Day",
+      "sourceUrl": "https://open.spotify.com/embed/album/01jrNa9Y7CLWnBMT3Fp5vR",
+      "sourceNote": "Spotify lists the album track at 2:54."
+    },
+    {
+      "id": "TB199",
+      "category": "Music",
+      "question": "How long is Queen's 'Bohemian Rhapsody', in seconds?",
+      "answer": 355,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Bohemian Rhapsody",
+      "sourceUrl": "https://open.spotify.com/track/1yslmgUcM2AOkOPS4sl3QV",
+      "sourceNote": "Published track length: 5:55."
+    },
+    {
+      "id": "TB200",
+      "category": "Music",
+      "question": "How long is the Eagles' original album track 'Hotel California', in seconds?",
+      "answer": 390,
+      "unit": "seconds",
+      "sourceTitle": "Track listing for Hotel California (original album track)",
+      "sourceUrl": "https://open.spotify.com/track/4GkOfUKUqDDgoeiov8Uqyi",
+      "sourceNote": "Published track length: 6:30."
+    }
+  ],
+  "revisionNote": "Corrected TB191-TB196 Beatles prompt titles from their existing sourceTitle metadata. No answers, units, IDs, categories, source URLs or source notes changed."
+}

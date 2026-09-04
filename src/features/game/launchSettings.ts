@@ -29,8 +29,9 @@ export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 't
   return new Set(questions.map((question) => question.type)).size > 1
 }
 
-export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): LaunchGameSettings {
+export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'> & Partial<Pick<Quiz, 'quizType'>>): LaunchGameSettings {
   return {
+    automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head',
     competitionMode: 'points',
     survivorStartingLives: 3,
     playMode: 'individual',
@@ -44,11 +45,13 @@ export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): Laun
 
 export function normaliseLaunchGameSettings(
   value: Partial<LaunchGameSettings> | null | undefined,
-  quiz: Pick<Quiz, 'soundPackId'>,
+  quiz: Pick<Quiz, 'soundPackId'> & Partial<Pick<Quiz, 'quizType'>>,
 ): LaunchGameSettings {
   const defaults = defaultLaunchGameSettings(quiz)
   const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head' && value?.playMode !== 'teams' &&
+      (value?.automaticTieBreakersEnabled ?? defaults.automaticTieBreakersEnabled) === true,
     competitionMode,
     survivorStartingLives: normaliseSurvivorStartingLives(value?.survivorStartingLives),
     playMode: normalisePlayMode(value?.playMode),
@@ -63,7 +66,7 @@ export function normaliseLaunchGameSettings(
 
 export function createGameSessionSettings(
   value: Partial<LaunchGameSettings> | null | undefined,
-  quiz: Pick<Quiz, 'soundPackId' | 'questions'>,
+  quiz: Pick<Quiz, 'soundPackId' | 'questions'> & Partial<Pick<Quiz, 'quizType'>>,
   answerOptionSeed: string,
 ): GameSessionSettings {
   const launch = normaliseLaunchGameSettings(value, quiz)
@@ -88,6 +91,7 @@ export function normaliseGameSessionSettings(
   const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
   const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    automaticTieBreakersEnabled: value?.automaticTieBreakersEnabled === true,
     competitionMode,
     survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(value?.survivorStartingLives) : null,
     playMode: normalisePlayMode(value?.playMode),

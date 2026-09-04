@@ -13,6 +13,7 @@ export function FinalResults({
   heading,
   standingsLabel = 'Final standings',
   awardContent,
+  awardEntries,
 }: {
   entries: LeaderboardEntry[]
   currentPlayerId?: string
@@ -21,8 +22,9 @@ export function FinalResults({
   heading?: string
   standingsLabel?: string
   awardContent?: ReactNode
+  awardEntries?: LeaderboardEntry[]
 }) {
-  const awards = calculateFinalAwards(entries, awardsBaseline)
+  const awards = calculateFinalAwards(awardEntries ?? entries, awardsBaseline)
   const podium = entries.filter((entry) => entry.rank <= 3)
   const remaining = entries.filter((entry) => entry.rank > 3)
   const winners = entries.filter((entry) => entry.rank === 1)

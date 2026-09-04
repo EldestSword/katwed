@@ -50,6 +50,10 @@ class UnconfiguredRepository implements GameRepository {
   getSafeGameState(_roomCode: string): Promise<SafeGameState | null> { return this.fail() }
   claimBuzz(_roomCode: string, _playerId: string, _token: string): Promise<BuzzClaimResult> { return this.fail() }
   submitAnswer(_roomCode: string, _playerId: string, _token: string, _payload: PlayerAnswerPayload): Promise<void> { return this.fail() }
+  submitTieBreakerAnswer(_roomCode: string, _playerId: string, _token: string, _value: string): Promise<void> { return this.fail() }
+  resolveTieBreaker(_sessionId: string): Promise<void> { return this.fail() }
+  nextTieBreaker(_sessionId: string): Promise<void> { return this.fail() }
+  revealTieBreakerFinal(_sessionId: string): Promise<void> { return this.fail() }
   startHeadToHead(_roomCode: string, _playerId: string, _token: string): Promise<void> { return this.fail() }
   skipHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }
   continueHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }

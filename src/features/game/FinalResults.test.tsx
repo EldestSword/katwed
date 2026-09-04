@@ -60,6 +60,33 @@ describe('FinalResults', () => {
     expect(climb).toHaveClass('is-current')
   })
 
+  it('keeps final awards based on ordinary quiz standings after a tie-breaker changes the podium', () => {
+    const tieBreakerPodium = [
+      { ...entries[1], rank: 1, totalScore: 8420 },
+      { ...entries[0], rank: 2 },
+      entries[2],
+      entries[3],
+    ]
+    const ordinaryStandings = [
+      entries[0],
+      { ...entries[1], totalScore: 8420 },
+      entries[2],
+      entries[3],
+    ]
+    render(
+      <FinalResults
+        entries={tieBreakerPodium}
+        awardEntries={ordinaryStandings}
+        awardsBaseline={new Map([['one', 3], ['two', 1]])}
+        variant="presentation"
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Roger wins!' })).toBeVisible()
+    expect(screen.getByRole('article', { name: 'Biggest Climber' })).toHaveTextContent('Debs')
+    expect(screen.getByRole('article', { name: 'Biggest Climber' })).toHaveTextContent('3rd → 1st')
+    expect(screen.getByRole('article', { name: 'Biggest Climber' })).toHaveTextContent('↑ 2 places')
+  })
+
   it('keeps Head-to-Head draw and winner outcomes distinct from the podium', () => {
     const competitors = [
       { competitorId: 'one', displayName: 'Debs', displayOrder: 0 as const, claimed: true, connected: true, playerId: 'one', totalScore: 2, correctAnswerCount: 2 },

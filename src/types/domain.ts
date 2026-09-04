@@ -11,7 +11,7 @@ import {
   VISUAL_THEME_BATCH_3_THEME_IDS,
 } from '../generated/visualThemeBatch3'
 
-export type GamePhase = 'lobby' | 'round-intro' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
+export type GamePhase = 'lobby' | 'round-intro' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'tiebreaker' | 'tiebreaker-result' | 'finished'
 export type SessionStatus = 'active' | 'closed'
 export type QuestionType =
   | 'single-choice'
@@ -47,6 +47,7 @@ export type CompetitionMode = 'points' | 'survivor'
 export type SurvivorStartingLives = 1 | 3
 
 export interface LaunchGameSettings {
+  automaticTieBreakersEnabled?: boolean
   competitionMode?: CompetitionMode
   survivorStartingLives?: SurvivorStartingLives
   playMode?: SessionPlayMode
@@ -62,6 +63,7 @@ export interface LaunchGameSettings {
 }
 
 export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames' | 'competitionMode' | 'survivorStartingLives'> {
+  automaticTieBreakersEnabled?: boolean
   competitionMode: CompetitionMode
   survivorStartingLives: SurvivorStartingLives | null
   doubleScoreIntroMs: number
@@ -452,6 +454,8 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  /** App-owned endgame state; null until a supported first-place tie begins. */
+  tieBreaker?: HostTieBreakerState | null
   /** One authoritative per-question Buzz claim; null before a claim or after reset. */
   buzz?: BuzzState | null
   /** Missing only in pre-Connections clients/local fixtures; equivalent to zero. */
@@ -494,6 +498,8 @@ export interface LeaderboardEntry {
 }
 
 export interface SafeGameState {
+  /** Dedicated endgame state. Answer/source data is absent until the result. */
+  tieBreaker?: SafeTieBreakerState | null
   /** Public live Buzz status. Missing legacy state is equivalent to null. */
   buzz?: BuzzState | null
   teams?: GameTeam[]
@@ -538,6 +544,44 @@ export interface PlayerSession {
 export interface JoinResult {
   player: Player
   reconnectToken: string
+  tieBreakerSubmission?: TieBreakerSubmissionStatus | null
+}
+
+export interface TieBreakerSubmissionStatus {
+  round: number
+  questionId: string
+}
+
+export interface TieBreakerResultEntry {
+  playerId: string
+  nickname: string
+  value: string | null
+  absoluteError: string | null
+  responseTimeMs: number | null
+}
+
+export interface SafeTieBreakerState {
+  round: number
+  status: 'question' | 'result'
+  questionId: string
+  prompt: string
+  category?: string
+  unit: string
+  openedAt: string
+  closesAt: string
+  contenderPlayerIds: string[]
+  submittedCount: number
+  correctAnswer?: string
+  results?: TieBreakerResultEntry[]
+  winnerPlayerId?: string | null
+  unresolvedPlayerIds?: string[]
+}
+
+export interface HostTieBreakerState extends SafeTieBreakerState {
+  submittedPlayerIds?: string[]
+  sourceTitle?: string
+  sourceUrl?: string
+  sourceNote?: string | null
 }
 
 export interface BuzzState {
@@ -559,6 +603,7 @@ export interface HeadToHeadJoinSlot {
 }
 
 export interface RoomJoinInfo {
+  automaticTieBreakersEnabled?: boolean
   competitionMode?: CompetitionMode
   survivorStartingLives?: SurvivorStartingLives | null
   playMode?: SessionPlayMode
