@@ -1,0 +1,29 @@
+.team-setup { min-width: 0; margin: 1rem 0; }
+.team-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin: .6rem 0; }
+.team-choice-grid button { min-width: 0; min-height: 48px; padding: .75rem; border: 2px solid var(--line); border-radius: var(--radius-sm); background: var(--white); color: var(--ink); overflow-wrap: anywhere; }
+.team-choice-grid button[aria-pressed="true"] { border-color: var(--purple); background: var(--surface-subtle); box-shadow: inset 0 0 0 1px var(--purple); }
+.team-choice-grid button span { display: block; font-size: .8rem; }
+.team-name-row { display: flex; gap: .5rem; align-items: end; margin: .5rem 0; }
+.team-name-row label { flex: 1; min-width: 0; }
+.team-name-row input { width: 100%; min-width: 0; }
+.team-name-row button { min-width: 44px; min-height: 44px; }
+.team-lobby { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; min-width: 0; width: 100%; }
+.team-group { min-width: 0; border: 2px solid var(--team-accent); border-radius: var(--radius-md); padding: .8rem; background: var(--quiz-surface, var(--white)); color: var(--quiz-text, var(--ink)); }
+.team-group h3 { margin: 0 0 .5rem; font-size: clamp(1rem, 1.8vw, 1.6rem); overflow-wrap: anywhere; }
+.team-group ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
+.team-group li { min-width: 0; overflow-wrap: anywhere; }
+.team-group select { width: 100%; min-width: 0; min-height: 44px; }
+.controller-panel .team-lobby { grid-template-columns: 1fr; margin-top: .75rem; }
+.team-final-results { width: 100%; min-width: 0; }
+.team-final-results .final-podium { width: 100%; }
+.team-final-results .final-podium strong { overflow-wrap: anywhere; }
+.player-team-context { overflow-wrap: anywhere; }
+.presentation-stage--compact .team-lobby { gap: .3rem; }
+.presentation-stage--compact .team-group { padding: .3rem; border-radius: .4rem; }
+.presentation-stage--compact .team-group h3 { font-size: .65rem; margin: 0 0 .2rem; }
+.presentation-stage--compact .team-group li, .presentation-stage--compact .team-group p { font-size: .55rem; margin: 0; }
+@media (max-width: 480px) {
+  .team-choice-grid { grid-template-columns: 1fr; }
+  .team-name-row { flex-wrap: wrap; }
+  .team-name-row label { flex-basis: 100%; }
+}

@@ -1,5 +1,6 @@
 import type {
   GamePhase,
+  GameTeam,
   GameSessionSettings,
   HostResponseRecord,
   Player,
@@ -27,6 +28,7 @@ const STATUS_COPY: Record<HostResponseStatus, string> = {
 
 export function HostResponseMonitor({
   players,
+  teams,
   responses,
   answers,
   question,
@@ -38,6 +40,7 @@ export function HostResponseMonitor({
   onOverride,
 }: {
   players: readonly Player[]
+  teams?: readonly GameTeam[]
   responses: readonly HostResponseRecord[]
   answers: readonly PlayerAnswer[]
   question: Question
@@ -72,7 +75,7 @@ export function HostResponseMonitor({
           return (
             <li className={`controller-response-row controller-response-row--${status}`} key={player.id}>
               <div className="controller-response-row__heading">
-                <strong>{player.nickname}</strong>
+                <strong>{player.nickname}{teams?.some((team) => team.id === player.teamId) && <small> · {teams.find((team) => team.id === player.teamId)?.name}</small>}</strong>
                 <span>{STATUS_COPY[status]}{!player.connected ? ' · Disconnected' : ''}</span>
               </div>
               {showDetails && answer && <p>{formatHostAnswer(answer, question, roster, settings)}</p>}

@@ -11,6 +11,9 @@ import { useCountdown } from '../../hooks/useCountdown'
 import { useQuestionPrelude } from '../../hooks/useQuestionPrelude'
 import { useRevealedLeaderboard } from '../../hooks/useRevealedLeaderboard'
 import { useFinalAwardsHistory } from '../../hooks/useFinalAwardsHistory'
+import { competitionState, isTeamGame } from '../teams/teams'
+import { TeamLobby } from '../teams/TeamLobby'
+import { TeamFinalResults } from '../teams/TeamFinalResults'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
@@ -123,8 +126,9 @@ function StageHeader({ question, compact, remaining, headToHead, showTimer = tru
 }
 
 export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
-  const leaderboard = useRevealedLeaderboard(state)
-  const awardsBaseline = useFinalAwardsHistory(state)
+  const teamMode = isTeamGame(state)
+  const leaderboard = useRevealedLeaderboard(competitionState(state))
+  const awardsBaseline = useFinalAwardsHistory(teamMode ? null : state)
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
@@ -153,7 +157,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
               <p className="eyebrow">Two competitors</p>
               <div className="head-to-head-lobby-stage__slots">{competitors.map((competitor, index) => <article className={competitor.claimed ? 'is-joined' : 'is-waiting'} aria-label={`Competitor ${index + 1}: ${competitor.displayName}`} key={competitor.competitorId}><span>Competitor {index + 1}</span><strong>{competitor.displayName}</strong><GameBadge tone={competitor.connected ? 'success' : competitor.claimed ? 'warning' : 'neutral'}>{competitor.claimed ? (competitor.connected ? 'Ready' : 'Joined') : 'Waiting'}</GameBadge></article>)}</div>
             </div>
-          ) : (
+          ) : teamMode ? <div className="presentation-lobby__players"><TeamLobby teams={state.teams ?? []} players={state.players} /></div> : (
             <div className="presentation-lobby__players">
               <div className="presentation-lobby__player-heading"><div><p className="eyebrow">Contestants</p><h2>Players joined</h2></div><strong aria-label={`${state.players.length} players joined`}>{state.players.length}</strong></div>
               {state.players.length > 0 ? <ul className="lobby-player-grid">{state.players.slice(0, compact ? 6 : 24).map((player) => <LobbyPlayerTile connected={player.connected} key={player.id}>{player.nickname}</LobbyPlayerTile>)}</ul> : <p className="presentation-lobby__empty">Waiting for the first player…</p>}
@@ -192,7 +196,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
       )}
 
       {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} /></div>}
-      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
+      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
     </section>
   )
 }

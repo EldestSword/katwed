@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { PlayerLeaderboard } from '../features/game/PlayerLeaderboard'
 import { useRevealedLeaderboard } from '../hooks/useRevealedLeaderboard'
 import { useFinalAwardsHistory } from '../hooks/useFinalAwardsHistory'
+import { competitionState, isTeamGame } from '../features/teams/teams'
+import { TeamFinalResults } from '../features/teams/TeamFinalResults'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { PlayerQuestion } from '../features/game/PlayerQuestion'
@@ -30,8 +32,9 @@ export function PlayPage() {
   const [working, setWorking] = useState(false)
   const [localResolution, setLocalResolution] = useState<{ questionId: string; status: 'answered' | 'skipped' } | null>(null)
   const { state, loading, error, refresh } = useSafeGameState(roomCode)
-  const leaderboard = useRevealedLeaderboard(state)
-  const awardsBaseline = useFinalAwardsHistory(state)
+  const teamMode = isTeamGame(state)
+  const leaderboard = useRevealedLeaderboard(competitionState(state))
+  const awardsBaseline = useFinalAwardsHistory(teamMode ? null : state)
 
   useEffect(() => {
     const saved = loadPlayerSession(roomCode)
@@ -89,6 +92,7 @@ export function PlayPage() {
     ? { playerId: currentPlayer.id, competitorId: currentPlayer.competitorId ?? '', status: localResolution.status }
     : undefined)
   const submittedAnswer = question ? loadSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt) : null
+  const currentTeam = teamMode ? state.teams?.find((team) => team.id === currentPlayer.teamId) : undefined
 
   const runPlayerAction = (operation: () => Promise<void>, fallback: string, onSuccess?: () => void) => {
     setWorking(true)
@@ -114,7 +118,7 @@ export function PlayPage() {
           {competitors.some((competitor) => !competitor.claimed) && <p>Both competitors must join before starting.</p>}
         </section>
       ) : (
-        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p></section>
+        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1>{teamMode && <p className="player-team-context">{currentTeam ? <>Playing for <strong>{currentTeam.name}</strong></> : 'Waiting for the host to put you on a team…'}</p>}<p>Waiting for the host to start.</p></section>
       ))}
 
       {state.phase === 'round-intro' && state.currentRound && <section className="game-state-card player-round-intro" aria-live="polite"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p>{state.currentRound.subtitle}</p>}<p>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p><p>Waiting for the host to start the round…</p></section>}
@@ -161,8 +165,8 @@ export function PlayPage() {
           </> : question.questionNumber === question.totalQuestions && <p className="final-results-wait">Waiting for the host to reveal the final results.</p>}
         </section>
       )}
-      {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={currentPlayer.id} onSettled={leaderboard.settle} /><p>Waiting for the next question…</p></section>}
-      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">{teamMode ? 'Team standings' : 'How everybody stands'}</p><h1>Leaderboard</h1>{currentTeam && <p>Playing for <strong>{currentTeam.name}</strong></p>}<PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={teamMode ? currentTeam?.id ?? '' : currentPlayer.id} teamName={currentTeam?.name} onSettled={leaderboard.settle} /><p>Waiting for the next question…</p></section>}
+      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : teamMode ? <TeamFinalResults state={state} currentPlayerId={currentPlayer.id} variant="player" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
     </main>
   )
 }

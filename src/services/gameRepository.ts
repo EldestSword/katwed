@@ -57,7 +57,9 @@ export interface GameRepository {
   getHostLiveSession(sessionId: string): Promise<GameSession | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
   getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null>
-  joinRoom(roomCode: string, nickname: string): Promise<JoinResult>
+  joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult>
+  assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void>
+  balanceTeams(sessionId: string): Promise<void>
   joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult>
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>

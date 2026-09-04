@@ -42,6 +42,10 @@ export type SoundPackId = string
 export type QuestionPreludeKind = 'double-score' | 'question-type' | null
 
 export interface LaunchGameSettings {
+  playMode?: SessionPlayMode
+  teamAssignmentMode?: TeamAssignmentMode
+  /** Launch-only names; GameTeam records are canonical after launch. */
+  teamNames?: string[]
   soundPackId: SoundPackId
   doubleScoreVariantDurationsMs?: number[]
   shuffleQuestionOrder: boolean
@@ -50,7 +54,7 @@ export interface LaunchGameSettings {
   showPlayerAnswersToHost: boolean
 }
 
-export interface GameSessionSettings extends LaunchGameSettings {
+export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames'> {
   doubleScoreIntroMs: number
   doubleScoreVariantDurationsMs?: number[]
   questionTypeIntrosEnabled: boolean
@@ -346,6 +350,8 @@ export interface Quiz {
 }
 
 export interface Player {
+  /** Missing only in legacy payloads; treated as unassigned. */
+  teamId?: string | null
   id: string
   sessionId: string
   nickname: string
@@ -382,6 +388,7 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  teams?: GameTeam[]
   currentRoundId: string | null
   id: string
   quizId: string
@@ -413,6 +420,7 @@ export interface LeaderboardEntry {
 }
 
 export interface SafeGameState {
+  teams?: GameTeam[]
   currentRound?: SafeRound | null
   sessionId: string
   quizTitle: string
@@ -463,6 +471,9 @@ export interface HeadToHeadJoinSlot {
 }
 
 export interface RoomJoinInfo {
+  playMode?: SessionPlayMode
+  teamAssignmentMode?: TeamAssignmentMode
+  teams?: Array<GameTeam & { memberCount: number }>
   roomCode: string
   quizTitle: string
   quizType: QuizType
@@ -491,3 +502,21 @@ export interface HeadToHeadResult {
 }
 
 export type Unsubscribe = () => void
+
+export type SessionPlayMode = 'individual' | 'teams'
+export type TeamAssignmentMode = 'player-choice' | 'balanced-random' | 'host'
+export interface GameTeam {
+  id: string
+  sessionId: string
+  name: string
+  displayOrder: number
+}
+export interface TeamLeaderboardEntry {
+  teamId: string
+  name: string
+  memberCount: number
+  totalScore: number
+  correctAnswerCount: number
+  totalCorrectResponseMs: number
+  rank: number
+}

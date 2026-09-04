@@ -5,6 +5,8 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { StoredImage } from '../components/StoredImage'
 import { soundPacks } from '../features/audio/soundPacks'
+import { TeamSetup } from '../features/teams/TeamSetup'
+import { validateTeamLaunch } from '../features/teams/teams'
 import {
   defaultLaunchGameSettings,
   quizUsesMixedQuestionTypes,
@@ -105,6 +107,7 @@ export function GameSetupPage() {
 
         <section className="game-setup-settings" aria-labelledby="session-settings-heading">
           <header><p className="eyebrow">This session only</p><h2 id="session-settings-heading">Presentation and play settings</h2></header>
+          {quiz.quizType === 'standard' && <TeamSetup settings={settings} onChange={setSettings} />}
 
           <fieldset className="game-setup-sound-packs">
             <legend>Music theme</legend>
@@ -128,7 +131,7 @@ export function GameSetupPage() {
           </div>
 
           <footer>
-            <button className="button button--primary" type="button" disabled={starting || quiz.questions.length === 0} onClick={() => void startLobby()}>{starting ? 'Starting lobby…' : 'Start lobby'}</button>
+            <button className="button button--primary" type="button" disabled={starting || quiz.questions.length === 0 || Boolean(validateTeamLaunch(settings, quiz.quizType))} onClick={() => void startLobby()}>{starting ? 'Starting lobby…' : 'Start lobby'}</button>
             <p>The room is created only when you start the lobby.</p>
           </footer>
         </section>

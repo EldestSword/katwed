@@ -30,6 +30,34 @@ describe('JoinPage room modes', () => {
     vi.clearAllMocks()
   })
 
+  it.each(['player-choice', 'balanced-random', 'host'])('joins a %s Team room with only the required selection', async (assignment) => {
+    const user = userEvent.setup()
+    mocks.getRoomJoinInfo.mockResolvedValue({
+      roomCode: '123456', quizTitle: 'Team quiz', quizType: 'standard', status: 'active', phase: 'lobby',
+      playMode: 'teams', teamAssignmentMode: assignment,
+      teams: [{ id: 'blue', name: 'Blue Team', displayOrder: 0, memberCount: 2 }, { id: 'red', name: 'Red Team', displayOrder: 1, memberCount: 1 }],
+    })
+    mocks.joinRoom.mockResolvedValue({ player: { id: 'carol', nickname: 'Carol', teamId: assignment === 'host' ? null : 'red' }, reconnectToken: 'token' })
+    renderJoin()
+    await screen.findByText('Room found')
+    await user.type(screen.getByLabelText('Nickname'), 'Carol')
+    if (assignment === 'player-choice') {
+      await user.click(screen.getByRole('button', { name: 'Join game' }))
+      expect(screen.getByRole('alert')).toHaveTextContent('Choose your team.')
+      expect(mocks.joinRoom).not.toHaveBeenCalled()
+      const choice = screen.getByRole('button', { name: /Red Team/ })
+      expect(choice).toHaveTextContent('1')
+      choice.focus()
+      await user.keyboard('{Enter}')
+      expect(choice).toHaveAttribute('aria-pressed', 'true')
+    } else {
+      expect(screen.queryByRole('button', { name: /Red Team/ })).toBeNull()
+    }
+    await user.click(screen.getByRole('button', { name: 'Join game' }))
+    expect(await screen.findByRole('heading', { name: 'Playing' })).toBeVisible()
+    expect(mocks.joinRoom).toHaveBeenCalledWith('123456', 'Carol', assignment === 'player-choice' ? 'red' : undefined)
+  })
+
   it('shows safe competitor choices instead of a nickname for Head-to-Head', async () => {
     mocks.getRoomJoinInfo.mockResolvedValue({
       roomCode: '123456', quizTitle: 'Ross vs Jess', quizType: 'head-to-head', status: 'active', phase: 'lobby',

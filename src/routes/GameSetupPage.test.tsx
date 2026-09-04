@@ -72,6 +72,7 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
+      playMode: 'individual',
       soundPackId: 'none',
       shuffleQuestionOrder: true,
       shuffleAnswerOptions: true,
@@ -125,5 +126,6 @@ describe('GameSetupPage', () => {
     expect(screen.getByText('No question-type intros are needed for this quiz.')).toBeVisible()
     expect(document.querySelector('.game-setup-summary__cover img')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /Auto-close answers/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Teams' })).not.toBeInTheDocument()
   })
 })

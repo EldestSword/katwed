@@ -17,6 +17,8 @@ import { HostResponseMonitor } from '../features/game/HostResponseMonitor'
 import { HostCorrectAnswer } from '../features/game/HostCorrectAnswer'
 import { createRefreshScheduler, type RefreshScheduler } from '../services/refreshScheduler'
 import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
+import { TeamLobby } from '../features/teams/TeamLobby'
+import { isTeamGame } from '../features/teams/teams'
 
 type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
@@ -153,6 +155,18 @@ export function HostGamePage() {
   const isFinalQuestion = question?.questionNumber === question?.totalQuestions
   const headToHead = state.quizType === 'head-to-head'
   const run = (kind: HostAction) => void action(kind)
+  const teamMode = isTeamGame(state)
+  const unassigned = teamMode && state.players.some((player) => !player.teamId)
+  const teamAction = async (playerId?: string, teamId?: string) => {
+    if (actionInFlight.current) return
+    actionInFlight.current = true; setWorking(true); setError('')
+    try {
+      if (playerId && teamId) await repository.assignPlayerTeam(sessionId, playerId, teamId)
+      else await repository.balanceTeams(sessionId)
+      await refresh()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Teams could not be updated.') }
+    finally { actionInFlight.current = false; setWorking(false) }
+  }
 
   return (
     <main className="controller-page">
@@ -180,7 +194,8 @@ export function HostGamePage() {
           </dl>
           <div className="controller-actions" role="group" aria-label="Game controls">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
-            {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
+            {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length || unassigned} type="button" onClick={() => run('start')}>Start game</button>}
+            {state.phase === 'lobby' && unassigned && <p>Assign every player to a team before starting.</p>}
             {!headToHead && state.phase === 'round-intro' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('start-round')}>Start round</button>}
             {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('lock')}>Close answers now</button>}
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
@@ -196,9 +211,11 @@ export function HostGamePage() {
           {currentQuestionDefinition && ['question', 'locked', 'reveal'].includes(state.phase) && (
             <HostCorrectAnswer question={currentQuestionDefinition} roster={quiz.roster} />
           )}
+          {teamMode && state.phase === 'lobby' && <section aria-label="Manage teams"><h2>Teams</h2><button type="button" className="button button--secondary" disabled={working || !state.players.length} onClick={() => void teamAction()}>Balance teams</button><TeamLobby teams={state.teams ?? []} players={state.players} disabled={working} onAssign={(playerId, teamId) => void teamAction(playerId, teamId)} /></section>}
           {!headToHead && currentQuestionDefinition && state.phase !== 'lobby' && (
             <HostResponseMonitor
               players={session.players}
+              teams={teamMode ? state.teams : undefined}
               responses={session.hostResponses}
               answers={session.answers}
               question={currentQuestionDefinition}

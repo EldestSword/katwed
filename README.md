@@ -123,7 +123,15 @@ Enabled rounds pause on a themed, host-controlled intro across Presentation, the
 
 Forward migration `20260903221013_core_rounds.sql` backfills one silent round per quiz and preserves existing question order and session timestamps. It follows the pending Visual Pinpoint migration and has not been applied to production. See [Core Rounds architecture and local verification](docs/core-rounds.md) and [portable format v7](docs/katwed-quiz-format-v7.md).
 
-The integration branch combines Pinpoint, Slider and Core Rounds with the existing animated leaderboard, commentary and Final Awards. Both client-memory history hooks survive `round-intro`, where there is no current question: the next leaderboard compares with the last revealed board, while Biggest Climber still compares with the legitimate Question 1 leaderboard. Intros show neither stale standings nor awards. Refreshing at a later intro cannot establish either baseline. Presentation, compact controller preview and Player share this behaviour without extra requests or persistence. The only pending Phase 2 schema migrations remain `20260903203203_visual_pinpoint_targets.sql` followed by `20260903221013_core_rounds.sql`; integration does not apply them or deploy the frontend.
+The integration branch combines Pinpoint, Slider and Core Rounds with the existing animated leaderboard, commentary and Final Awards. Both client-memory history hooks survive `round-intro`, where there is no current question: the next leaderboard compares with the last revealed board, while Biggest Climber still compares with the legitimate Question 1 leaderboard. Intros show neither stale standings nor awards. Refreshing at a later intro cannot establish either baseline. Presentation, compact controller preview and Player share this behaviour without extra requests or persistence. The pending Phase 2 schema chain is Visual Pinpoint, Core Rounds, then Core Team Mode; development does not apply it to production or deploy the frontend.
+
+### Core Team Mode (implemented locally, pending release)
+
+Standard quizzes can launch as **Individuals** (the default) or **Teams**, with 2–8 named teams and Player choice, Balanced random or Host assigns membership. Teams belong to the game session; saved quizzes, Head-to-Head and portable format v7 are unchanged. The host can move players or balance teams in the lobby, and every player must be assigned before starting.
+
+Players still answer and score individually. Team standings sum only the authoritative individual leaderboard rows visible at Leaderboard or Final Results, with no stored team totals or extra score writes. Team names and stable team IDs reuse the existing animation/commentary history through Round Intro. Final Results crown a team; Most Correct and Quickest Thinker may appear as Individual honours, with no individual Biggest Climber.
+
+Forward migration `20260904100005_core_team_mode.sql` follows Core Rounds and preserves legacy Individual launch/join calls for a deliberate database-first release. Membership RPCs add no room broadcasts, subscriptions or faster polling. Existing Player focus/reconnect recovery and the 45-second healthy sanity refresh pick up host assignment changes. See [Team Mode architecture and verification](docs/team-mode.md).
 
 ### Typed Answer and deterministic tile reveal
 
@@ -484,6 +492,7 @@ Pending, deliberately unapplied migrations:
 20260901094653_realtime_scaling_free_tier.sql
 20260903203203_visual_pinpoint_targets.sql
 20260903221013_core_rounds.sql
+20260904100005_core_team_mode.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

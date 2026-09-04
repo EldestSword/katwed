@@ -1,4 +1,5 @@
 import { orderedRounds } from '../quiz-editor/rounds'
+import { normalisePlayMode, normaliseTeamAssignment } from '../teams/teams'
 import type {
   GameSessionSettings,
   LaunchGameSettings,
@@ -29,6 +30,7 @@ export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 't
 
 export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): LaunchGameSettings {
   return {
+    playMode: 'individual',
     soundPackId: normaliseSoundPackId(quiz.soundPackId),
     shuffleQuestionOrder: false,
     shuffleAnswerOptions: false,
@@ -43,6 +45,8 @@ export function normaliseLaunchGameSettings(
 ): LaunchGameSettings {
   const defaults = defaultLaunchGameSettings(quiz)
   return {
+    playMode: normalisePlayMode(value?.playMode),
+    ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode), teamNames: (value.teamNames ?? ['Team 1', 'Team 2']).map((name) => name.trim()) } : {}),
     soundPackId: normaliseSoundPackId(value?.soundPackId ?? defaults.soundPackId),
     shuffleQuestionOrder: value?.shuffleQuestionOrder === true,
     shuffleAnswerOptions: value?.shuffleAnswerOptions === true,
@@ -57,10 +61,11 @@ export function createGameSessionSettings(
   answerOptionSeed: string,
 ): GameSessionSettings {
   const launch = normaliseLaunchGameSettings(value, quiz)
+  const persisted = normaliseGameSessionSettings(launch, quiz.soundPackId, answerOptionSeed)
   const pack = getSoundPack(launch.soundPackId)
   const variantDurations = doubleScoreVariantDurations(pack)
   return {
-    ...launch,
+    ...persisted,
     doubleScoreIntroMs: variantDurations[0],
     doubleScoreVariantDurationsMs: variantDurations,
     questionTypeIntrosEnabled: quizUsesMixedQuestionTypes(quiz.questions),
@@ -76,6 +81,8 @@ export function normaliseGameSessionSettings(
   const soundPackId = normaliseSoundPackId(value?.soundPackId ?? fallbackSoundPackId)
   const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
   return {
+    playMode: normalisePlayMode(value?.playMode),
+    ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode) } : {}),
     soundPackId,
     doubleScoreIntroMs: fallbackDuration,
     doubleScoreVariantDurationsMs: normaliseDoubleScoreVariantDurations(

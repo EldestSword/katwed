@@ -1,5 +1,6 @@
 import { normaliseQuizRounds, canonicaliseRounds, defaultRound, orderedRounds, roundValidation, safeRound } from '../../features/quiz-editor/rounds'
 import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
+import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import type {
   GameSession,
   GameSessionSettings,
@@ -147,6 +148,8 @@ function normaliseState(state: DemoState): DemoState {
         : [settings.doubleScoreIntroMs]
       return {
         ...session,
+        teams: session.teams ?? [],
+        players: session.players.map((player) => ({ ...player, teamId: player.teamId ?? null })),
         settings,
         currentRoundId: session.currentRoundId ?? orderedSessionQuestions(quiz.questions, questionOrder)[session.currentQuestionIndex]?.roundId ?? quiz.rounds[0].id,
         questionOrder,
@@ -538,6 +541,8 @@ export class DemoGameRepository implements GameRepository {
       const quiz = state.quizzes.find((candidate) => candidate.id === quizId)
       if (!quiz) throw new RepositoryError('database', 'That quiz could not be found.')
       if (quiz.archivedAt !== null) throw new RepositoryError('database', 'Restore this quiz before launching it.')
+      const teamError = validateTeamLaunch(launchSettings, quiz.quizType)
+      if (teamError) throw new RepositoryError('invalid-selection', teamError)
       if (quiz.quizType === 'head-to-head') {
         const competitorIds = new Set(quiz.headToHeadCompetitors.map((competitor) => competitor.id))
         if (quiz.headToHeadCompetitors.length !== 2 || !quiz.questions.length ||
@@ -556,6 +561,7 @@ export class DemoGameRepository implements GameRepository {
       const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
       const doubleScoreVariantOrder = shuffledVariantIndices(settings.doubleScoreVariantDurationsMs?.length ?? 1)
       const session: GameSession = {
+        teams: settings.playMode === 'teams' ? (launchSettings?.teamNames ?? ['Team 1', 'Team 2']).map((name, displayOrder) => ({ id: uid('team'), sessionId, name: name.trim(), displayOrder })) : [],
         id: sessionId,
         quizId,
         roomCode,
@@ -617,6 +623,9 @@ export class DemoGameRepository implements GameRepository {
       quizTitle: quiz.title,
       quizType: quiz.quizType,
       status: session.status,
+      playMode: session.settings.playMode ?? 'individual',
+      teamAssignmentMode: session.settings.teamAssignmentMode,
+      teams: (session.teams ?? []).map((team) => ({ ...team, memberCount: session.players.filter((player) => player.teamId === team.id).length })),
       phase: session.phase,
       headToHeadCompetitors: quiz.headToHeadCompetitors.map((competitor) => {
         const player = session.players.find((candidate) => candidate.competitorId === competitor.id)
@@ -631,7 +640,7 @@ export class DemoGameRepository implements GameRepository {
     })
   }
 
-  async joinRoom(rawRoomCode: string, rawNickname: string): Promise<JoinResult> {
+  async joinRoom(rawRoomCode: string, rawNickname: string, selectedTeamId?: string): Promise<JoinResult> {
     return this.withMutation(() => {
       const state = this.read()
       const roomCode = rawRoomCode.replace(/\D/g, '')
@@ -645,6 +654,16 @@ export class DemoGameRepository implements GameRepository {
         throw new RepositoryError('invalid-selection', 'Choose one of the two Head-to-Head competitors instead.')
       }
       if (!nickname || nickname.length > 30) throw new RepositoryError('database', 'Enter a nickname of 1–30 characters.')
+      let teamId: string | null = null
+      if (session.settings.playMode === 'teams') {
+        if (session.settings.teamAssignmentMode === 'player-choice') {
+          if (!(session.teams ?? []).some((team) => team.id === selectedTeamId && team.sessionId === session.id)) throw new RepositoryError('invalid-selection', 'Choose a team in this room.')
+          teamId = selectedTeamId!
+        } else {
+          if (selectedTeamId) throw new RepositoryError('invalid-selection', 'This room assigns teams for you.')
+          if (session.settings.teamAssignmentMode === 'balanced-random') teamId = smallestTeam(session.teams ?? [], session.players)
+        }
+      } else if (selectedTeamId) throw new RepositoryError('invalid-selection', 'This room uses Individuals.')
       if (session.players.some((player) =>
         player.nickname.localeCompare(nickname, 'en-GB', { sensitivity: 'base' }) === 0
       )) throw new RepositoryError('duplicate-nickname', 'That nickname is already in this game.')
@@ -652,6 +671,7 @@ export class DemoGameRepository implements GameRepository {
         id: uid('player'),
         sessionId: session.id,
         nickname,
+        teamId,
         competitorId: null,
         connected: true,
         joinedAt: new Date().toISOString(),
@@ -763,6 +783,7 @@ export class DemoGameRepository implements GameRepository {
       : []
     return clone({
       sessionId: session.id,
+      teams: session.teams ?? [],
       quizTitle: quiz.title,
       quizType: quiz.quizType,
       themeId: quiz.themeId,
@@ -1051,6 +1072,7 @@ export class DemoGameRepository implements GameRepository {
       switch (action) {
         case 'start':
           if (session.phase !== 'lobby') throw new RepositoryError('invalid-phase', 'The game has already started.')
+          if (session.settings.playMode === 'teams' && (!session.players.length || session.players.some((player) => !player.teamId))) throw new RepositoryError('invalid-phase', 'Assign every player to a team before starting.')
           if (!orderedQuestions.length) throw new RepositoryError('database', 'Add at least one question before starting.')
           session.startedAt = now.toISOString()
           session.currentQuestionIndex = 0
@@ -1132,6 +1154,32 @@ export class DemoGameRepository implements GameRepository {
           break
       }
       this.write(state, true, session.id)
+    })
+  }
+
+  private teamLobby(state: DemoState, sessionId: string): GameSession {
+    const session = state.sessions.find((candidate) => candidate.id === sessionId)
+    if (!session || session.status !== 'active' || session.phase !== 'lobby' || session.settings.playMode !== 'teams' || state.quizzes.find((quiz) => quiz.id === session.quizId)?.quizType === 'head-to-head') throw new RepositoryError('invalid-phase', 'Teams can only be changed in an active Team lobby.')
+    return session
+  }
+
+  async assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read(), session = this.teamLobby(state, sessionId)
+      const player = session.players.find((candidate) => candidate.id === playerId)
+      if (!player || !session.teams?.some((team) => team.id === teamId && team.sessionId === sessionId)) throw new RepositoryError('invalid-selection', 'Choose a player and team in this room.')
+      player.teamId = teamId
+      this.write(state, false, sessionId)
+    })
+  }
+
+  async balanceTeams(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read(), session = this.teamLobby(state, sessionId)
+      const teams = session.teams ?? []
+      const order = shuffledVariantIndices(session.players.length)
+      order.forEach((index, position) => { session.players[index].teamId = teams[position % teams.length].id })
+      this.write(state, false, sessionId)
     })
   }
 

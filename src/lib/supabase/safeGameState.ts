@@ -1,5 +1,5 @@
 import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
-import type { RevealPayload, SafeGameState } from '../../types/domain'
+import type { GameTeam, RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
@@ -16,6 +16,13 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+}
+
+function isGameTeam(value: unknown, sessionId: unknown): value is GameTeam {
+  return isRecord(value) && Object.keys(value).every((key) => ['id', 'sessionId', 'name', 'displayOrder'].includes(key)) &&
+    typeof value.id === 'string' && value.sessionId === sessionId && typeof value.name === 'string' &&
+    value.name.trim().length > 0 && value.name.length <= 30 && Number.isInteger(value.displayOrder) &&
+    Number(value.displayOrder) >= 0 && Number(value.displayOrder) <= 7
 }
 
 function isRevealPayload(value: unknown): value is RevealPayload {
@@ -63,6 +70,12 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const round = value.currentRound
+  const teams = value.teams ?? []
+  if (!Array.isArray(teams) || !teams.every((team): team is GameTeam => isGameTeam(team, value.sessionId)) ||
+    new Set(teams.map((team) => team.id)).size !== teams.length ||
+    value.players.some((player) => isRecord(player) && player.teamId != null && !teams.some((team) => team.id === player.teamId))) {
+    throw new Error('The server returned invalid team membership.')
+  }
   if (round !== undefined && round !== null && (!isRecord(round) ||
     Object.keys(round).some((key) => !['id', 'title', 'subtitle', 'introEnabled', 'roundNumber', 'totalRounds', 'questionCount'].includes(key)) ||
     typeof round.id !== 'string' || typeof round.title !== 'string' || !round.title.trim() || round.title.length > 80 ||
@@ -134,6 +147,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   return {
     ...value,
     ...answerPalette,
+    teams,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: sessionSettings.soundPackId,
     sessionSettings,

@@ -1,4 +1,5 @@
 import { BrandBang } from '../../components/design-system/BrandBang'
+import type { ReactNode } from 'react'
 import { Leaderboard } from '../../components/Leaderboard'
 import type { HeadToHeadGameCompetitor, LeaderboardEntry } from '../../types/domain'
 import { calculateFinalAwards, type FinalAwardsBaseline } from './finalAwards'
@@ -9,11 +10,17 @@ export function FinalResults({
   currentPlayerId,
   variant,
   awardsBaseline = null,
+  heading,
+  standingsLabel = 'Final standings',
+  awardContent,
 }: {
   entries: LeaderboardEntry[]
   currentPlayerId?: string
   variant: 'player' | 'presentation'
   awardsBaseline?: FinalAwardsBaseline | null
+  heading?: string
+  standingsLabel?: string
+  awardContent?: ReactNode
 }) {
   const awards = calculateFinalAwards(entries, awardsBaseline)
   const podium = entries.filter((entry) => entry.rank <= 3)
@@ -24,8 +31,8 @@ export function FinalResults({
   return (
     <div className={`final-results final-results--${variant}`}>
       <div className="final-results__celebration" aria-hidden="true"><BrandBang /><i /><i /><i /><i /></div>
-      <p className="eyebrow">Final standings</p>
-      <h1>{winnerHeading}</h1>
+      <p className="eyebrow">{standingsLabel}</p>
+      <h1>{heading ?? winnerHeading}</h1>
       {winners.length > 1 && <p className="final-results__tie">A shared first place</p>}
       <ol className="final-podium" aria-label="Top final positions">
         {podium.map((entry) => (
@@ -36,7 +43,7 @@ export function FinalResults({
           </li>
         ))}
       </ol>
-      <FinalAwardCards awards={awards} currentPlayerId={currentPlayerId} />
+      {awardContent === undefined ? <FinalAwardCards awards={awards} currentPlayerId={currentPlayerId} /> : awardContent}
       {remaining.length > 0 && <Leaderboard entries={remaining} currentPlayerId={currentPlayerId} variant={variant} />}
     </div>
   )

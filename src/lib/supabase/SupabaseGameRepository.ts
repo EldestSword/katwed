@@ -202,8 +202,17 @@ export class SupabaseGameRepository implements GameRepository {
     return this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
   }
 
-  async joinRoom(roomCode: string, nickname: string): Promise<JoinResult> {
+  async joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult> {
+    if (teamId) return this.rpc<JoinResult>('join_team_room', { p_room_code: roomCode, p_nickname: nickname, p_team_id: teamId })
     return this.rpc<JoinResult>('join_room', { p_room_code: roomCode, p_nickname: nickname })
+  }
+
+  async assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void> {
+    await this.rpc('host_assign_player_team', { p_session_id: sessionId, p_player_id: playerId, p_team_id: teamId })
+  }
+
+  async balanceTeams(sessionId: string): Promise<void> {
+    await this.rpc('host_balance_teams', { p_session_id: sessionId })
   }
 
   async joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult> {

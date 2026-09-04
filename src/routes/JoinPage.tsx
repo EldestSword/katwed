@@ -10,6 +10,7 @@ export function JoinPage() {
   const [params] = useSearchParams()
   const [roomCode, setRoomCode] = useState(() => (params.get('room') ?? '').replace(/\D/g, '').slice(0, 6))
   const [nickname, setNickname] = useState('')
+  const [teamId, setTeamId] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [recoverableName, setRecoverableName] = useState('')
@@ -21,6 +22,7 @@ export function JoinPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    setTeamId('')
     if (roomCode.length !== 6) {
       setRecoverableName('')
       setRoomInfo(null)
@@ -80,7 +82,8 @@ export function JoinPage() {
     setError('')
     setErrorField(null)
     try {
-      await storeAndPlay(await repository.joinRoom(roomCode, nickname))
+      if (roomInfo?.playMode === 'teams' && roomInfo.teamAssignmentMode === 'player-choice' && !teamId) throw new RepositoryError('invalid-selection', 'Choose your team.')
+      await storeAndPlay(await repository.joinRoom(roomCode, nickname, teamId || undefined))
     } catch (reason) {
       setErrorField('form')
       if (reason instanceof RepositoryError) setError(reason.message)
@@ -183,6 +186,7 @@ export function JoinPage() {
                 onChange={(event) => { setNickname(event.target.value); setError(''); setErrorField(null) }} placeholder="e.g. Quizzy Lizzy"
                 aria-invalid={nicknameError} aria-describedby={["nickname-help", errorField === 'nickname' ? 'join-error' : ''].filter(Boolean).join(' ')} />
               <p className="field-help" id="nickname-help">Up to 30 characters.</p>
+              {roomInfo?.playMode === 'teams' && roomInfo.teamAssignmentMode === 'player-choice' && <fieldset><legend>Choose your team</legend><div className="team-choice-grid">{roomInfo.teams?.map((team) => <button type="button" key={team.id} aria-pressed={teamId === team.id} disabled={submitting || roomBlocked} onClick={() => setTeamId(team.id)}><strong>{team.name}</strong><span>{team.memberCount} joined</span></button>)}</div></fieldset>}
               <button className="button button--primary button--wide" aria-busy={submitting} disabled={submitting || roomBlocked} type="submit">
                 {submitting ? 'Joining…' : 'Join game'}
               </button>

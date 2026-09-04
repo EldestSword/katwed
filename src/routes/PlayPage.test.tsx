@@ -91,6 +91,36 @@ describe('PlayPage quiz background', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it('updates the lobby team from safe state, then shows team standings and final honours', async () => {
+    const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
+    const teams = [{ id: 'blue', name: 'Blue Team', sessionId: player.sessionId, displayOrder: 0 }, { id: 'red', name: 'Red Team', sessionId: player.sessionId, displayOrder: 1 }]
+    const show = (phase: SafeGameState['phase'], teamId: string | null) => mocks.useSafeGameState.mockReturnValue({
+      state: { ...gameState, phase, teams, sessionSettings: { playMode: 'teams', teamAssignmentMode: 'host' }, players: [{ ...player, teamId }],
+        leaderboard: phase === 'leaderboard' || phase === 'finished' ? [{ playerId: player.id, nickname: player.nickname, rank: 1, totalScore: 3000, correctAnswerCount: 3, totalCorrectResponseMs: 9000 }] : [] },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    show('lobby', null)
+    const view = render(page())
+    await screen.findByText('Waiting for the host to put you on a team…')
+    show('lobby', 'red')
+    view.rerender(page())
+    expect(screen.getByText('Red Team')).toBeVisible()
+    expect(screen.queryByText('Waiting for the host to put you on a team…')).toBeNull()
+    show('leaderboard', 'red')
+    view.rerender(page())
+    const board = screen.getByRole('list', { name: 'Leaderboard' })
+    expect(board).toHaveTextContent('Red Team')
+    expect(board).not.toHaveTextContent('Quizzer')
+    show('finished', 'red')
+    view.rerender(page())
+    expect(screen.getByRole('heading', { name: 'Red Team' })).toBeVisible()
+    expect(screen.getByRole('list', { name: 'Top final positions' }).querySelector('.is-current')).toHaveTextContent('Red Team')
+    expect(screen.getByRole('region', { name: 'Individual honours' })).toHaveTextContent('Quizzer')
+    expect(screen.queryByRole('article', { name: 'Biggest Climber' })).toBeNull()
+    expect(mocks.reconnectPlayer).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).not.toHaveBeenCalled()
+  })
+
   it('carries personal movement and truthful final awards across a round intro without extra repository work', async () => {
     const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
     const show = (phase: SafeGameState['phase'], number: number, entries = previousBoard) => mocks.useSafeGameState.mockReturnValue({
