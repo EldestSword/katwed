@@ -1,5 +1,6 @@
 import type { Question, RosterMember } from '../../types/domain'
 import { formatSliderValue } from './revealFormatting'
+import { itemLabel, matchingLabels } from '../questions/arrangementQuestions'
 
 export interface HostAnswerSummary {
   label: string
@@ -17,6 +18,8 @@ function percentage(value: number): string {
 
 export function formatHostAnswer(question: Question, roster: readonly RosterMember[]): HostAnswerSummary {
   switch (question.type) {
+    case 'ordering': return { label: 'Correct order', value: question.correctItemIds.map((id) => itemLabel(question.items, id)).join(' → ') }
+    case 'matching': return { label: 'Correct pairs', value: matchingLabels(question, question.correctPairs).join(' · ') }
     case 'single-choice':
       return { label: 'Correct answer', value: choiceLabel(question, question.correctOptionId) }
     case 'multiple-select':

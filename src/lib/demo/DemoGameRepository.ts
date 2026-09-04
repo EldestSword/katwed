@@ -1,6 +1,7 @@
 import { normaliseQuizRounds, canonicaliseRounds, defaultRound, orderedRounds, roundValidation, safeRound } from '../../features/quiz-editor/rounds'
 import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
+import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
 import type {
   GameSession,
   GameSessionSettings,
@@ -230,6 +231,10 @@ function toSafeQuestion(
     optionOrderSeed: settings.shuffleAnswerOptions ? `${settings.answerOptionSeed}:${question.id}` : undefined,
   }
   switch (question.type) {
+    case 'ordering':
+      return { ...base, type: question.type, items: shuffledTextItems(question.items, `${settings.answerOptionSeed}:${question.id}:ordering`) }
+    case 'matching':
+      return { ...base, type: question.type, leftItems: shuffledTextItems(question.leftItems, `${settings.answerOptionSeed}:${question.id}:left`), rightItems: shuffledTextItems(question.rightItems, `${settings.answerOptionSeed}:${question.id}:right`), scoringMode: question.scoringMode }
     case 'single-choice':
       return { ...base, type: question.type, options: question.options, randomiseOptions: question.randomiseOptions }
     case 'multiple-select':
@@ -265,6 +270,8 @@ function toSafeQuestion(
 
 function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Quiz): RevealPayload {
   switch (question.type) {
+    case 'ordering': return { type: question.type, correctItemIds: [...question.correctItemIds], caption: question.revealCaption }
+    case 'matching': return { type: question.type, correctPairs: question.correctPairs.map((pair) => ({ ...pair })), scoringMode: question.scoringMode, caption: question.revealCaption }
     case 'single-choice': {
       const optionCounts = Object.fromEntries(question.options.map((option) => [option.id, 0]))
       answers.forEach((answer) => {
@@ -432,6 +439,8 @@ export class DemoGameRepository implements GameRepository {
         })),
         questions: input.questions.map((question, index) => ({
           ...question,
+          ...(question.type === 'ordering' ? { items: question.items.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
+          ...(question.type === 'matching' ? { leftItems: question.leftItems.map((item) => ({ ...item, label: item.label.trim() })), rightItems: question.rightItems.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
           id: question.id || uid('question'),
           roundId: input.rounds ? question.roundId : existing?.questions.find((item) => item.id === question.id)?.roundId ?? existing?.rounds[0]?.id ?? quizId,
           quizId,
@@ -896,7 +905,7 @@ export class DemoGameRepository implements GameRepository {
       const assigned = quiz.quizType === 'head-to-head' && player.competitorId === question.assignedCompetitorId
       const pointsAwarded = quiz.quizType === 'head-to-head'
         ? (assigned && score.correct ? 1 : 0)
-        : calculateStandardQuestionScore(score.points, question, responseTimeMs, closesAt - openedAt)
+        : calculateStandardQuestionScore(score.points, question.type === 'matching' && !score.correct ? { ...question, speedScoringEnabled: false } : question, responseTimeMs, closesAt - openedAt)
       const answer: PlayerAnswer = {
         id: uid('answer'),
         sessionId: session.id,

@@ -1,4 +1,5 @@
 import { roundValidation } from './rounds'
+import { arrangementValidation } from '../questions/arrangementQuestions'
 import { isPinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
@@ -77,6 +78,10 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
   validateMedia(question, messages)
 
   switch (question.type) {
+    case 'ordering':
+    case 'matching':
+      messages.push(...arrangementValidation(question))
+      break
     case 'single-choice': {
       const optionIds = validateOptions(question.options, messages)
       if (!optionIds.has(question.correctOptionId)) messages.push('Choose exactly one correct option.')

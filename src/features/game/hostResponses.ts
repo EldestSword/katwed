@@ -9,6 +9,7 @@ import type {
 } from '../../types/domain'
 import { orderedQuestionOptions } from '../questions/optionOrdering'
 import { formatSliderValue } from './revealFormatting'
+import { itemLabel, matchingLabels } from '../questions/arrangementQuestions'
 
 export const HOST_RESPONSE_DETAIL_LIMIT = 15
 
@@ -81,6 +82,8 @@ export function formatHostAnswer(
   const payload = answer.payload
   if (payload.type !== question.type) return 'Answer submitted'
   switch (payload.type) {
+    case 'ordering': return question.type === 'ordering' ? payload.itemIds.map((id) => itemLabel(question.items, id)).join(' → ') : 'Order submitted'
+    case 'matching': return question.type === 'matching' ? matchingLabels(question, payload.pairs).join(' · ') : 'Pairs submitted'
     case 'single-choice':
       return question.type === 'single-choice'
         ? question.options.find((option) => option.id === payload.optionId)?.label ?? 'Selected option'

@@ -26,6 +26,15 @@ export function createQuestion(
 ): Question {
   const base = common(quizId, displayOrder, speedScoringEnabled)
   switch (type) {
+    case 'ordering': {
+      const items = [1, 2, 3].map((i) => ({ id: crypto.randomUUID(), label: `Item ${i}` }))
+      return { ...base, type, items, correctItemIds: items.map((item) => item.id) }
+    }
+    case 'matching': {
+      const leftItems = [1, 2, 3].map((i) => ({ id: crypto.randomUUID(), label: `Left ${i}` }))
+      const rightItems = [1, 2, 3].map((i) => ({ id: crypto.randomUUID(), label: `Right ${i}` }))
+      return { ...base, type, leftItems, rightItems, correctPairs: leftItems.map((item, i) => ({ leftId: item.id, rightId: rightItems[i].id })), scoringMode: 'partial' }
+    }
     case 'single-choice':
       return {
         ...base,

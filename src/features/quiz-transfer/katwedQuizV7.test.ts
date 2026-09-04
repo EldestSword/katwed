@@ -22,10 +22,10 @@ describe('portable Core Rounds v7', () => {
       const quiz = fixture()
       const pinpoint = quiz.questions.find((q) => q.type === 'pinpoint')!; pinpoint.target = target
       const portable = exportQuizToPortable(quiz)
-      expect(portable.formatVersion).toBe(7)
-      expect(validate(portable), JSON.stringify(validate.errors)).toBe(true)
+      expect(portable.formatVersion).toBe(8)
+      expect(validate({ ...portable, formatVersion: 7 }), JSON.stringify(validate.errors)).toBe(true)
       expect(portable.quiz.rounds.map((r) => r.key)).toEqual(['round-1', 'round-2'])
-      const parsed = parseKatwedQuizJson(JSON.stringify(portable)).input
+      const parsed = parseKatwedQuizJson(JSON.stringify({ ...portable, formatVersion: 7 })).input
       const copy: Quiz = { ...quiz, ...parsed, id: parsed.rounds![0].quizId, rounds: parsed.rounds! }
       expect(exportQuizToPortable(copy)).toEqual(portable)
       expect(copy.rounds.every((r) => !quiz.rounds.some((old) => old.id === r.id))).toBe(true)

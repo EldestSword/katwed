@@ -29,6 +29,8 @@ export const questionTypeRegistry: Record<QuestionType, QuestionTypeDefinition> 
   pinpoint: definition('pinpoint', 'Pinpoint', 'Mark a location on an image.', '⌖', 'PINPOINT'),
   'typed-answer': definition('typed-answer', 'Typed answer', 'Type a short answer.', '⌨', 'TYPE YOUR ANSWER'),
   mashup: definition('mashup', 'Mash-up', 'Identify exactly two people.', '◉', 'MASH-UP'),
+  ordering: definition('ordering', 'Ordering', 'Put the items in the correct order.', '↕', 'PUT THEM IN ORDER'),
+  matching: definition('matching', 'Matching', 'Match every item with its partner.', '⇄', 'MATCH THE PAIRS'),
 }
 
 export const questionTypes = Object.values(questionTypeRegistry)

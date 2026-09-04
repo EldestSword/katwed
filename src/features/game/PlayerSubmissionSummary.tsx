@@ -3,6 +3,7 @@ import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RosterMem
 import { answerColourStyle, CLASSIC_ANSWER_COLOURS, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { optionPosition } from '../questions/optionOrdering'
 import { formatSliderValue } from './revealFormatting'
+import { ArrangementResult } from './ArrangementResult'
 
 export function PlayerSubmissionSummary({
   answer,
@@ -21,6 +22,7 @@ export function PlayerSubmissionSummary({
 }) {
   const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   const heading = <p className="submission-summary__label">{label}</p>
+  if (answer.type === 'ordering' || answer.type === 'matching') return <ArrangementResult question={question} answer={answer} label={label} />
 
   if (answer.type === 'single-choice' && question.type === 'single-choice') {
     const option = question.options.find((candidate) => candidate.id === answer.optionId)

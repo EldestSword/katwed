@@ -21,6 +21,9 @@ import {
 import { quizThemeSurfaceProps } from '../features/themes/quizThemeSurface'
 import { createHeadToHeadCompetitors, nextHeadToHeadAssignment } from '../features/head-to-head/headToHead'
 import { MAX_TYPED_ANSWER_LENGTH, parseTypedAnswerAlternatives } from '../features/typed-answer/typedAnswer'
+import { ArrangementEditor } from '../features/quiz-editor/ArrangementEditor'
+import { remapArrangementItems, shuffledTextItems } from '../features/questions/arrangementQuestions'
+import { ArrangementPrompt } from '../features/game/ArrangementResult'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type {
@@ -263,9 +266,10 @@ export function QuizEditorPage() {
             </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
-                const duplicate = structuredClone(selected)
+                let duplicate = structuredClone(selected)
                 duplicate.id = crypto.randomUUID()
                 duplicate.displayOrder = quiz.questions.length
+                if (duplicate.type === 'ordering' || duplicate.type === 'matching') duplicate = remapArrangementItems(duplicate)
                 if (duplicate.type === 'single-choice') {
                   const correctIndex = duplicate.options.findIndex((option) => option.id === duplicate.correctOptionId)
                   duplicate.options = duplicate.options.map((option) => ({ ...option, id: crypto.randomUUID() }))
@@ -286,7 +290,7 @@ export function QuizEditorPage() {
                 setSelectedId(quiz.questions[index + 1]?.id ?? quiz.questions[index - 1]?.id ?? '')
               }}>Delete</button>
             </div>
-          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from seven purpose-built question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
+          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from nine question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
         </section>
 
         <aside className="question-settings">
@@ -504,6 +508,8 @@ function EditorAnswerPreview({
   customAnswerColours: AnswerColourTuple
 }) {
   const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
+  if (question.type === 'ordering') return <ArrangementPrompt question={{ ...question, items: shuffledTextItems(question.items, `${question.id}:ordering`), questionNumber: 1, totalQuestions: 1 }} />
+  if (question.type === 'matching') return <ArrangementPrompt question={{ ...question, leftItems: shuffledTextItems(question.leftItems, `${question.id}:left`), rightItems: shuffledTextItems(question.rightItems, `${question.id}:right`), questionNumber: 1, totalQuestions: 1 }} />
   const options = question.type === 'single-choice' || question.type === 'multiple-select'
     ? orderedQuestionOptions(question)
     : question.type === 'true-false'
@@ -774,6 +780,7 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
       {question.type === 'multiple-select' && <><div className="two-columns"><label><span>Minimum</span><input type="number" min="1" value={question.minimumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, minimumSelections: number(event.target.value) } : current)} /></label><label><span>Maximum</span><input type="number" min="1" value={question.maximumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, maximumSelections: number(event.target.value) } : current)} /></label></div><label><span>Scoring</span><select value={question.scoringMode} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, scoringMode: event.target.value as 'exact' | 'partial-wipeout' } : current)}><option value="exact">Exact set</option><option value="partial-wipeout">Partial, wrong answer wipes out</option></select></label></>}
     </fieldset>
   }
+  if (question.type === 'ordering' || question.type === 'matching') return <ArrangementEditor question={question} onChange={(next) => update(() => next)} />
   if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
   if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
   if (question.type === 'pinpoint') return <PinpointTargetEditor key={question.id + question.media.path} question={question} onChange={(target) => update((current) => current.type === 'pinpoint' ? { ...current, target } : current)} />

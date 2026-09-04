@@ -1,4 +1,5 @@
 import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
+import { onlyFields, validTextItems, validMatchingPairs, validPermutation } from '../../features/questions/arrangementQuestions'
 import type { GameTeam, RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
@@ -28,6 +29,8 @@ function isGameTeam(value: unknown, sessionId: unknown): value is GameTeam {
 function isRevealPayload(value: unknown): value is RevealPayload {
   if (!isRecord(value) || typeof value.type !== 'string' || typeof value.caption !== 'string') return false
   switch (value.type) {
+    case 'ordering': return onlyFields(value, ['type', 'correctItemIds', 'caption']) && isStringArray(value.correctItemIds) && new Set(value.correctItemIds).size === value.correctItemIds.length
+    case 'matching': return onlyFields(value, ['type', 'correctPairs', 'scoringMode', 'caption']) && Array.isArray(value.correctPairs) && value.correctPairs.every((pair: unknown) => onlyFields(pair, ['leftId', 'rightId']) && typeof pair.leftId === 'string' && typeof pair.rightId === 'string') && (value.scoringMode === 'exact' || value.scoringMode === 'partial')
     case 'single-choice':
       return typeof value.correctOptionId === 'string' && isRecord(value.optionCounts)
     case 'multiple-select':
@@ -111,7 +114,16 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if ((safeQuestion.type === 'ordering' && !validTextItems(safeQuestion.items)) ||
+      (safeQuestion.type === 'matching' && (!validTextItems(safeQuestion.leftItems) || !validTextItems(safeQuestion.rightItems) || safeQuestion.leftItems.length !== safeQuestion.rightItems.length || !['exact', 'partial'].includes(String(safeQuestion.scoringMode))))) {
+      throw new Error('The server returned invalid question items.')
+    }
+    if (safeQuestion.type === 'matching' && validTextItems(safeQuestion.leftItems) && validTextItems(safeQuestion.rightItems) && new Set([...safeQuestion.leftItems, ...safeQuestion.rightItems].map(item => item.id)).size !== safeQuestion.leftItems.length + safeQuestion.rightItems.length) throw new Error('The server returned duplicate item IDs.')
+    if (['ordering', 'matching'].includes(String(safeQuestion.type)) && value.reveal && value.reveal.type !== safeQuestion.type) throw new Error('The revealed answer does not match the question.')
+    if (value.reveal?.type === 'ordering' && safeQuestion.type === 'ordering' && validTextItems(safeQuestion.items) && !validPermutation(value.reveal.correctItemIds, safeQuestion.items.map((item) => item.id))) throw new Error('Invalid revealed order.')
+    if (value.reveal?.type === 'matching' && safeQuestion.type === 'matching' && validTextItems(safeQuestion.leftItems) && validTextItems(safeQuestion.rightItems) && !validMatchingPairs(value.reveal.correctPairs, safeQuestion.leftItems.map((item) => item.id), safeQuestion.rightItems.map((item) => item.id))) throw new Error('Invalid revealed pairs.')
     const forbiddenKeys = [
+      'correctItemIds', 'correctPairs', 'correctItemKeys',
       'correctOptionId',
       'correctOptionIds',
       'correctValue',

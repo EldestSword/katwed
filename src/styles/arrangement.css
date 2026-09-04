@@ -1,0 +1,51 @@
+.ordering-cards, .arrangement-result ol, .arrangement-prompt ul { list-style: none; margin: .6rem 0; padding: 0; display: grid; gap: .65rem; min-width: 0; }
+.ordering-cards li, .arrangement-result li { display: flex; align-items: center; gap: .6rem; padding: .7rem; border: 2px solid var(--quiz-border, var(--line)); border-radius: var(--radius-sm); background: var(--quiz-surface, var(--white)); color: var(--quiz-text, var(--ink)); min-width: 0; }
+.ordering-cards strong, .arrangement-result strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.arrangement-marker { display: inline-grid; place-items: center; min-width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--purple); color: white; font-weight: 800; flex-shrink: 0; }
+.ordering-card-controls { display: flex; gap: .3rem; }
+.ordering-card-controls button, .arrangement-editor-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: .5rem; background: var(--white); color: var(--ink); font-weight: 800; }
+.ordering-drag { touch-action: none; cursor: grab; }
+.ordering-drag:active { cursor: grabbing; }
+.matching-columns, .arrangement-prompt--matching { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.matching-columns > div, .arrangement-prompt section { min-width: 0; }
+.matching-columns h2 { font-size: 1rem; }
+.matching-card { display: flex; align-items: center; justify-content: space-between; gap: .5rem; width: 100%; min-height: 64px; padding: .8rem; margin-bottom: .65rem; border: 2px solid var(--line); border-radius: var(--radius-sm); background: var(--white); color: var(--ink); text-align: left; }
+.matching-card strong { min-width: 0; overflow-wrap: anywhere; }
+.matching-card span { flex-shrink: 0; font-size: .75rem; }
+.matching-card.is-paired { border-color: var(--purple); }
+.matching-card[aria-pressed="true"] { outline: 3px solid var(--sky); outline-offset: 2px; }
+.arrangement-result { min-width: 0; width: 100%; }
+.arrangement-result h2, .arrangement-prompt h2 { font-size: 1rem; }
+.arrangement-prompt li { padding: .65rem; border-radius: var(--radius-sm); border: 1px solid var(--quiz-border, var(--line)); background: var(--quiz-surface, var(--white)); color: var(--quiz-text, var(--ink)); overflow-wrap: anywhere; }
+.presentation-stage .arrangement-prompt, .presentation-stage .arrangement-result { font-size: clamp(1rem, 2vw, 1.7rem); width: 100%; }
+.presentation-stage .arrangement-prompt[data-dense="true"], .presentation-stage .arrangement-result[data-dense="true"] { font-size: clamp(1rem, 1.3vw, 1.2rem); line-height: 1.2; }
+.presentation-stage:has(.arrangement-prompt[data-dense="true"]) .presentation-question__body { grid-template-rows: auto minmax(0, 1fr); }
+.presentation-stage:not(.presentation-stage--compact):has(.arrangement-prompt[data-dense="true"]) { padding: 1rem 2rem; }
+.presentation-stage:not(.presentation-stage--compact):has(.arrangement-prompt[data-dense="true"]) .presentation-question__copy h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); }
+.presentation-stage .arrangement-prompt[data-dense="true"] { font-size: 1rem; }
+.presentation-stage .arrangement-prompt[data-dense="true"] h2 { margin: 0 0 .4rem; }
+.presentation-stage .arrangement-prompt[data-dense="true"] ul { gap: .2rem; margin: 0; }
+.presentation-stage .arrangement-prompt[data-dense="true"] li, .presentation-stage .arrangement-result[data-dense="true"] li { padding: .4rem .6rem; }
+.presentation-stage .arrangement-prompt[data-dense="true"] li { padding: .15rem .4rem; line-height: 1.1; }
+.presentation-stage .arrangement-prompt--ordering[data-dense="true"] ul, .presentation-stage .arrangement-result[data-dense="true"] ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.presentation-stage[data-composition="media-and-answers"] .arrangement-prompt { grid-column: 2; grid-row: 2; }
+.presentation-stage--compact .arrangement-prompt, .presentation-stage--compact .arrangement-result { font-size: .65rem; }
+.presentation-stage--compact .arrangement-prompt[data-dense="true"], .presentation-stage--compact .arrangement-result[data-dense="true"] { font-size: .55rem; }
+.presentation-stage--compact .arrangement-prompt h2, .presentation-stage--compact .arrangement-result h2 { font-size: .65rem; margin: .3rem 0; }
+.presentation-stage--compact .arrangement-prompt ul, .presentation-stage--compact .arrangement-result ol { gap: .2rem; margin: .3rem 0; }
+.presentation-stage--compact .arrangement-prompt li, .presentation-stage--compact .arrangement-result li { padding: .2rem .4rem; }
+.presentation-stage--compact .arrangement-marker { min-width: 1rem; height: 1rem; font-size: .6rem; }
+.presentation-stage--compact .arrangement-prompt[data-dense="true"] li { padding: .15rem .3rem; }
+.presentation-stage--compact .arrangement-prompt[data-dense="true"] li,
+.presentation-stage--compact .arrangement-result[data-dense="true"] strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.arrangement-editor { min-width: 0; }
+.arrangement-editor-row { display: flex; gap: .5rem; align-items: end; flex-wrap: wrap; padding: .6rem 0; }
+.arrangement-editor-row label { flex: 1; min-width: 100px; }
+.arrangement-editor-row input { min-width: 0; width: 100%; }
+.arrangement-editor-controls { display: flex; gap: .3rem; }
+@media (max-width: 480px) {
+  .ordering-cards li { flex-wrap: wrap; }
+  .ordering-cards strong { flex-basis: calc(100% - 3rem); }
+  .ordering-card-controls { margin-left: auto; }
+  .matching-columns { grid-template-columns: 1fr; }
+}

@@ -16,6 +16,7 @@ import './styles/player.css'
 import './styles/backstage.css'
 import './styles/audio.css'
 import './styles/teams.css'
+import './styles/arrangement.css'
 
 const router = createBrowserRouter([
   {

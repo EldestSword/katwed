@@ -19,6 +19,8 @@ import { exportQuizToPortable, parseKatwedQuizJson } from '../../features/quiz-t
 
 function correctAnswer(question: Question): PlayerAnswerPayload {
   switch (question.type) {
+    case 'ordering': return { type: question.type, itemIds: question.correctItemIds }
+    case 'matching': return { type: question.type, pairs: question.correctPairs }
     case 'single-choice': return { type: question.type, optionId: question.correctOptionId }
     case 'multiple-select': return { type: question.type, optionIds: [...question.correctOptionIds] }
     case 'true-false': return { type: question.type, value: question.correctValue }

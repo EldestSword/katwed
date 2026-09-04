@@ -26,6 +26,7 @@ import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
 import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
+import { ArrangementPrompt, ArrangementResult } from './ArrangementResult'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
@@ -43,6 +44,7 @@ function questionComposition(question: SafeQuestion, showMedia: boolean, showCho
 
 function PresentationChoices({ question, phase, colours }: { question: SafeQuestion; phase: SafeGameState['phase']; colours: readonly string[] }) {
   if (!choicesVisible(question, phase)) return null
+  if (question.type === 'ordering' || question.type === 'matching') return <ArrangementPrompt question={question} />
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
     const options = orderedQuestionOptions(question)
     return (
@@ -72,6 +74,8 @@ function SliderContext({ question }: { question: Extract<SafeQuestion, { type: '
 
 function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPayload; question: SafeQuestion; compact: boolean; colours: readonly string[] }) {
   switch (reveal.type) {
+    case 'ordering': return <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />
+    case 'matching': return <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />
     case 'single-choice': {
       const options = question.type === 'single-choice' ? orderedQuestionOptions(question) : []
       return <div className="presentation-reveal-grid" data-option-count={options.length}>{options.map((option, position) => <RevealAnswerTile label={option.label} position={position} optionId={option.id} style={answerColourStyle(colours, position)} correct={option.id === reveal.correctOptionId} responseCount={reveal.optionCounts[option.id] ?? 0} key={option.id} />)}</div>

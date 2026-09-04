@@ -1,4 +1,5 @@
 import type { ChoiceOption, Question, Quiz } from '../../types/domain'
+import { remapArrangementItems } from '../questions/arrangementQuestions'
 import type { QuizSaveInput } from '../../services/gameRepository'
 
 type IdFactory = () => string
@@ -60,6 +61,9 @@ export function createDuplicateQuizInput(
     }
 
     switch (duplicate.type) {
+      case 'ordering':
+      case 'matching':
+        return remapArrangementItems(duplicate, createId)
       case 'single-choice': {
         const { options, ids } = duplicateOptions(duplicate.options, createId)
         return {

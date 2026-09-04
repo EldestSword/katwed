@@ -8,6 +8,7 @@ import { PinpointSurface } from './PinpointSurface'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
+import { ArrangementResult } from './ArrangementResult'
 
 type RevealOutcome = 'correct' | 'incorrect' | 'unknown'
 
@@ -18,6 +19,8 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
 function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null, playerId?: string): RevealOutcome {
   if (!answer || answer.type !== reveal.type) return 'unknown'
   switch (reveal.type) {
+    case 'ordering': return answer.type === 'ordering' && answer.itemIds.length === reveal.correctItemIds.length && answer.itemIds.every((id, i) => id === reveal.correctItemIds[i]) ? 'correct' : 'incorrect'
+    case 'matching': return answer.type === 'matching' && answer.pairs.length === reveal.correctPairs.length && answer.pairs.every((pair) => reveal.correctPairs.some((correct) => correct.leftId === pair.leftId && correct.rightId === pair.rightId)) ? 'correct' : 'incorrect'
     case 'single-choice': return answer.type === 'single-choice' && answer.optionId === reveal.correctOptionId ? 'correct' : 'incorrect'
     case 'multiple-select': {
       if (answer.type !== 'multiple-select') return 'unknown'
@@ -72,6 +75,8 @@ export function PlayerAnswerReveal({
   let correctAnswer
 
   switch (reveal.type) {
+    case 'ordering': correctAnswer = <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />; break
+    case 'matching': correctAnswer = <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />; break
     case 'single-choice': {
       const label = question.type === 'single-choice' ? question.options.find((option) => option.id === reveal.correctOptionId)?.label : null
       const position = question.type === 'single-choice' ? optionPosition(question, reveal.correctOptionId) : -1

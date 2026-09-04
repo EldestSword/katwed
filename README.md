@@ -111,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 7 is the export target on the Phase 2 integration branch. It adds ordered rounds and required question-to-round references; versions 1–6 import into a silent default Round 1. V6 circle, rectangle and polygon targets are retained, and legacy Pinpoint coordinates still become equivalent circles. Version 5's sound-pack and version 4's answer-palette semantics are retained. All seven schemas remain aligned with the trusted 51-theme/153-background registry. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v7.md`](docs/katwed-quiz-format-v7.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v7.schema.json); the v1–v6 documentation and schemas remain available for existing generators.
+Version 8 is the export target on the Phase 2 development branch. It adds Ordering and Matching with explicit local item keys and answer references. V7 rounds and question-to-round references, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–8 import; versions 1–6 receive a silent default Round 1 and legacy Pinpoint coordinates become equivalent circles. All eight schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [`docs/katwed-quiz-format-v8.md`](docs/katwed-quiz-format-v8.md) and the [v8 JSON Schema](docs/schemas/katwed-quiz-v8.schema.json); the v1–v7 documentation and schemas remain available unchanged for existing generators. Team Mode remains session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -672,11 +672,15 @@ Planned work:
 - custom themes.
 - deliberate review and release verification for the expanded theme frontend.
 
+### Ordering and Matching (Phase 2 development)
+
+Ordering and Matching add two text-only question types on the feature branch. Hosts author 2–8 ordered items or paired rows; players use touch/mouse reordering with keyboard up/down controls, or tap/keyboard pairing with numbered markers. Safe network serialisation scrambles arrays independently of answer keys and authored order, and remains stable across polling and reconnect. Matching partial points stay fixed over time, Double Score applies, and fully correct answers use generic speed scoring. H2H remains binary. Both types work with Rounds and individual contributions to Team totals.
+
+Forward migration `20260904110937_ordering_matching_questions.sql` follows `20260904100005_core_team_mode.sql` and patches retained database validation, save/load, safe/reveal serialisation and scoring. It is safe to apply before the new frontend for existing quizzes and clients, but remains pending deliberate production release. No new Realtime channels, broadcasts, polling or browser fetches are added. See [architecture and local verification](docs/ordering-matching.md) and [portable v8](docs/katwed-quiz-format-v8.md).
+
 ### Further question formats
 
 Planned further formats:
-- ordering;
-- matching;
 - poll;
 - scale;
 - word cloud;

@@ -16,6 +16,9 @@ import { GameTimer } from '../../components/design-system/GameTimer'
 import { QuestionProgressBadge } from '../../components/design-system/LiveGamePrimitives'
 import { PinpointSurface } from './PinpointSurface'
 import { PlayerSliderAnswer } from './PlayerSliderAnswer'
+import { PlayerOrderingAnswer } from './PlayerOrderingAnswer'
+import { PlayerMatchingAnswer } from './PlayerMatchingAnswer'
+import { validMatchingPairs, validPermutation } from '../questions/arrangementQuestions'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
@@ -114,6 +117,8 @@ export function PlayerQuestion({
   const canSubmit = useMemo(() => {
     if (question.type === 'mashup') return mashupSelection.length === 2
     if (!answer || answer.type !== question.type) return false
+    if (answer.type === 'ordering' && question.type === 'ordering') return validPermutation(answer.itemIds, question.items.map((item) => item.id))
+    if (answer.type === 'matching' && question.type === 'matching') return validMatchingPairs(answer.pairs, question.leftItems.map((item) => item.id), question.rightItems.map((item) => item.id))
     if (answer.type === 'multiple-select' && question.type === 'multiple-select') {
       return answer.optionIds.length >= question.minimumSelections && answer.optionIds.length <= question.maximumSelections
     }
@@ -227,6 +232,8 @@ export function PlayerQuestion({
         </div>
       )}
 
+      {question.type === 'ordering' && <PlayerOrderingAnswer key={question.id} items={question.items} value={answer?.type === 'ordering' ? answer.itemIds : null} disabled={submitting || timedOut} onChange={(itemIds) => setAnswer({ type: 'ordering', itemIds })} />}
+      {question.type === 'matching' && <PlayerMatchingAnswer key={question.id} leftItems={question.leftItems} rightItems={question.rightItems} pairs={answer?.type === 'matching' ? answer.pairs : []} disabled={submitting || timedOut} onChange={(pairs) => setAnswer({ type: 'matching', pairs })} />}
       {question.type === 'slider' && (
         <PlayerSliderAnswer key={question.id} question={question}
           value={answer?.type === 'slider' ? answer.value : null}

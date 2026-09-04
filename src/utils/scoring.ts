@@ -1,4 +1,5 @@
 import { normalisePinpointTarget, pinpointContains } from '../features/game/pinpointTargets'
+import { onlyFields, validMatchingPairs, validPermutation } from '../features/questions/arrangementQuestions'
 import type {
   LeaderboardEntry,
   Player,
@@ -49,6 +50,19 @@ export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): 
   if (question.type !== answer.type) return invalid('answer-type')
 
   switch (question.type) {
+    case 'ordering': {
+      if (answer.type !== 'ordering') return invalid('answer-type')
+      if (!onlyFields(answer, ['type', 'itemIds']) || !validPermutation(answer.itemIds, question.items.map((item) => item.id))) return invalid('invalid-permutation')
+      const correct = answer.itemIds.every((id, i) => id === question.correctItemIds[i])
+      return { valid: true, correct, points: correct ? question.points : 0 }
+    }
+    case 'matching': {
+      if (answer.type !== 'matching') return invalid('answer-type')
+      if (!onlyFields(answer, ['type', 'pairs']) || !validMatchingPairs(answer.pairs, question.leftItems.map((item) => item.id), question.rightItems.map((item) => item.id))) return invalid('invalid-pairs')
+      const correctCount = answer.pairs.filter((pair) => question.correctPairs.some((expected) => expected.leftId === pair.leftId && expected.rightId === pair.rightId)).length
+      const correct = correctCount === question.correctPairs.length
+      return { valid: true, correct, points: correct ? question.points : question.scoringMode === 'partial' ? Math.floor(question.points * correctCount / question.correctPairs.length) : 0 }
+    }
     case 'single-choice': {
       const payload = answer as Extract<PlayerAnswerPayload, { type: 'single-choice' }>
       if (!question.options.some((option) => option.id === payload.optionId)) return invalid('invalid-option')

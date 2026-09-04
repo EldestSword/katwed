@@ -20,6 +20,8 @@ export type QuestionType =
   | 'slider'
   | 'pinpoint'
   | 'typed-answer'
+  | 'ordering'
+  | 'matching'
   | 'mashup'
 
 export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
@@ -206,6 +208,21 @@ export interface TypedAnswerQuestion extends QuestionBase {
   acceptedAnswers: string[]
 }
 
+export interface TextItem { id: string; label: string }
+export interface MatchingPair { leftId: string; rightId: string }
+export interface OrderingQuestion extends QuestionBase {
+  type: 'ordering'
+  items: TextItem[]
+  correctItemIds: string[]
+}
+export interface MatchingQuestion extends QuestionBase {
+  type: 'matching'
+  leftItems: TextItem[]
+  rightItems: TextItem[]
+  correctPairs: MatchingPair[]
+  scoringMode: 'exact' | 'partial'
+}
+
 export interface MashupQuestion extends QuestionBase {
   type: 'mashup'
   media: Extract<QuestionMedia, { type: 'image' }>
@@ -219,6 +236,8 @@ export type Question =
   | SliderQuestion
   | PinpointQuestion
   | TypedAnswerQuestion
+  | OrderingQuestion
+  | MatchingQuestion
   | MashupQuestion
 
 export type PlayerAnswerPayload =
@@ -228,12 +247,16 @@ export type PlayerAnswerPayload =
   | { type: 'slider'; value: number }
   | { type: 'pinpoint'; x: number; y: number }
   | { type: 'typed-answer'; value: string }
+  | { type: 'ordering'; itemIds: string[] }
+  | { type: 'matching'; pairs: MatchingPair[] }
   | { type: 'mashup'; memberIds: readonly [string, string] }
 
 export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
 export type HeadToHeadResultStatus = 'correct' | 'incorrect' | 'skipped'
 
 export type SafeQuestion =
+  | (Omit<OrderingQuestion, 'correctItemIds' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MatchingQuestion, 'correctPairs' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
@@ -254,6 +277,8 @@ interface QuestionProgress {
 }
 
 export type RevealPayload =
+  | { type: 'ordering'; correctItemIds: string[]; caption: string }
+  | { type: 'matching'; correctPairs: MatchingPair[]; scoringMode: 'exact' | 'partial'; caption: string }
   | {
       type: 'single-choice'
       correctOptionId: string
