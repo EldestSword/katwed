@@ -1,5 +1,6 @@
 import { normalisePinpointTarget, pinpointContains } from '../features/game/pinpointTargets'
 import { onlyFields, validMatchingPairs, validPermutation } from '../features/questions/arrangementQuestions'
+import { connectionStagePoints } from '../features/questions/connections'
 import type {
   LeaderboardEntry,
   Player,
@@ -46,10 +47,20 @@ function approximatelyOnStep(value: number, minimum: number, step: number): bool
   return Math.abs(steps - Math.round(steps)) < 1e-8
 }
 
-export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): QuestionScore {
+export interface QuestionScoringContext { revealedClueCount?: number }
+
+export function scoreQuestion(question: Question, answer: PlayerAnswerPayload, context: QuestionScoringContext = {}): QuestionScore {
   if (question.type !== answer.type) return invalid('answer-type')
 
   switch (question.type) {
+    case 'connections': {
+      if (answer.type !== 'connections' || !onlyFields(answer, ['type', 'value']) || typeof answer.value !== 'string' ||
+        answer.value.trim().length > MAX_TYPED_ANSWER_LENGTH || !isMeaningfulTypedAnswer(answer.value)) return invalid('invalid-typed-answer')
+      const count = context.revealedClueCount
+      if (count === undefined || !Number.isInteger(count) || count < 1 || count > question.clues.length) return invalid('invalid-clue-stage')
+      const correct = typedAnswerMatches(answer.value, question.correctAnswer, question.acceptedAnswers)
+      return { valid: true, correct, points: correct ? connectionStagePoints(question.points, question.clues.length, count) : 0 }
+    }
     case 'ordering': {
       if (answer.type !== 'ordering') return invalid('answer-type')
       if (!onlyFields(answer, ['type', 'itemIds']) || !validPermutation(answer.itemIds, question.items.map((item) => item.id))) return invalid('invalid-permutation')

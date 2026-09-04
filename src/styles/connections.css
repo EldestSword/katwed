@@ -1,0 +1,32 @@
+.connection-clues { width: 100%; min-width: 0; }
+.connection-clues ol { display: grid; gap: .6rem; list-style: none; padding: 0; margin: .5rem 0; }
+.connection-clues li { min-width: 0; border: 1px solid var(--quiz-border, var(--line)); border-radius: var(--radius-sm); padding: .7rem 1rem; background: var(--quiz-surface, var(--white)); color: var(--quiz-text, var(--ink)); }
+.connection-clues li > span { display: block; font-size: .75em; opacity: .75; margin-bottom: .2rem; }
+.connection-clues strong { display: block; overflow-wrap: anywhere; }
+.connection-stage { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 1rem; padding: .65rem 1rem; border-radius: var(--radius-sm); background: var(--purple); color: white; }
+.connections-answer input { width: 100%; min-width: 0; min-height: 48px; font-size: 1.1rem; }
+.connection-editor-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: .6rem; }
+.connection-editor-row label { min-width: 0; flex: 1 1 180px; }
+.connection-points-ladder { list-style: none; padding: 0; }
+.connection-points-ladder li { display: flex; justify-content: space-between; gap: 1rem; padding: .3rem; }
+.host-connections { border: 1px solid var(--host-line); padding: .8rem; border-radius: .7rem; overflow-wrap: anywhere; }
+.host-connections button { width: 100%; margin-top: .8rem; }
+.presentation-stage:has(.connection-clues) .presentation-question__body { grid-template-rows: auto auto minmax(0, 1fr); gap: .5rem; }
+.connection-intro-label { margin: 0; }
+.presentation-stage .connection-clues { font-size: clamp(1rem, 1.7vw, 1.6rem); align-self: center; }
+.presentation-stage .connection-clues ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.presentation-stage .connection-clues ol:has(> :only-child) { grid-template-columns: 1fr; }
+.presentation-stage:not(.presentation-stage--compact):has(.connection-clues[data-dense="true"]) { padding: 1rem 2rem; }
+.presentation-stage:not(.presentation-stage--compact):has(.connection-clues[data-dense="true"]) .presentation-question__copy h1,
+.presentation-stage:not(.presentation-stage--compact):has(.connection-clues[data-dense="true"]) .presentation-reveal__copy h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); }
+.presentation-stage .connection-clues[data-dense="true"] { font-size: clamp(1rem, 1.3vw, 1.3rem); line-height: 1.2; }
+.presentation-stage .connection-clues[data-dense="true"] li { padding: .45rem .65rem; }
+.presentation-stage .connection-reveal { display: grid; gap: .5rem; min-width: 0; }
+.presentation-stage .connection-reveal .connection-clues { font-size: clamp(.95rem, 1.3vw, 1.2rem); }
+.presentation-stage .connection-reveal .reveal-answer-card { padding: .5rem 1rem; }
+.presentation-stage--compact .connection-clues, .presentation-stage--compact .connection-reveal .connection-clues { font-size: .55rem; }
+.presentation-stage--compact .connection-clues[data-dense="true"] { font-size: .55rem; }
+.presentation-stage--compact .connection-clues ol { gap: .2rem; margin: .2rem 0; }
+.presentation-stage--compact .connection-clues li { padding: .2rem .35rem; }
+.presentation-stage--compact .connection-clues li strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.presentation-stage--compact .connection-stage { padding: .2rem .35rem; margin: .2rem 0; gap: .2rem; }

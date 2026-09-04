@@ -22,6 +22,7 @@ export type QuestionType =
   | 'typed-answer'
   | 'ordering'
   | 'matching'
+  | 'connections'
   | 'mashup'
 
 export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
@@ -215,6 +216,14 @@ export interface OrderingQuestion extends QuestionBase {
   items: TextItem[]
   correctItemIds: string[]
 }
+
+export interface ConnectionClue { id: string; text: string }
+export interface ConnectionsQuestion extends QuestionBase {
+  type: 'connections'
+  clues: ConnectionClue[]
+  correctAnswer: string
+  acceptedAnswers: string[]
+}
 export interface MatchingQuestion extends QuestionBase {
   type: 'matching'
   leftItems: TextItem[]
@@ -236,6 +245,7 @@ export type Question =
   | SliderQuestion
   | PinpointQuestion
   | TypedAnswerQuestion
+  | ConnectionsQuestion
   | OrderingQuestion
   | MatchingQuestion
   | MashupQuestion
@@ -247,6 +257,7 @@ export type PlayerAnswerPayload =
   | { type: 'slider'; value: number }
   | { type: 'pinpoint'; x: number; y: number }
   | { type: 'typed-answer'; value: string }
+  | { type: 'connections'; value: string }
   | { type: 'ordering'; itemIds: string[] }
   | { type: 'matching'; pairs: MatchingPair[] }
   | { type: 'mashup'; memberIds: readonly [string, string] }
@@ -255,6 +266,9 @@ export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
 export type HeadToHeadResultStatus = 'correct' | 'incorrect' | 'skipped'
 
 export type SafeQuestion =
+  | (Omit<ConnectionsQuestion, 'clues' | 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment & {
+      visibleClues: ConnectionClue[]; revealedClueCount: number; totalClues: number; availablePoints: number
+    })
   | (Omit<OrderingQuestion, 'correctItemIds' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<MatchingQuestion, 'correctPairs' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
   | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
@@ -277,6 +291,7 @@ interface QuestionProgress {
 }
 
 export type RevealPayload =
+  | { type: 'connections'; correctAnswer: string; correctPlayerIds: string[]; caption: string }
   | { type: 'ordering'; correctItemIds: string[]; caption: string }
   | { type: 'matching'; correctPairs: MatchingPair[]; scoringMode: 'exact' | 'partial'; caption: string }
   | {
@@ -413,6 +428,8 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  /** Missing only in pre-Connections clients/local fixtures; equivalent to zero. */
+  connectionClueCount?: number
   teams?: GameTeam[]
   currentRoundId: string | null
   id: string

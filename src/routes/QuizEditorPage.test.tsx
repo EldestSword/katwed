@@ -7,6 +7,7 @@ import type * as QuestionImagesModule from '../services/questionImages'
 import type { QuizSaveInput } from '../services/gameRepository'
 import type { Quiz } from '../types/domain'
 import { QuizEditorPage } from './QuizEditorPage'
+import { connectionsFixture } from '../test/connectionsFixtures'
 
 const repositoryMocks = vi.hoisted(() => ({
   getQuiz: vi.fn(),
@@ -82,6 +83,27 @@ describe('QuizEditorPage quiz appearance', () => {
       archivedAt: null,
     }))
     imageMocks.uploadQuizCover.mockResolvedValue('https://media.example/new-cover.webp')
+  })
+
+  it('blocks switching Connections to Head to Head with guidance inside quiz settings', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [connectionsFixture()] }))
+    renderEditor()
+    const dialog = await openQuizSettings(userEvent.setup(), 'Game')
+    const button = within(dialog).getByRole('button', { name: /Head to Head/ })
+    expect(button).toBeDisabled()
+    expect(button).toHaveTextContent('Remove Connections questions to use Head to Head.')
+    expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
+  })
+
+  it('omits Connections from both Head-to-Head question pickers', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
+    const user = userEvent.setup()
+    renderEditor()
+    await screen.findByRole('heading', { name: 'Question settings' })
+    expect(within(screen.getAllByRole('combobox', { name: 'Type' })[0]).queryByRole('option', { name: 'Connections' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: '+ Add' }))
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Connections/ })).toBeNull()
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: /Ordering/ })).toBeVisible()
   })
 
   it('opens accessible quiz-wide settings while keeping the question sidebar focused', async () => {

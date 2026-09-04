@@ -22,7 +22,7 @@ describe('portable Core Rounds v7', () => {
       const quiz = fixture()
       const pinpoint = quiz.questions.find((q) => q.type === 'pinpoint')!; pinpoint.target = target
       const portable = exportQuizToPortable(quiz)
-      expect(portable.formatVersion).toBe(8)
+      expect(portable.formatVersion).toBe(9)
       expect(validate({ ...portable, formatVersion: 7 }), JSON.stringify(validate.errors)).toBe(true)
       expect(portable.quiz.rounds.map((r) => r.key)).toEqual(['round-1', 'round-2'])
       const parsed = parseKatwedQuizJson(JSON.stringify({ ...portable, formatVersion: 7 })).input

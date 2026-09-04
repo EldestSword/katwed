@@ -103,6 +103,7 @@ export function formatHostAnswer(
     case 'true-false': return payload.value ? 'True' : 'False'
     case 'slider': return question.type === 'slider' ? formatSliderValue(payload.value, question) : String(payload.value)
     case 'pinpoint': return 'Pin placed'
+    case 'connections':
     case 'typed-answer': return payload.value
     case 'mashup': return payload.memberIds.map(
       (id) => roster.find((member) => member.id === id)?.displayName ?? 'Unknown person',

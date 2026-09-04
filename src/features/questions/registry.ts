@@ -22,6 +22,7 @@ function definition(
 }
 
 export const questionTypeRegistry: Record<QuestionType, QuestionTypeDefinition> = {
+  connections: definition('connections', 'Connections', 'Find what connects the clues.', '◇', 'FIND THE CONNECTION'),
   'single-choice': definition('single-choice', 'Single choice', 'Choose one correct option.', '●', 'SELECT AN ANSWER'),
   'multiple-select': definition('multiple-select', 'Multiple select', 'Choose the complete correct set.', '☑', 'SELECT MULTIPLE ANSWERS'),
   'true-false': definition('true-false', 'True or false', 'Decide whether a statement is true.', '↔', 'TRUE OR FALSE'),

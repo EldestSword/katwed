@@ -1,5 +1,6 @@
 import { roundValidation } from './rounds'
 import { arrangementValidation } from '../questions/arrangementQuestions'
+import { connectionValidation } from '../questions/connections'
 import { isPinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
@@ -8,12 +9,7 @@ import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBa
 import { isQuizType } from '../head-to-head/headToHead'
 import { isAnswerColourTuple, isAnswerPaletteId } from '../answer-palettes/answerPalettes'
 import { isSoundPackId } from '../audio/soundPacks'
-import {
-  MAX_TYPED_ANSWER_LENGTH,
-  MAX_TYPED_ANSWER_VARIANTS,
-  isMeaningfulTypedAnswer,
-  normaliseTypedAnswer,
-} from '../typed-answer/typedAnswer'
+import { validateTypedAnswers } from '../typed-answer/typedAnswer'
 
 export interface QuestionValidation {
   valid: boolean
@@ -78,6 +74,9 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
   validateMedia(question, messages)
 
   switch (question.type) {
+    case 'connections':
+      messages.push(...connectionValidation(question))
+      break
     case 'ordering':
     case 'matching':
       messages.push(...arrangementValidation(question))
@@ -128,20 +127,7 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
       if (!isPinpointTarget(question.target)) messages.push('Draw a valid correct answer area on the image.')
       break
     case 'typed-answer': {
-      const answers = [question.correctAnswer, ...question.acceptedAnswers]
-      if (answers.length > MAX_TYPED_ANSWER_VARIANTS) {
-        messages.push('Typed Answer supports one primary answer and up to 19 alternatives.')
-      }
-      if (answers.some((answer) => answer.length > MAX_TYPED_ANSWER_LENGTH)) {
-        messages.push('Typed answers must be 120 characters or fewer.')
-      }
-      if (answers.some((answer) => !answer.trim() || !isMeaningfulTypedAnswer(answer))) {
-        messages.push('Every typed answer must contain at least one letter or number.')
-      }
-      const normalised = answers.map(normaliseTypedAnswer)
-      if (new Set(normalised).size !== normalised.length) {
-        messages.push('Typed answers must be different after ignoring capitals, spaces and punctuation.')
-      }
+      messages.push(...validateTypedAnswers(question.correctAnswer, question.acceptedAnswers))
       break
     }
     case 'mashup': {
@@ -211,6 +197,7 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   }
 
   if (input.quizType === 'head-to-head') {
+    if (input.questions.some(question => question.type === 'connections')) messages.push('Connections is Standard-only. Remove Connections questions before switching to Head-to-Head.')
     if (input.questions.some((question) => question.speedScoringEnabled || question.doubleScore)) {
       messages.push('Head-to-Head questions cannot use Speed Scoring or Double Score.')
     }

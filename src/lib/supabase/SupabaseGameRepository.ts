@@ -309,6 +309,10 @@ export class SupabaseGameRepository implements GameRepository {
     await this.rpc(`host_${action.replace('-', '_')}_game`, { p_session_id: sessionId })
   }
 
+  async revealConnectionClue(sessionId: string): Promise<void> {
+    await this.rpc('host_reveal_connection_clue', { p_session_id: sessionId })
+  }
+
   subscribe(subject: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {
     let channel: RealtimeChannel = this.client.channel(`katwed:${subject}`, { config: { private: false } })
     channel = channel

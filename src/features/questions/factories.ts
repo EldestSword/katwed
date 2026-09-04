@@ -26,6 +26,9 @@ export function createQuestion(
 ): Question {
   const base = common(quizId, displayOrder, speedScoringEnabled)
   switch (type) {
+    case 'connections':
+      return { ...base, type, prompt: 'What connects these clues?', timeLimitSeconds: 60, points: 1000, speedScoringEnabled: false,
+        clues: [1, 2, 3, 4].map(i => ({ id: crypto.randomUUID(), text: `Clue ${i}` })), correctAnswer: '', acceptedAnswers: [] }
     case 'ordering': {
       const items = [1, 2, 3].map((i) => ({ id: crypto.randomUUID(), label: `Item ${i}` }))
       return { ...base, type, items, correctItemIds: items.map((item) => item.id) }

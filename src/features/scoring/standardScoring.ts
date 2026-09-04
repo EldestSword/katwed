@@ -13,13 +13,13 @@ export function calculateTimedScore(baseScore: number, responseTimeMs: number, d
 
 export function calculateStandardQuestionScore(
   baseScore: number,
-  question: Pick<Question, 'doubleScore' | 'speedScoringEnabled'>,
+  question: Pick<Question, 'doubleScore' | 'speedScoringEnabled'> & { type?: Question['type'] },
   responseTimeMs: number,
   durationMs: number,
 ): number {
   if (baseScore <= 0) return 0
   const doubled = question.doubleScore ? baseScore * 2 : baseScore
-  return question.speedScoringEnabled
+  return question.speedScoringEnabled && question.type !== 'connections'
     ? calculateTimedScore(doubled, responseTimeMs, durationMs)
     : Math.floor(doubled)
 }

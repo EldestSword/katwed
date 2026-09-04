@@ -46,6 +46,7 @@ export function formatHostAnswer(question: Question, roster: readonly RosterMemb
         detail: 'Accepted radius: ' + percentage(target.radius) + ' of the normalised image scale',
       }
     }
+    case 'connections':
     case 'typed-answer':
       return {
         label: 'Accepted answer',

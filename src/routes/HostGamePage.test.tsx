@@ -6,12 +6,14 @@ import { mixedDemoQuiz } from '../lib/demo/sampleData'
 import type { GameSession, Player, SafeGameState } from '../types/domain'
 import { hostResponseRecordForAnswer } from '../features/game/hostResponses'
 import { HostGamePage } from './HostGamePage'
+import { connectionsFixture, safeConnections } from '../test/connectionsFixtures'
 
 const repositoryMocks = vi.hoisted(() => ({
   getHostSession: vi.fn(),
   getHostLiveSession: vi.fn(),
   getSafeGameState: vi.fn(),
   changePhase: vi.fn(),
+  revealConnectionClue: vi.fn(),
   setTypedAnswerOverride: vi.fn(),
   subscribe: vi.fn(),
 }))
@@ -70,8 +72,21 @@ describe('HostGamePage Standard auto-lock', () => {
     repositoryMocks.getHostSession.mockResolvedValue({ session, quiz: mixedDemoQuiz })
     repositoryMocks.getHostLiveSession.mockResolvedValue(session)
     repositoryMocks.changePhase.mockResolvedValue(undefined)
+    repositoryMocks.revealConnectionClue.mockResolvedValue(undefined)
     repositoryMocks.setTypedAnswerOverride.mockResolvedValue(undefined)
     repositoryMocks.subscribe.mockReturnValue(() => undefined)
+  })
+
+  it('routes clue reveal to its focused host action while keeping Close answers separate', async () => {
+    const definition = connectionsFixture(), user = userEvent.setup()
+    repositoryMocks.getHostSession.mockResolvedValue({ session: { ...session, questionOrder: [definition.id] }, quiz: { ...mixedDemoQuiz, questions: [definition] } })
+    renderController(state({ currentQuestion: safeConnections(), submittedCount: 1 }))
+    const button = await screen.findByRole('button', { name: 'Reveal next clue' })
+    expect(screen.getByRole('button', { name: 'Close answers now' })).toBeEnabled()
+    expect(screen.getByRole('region', { name: 'Connections controls' })).toHaveTextContent('Venus')
+    await user.click(button)
+    expect(repositoryMocks.revealConnectionClue).toHaveBeenCalledExactlyOnceWith('session')
+    expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
   })
 
   it('does not lock at 3 of 4, including when the unanswered player is disconnected', async () => {

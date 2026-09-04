@@ -29,6 +29,7 @@ function correctAnswer(question: Question): PlayerAnswerPayload {
       if (question.target?.kind !== 'circle') throw new Error('Expected the demo circle')
       return { type: question.type, x: question.target.x, y: question.target.y }
     }
+    case 'connections':
     case 'typed-answer': return { type: question.type, value: question.correctAnswer }
     case 'mashup': return { type: question.type, memberIds: question.correctMemberIds }
   }

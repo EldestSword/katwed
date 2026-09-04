@@ -1,5 +1,6 @@
 import type { MatchingPair, PlayerAnswerPayload, PlayerSession } from '../types/domain'
 import { onlyFields } from '../features/questions/arrangementQuestions'
+import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../features/typed-answer/typedAnswer'
 
 const prefix = 'katwed.player.'
 const answerPrefix = 'katwed.answer.'
@@ -29,6 +30,7 @@ function isSubmittedAnswer(value: unknown): value is PlayerAnswerPayload {
   if (!value || typeof value !== 'object' || !('type' in value)) return false
   const candidate = value as Record<string, unknown>
   switch (candidate.type) {
+    case 'connections': return onlyFields(candidate, ['type', 'value']) && typeof candidate.value === 'string' && candidate.value.trim().length <= MAX_TYPED_ANSWER_LENGTH && isMeaningfulTypedAnswer(candidate.value)
     case 'ordering': return onlyFields(candidate, ['type', 'itemIds']) && Array.isArray(candidate.itemIds) &&
       candidate.itemIds.length >= 2 && candidate.itemIds.length <= 8 &&
       candidate.itemIds.every((id: unknown) => typeof id === 'string' && id.length > 0 && id.length <= 128) && new Set(candidate.itemIds).size === candidate.itemIds.length

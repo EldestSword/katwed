@@ -1,5 +1,6 @@
 import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
 import { onlyFields, validTextItems, validMatchingPairs, validPermutation } from '../../features/questions/arrangementQuestions'
+import { connectionStagePoints, validConnectionClues } from '../../features/questions/connections'
 import type { GameTeam, RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
@@ -29,6 +30,7 @@ function isGameTeam(value: unknown, sessionId: unknown): value is GameTeam {
 function isRevealPayload(value: unknown): value is RevealPayload {
   if (!isRecord(value) || typeof value.type !== 'string' || typeof value.caption !== 'string') return false
   switch (value.type) {
+    case 'connections': return onlyFields(value, ['type', 'correctAnswer', 'correctPlayerIds', 'caption']) && typeof value.correctAnswer === 'string' && isStringArray(value.correctPlayerIds)
     case 'ordering': return onlyFields(value, ['type', 'correctItemIds', 'caption']) && isStringArray(value.correctItemIds) && new Set(value.correctItemIds).size === value.correctItemIds.length
     case 'matching': return onlyFields(value, ['type', 'correctPairs', 'scoringMode', 'caption']) && Array.isArray(value.correctPairs) && value.correctPairs.every((pair: unknown) => onlyFields(pair, ['leftId', 'rightId']) && typeof pair.leftId === 'string' && typeof pair.rightId === 'string') && (value.scoringMode === 'exact' || value.scoringMode === 'partial')
     case 'single-choice':
@@ -114,6 +116,14 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if (safeQuestion.type === 'connections') {
+      const count = Number(safeQuestion.revealedClueCount), total = Number(safeQuestion.totalClues)
+      if (normaliseQuizType(value.quizType) !== 'standard' || !validConnectionClues(safeQuestion.visibleClues, 0) ||
+        !Number.isInteger(safeQuestion.revealedClueCount) || !Number.isInteger(safeQuestion.totalClues) || total < 2 || total > 6 || count < 0 || count > total ||
+        safeQuestion.visibleClues.length !== count || (['question', 'locked'].includes(value.phase) && count < 1) || (revealAllowed && count !== total) ||
+        safeQuestion.availablePoints !== connectionStagePoints(Number(safeQuestion.points), total, count) * (safeQuestion.doubleScore ? 2 : 1) ||
+        'clues' in safeQuestion || 'futureClues' in safeQuestion || (value.reveal && value.reveal.type !== 'connections')) throw new Error('The server returned invalid Connections clue state.')
+    }
     if ((safeQuestion.type === 'ordering' && !validTextItems(safeQuestion.items)) ||
       (safeQuestion.type === 'matching' && (!validTextItems(safeQuestion.leftItems) || !validTextItems(safeQuestion.rightItems) || safeQuestion.leftItems.length !== safeQuestion.rightItems.length || !['exact', 'partial'].includes(String(safeQuestion.scoringMode))))) {
       throw new Error('The server returned invalid question items.')

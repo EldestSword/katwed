@@ -15,12 +15,13 @@ import { HostAudioControls } from '../components/HostAudioControls'
 import { orderedSessionQuestions } from '../features/game/launchSettings'
 import { HostResponseMonitor } from '../features/game/HostResponseMonitor'
 import { HostCorrectAnswer } from '../features/game/HostCorrectAnswer'
+import { HostConnectionsControls } from '../features/game/HostConnectionsControls'
 import { createRefreshScheduler, type RefreshScheduler } from '../services/refreshScheduler'
 import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 import { TeamLobby } from '../features/teams/TeamLobby'
 import { isTeamGame } from '../features/teams/teams'
 
-type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
+type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close' | 'clue'
 
 export function HostGamePage() {
   const sessionId = useParams().sessionId ?? ''
@@ -91,7 +92,8 @@ export function HostGamePage() {
     setWorking(true)
     setError('')
     try {
-      await repository.changePhase(sessionId, kind)
+      if (kind === 'clue') await repository.revealConnectionClue(sessionId)
+      else await repository.changePhase(sessionId, kind)
       await refresh()
       if (kind === 'close') await navigate('/host')
     } catch (reason) {
@@ -193,6 +195,7 @@ export function HostGamePage() {
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
           </dl>
           <div className="controller-actions" role="group" aria-label="Game controls">
+            {!headToHead && state.phase === 'question' && question?.type === 'connections' && currentQuestionDefinition?.type === 'connections' && <HostConnectionsControls question={question} definition={currentQuestionDefinition} disabled={working || Boolean(activePrelude) || remaining <= 0} onReveal={() => run('clue')} />}
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length || unassigned} type="button" onClick={() => run('start')}>Start game</button>}
             {state.phase === 'lobby' && unassigned && <p>Assign every player to a team before starting.</p>}

@@ -60,6 +60,7 @@ export interface GameRepository {
   joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult>
   assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void>
   balanceTeams(sessionId: string): Promise<void>
+  revealConnectionClue(sessionId: string): Promise<void>
   joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult>
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>

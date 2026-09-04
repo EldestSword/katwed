@@ -61,6 +61,8 @@ export function createDuplicateQuizInput(
     }
 
     switch (duplicate.type) {
+      case 'connections':
+        return { ...duplicate, clues: duplicate.clues.map(clue => ({ ...clue, id: createId() })) }
       case 'ordering':
       case 'matching':
         return remapArrangementItems(duplicate, createId)

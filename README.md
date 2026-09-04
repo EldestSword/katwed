@@ -111,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 8 is the export target on the Phase 2 development branch. It adds Ordering and Matching with explicit local item keys and answer references. V7 rounds and question-to-round references, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–8 import; versions 1–6 receive a silent default Round 1 and legacy Pinpoint coordinates become equivalent circles. All eight schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [`docs/katwed-quiz-format-v8.md`](docs/katwed-quiz-format-v8.md) and the [v8 JSON Schema](docs/schemas/katwed-quiz-v8.schema.json); the v1–v7 documentation and schemas remain available unchanged for existing generators. Team Mode remains session-only.
+Version 9 is the export target on the Phase 2 development branch. It adds Standard-only Connections with ordered text clues and exact typed connections. V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–9 import; versions 1–6 receive a silent default Round 1 and legacy Pinpoint coordinates become equivalent circles. All nine schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [`docs/katwed-quiz-format-v9.md`](docs/katwed-quiz-format-v9.md) and the [v9 JSON Schema](docs/schemas/katwed-quiz-v9.schema.json); the v1–v8 documentation and schemas remain unchanged for existing generators. Team Mode and live clue progress remain session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -132,6 +132,12 @@ Standard quizzes can launch as **Individuals** (the default) or **Teams**, with 
 Players still answer and score individually. Team standings sum only the authoritative individual leaderboard rows visible at Leaderboard or Final Results, with no stored team totals or extra score writes. Team names and stable team IDs reuse the existing animation/commentary history through Round Intro. Final Results crown a team; Most Correct and Quickest Thinker may appear as Individual honours, with no individual Biggest Climber.
 
 Forward migration `20260904100005_core_team_mode.sql` follows Core Rounds and preserves legacy Individual launch/join calls for a deliberate database-first release. Membership RPCs add no room broadcasts, subscriptions or faster polling. Existing Player focus/reconnect recovery and the 45-second healthy sanity refresh pick up host assignment changes. See [Team Mode architecture and verification](docs/team-mode.md).
+
+### Connections (implemented locally, pending release)
+
+Standard Individual and Team games support 2–6 ordered text clues. Clue 1 opens with the normal question timer; the host reveals each further clue without changing phase or extending the deadline. Players make one exact-normalised typed guess. Correct answers earn `floor(base points × (total clues − revealed clues + 1) / total clues)`, then Double Score; ordinary speed scoring never applies. Public state contains only revealed clue records. All clues and the primary answer appear at answer reveal; alternatives remain private.
+
+The editor provides clue ordering, alternatives and a live points ladder. Player drafts/focus survive clue updates, and the presentation/compact views grow with the visible list. Head-to-Head is explicitly unsupported. New migration `20260904122702_connections_questions.sql` adds session progress and an owner-only clue action using the existing session locks and broadcast path: at most five room refresh signals plus their existing host-topic copies per question, with no answer broadcasts, new subscriptions or faster polling. See [Connections architecture and verification](docs/connections.md).
 
 ### Typed Answer and deterministic tile reveal
 
@@ -493,6 +499,8 @@ Pending, deliberately unapplied migrations:
 20260903203203_visual_pinpoint_targets.sql
 20260903221013_core_rounds.sql
 20260904100005_core_team_mode.sql
+20260904110937_ordering_matching_questions.sql
+20260904122702_connections_questions.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

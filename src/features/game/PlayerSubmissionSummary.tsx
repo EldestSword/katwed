@@ -53,7 +53,7 @@ export function PlayerSubmissionSummary({
   let value = 'Answer submitted'
   if (answer.type === 'slider' && question.type === 'slider') value = formatSliderValue(answer.value, question)
   if (answer.type === 'pinpoint') value = 'Location selected'
-  if (answer.type === 'typed-answer') value = answer.value
+  if (answer.type === 'typed-answer' || answer.type === 'connections') value = answer.value
   if (answer.type === 'mashup') {
     value = answer.memberIds.map((id) => roster.find((member) => member.id === id)?.displayName ?? id).join(' + ')
   }

@@ -2,6 +2,7 @@ import { normaliseQuizRounds, canonicaliseRounds, defaultRound, orderedRounds, r
 import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
+import { connectionSafeFields } from '../../features/questions/connections'
 import type {
   GameSession,
   GameSessionSettings,
@@ -224,6 +225,8 @@ function toSafeQuestion(
   questionNumber: number,
   totalQuestions: number,
   settings: GameSessionSettings,
+  clueCount = 0,
+  mayReveal = false,
 ): SafeQuestion {
   const base = {
     ...safeBase(question, questionNumber, totalQuestions),
@@ -231,6 +234,7 @@ function toSafeQuestion(
     optionOrderSeed: settings.shuffleAnswerOptions ? `${settings.answerOptionSeed}:${question.id}` : undefined,
   }
   switch (question.type) {
+    case 'connections': return { ...base, type: question.type, speedScoringEnabled: false, ...connectionSafeFields(question, clueCount, mayReveal) }
     case 'ordering':
       return { ...base, type: question.type, items: shuffledTextItems(question.items, `${settings.answerOptionSeed}:${question.id}:ordering`) }
     case 'matching':
@@ -270,6 +274,7 @@ function toSafeQuestion(
 
 function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Quiz): RevealPayload {
   switch (question.type) {
+    case 'connections': return { type: question.type, correctAnswer: question.correctAnswer, correctPlayerIds: answers.filter(answer => answer.correct).map(answer => answer.playerId), caption: question.revealCaption }
     case 'ordering': return { type: question.type, correctItemIds: [...question.correctItemIds], caption: question.revealCaption }
     case 'matching': return { type: question.type, correctPairs: question.correctPairs.map((pair) => ({ ...pair })), scoringMode: question.scoringMode, caption: question.revealCaption }
     case 'single-choice': {
@@ -439,6 +444,7 @@ export class DemoGameRepository implements GameRepository {
         })),
         questions: input.questions.map((question, index) => ({
           ...question,
+          ...(question.type === 'connections' ? { clues: question.clues.map(clue => ({ ...clue, text: clue.text.trim() })), correctAnswer: question.correctAnswer.trim(), acceptedAnswers: question.acceptedAnswers.map(answer => answer.trim()), speedScoringEnabled: false } : {}),
           ...(question.type === 'ordering' ? { items: question.items.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
           ...(question.type === 'matching' ? { leftItems: question.leftItems.map((item) => ({ ...item, label: item.label.trim() })), rightItems: question.rightItems.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
           id: question.id || uid('question'),
@@ -578,6 +584,7 @@ export class DemoGameRepository implements GameRepository {
         phase: 'lobby',
         currentRoundId: orderedRounds(quiz.rounds)[0].id,
         currentQuestionIndex: 0,
+        connectionClueCount: 0,
         questionOpenedAt: null,
         questionClosesAt: null,
         startedAt: null,
@@ -808,7 +815,7 @@ export class DemoGameRepository implements GameRepository {
       phase: session.phase,
       currentRound: safeRound(quiz, session.currentRoundId),
       currentQuestion: question
-        ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings)
+        ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings, session.connectionClueCount ?? 0, mayReveal)
         : null,
       roster: question?.type === 'mashup'
         ? quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
@@ -897,7 +904,7 @@ export class DemoGameRepository implements GameRepository {
           throw new RepositoryError('invalid-selection', 'Select exactly two different active people.')
         }
       }
-      const score = scoreQuestion(question, payload)
+      const score = scoreQuestion(question, payload, { revealedClueCount: session.connectionClueCount })
       if (!score.valid) throw new RepositoryError('invalid-selection', 'That answer is not valid for this question.')
       const openedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : submittedAt
       const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : openedAt
@@ -1062,6 +1069,7 @@ export class DemoGameRepository implements GameRepository {
       const now = new Date()
       const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
       const openCurrentQuestion = (allowIntro = false): void => {
+        session.connectionClueCount = 0
         const question = orderedQuestions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
         const enteringRound = action === 'start' || question.roundId !== session.currentRoundId
@@ -1075,6 +1083,7 @@ export class DemoGameRepository implements GameRepository {
         }
         const timingWindow = prepareQuestionTiming(session, question, now.getTime())
         session.phase = 'question'
+        session.connectionClueCount = question.type === 'connections' ? 1 : 0
         session.questionOpenedAt = timingWindow.openedAt
         session.questionClosesAt = timingWindow.closesAt
       }
@@ -1139,6 +1148,7 @@ export class DemoGameRepository implements GameRepository {
           session.questionClosesAt = now.toISOString()
           break
         case 'restart':
+          session.connectionClueCount = 0
           if (session.phase !== 'finished') throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
           session.phase = 'lobby'
           session.currentRoundId = orderedRounds(quiz.rounds)[0].id
@@ -1162,6 +1172,20 @@ export class DemoGameRepository implements GameRepository {
           session.endedAt = now.toISOString()
           break
       }
+      this.write(state, true, session.id)
+    })
+  }
+
+  async revealConnectionClue(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read(), session = state.sessions.find(candidate => candidate.id === sessionId)
+      const quiz = session && state.quizzes.find(candidate => candidate.id === session.quizId)
+      const question = session && quiz && orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]
+      const now = Date.now(), count = session?.connectionClueCount ?? 0
+      if (!session || !quiz || session.status !== 'active' || quiz.quizType !== 'standard' || session.phase !== 'question' || question?.type !== 'connections' ||
+        !session.questionOpenedAt || !session.questionClosesAt || now < Date.parse(session.questionOpenedAt) || now >= Date.parse(session.questionClosesAt) ||
+        count < 1 || count >= question.clues.length) throw new RepositoryError('invalid-phase', 'The next clue cannot be revealed now.')
+      session.connectionClueCount = count + 1
       this.write(state, true, session.id)
     })
   }

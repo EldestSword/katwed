@@ -18,6 +18,8 @@ import { PinpointSurface } from './PinpointSurface'
 import { PlayerSliderAnswer } from './PlayerSliderAnswer'
 import { PlayerOrderingAnswer } from './PlayerOrderingAnswer'
 import { PlayerMatchingAnswer } from './PlayerMatchingAnswer'
+import { PlayerConnectionsAnswer } from './PlayerConnectionsAnswer'
+import { ConnectionClues } from './ConnectionClues'
 import { validMatchingPairs, validPermutation } from '../questions/arrangementQuestions'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
@@ -122,7 +124,7 @@ export function PlayerQuestion({
     if (answer.type === 'multiple-select' && question.type === 'multiple-select') {
       return answer.optionIds.length >= question.minimumSelections && answer.optionIds.length <= question.maximumSelections
     }
-    if (answer.type === 'typed-answer') {
+    if (answer.type === 'typed-answer' || answer.type === 'connections') {
       return answer.value.length <= MAX_TYPED_ANSWER_LENGTH && isMeaningfulTypedAnswer(answer.value)
     }
     return true
@@ -131,7 +133,7 @@ export function PlayerQuestion({
   async function lockIn() {
     const payload = question.type === 'mashup' && mashupSelection.length === 2
       ? { type: 'mashup' as const, memberIds: [mashupSelection[0], mashupSelection[1]] as const }
-      : answer?.type === 'typed-answer'
+      : answer?.type === 'typed-answer' || answer?.type === 'connections'
         ? { ...answer, value: answer.value.trim() }
         : answer
     if (!payload || !canSubmit || submitted || timedOut) return
@@ -153,6 +155,7 @@ export function PlayerQuestion({
       <section className="player-waiting" aria-live="polite">
         <div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h2>Answer locked</h2></div></div>
         <PlayerSubmissionSummary answer={answer} question={question} roster={roster} answerPaletteId={answerPaletteId} customAnswerColours={customAnswerColours} />
+        {question.type === 'connections' && <ConnectionClues question={question} />}
         <p className="player-waiting__next">Waiting for the reveal…</p>
       </section>
     )
@@ -232,6 +235,7 @@ export function PlayerQuestion({
         </div>
       )}
 
+      {question.type === 'connections' && <PlayerConnectionsAnswer question={question} value={answer?.type === 'connections' ? answer.value : ''} disabled={submitting || timedOut} onChange={value => setAnswer({ type: 'connections', value })} />}
       {question.type === 'ordering' && <PlayerOrderingAnswer key={question.id} items={question.items} value={answer?.type === 'ordering' ? answer.itemIds : null} disabled={submitting || timedOut} onChange={(itemIds) => setAnswer({ type: 'ordering', itemIds })} />}
       {question.type === 'matching' && <PlayerMatchingAnswer key={question.id} leftItems={question.leftItems} rightItems={question.rightItems} pairs={answer?.type === 'matching' ? answer.pairs : []} disabled={submitting || timedOut} onChange={(pairs) => setAnswer({ type: 'matching', pairs })} />}
       {question.type === 'slider' && (

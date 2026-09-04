@@ -9,6 +9,7 @@ import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
 import { ArrangementResult } from './ArrangementResult'
+import { ConnectionClues } from './ConnectionClues'
 
 type RevealOutcome = 'correct' | 'incorrect' | 'unknown'
 
@@ -19,6 +20,7 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
 function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null, playerId?: string): RevealOutcome {
   if (!answer || answer.type !== reveal.type) return 'unknown'
   switch (reveal.type) {
+    case 'connections': return playerId ? (reveal.correctPlayerIds.includes(playerId) ? 'correct' : 'incorrect') : answer.type === 'connections' && normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'unknown'
     case 'ordering': return answer.type === 'ordering' && answer.itemIds.length === reveal.correctItemIds.length && answer.itemIds.every((id, i) => id === reveal.correctItemIds[i]) ? 'correct' : 'incorrect'
     case 'matching': return answer.type === 'matching' && answer.pairs.length === reveal.correctPairs.length && answer.pairs.every((pair) => reveal.correctPairs.some((correct) => correct.leftId === pair.leftId && correct.rightId === pair.rightId)) ? 'correct' : 'incorrect'
     case 'single-choice': return answer.type === 'single-choice' && answer.optionId === reveal.correctOptionId ? 'correct' : 'incorrect'
@@ -75,6 +77,7 @@ export function PlayerAnswerReveal({
   let correctAnswer
 
   switch (reveal.type) {
+    case 'connections': correctAnswer = <>{question.type === 'connections' && <ConnectionClues question={question} reveal />}<RevealAnswerCard><p>Correct connection</p><h2>{reveal.correctAnswer}</h2></RevealAnswerCard></>; break
     case 'ordering': correctAnswer = <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />; break
     case 'matching': correctAnswer = <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />; break
     case 'single-choice': {

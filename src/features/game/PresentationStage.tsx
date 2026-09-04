@@ -27,9 +27,11 @@ import { formatSliderValue } from './revealFormatting'
 import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
 import { ArrangementPrompt, ArrangementResult } from './ArrangementResult'
+import { ConnectionClues } from './ConnectionClues'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
+  if (question.type === 'connections') return true
   return question.presentationChoiceVisibility === 'show' ||
     (question.presentationChoiceVisibility === 'after-lock' && phase !== 'question')
 }
@@ -43,6 +45,7 @@ function questionComposition(question: SafeQuestion, showMedia: boolean, showCho
 }
 
 function PresentationChoices({ question, phase, colours }: { question: SafeQuestion; phase: SafeGameState['phase']; colours: readonly string[] }) {
+  if (question.type === 'connections') return <ConnectionClues question={question} />
   if (!choicesVisible(question, phase)) return null
   if (question.type === 'ordering' || question.type === 'matching') return <ArrangementPrompt question={question} />
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
@@ -74,6 +77,7 @@ function SliderContext({ question }: { question: Extract<SafeQuestion, { type: '
 
 function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPayload; question: SafeQuestion; compact: boolean; colours: readonly string[] }) {
   switch (reveal.type) {
+    case 'connections': return <div className="connection-reveal">{question.type === 'connections' && <ConnectionClues question={question} reveal />}<RevealAnswerCard><p>What connects them?</p><h2>{reveal.correctAnswer}</h2></RevealAnswerCard></div>
     case 'ordering': return <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />
     case 'matching': return <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />
     case 'single-choice': {
@@ -177,6 +181,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
           <div className="presentation-question__body">
+            {question.type === 'connections' && <p className="eyebrow connection-intro-label">Find the connection</p>}
             <div className="presentation-question__copy" data-question-density={promptDensity}>{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
             {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
             {question.type === 'slider' && <SliderContext question={question} />}
