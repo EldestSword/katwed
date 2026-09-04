@@ -1,3 +1,4 @@
+import { defaultRound } from '../quiz-editor/rounds'
 import { describe, expect, it } from 'vitest'
 import type { Quiz } from '../../types/domain'
 import {
@@ -10,6 +11,7 @@ import {
 
 function quiz(overrides: Partial<Quiz> & Pick<Quiz, 'id' | 'title'>): Quiz {
   return {
+    rounds: [defaultRound(overrides.id)],
     quizType: 'standard',
     headToHeadCompetitors: [],
     roster: [],

@@ -15,7 +15,7 @@ interface PortableThemeSchema {
 }
 
 describe('portable quiz theme enums', () => {
-  it.each([1, 2, 3, 4, 5])('keeps v%i aligned with the trusted theme and background registries', (version) => {
+  it.each([1, 2, 3, 4, 5, 6])('keeps v%i aligned with the trusted theme and background registries', (version) => {
     const schema = JSON.parse(readFileSync(
       resolve(`docs/schemas/katwed-quiz-v${version}.schema.json`),
       'utf8',

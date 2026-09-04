@@ -8,6 +8,14 @@ export function board(names: string[], scores?: number[]): LeaderboardEntry[] {
 export const previousBoard = board(['Roger', 'Carol', 'Jaki', 'Ross'], [4800, 4600, 4400, 4100])
 export const currentBoard = board(['Jaki', 'Roger', 'Carol', 'Ross'], [5000, 4800, 4700, 4500])
 
+export function roundIntroState(): SafeGameState {
+  return {
+    ...standingsState('round-intro'), currentQuestion: null,
+    currentRound: { id: 'round-2', title: 'Next round', subtitle: 'Ready for more?', introEnabled: true,
+      roundNumber: 2, totalRounds: 2, questionCount: 4 },
+  }
+}
+
 export function standingsState(phase: GamePhase, leaderboard = previousBoard, questionNumber = 1): SafeGameState {
   return {
     sessionId: 'standings-session', quizTitle: 'Standings quiz', quizType: 'standard', themeId: 'katwed', backgroundId: null,

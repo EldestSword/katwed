@@ -95,7 +95,7 @@ function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPa
     case 'pinpoint':
       return question.type === 'pinpoint' ? (
         <div className="presentation-pinpoint-reveal">
-          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} allowEnlarge={!compact} />
+          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={reveal.target} allowEnlarge={!compact} />
           <div className="pinpoint-legend" aria-label="Pinpoint answer legend"><span><i className="pinpoint-key pinpoint-key--response" />Player answers</span><span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div>
           <p className="sr-only">The correct target location has been displayed.</p>
         </div>
@@ -162,6 +162,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
+      {state.phase === 'round-intro' && state.currentRound && <div className="presentation-round-intro"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p className="presentation-round-intro__subtitle">{state.currentRound.subtitle}</p>}<span>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</span></div>}
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro compact={compact} questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
       {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} compact={compact} />}
       {state.phase === 'question' && question && !activePrelude && (

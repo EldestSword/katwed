@@ -18,7 +18,7 @@ import { HostCorrectAnswer } from '../features/game/HostCorrectAnswer'
 import { createRefreshScheduler, type RefreshScheduler } from '../services/refreshScheduler'
 import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 
-type HostAction = 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
+type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'
 
 export function HostGamePage() {
   const sessionId = useParams().sessionId ?? ''
@@ -145,7 +145,8 @@ export function HostGamePage() {
   const question = state.currentQuestion
   const sessionQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
   const currentIndex = question ? question.questionNumber - 1 : session.currentQuestionIndex
-  const upcoming = sessionQuestions[currentIndex + 1]
+  const upcoming = sessionQuestions[currentIndex + (state.phase === 'round-intro' ? 0 : 1)]
+  const nextRound = Boolean(upcoming && upcoming.roundId !== state.currentRound?.id)
   const currentQuestionDefinition = question
     ? sessionQuestions.find((candidate) => candidate.id === question.id) ?? null
     : null
@@ -170,7 +171,8 @@ export function HostGamePage() {
           <div className="controller-preview"><PresentationStage state={state} compact /></div>
         </section>
         <aside className="controller-panel">
-          <div className="controller-panel__heading"><div><p className="eyebrow">Current state</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
+          <div className="controller-panel__heading"><div><p className="eyebrow">Current state</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'round-intro' ? state.currentRound?.title : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
+          {state.phase === 'round-intro' && state.currentRound && <p>{state.currentRound.subtitle}<br />Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds} · {state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p>}
           <dl className="controller-stats">
             <div><dt>Time</dt><dd>{activePrelude === 'double-score' ? 'Double Score' : activePrelude === 'question-type' ? 'Intro' : headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
             <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
@@ -179,11 +181,12 @@ export function HostGamePage() {
           <div className="controller-actions" role="group" aria-label="Game controls">
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length} type="button" onClick={() => run('start')}>Start game</button>}
+            {!headToHead && state.phase === 'round-intro' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('start-round')}>Start round</button>}
             {!headToHead && state.phase === 'question' && <button className="button button--primary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('lock')}>Close answers now</button>}
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
             {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
             {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
-            {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>Next question</button>}
+            {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>{nextRound ? 'Next round' : 'Next question'}</button>}
             {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
             {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
             <button className="button button--ghost" disabled={working} type="button" onClick={() => {
@@ -214,7 +217,7 @@ export function HostGamePage() {
           </section>}
           <section className="controller-up-next">
             <p className="eyebrow">Up next</p>
-            <h2>{upcoming ? `Question ${currentIndex + 2}` : 'Final results'}</h2>
+            <h2>{upcoming ? `Question ${currentIndex + (state.phase === 'round-intro' ? 1 : 2)}` : 'Final results'}</h2>
             <p>{upcoming ? upcoming.prompt : 'The final scoreboard and podium.'}</p>
             {upcoming && <small>{questionTypeRegistry[upcoming.type].name}{upcoming.media.type !== 'none' ? ` · Media: ${upcoming.media.type}` : ''}</small>}
           </section>

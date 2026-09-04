@@ -1,3 +1,4 @@
+import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
 import type { RevealPayload, SafeGameState } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
@@ -31,9 +32,7 @@ function isRevealPayload(value: unknown): value is RevealPayload {
     case 'slider':
       return isFiniteNumber(value.correctValue) && isFiniteNumber(value.tolerance) && Array.isArray(value.values)
     case 'pinpoint':
-      return isFiniteNumber(value.targetX) && value.targetX >= 0 && value.targetX <= 1 &&
-        isFiniteNumber(value.targetY) && value.targetY >= 0 && value.targetY <= 1 &&
-        isFiniteNumber(value.targetRadius) && value.targetRadius > 0 && value.targetRadius <= 1 &&
+      return normalisePinpointTarget(value) !== null &&
         Array.isArray(value.points) && value.points.every((point) =>
           isRecord(point) && isFiniteNumber(point.x) && point.x >= 0 && point.x <= 1 &&
           isFiniteNumber(point.y) && point.y >= 0 && point.y <= 1)
@@ -52,6 +51,7 @@ function outcomeNeutralReveal(reveal: RevealPayload | null): RevealPayload | nul
   if (!reveal) return null
   return {
     ...reveal,
+    ...(reveal.type === 'pinpoint' ? { target: normalisePinpointTarget(reveal)! } : {}),
     caption: reveal.caption.replace(/^Correct:\s*/i, ''),
   }
 }
@@ -62,6 +62,19 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     throw new Error('The server returned an invalid safe game state.')
   }
 
+  const round = value.currentRound
+  if (round !== undefined && round !== null && (!isRecord(round) ||
+    Object.keys(round).some((key) => !['id', 'title', 'subtitle', 'introEnabled', 'roundNumber', 'totalRounds', 'questionCount'].includes(key)) ||
+    typeof round.id !== 'string' || typeof round.title !== 'string' || !round.title.trim() || round.title.length > 80 ||
+    typeof round.subtitle !== 'string' || round.subtitle.length > 200 || typeof round.introEnabled !== 'boolean' ||
+    !Number.isInteger(round.roundNumber) || Number(round.roundNumber) < 1 ||
+    !Number.isInteger(round.totalRounds) || Number(round.totalRounds) < Number(round.roundNumber) ||
+    !Number.isInteger(round.questionCount) || Number(round.questionCount) < 0)) {
+    throw new Error('The server returned invalid round metadata.')
+  }
+  if (value.phase === 'round-intro' && (!round || value.currentQuestion !== null || value.questionOpenedAt !== null || value.questionClosesAt !== null || value.submittedCount !== 0)) {
+    throw new Error('The server returned question data during a round intro.')
+  }
   const revealAllowed = ['reveal', 'leaderboard', 'finished'].includes(value.phase)
   if ((!revealAllowed && value.reveal !== null) || (value.reveal !== null && !isRevealPayload(value.reveal))) {
     throw new Error('The server returned reveal data in an invalid phase.')
@@ -90,6 +103,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
       'correctOptionIds',
       'correctValue',
       'tolerance',
+      'target',
       'targetX',
       'targetY',
       'targetRadius',

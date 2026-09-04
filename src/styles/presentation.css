@@ -13,6 +13,14 @@
 .presentation-stage[data-quiz-theme="arcade"]::after { border-radius: .15rem; transform: rotate(0); }
 .presentation-stage[data-quiz-theme="paper"]::before { background: linear-gradient(105deg, color-mix(in srgb, var(--quiz-stage-bg) 88%, transparent), color-mix(in srgb, var(--quiz-stage-bg) 64%, transparent)); }
 
+/* Size intro copy against its own stage, including the controller preview. */
+.presentation-stage[data-phase="round-intro"] { container-type: inline-size; display: grid; }
+.presentation-round-intro { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25cqw; width: 100%; min-width: 0; padding: 3cqw; text-align: center; }
+.presentation-round-intro .eyebrow { margin: 0; font-size: clamp(.65rem, 1.8cqw, 1.5rem); }
+.presentation-round-intro h1 { font-size: clamp(1rem, 5.5cqw, 7rem); line-height: 1.08; margin: 0; max-width: 90%; overflow-wrap: anywhere; text-wrap: balance; }
+.presentation-round-intro__subtitle { font-size: clamp(.7rem, 2.5cqw, 2rem); max-width: 80%; margin: 0; overflow-wrap: anywhere; }
+.presentation-round-intro > span { margin-top: 2cqw; font-size: clamp(.65rem, 1.8cqw, 1.5rem); }
+
 .presentation-lobby,
 .presentation-question,
 .presentation-locked,

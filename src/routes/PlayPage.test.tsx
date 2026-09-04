@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SafeGameState } from '../types/domain'
 import { PlayPage } from './PlayPage'
-import { currentBoard, previousBoard, standingsState } from '../test/leaderboardFixtures'
+import { currentBoard, previousBoard, roundIntroState, standingsState } from '../test/leaderboardFixtures'
 
 const player = {
   id: 'player-1',
@@ -91,7 +91,7 @@ describe('PlayPage quiz background', () => {
 
   afterEach(() => vi.useRealTimers())
 
-  it('carries truthful final-award history to the player without extra repository work', async () => {
+  it('carries personal movement and truthful final awards across a round intro without extra repository work', async () => {
     const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
     const show = (phase: SafeGameState['phase'], number: number, entries = previousBoard) => mocks.useSafeGameState.mockReturnValue({
       state: { ...standingsState(phase, entries, number), sessionId: player.sessionId, players: [player],
@@ -102,9 +102,23 @@ describe('PlayPage quiz background', () => {
     const view = render(page())
     await screen.findByRole('heading', { name: 'Leaderboard' })
     const presenceCalls = mocks.setPlayerPresence.mock.calls.length
+    mocks.useSafeGameState.mockReturnValue({
+      state: { ...roundIntroState(), sessionId: player.sessionId, players: [player] },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    view.rerender(page())
+    expect(screen.getByRole('heading', { name: 'Next round' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Leaderboard' })).toBeNull()
+    expect(screen.queryByText(/You’re now/)).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Tonight’s awards' })).toBeNull()
     show('question', 2, [])
     view.rerender(page())
     expect(screen.queryByRole('region', { name: 'Tonight’s awards' })).toBeNull()
+    show('leaderboard', 2, currentBoard)
+    view.rerender(page())
+    expect(screen.getByRole('status')).toHaveTextContent('↑ 2')
+    expect(screen.getByRole('status')).toHaveTextContent('You’re now 1st')
     show('finished', 5, currentBoard)
     view.rerender(page())
     const card = screen.getByRole('article', { name: 'Biggest Climber' })

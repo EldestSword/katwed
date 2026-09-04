@@ -5,6 +5,14 @@ export interface ImageBounds {
   height: number
 }
 
+/** A drawing may continue outside the captured image, but never stores blank space. */
+export function imagePoint(clientX: number, clientY: number, bounds: ImageBounds) {
+  return {
+    x: Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width)),
+    y: Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height)),
+  }
+}
+
 export function containedImageBounds(
   containerWidth: number,
   containerHeight: number,

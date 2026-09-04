@@ -117,6 +117,7 @@ export function PlayPage() {
         <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p></section>
       ))}
 
+      {state.phase === 'round-intro' && state.currentRound && <section className="game-state-card player-round-intro" aria-live="polite"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p>{state.currentRound.subtitle}</p>}<p>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p><p>Waiting for the host to start the round…</p></section>}
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
       {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} />}
       {state.phase === 'question' && question && !activePrelude && (resolution && !submittedAnswer ? (

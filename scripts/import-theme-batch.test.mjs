@@ -301,7 +301,7 @@ describe('reviewed theme batch configuration', () => {
     expect(isLatestVisualThemeBatch('batch-04')).toBe(false)
     expect(portableSchemaPathsForBatch('batch-01', temporaryRoot)).toEqual([])
     expect(portableSchemaPathsForBatch('batch-02', temporaryRoot)).toEqual([])
-    expect(portableSchemaPathsForBatch('batch-03', temporaryRoot)).toHaveLength(5)
+    expect(portableSchemaPathsForBatch('batch-03', temporaryRoot)).toHaveLength(6)
   })
 })
 
@@ -320,7 +320,7 @@ async function reproduceReviewedBatch(batchId) {
   const outputPreviewDir = join(outputBackgroundDir, 'previews')
   const generatedModulePath = join(outputRoot, 'src', 'generated', config.generatedModuleFilename)
   const reportPath = join(outputRoot, 'docs', config.reportFilename)
-  const currentPortableSchemaPaths = [1, 2, 3, 4, 5].map((version) => ({
+  const currentPortableSchemaPaths = [1, 2, 3, 4, 5, 6].map((version) => ({
     source: resolve('docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
     output: join(outputRoot, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`),
   }))

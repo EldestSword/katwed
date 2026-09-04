@@ -8,6 +8,17 @@ const userId = '123e4567-e89b-42d3-a456-426614174000'
 const imageId = '223e4567-e89b-42d3-a456-426614174000'
 
 describe('SupabaseGameRepository duplication', () => {
+  it('normalises legacy Pinpoint keys from owner reads without retaining obsolete fields', async () => {
+    const legacy = structuredClone(mixedDemoQuiz)
+    const question = legacy.questions.find((q) => q.type === 'pinpoint')!
+    Reflect.deleteProperty(question, 'target')
+    Object.assign(question, { targetX: .2, targetY: .3, targetRadius: .04 })
+    const rpc = vi.fn().mockResolvedValue({ data: legacy, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+    const loaded = (await repository.getQuiz(legacy.id))!.questions.find((q) => q.type === 'pinpoint')
+    expect(loaded).toMatchObject({ target: { kind: 'circle', x: .2, y: .3, radius: .04 } })
+    expect(loaded).not.toHaveProperty('targetX')
+  })
   it('defensively normalises absent, unknown and wrong-theme background values from quiz reads', async () => {
     const absent = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
     Reflect.deleteProperty(absent, 'backgroundId')

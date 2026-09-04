@@ -1,3 +1,5 @@
+import { normaliseQuizRounds } from '../../features/quiz-editor/rounds'
+import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   GameSession,
@@ -44,13 +46,14 @@ function normaliseQuiz(quiz: Quiz): Quiz {
     (quiz as { answerPaletteId?: unknown }).answerPaletteId,
     (quiz as { customAnswerColours?: unknown }).customAnswerColours,
   )
-  return normaliseQuizHeadToHead({
+  return normaliseQuizRounds(normaliseQuizHeadToHead({
     ...quiz,
+    questions: quiz.questions.map(normalisePinpointQuestion),
     ...answerPalette,
     soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
-  })
+    }))
 }
 
 function normaliseGameSession(
@@ -80,6 +83,7 @@ function normaliseGameSession(
     : answers.map(hostResponseRecordForAnswer)
   return {
     ...session,
+    currentRoundId: session.currentRoundId ?? null,
     settings: normaliseGameSessionSettings(
       raw.settings ?? fallbackSettings,
       fallbackSettings?.soundPackId ?? fallbackSoundPackId,
@@ -291,9 +295,9 @@ export class SupabaseGameRepository implements GameRepository {
 
   async changePhase(
     sessionId: string,
-    action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
+    action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
-    await this.rpc(`host_${action}_game`, { p_session_id: sessionId })
+    await this.rpc(`host_${action.replace('-', '_')}_game`, { p_session_id: sessionId })
   }
 
   subscribe(subject: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {

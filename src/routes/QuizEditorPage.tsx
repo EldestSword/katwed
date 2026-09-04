@@ -1,3 +1,7 @@
+import { RoundNavigator } from '../features/quiz-editor/RoundNavigator'
+import { canonicaliseRounds, moveQuestionToRound } from '../features/quiz-editor/rounds'
+import { PinpointTargetEditor } from '../features/quiz-editor/PinpointTargetEditor'
+import { PinpointSurface } from '../features/game/PinpointSurface'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
@@ -44,14 +48,6 @@ import { normaliseHexColour } from '../features/answer-palettes/colourContrast'
 import { orderedQuestionOptions } from '../features/questions/optionOrdering'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from '../features/game/liveQuestionTypography'
 
-function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
-  const target = index + direction
-  if (target < 0 || target >= items.length) return items
-  const copy = [...items]
-  ;[copy[index], copy[target]] = [copy[target], copy[index]]
-  return copy
-}
-
 function number(value: string): number {
   return Number(value) || 0
 }
@@ -65,6 +61,7 @@ export function QuizEditorPage() {
   const [coverUploading, setCoverUploading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [quizSettingsOpen, setQuizSettingsOpen] = useState(false)
+  const [addRoundId, setAddRoundId] = useState('')
   const [addQuestionOpen, setAddQuestionOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<'presentation' | 'player'>('presentation')
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
@@ -97,7 +94,7 @@ export function QuizEditorPage() {
   const validation = selected && quiz ? validateQuestion(selected, quiz.roster) : null
 
   function update(updater: (current: Quiz) => Quiz) {
-    setQuiz((current) => current ? updater(current) : current)
+    setQuiz((current) => current ? canonicaliseRounds(updater(current)) : current)
     setDirty(true)
     setMessage(null)
   }
@@ -113,11 +110,13 @@ export function QuizEditorPage() {
     if (!quiz) return
     const question = {
       ...createQuestion(type, quiz.id, quiz.questions.length, quiz.quizType === 'standard'),
+      roundId: quiz.rounds.find((round) => round.id === addRoundId)?.id || selected?.roundId || quiz.rounds[0].id,
       assignedCompetitorId: nextHeadToHeadAssignment(quiz),
     }
     update((current) => ({ ...current, questions: [...current.questions, question] }))
     setSelectedId(question.id)
     setAddQuestionOpen(false)
+    setAddRoundId('')
   }
 
   async function upload(file: File | undefined) {
@@ -159,6 +158,7 @@ export function QuizEditorPage() {
       id: quiz.id,
       title: quiz.title.trim(),
       quizType: quiz.quizType,
+      rounds: quiz.rounds,
       headToHeadCompetitors: quiz.headToHeadCompetitors.map((competitor) => ({
         ...competitor,
         displayName: competitor.displayName.trim(),
@@ -197,6 +197,7 @@ export function QuizEditorPage() {
     updateQuestion(() => ({
       ...replacement,
       id: selected.id,
+      roundId: selected.roundId,
       prompt: selected.prompt,
       supportingText: selected.supportingText,
       timeLimitSeconds: selected.timeLimitSeconds,
@@ -211,6 +212,7 @@ export function QuizEditorPage() {
   const changeQuizType = (quizType: QuizType) => {
     if (quizType === quiz.quizType) return
     if (quizType === 'head-to-head') {
+      if (quiz.rounds.length !== 1) { setMessage({ tone: 'error', text: 'Head-to-Head supports one round. Move your questions into one round and delete the empty rounds first.' }); return }
       update((current) => ({
         ...current,
         quizType,
@@ -237,13 +239,6 @@ export function QuizEditorPage() {
     }))
   }
 
-  const assignmentLabel = (question: Question): string => {
-    if (quiz.quizType !== 'head-to-head') return ''
-    const competitor = quiz.headToHeadCompetitors.find((candidate) => candidate.id === question.assignedCompetitorId)
-    if (!competitor) return ' · Unassigned'
-    return ` · ${competitor.displayName.trim() || `Competitor ${competitor.displayOrder + 1}`}`
-  }
-
   return (
     <main className="editor-page editor-page--three-panel">
       <header className="editor-toolbar">
@@ -252,20 +247,7 @@ export function QuizEditorPage() {
       </header>
       {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
       <div className="editor-workspace">
-        <aside className="question-navigator">
-          <div className="question-navigator__header"><div><p className="eyebrow">Structure</p><h2>Questions <span>{quiz.questions.length}</span></h2></div><button className="button button--primary button--compact" type="button" onClick={() => setAddQuestionOpen(true)}>+ Add</button></div>
-          <ol>
-            {quiz.questions.map((question, index) => <li key={question.id}>
-              <button className={question.id === selectedId ? 'is-selected' : ''} type="button" onClick={() => setSelectedId(question.id)}>
-                <span>{index + 1}</span><span><strong>{question.prompt}</strong><small>{questionTypeRegistry[question.type].name}{assignmentLabel(question)}</small></span>
-              </button>
-              <div className="mini-actions">
-                <button type="button" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, -1) }))}>↑</button>
-                <button type="button" disabled={index === quiz.questions.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, 1) }))}>↓</button>
-              </div>
-            </li>)}
-          </ol>
-        </aside>
+        <RoundNavigator quiz={quiz} selectedId={selectedId} select={setSelectedId} update={update} addQuestion={(roundId) => { setAddRoundId(roundId); setAddQuestionOpen(true) }} />
 
         <section className="editor-preview">
           {selected ? <>
@@ -277,7 +259,7 @@ export function QuizEditorPage() {
               data-question-density={questionTextDensity(selected.prompt, previewShowsMedia(selected, previewMode))}
               {...quizThemeSurfaceProps(quiz.themeId, quiz.backgroundId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
-            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media">{selected.type === 'pinpoint' ? <PinpointSurface path={selected.media.path} alt={selected.media.altText} mode="author" target={selected.target} allowEnlarge={false} /> : <QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} />}</div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
@@ -312,6 +294,7 @@ export function QuizEditorPage() {
             <h2 className="sr-only">Question settings</h2><div className="question-settings__heading"><p className="eyebrow">Selected question</p><h2>Question {quiz.questions.findIndex((item) => item.id === selected.id) + 1}</h2><span>{questionTypeRegistry[selected.type].name}</span></div>
             <details className="question-settings-group" open><summary>Question</summary><div>
               <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
+              {quiz.quizType === 'standard' && <label><span>Round</span><select value={selected.roundId} onChange={(event) => update((current) => moveQuestionToRound(current, selected.id, event.target.value))}>{quiz.rounds.map((round) => <option key={round.id} value={round.id}>{round.title}</option>)}</select></label>}
               <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
               <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
               {quiz.quizType === 'head-to-head' && <QuestionCompetitorPicker question={selected} competitors={quiz.headToHeadCompetitors} select={(assignedCompetitorId) => updateQuestion((question) => ({ ...question, assignedCompetitorId }))} />}
@@ -793,7 +776,7 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
   }
   if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
   if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
-  if (question.type === 'pinpoint') return <fieldset><legend>Target</legend>{(['targetX', 'targetY', 'targetRadius'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" min="0" max="1" step="0.01" value={question[field]} onChange={(event) => update((current) => current.type === 'pinpoint' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  if (question.type === 'pinpoint') return <PinpointTargetEditor key={question.id + question.media.path} question={question} onChange={(target) => update((current) => current.type === 'pinpoint' ? { ...current, target } : current)} />
   if (question.type === 'typed-answer') return <fieldset><legend>Typed answer</legend>
     <label><span>Primary answer</span><input maxLength={MAX_TYPED_ANSWER_LENGTH} value={question.correctAnswer} onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, correctAnswer: event.target.value } : current)} /></label>
     <label><span>Also accept</span><textarea key={question.id} rows={6} defaultValue={question.acceptedAnswers.join('\n')} placeholder="One alternative per line" onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, acceptedAnswers: parseTypedAnswerAlternatives(event.target.value) } : current)} /></label>

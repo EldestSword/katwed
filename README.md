@@ -111,9 +111,19 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. Visual Theme Batches 1, 2 and 3 are additive expansions of the existing controlled theme/background IDs, so they do not change portable semantics or require version 6. All five schemas remain aligned with the trusted 51-theme/153-background registry, and all historical supported imports remain valid. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
+Version 7 is the export target on the Phase 2 integration branch. It adds ordered rounds and required question-to-round references; versions 1–6 import into a silent default Round 1. V6 circle, rectangle and polygon targets are retained, and legacy Pinpoint coordinates still become equivalent circles. Version 5's sound-pack and version 4's answer-palette semantics are retained. All seven schemas remain aligned with the trusted 51-theme/153-background registry. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v7.md`](docs/katwed-quiz-format-v7.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v7.schema.json); the v1–v6 documentation and schemas remain available for existing generators.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
+
+### Core Rounds (implemented locally, pending release)
+
+Standard quizzes now contain ordered rounds. The three-panel editor groups questions by round and supports round titles, subtitles, intro toggles, reordering and moving questions between rounds. New quizzes and legacy imports begin with a silent Round 1; added rounds default to an intro. Empty rounds are allowed while drafting and must receive questions before launch. Head-to-Head remains a single structural round with its existing competitor controls.
+
+Enabled rounds pause on a themed, host-controlled intro across Presentation, the compact controller preview and Player. **Start round** opens the first question with its full normal timer. **Next round** appears at round boundaries, session shuffle stays within rounds and final results still require explicit host reveal. Safe round metadata contains no question or answer key. The existing session broadcasts cover these transitions without extra polling or answer/player fan-out.
+
+Forward migration `20260903221013_core_rounds.sql` backfills one silent round per quiz and preserves existing question order and session timestamps. It follows the pending Visual Pinpoint migration and has not been applied to production. See [Core Rounds architecture and local verification](docs/core-rounds.md) and [portable format v7](docs/katwed-quiz-format-v7.md).
+
+The integration branch combines Pinpoint, Slider and Core Rounds with the existing animated leaderboard, commentary and Final Awards. Both client-memory history hooks survive `round-intro`, where there is no current question: the next leaderboard compares with the last revealed board, while Biggest Climber still compares with the legitimate Question 1 leaderboard. Intros show neither stale standings nor awards. Refreshing at a later intro cannot establish either baseline. Presentation, compact controller preview and Player share this behaviour without extra requests or persistence. The only pending Phase 2 schema migrations remain `20260903203203_visual_pinpoint_targets.sql` followed by `20260903221013_core_rounds.sql`; integration does not apply them or deploy the frontend.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -276,11 +286,15 @@ Large, accessible True and False controls. Visual order is stable.
 
 ### Slider
 
-Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player sees the current numeric value and can use a keyboard.
+Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player control starts at a snapped midpoint labelled as unchosen; Lock in stays disabled until an interaction selects a value. `PlayerSliderAnswer` retains a native keyboard-accessible range with a 40px thumb and 56px touch area, immediate pointer dragging and track taps, a travelling formatted value bubble, and decimal-safe single-step −/+ buttons. Pointer capture keeps dragging on the control and only the range suppresses touch scrolling. The player payload, scoring, authoring and presentation range context are unchanged; this player UI update requires no database migration.
 
 ### Pinpoint
 
-The player selects normalised `x` and `y` coordinates on a contained image. Scoring uses Euclidean distance from a normalised target and radius, independent of rendered size. Keyboard range controls provide an alternative.
+The player selects normalised `x` and `y` coordinates on a contained image. Keyboard range controls provide an alternative. Visual Pinpoint Authoring (implemented on the feature branch, pending release) lets the host draw a Circle, Rectangle or Freehand correct area directly on the image, clear or redraw it, and use Advanced settings for keyboard creation and precise numeric editing. The configured area is highlighted in authoring, editor preview and the existing player/presentation reveal, alongside response markers.
+
+Targets use one discriminated `target` object. Rectangles start at their top-left corner; polygons have 3–64 distinct vertices, a simple closed outline and a normalised area of at least 0.0001. Freehand strokes are sampled and simplified deterministically before saving; tiny or intersecting outlines are rejected. Pointer capture, touch scroll suppression and contained-image bounds keep drawing independent of letterboxing and container size. Existing normalised circles retain their exact distance/radius semantics, including their oval appearance on non-square images. Database scoring uses inclusive circle/rectangle boundaries and deterministic polygon ray casting. Player submissions remain ordinary points and correct targets remain withheld until the existing reveal phases.
+
+Forward migration `20260903203203_visual_pinpoint_targets.sql` upgrades legacy circles and the authoritative save/validation/scoring path without replacing phase or submission wrappers. Release it deliberately with the matching frontend; the old database cannot persist the new shape representation. This task does not apply the migration or deploy the frontend. See [portable v6 and geometry rules](docs/katwed-quiz-format-v6.md).
 
 ### Typed answer
 
@@ -347,7 +361,7 @@ The presentation and Player page retain their own last revealed leaderboard in c
 
 Pure snapshot comparisons select at most one presentation commentary event: a known player taking first place, entering the top three, climbing at least three places, or a proven direct overtake within the top five, in that order. New players and first/refresh baselines never receive invented movement. Authoritative ranks and tie ordering are preserved. Phones show final standings with only their own up/down movement and new ordinal rank, without global commentary. Reduced motion skips score counting and row travel while preserving true movement indicators and commentary; animated score frames are excluded from live announcements.
 
-### Lightweight final awards (feature branch, pending release)
+### Lightweight final awards
 
 Standard Final Results add up to three small cards beneath the existing podium. The pure `calculateFinalAwards` helper selects Most Correct from the highest positive correct-answer count, Quickest Thinker from the lowest average correct-answer response time among players with at least three correct answers, and Biggest Climber from the largest positive improvement between known first and final ranks. Exact averages are compared before rounding seconds for display. All genuine ties share the award; two names are shown together, longer lists are abbreviated visually with every winner and tied climb still available to assistive technology. No qualifying result means no card. Head-to-Head final results remain unchanged.
 
@@ -464,10 +478,12 @@ Applied production migrations, in order:
 202608300003_visual_theme_batch_3.sql
 ```
 
-Pending, deliberately unapplied migration:
+Pending, deliberately unapplied migrations:
 
 ```text
 20260901094653_realtime_scaling_free_tier.sql
+20260903203203_visual_pinpoint_targets.sql
+20260903221013_core_rounds.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

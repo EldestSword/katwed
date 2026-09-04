@@ -24,12 +24,17 @@ vi.mock('../services/questionImages', async (importOriginal) => ({
 }))
 
 function quiz(overrides: Partial<Quiz> = {}): Quiz {
-  return {
+  const source = {
     ...structuredClone(sampleQuiz),
     id: 'quiz-cover-test',
     title: 'Cover test quiz',
     coverImagePath: null,
     ...overrides,
+  }
+  return {
+    ...source,
+    rounds: source.rounds.map((round) => ({ ...round, quizId: source.id })),
+    questions: source.questions.map((question) => ({ ...question, quizId: source.id })),
   }
 }
 
@@ -194,7 +199,7 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('marks a four-choice Player preview for the narrow two-by-two layout', async () => {
     const user = userEvent.setup()
-    repositoryMocks.getQuiz.mockResolvedValue({ ...structuredClone(mixedDemoQuiz), id: 'quiz-cover-test' })
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ ...structuredClone(mixedDemoQuiz), id: 'quiz-cover-test' }))
     renderEditor()
     await screen.findByLabelText('Katwed! theme preview')
     await user.click(screen.getByRole('tab', { name: 'Player' }))
@@ -446,11 +451,11 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('supports assignments for all seven question formats and hides ordinary point editing', async () => {
     const user = userEvent.setup()
-    const source = {
+    const source = quiz({
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
       title: 'All formats Head to Head',
-    }
+    })
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz(source))
     renderEditor()
 
@@ -472,10 +477,10 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('edits and saves a primary Typed Answer with newline-separated alternatives', async () => {
     const user = userEvent.setup()
-    repositoryMocks.getQuiz.mockResolvedValue({
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
-    })
+    }))
     renderEditor()
 
     await user.click(await screen.findByRole('button', { name: /Name the science-fiction programme featuring the spaceship Red Dwarf/ }))
