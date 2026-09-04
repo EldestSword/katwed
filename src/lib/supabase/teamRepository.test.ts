@@ -8,9 +8,10 @@ describe('Team repository RPC boundary', () => {
     const result = { player: { id: 'player', teamId: 'blue' }, reconnectToken: 'token' }
     const rpc = vi.fn().mockResolvedValue({ data: result, error: null })
     const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
-    expect(await repository.joinRoom('123456', 'Carol')).toBe(result)
+    const normalised = { ...result, player: { ...result.player, currentCorrectStreak: 0, longestCorrectStreak: 0 } }
+    expect(await repository.joinRoom('123456', 'Carol')).toEqual(normalised)
     expect(rpc).toHaveBeenLastCalledWith('join_room', { p_room_code: '123456', p_nickname: 'Carol' })
-    expect(await repository.joinRoom('123456', 'Carol', 'blue')).toBe(result)
+    expect(await repository.joinRoom('123456', 'Carol', 'blue')).toEqual(normalised)
     expect(rpc).toHaveBeenLastCalledWith('join_team_room', { p_room_code: '123456', p_nickname: 'Carol', p_team_id: 'blue' })
     expect(rpc).toHaveBeenCalledTimes(2)
   })

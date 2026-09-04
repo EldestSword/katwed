@@ -1,4 +1,5 @@
 import type { LeaderboardEntry } from '../../types/domain'
+import type { StreakCommentary } from './streakCommentary'
 
 export interface RankMovement {
   playerId: string
@@ -10,6 +11,7 @@ export interface RankMovement {
 
 /** Event data stays separate from its copy so future commentary sources can extend this union. */
 export type LeaderboardCommentary =
+  | StreakCommentary
   | { kind: 'new-leader' | 'top-three' | 'major-climb'; playerId: string; message: string }
   | { kind: 'overtake'; playerId: string; overtakenPlayerId: string; message: string }
 

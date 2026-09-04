@@ -27,6 +27,7 @@ import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPal
 import { doubleScoreVariantDurations, getSoundPack, normaliseSoundPackId } from '../../features/audio/soundPacks'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
+import { normaliseStreaks } from '../../features/game/streaks'
 
 type JsonObject = Record<string, unknown>
 
@@ -83,6 +84,7 @@ function normaliseGameSession(
     : answers.map(hostResponseRecordForAnswer)
   return {
     ...session,
+    players: session.players.map(player => ({ ...player, ...normaliseStreaks(player) })),
     currentRoundId: session.currentRoundId ?? null,
     settings: normaliseGameSessionSettings(
       raw.settings ?? fallbackSettings,
@@ -115,6 +117,10 @@ export class SupabaseGameRepository implements GameRepository {
   private async rpc<T>(name: string, args: JsonObject = {}): Promise<T> {
     const result = await this.client.rpc(name, args)
     if (result.error) throw normaliseError(result.error)
+    if (['join_room', 'join_team_room', 'join_head_to_head_room', 'reconnect_player'].includes(name) && result.data) {
+      const joined = result.data as JoinResult
+      return { ...joined, player: { ...joined.player, ...normaliseStreaks(joined.player) } } as T
+    }
     return result.data as unknown as T
   }
 

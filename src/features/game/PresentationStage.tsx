@@ -10,6 +10,7 @@ import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionSta
 import { useCountdown } from '../../hooks/useCountdown'
 import { useQuestionPrelude } from '../../hooks/useQuestionPrelude'
 import { useRevealedLeaderboard } from '../../hooks/useRevealedLeaderboard'
+import { useStreakCommentary } from '../../hooks/useStreakCommentary'
 import { useFinalAwardsHistory } from '../../hooks/useFinalAwardsHistory'
 import { competitionState, isTeamGame } from '../teams/teams'
 import { TeamLobby } from '../teams/TeamLobby'
@@ -138,6 +139,7 @@ function StageHeader({ question, compact, remaining, headToHead, showTimer = tru
 export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
   const teamMode = isTeamGame(state)
   const leaderboard = useRevealedLeaderboard(competitionState(state))
+  const streakEvent = useStreakCommentary(state)
   const awardsBaseline = useFinalAwardsHistory(teamMode ? null : state)
   const remaining = useCountdown(state.questionClosesAt)
   const question = state.currentQuestion
@@ -206,7 +208,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} /></div>}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} streakEvent={streakEvent} players={teamMode ? undefined : state.players} /></div>}
       {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
     </section>
   )

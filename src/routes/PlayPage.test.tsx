@@ -171,6 +171,8 @@ describe('PlayPage quiz background', () => {
     const view = render(page())
     await screen.findByRole('heading', { name: 'Leaderboard' })
     expect(screen.queryByText(/You’re now/)).toBeNull()
+    // Reconnect replaces the saved identity before phase-only presence counts are measured.
+    await act(async () => { await Promise.resolve() })
     const presenceCalls = mocks.setPlayerPresence.mock.calls.length
     for (const phase of ['question', 'locked', 'reveal'] as const) {
       show(stateFor(phase, [], 2))

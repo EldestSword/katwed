@@ -398,6 +398,9 @@ export interface Quiz {
 }
 
 export interface Player {
+  /** Missing in legacy clients; repository boundaries normalise both statistics to zero. */
+  currentCorrectStreak?: number
+  longestCorrectStreak?: number
   /** Missing only in legacy payloads; treated as unassigned. */
   teamId?: string | null
   id: string
@@ -463,6 +466,9 @@ export interface GameSession {
 }
 
 export interface LeaderboardEntry {
+  /** Individual statistics only; Team adapters deliberately omit them. */
+  currentCorrectStreak?: number
+  longestCorrectStreak?: number
   playerId: string
   nickname: string
   totalScore: number

@@ -9,6 +9,7 @@ import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
+import { normaliseStreaks } from '../../features/game/streaks'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -77,6 +78,14 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const round = value.currentRound
+  const withStreaks = (entry: unknown) => {
+    if (!isRecord(entry)) throw new Error('Invalid player statistics.')
+    const streaks = normaliseStreaks(entry)
+    if (value.quizType === 'head-to-head' && streaks.longestCorrectStreak !== 0) throw new Error('Head-to-Head does not track streaks.')
+    return { ...entry, ...streaks }
+  }
+  const players = value.players.map(withStreaks)
+  const leaderboard = value.leaderboard.map(withStreaks)
   const teams = value.teams ?? []
   if (!Array.isArray(teams) || !teams.every((team): team is GameTeam => isGameTeam(team, value.sessionId)) ||
     new Set(teams.map((team) => team.id)).size !== teams.length ||
@@ -176,6 +185,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   return {
     ...value,
     ...answerPalette,
+    players,
+    leaderboard,
     teams,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: sessionSettings.soundPackId,

@@ -161,6 +161,8 @@ export function sortLeaderboard(players: readonly Player[]): LeaderboardEntry[] 
   )
 
   return sorted.map((player, index) => ({
+    currentCorrectStreak: player.currentCorrectStreak ?? 0,
+    longestCorrectStreak: player.longestCorrectStreak ?? 0,
     playerId: player.id,
     nickname: player.nickname,
     totalScore: player.totalScore,

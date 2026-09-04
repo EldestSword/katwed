@@ -4,6 +4,7 @@ import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
 import { connectionSafeFields } from '../../features/questions/connections'
 import { applyWager, extractWager } from '../../features/scoring/wager'
+import { normaliseStreaks, recomputePlayerStreaks } from '../../features/game/streaks'
 import { progressiveSafeMedia } from '../../features/scoring/progressiveReveal'
 import type {
   GameSession,
@@ -153,7 +154,7 @@ function normaliseState(state: DemoState): DemoState {
       return {
         ...session,
         teams: session.teams ?? [],
-        players: session.players.map((player) => ({ ...player, teamId: player.teamId ?? null })),
+        players: session.players.map((player) => ({ ...player, ...normaliseStreaks(player), teamId: player.teamId ?? null })),
         settings,
         currentRoundId: session.currentRoundId ?? orderedSessionQuestions(quiz.questions, questionOrder)[session.currentQuestionIndex]?.roundId ?? quiz.rounds[0].id,
         questionOrder,
@@ -693,6 +694,7 @@ export class DemoGameRepository implements GameRepository {
         player.nickname.localeCompare(nickname, 'en-GB', { sensitivity: 'base' }) === 0
       )) throw new RepositoryError('duplicate-nickname', 'That nickname is already in this game.')
       const player: Player = {
+        currentCorrectStreak: 0, longestCorrectStreak: 0,
         id: uid('player'),
         sessionId: session.id,
         nickname,
@@ -731,6 +733,7 @@ export class DemoGameRepository implements GameRepository {
         throw new RepositoryError('duplicate-nickname', `${competitor.displayName} has already joined this game.`)
       }
       const player: Player = {
+        currentCorrectStreak: 0, longestCorrectStreak: 0,
         id: uid('player'),
         sessionId: session.id,
         nickname: competitor.displayName,
@@ -1012,6 +1015,11 @@ export class DemoGameRepository implements GameRepository {
       player.totalScore += nextPoints - previousPoints
       player.correctAnswerCount += Number(nextCorrect) - Number(previousCorrect)
       player.totalCorrectResponseMs += (nextCorrect ? answer.responseTimeMs : 0) - (previousCorrect ? answer.responseTimeMs : 0)
+      if (session.phase === 'leaderboard') {
+        const revised = recomputePlayerStreaks([player], session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))[0]
+        player.currentCorrectStreak = revised.currentCorrectStreak
+        player.longestCorrectStreak = revised.longestCorrectStreak
+      }
       this.write(state, true, session.id)
     })
   }
@@ -1133,6 +1141,7 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'Reveal the final results instead.')
           }
           session.phase = 'leaderboard'
+          session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))
           break
         case 'next':
           if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
@@ -1150,6 +1159,7 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
           }
           if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= orderedQuestions.length) {
+            session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()
@@ -1179,6 +1189,8 @@ export class DemoGameRepository implements GameRepository {
             player.totalScore = 0
             player.correctAnswerCount = 0
             player.totalCorrectResponseMs = 0
+            player.currentCorrectStreak = 0
+            player.longestCorrectStreak = 0
           })
           break
         case 'close':
