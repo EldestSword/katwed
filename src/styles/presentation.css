@@ -225,6 +225,13 @@
 .presentation-stage--compact .final-podium li[data-rank="1"] { min-height: 4.5rem; transform: none; }
 .presentation-stage--compact .final-podium__rank { width: 1.1rem; font-size: .55rem; }
 .presentation-stage--compact .final-podium strong { font-size: .7rem; }
+.presentation-stage--compact .final-awards { margin: .2rem 0; }
+.presentation-stage--compact .final-awards > h2 { font-size: .5rem; margin-bottom: .2rem; }
+.presentation-stage--compact .final-awards__cards { gap: .25rem; }
+.presentation-stage--compact .final-award { padding: .3rem; border-radius: .35rem; }
+.presentation-stage--compact .final-award h3 { font-size: .5rem; gap: .2rem; margin-bottom: .2rem; }
+.presentation-stage--compact .final-award__winner { font-size: .65rem; }
+.presentation-stage--compact .final-award__metric, .presentation-stage--compact .final-award__ranks { display: none; }
 
 /* Phase layouts own their media centring so presentation themes cannot displace it. */
 .presentation-stage .presentation-question__media,
