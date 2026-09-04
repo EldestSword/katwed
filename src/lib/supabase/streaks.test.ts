@@ -32,8 +32,8 @@ it('normalises joins and reconnects with no extra RPC',async()=>{
   expect((await repo.reconnectPlayer({roomCode:'123456',playerId:'carol',nickname:'Carol',reconnectToken:'token'}))?.player.currentCorrectStreak).toBe(0)
   expect(rpc).toHaveBeenCalledTimes(2)
 })
-it('keeps portable version 11 and excludes runtime streaks',()=>{
-  expect(KATWED_QUIZ_FORMAT_VERSION).toBe(11)
+it('keeps portable version 12 and excludes runtime streaks',()=>{
+  expect(KATWED_QUIZ_FORMAT_VERSION).toBe(12)
   const exported=exportQuizToPortable(wagerQuiz())
   expect(JSON.stringify(exported)).not.toMatch(/streak/i)
   expect(parseKatwedQuizJson(JSON.stringify(exported))).toBeTruthy()

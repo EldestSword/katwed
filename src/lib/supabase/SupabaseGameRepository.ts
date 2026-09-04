@@ -28,6 +28,8 @@ import { doubleScoreVariantDurations, getSoundPack, normaliseSoundPackId } from 
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 import { normaliseStreaks } from '../../features/game/streaks'
+import { normaliseBuzzState } from '../../features/game/buzz'
+import type { BuzzClaimResult } from '../../types/domain'
 
 type JsonObject = Record<string, unknown>
 
@@ -49,7 +51,7 @@ function normaliseQuiz(quiz: Quiz): Quiz {
   )
   return normaliseQuizRounds(normaliseQuizHeadToHead({
     ...quiz,
-    questions: quiz.questions.map(normalisePinpointQuestion),
+    questions: quiz.questions.map(question => ({ ...normalisePinpointQuestion(question), buzzInEnabled: question.buzzInEnabled ?? false })),
     ...answerPalette,
     soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
     themeId,
@@ -84,6 +86,7 @@ function normaliseGameSession(
     : answers.map(hostResponseRecordForAnswer)
   return {
     ...session,
+    buzz: normaliseBuzzState(session.buzz),
     players: session.players.map(player => ({ ...player, ...normaliseStreaks(player) })),
     currentRoundId: session.currentRoundId ?? null,
     settings: normaliseGameSessionSettings(
@@ -250,6 +253,25 @@ export class SupabaseGameRepository implements GameRepository {
     return state === null ? null : parseSafeGameState(state)
   }
 
+  async claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult> {
+    const result = await this.rpc<unknown>('claim_buzz', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+    })
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw new Error('Buzz claim returned an invalid state.')
+    }
+    const { won, ...buzz } = result as Record<string, unknown>
+    const normalisedBuzz = normaliseBuzzState(buzz)
+
+    if (typeof won !== 'boolean' || !normalisedBuzz) {
+      throw new Error('Buzz claim returned an invalid state.')
+    }
+
+    return { won, ...normalisedBuzz }
+  }
+
   async submitAnswer(
     roomCode: string,
     playerId: string,
@@ -313,6 +335,10 @@ export class SupabaseGameRepository implements GameRepository {
     action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
     await this.rpc(`host_${action.replace('-', '_')}_game`, { p_session_id: sessionId })
+  }
+
+  async resetBuzz(sessionId: string): Promise<void> {
+    await this.rpc('host_reset_buzz', { p_session_id: sessionId })
   }
 
   async revealConnectionClue(sessionId: string): Promise<void> {

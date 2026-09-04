@@ -1,4 +1,5 @@
 import type {
+  BuzzClaimResult,
   GameSession,
   JoinResult,
   LaunchGameSettings,
@@ -65,11 +66,13 @@ export interface GameRepository {
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
+  claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
   startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void>
   skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void>
+  resetBuzz(sessionId: string): Promise<void>
   changePhase(sessionId: string, action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe
 }

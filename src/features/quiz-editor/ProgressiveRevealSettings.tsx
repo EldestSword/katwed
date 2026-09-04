@@ -5,7 +5,7 @@ export function ProgressiveRevealSettings({ question, quizType, update }: { ques
   if (!canOfferProgressiveReveal(question, quizType) || question.media.type !== 'image') return null
   const duration = Math.max(1, Math.round(question.media.revealDurationSeconds * 1000))
   return <fieldset className="progressive-settings"><legend>Progressive Reveal</legend>
-    <label><input type="checkbox" checked={Boolean(question.progressiveRevealEnabled)} onChange={event => { const enabled = event.currentTarget.checked; update(current => ({ ...current, progressiveRevealEnabled: enabled })) }} /> Score falls as the image becomes clearer</label>
+    <label><input type="checkbox" checked={Boolean(question.progressiveRevealEnabled)} onChange={event => { const enabled = event.currentTarget.checked; update(current => ({ ...current, progressiveRevealEnabled: enabled, ...(enabled ? { buzzInEnabled: false } : {}) })) }} /> Score falls as the image becomes clearer</label>
     <p>Players can answer at any time. The available score falls from 100% to 25% while the image reveals.</p>
     {question.progressiveRevealEnabled && <>
       {progressiveRevealValidation(question, quizType).map(message => <p className="settings-note" key={message}>{message}</p>)}

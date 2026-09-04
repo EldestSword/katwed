@@ -10,6 +10,7 @@ import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { normaliseStreaks } from '../../features/game/streaks'
+import { buzzInValidation, normaliseBuzzState } from '../../features/game/buzz'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -78,7 +79,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const round = value.currentRound
-  const withStreaks = (entry: unknown) => {
+  const withStreaks = (entry: unknown): Record<string, unknown> & { currentCorrectStreak: number; longestCorrectStreak: number } => {
     if (!isRecord(entry)) throw new Error('Invalid player statistics.')
     const streaks = normaliseStreaks(entry)
     if (value.quizType === 'head-to-head' && streaks.longestCorrectStreak !== 0) throw new Error('Head-to-Head does not track streaks.')
@@ -127,6 +128,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if (safeQuestion.buzzInEnabled !== undefined && typeof safeQuestion.buzzInEnabled !== 'boolean') throw new Error('Invalid Buzz-In setting.')
+    if (safeQuestion.buzzInEnabled && buzzInValidation(safeQuestion as unknown as SafeQuestion, normaliseQuizType(value.quizType)).length) throw new Error('Invalid Buzz-In question state.')
     if (safeQuestion.wagerEnabled !== undefined && typeof safeQuestion.wagerEnabled !== 'boolean') throw new Error('Invalid Wager setting.')
     if (safeQuestion.wagerEnabled && normaliseQuizType(value.quizType) === 'head-to-head') throw new Error('Wager is Standard-only.')
     if (safeQuestion.progressiveRevealEnabled !== undefined && typeof safeQuestion.progressiveRevealEnabled !== 'boolean') throw new Error('Invalid Progressive Reveal setting.')
@@ -169,6 +172,13 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const themeId = normaliseQuizThemeId(value.themeId)
+  const buzz = normaliseBuzzState(value.buzz)
+  if (buzz && !players.some(player => isRecord(player) && player.id === buzz.winnerPlayerId)) throw new Error('Buzz winner is not in this room.')
+  if (buzz && (!isRecord(value.currentQuestion) || value.currentQuestion.buzzInEnabled !== true || normaliseQuizType(value.quizType) !== 'standard' || !['question', 'locked', 'reveal', 'leaderboard'].includes(value.phase))) throw new Error('Buzz state is not valid in this phase.')
+  if (buzz && (typeof value.questionOpenedAt !== 'string' || typeof value.questionClosesAt !== 'string' ||
+    !Number.isFinite(Date.parse(value.questionOpenedAt)) || !Number.isFinite(Date.parse(value.questionClosesAt)) ||
+    Date.parse(buzz.claimedAt) < Date.parse(value.questionOpenedAt) ||
+    Date.parse(buzz.answerDeadlineAt) > Date.parse(value.questionClosesAt))) throw new Error('Buzz state is outside the question window.')
   const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
   const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
   const sessionSettings = normaliseGameSessionSettings(
@@ -188,6 +198,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     players,
     leaderboard,
     teams,
+    buzz,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: sessionSettings.soundPackId,
     sessionSettings,

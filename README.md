@@ -111,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 11 is the export target on the Phase 2 development branch. It adds an explicit `wagerEnabled` question modifier. V10 Progressive Reveal, V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–11 import; v1–v10 default Wager to false, v1–v9 default Progressive Reveal to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v11](docs/katwed-quiz-format-v11.md) and the [v11 JSON Schema](docs/schemas/katwed-quiz-v11.schema.json); v1–v10 documentation and schemas remain unchanged. Team settings, live clue progress and player wager choices remain session-only.
+Version 12 is the export target on the Phase 2 development branch. It adds an explicit `buzzInEnabled` question modifier. V11 Wagers, V10 Progressive Reveal, V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–12 import; v1–v11 default Buzz-In to false, v1–v10 default Wager to false, v1–v9 default Progressive Reveal to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v12](docs/katwed-quiz-format-v12.md) and the [v12 JSON Schema](docs/schemas/katwed-quiz-v12.schema.json); v1–v11 documentation and schemas remain unchanged. Team settings, live clue progress, Buzz winners and player wager choices remain session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -153,9 +153,15 @@ Migration `20260904141715_wagers.sql` adds a default-false question flag and def
 
 ### Correct Answer Streaks (implemented locally, pending release)
 
-Every Standard player now has current and longest correct-answer streaks as session statistics, including Teams and Rounds. Only the authoritative full-correct Boolean advances a streak; wrong, partial and missing answers break it. Streaks have **zero scoring or ranking effect** and add no saved setting or portable format change: exports remain v11. Head-to-Head and the three Final Awards are unchanged.
+Every Standard player now has current and longest correct-answer streaks as session statistics, including Teams and Rounds. Only the authoritative full-correct Boolean advances a streak; wrong, partial and missing answers break it. Streaks have **zero scoring or ranking effect** and add no saved setting. Buzz-In questions are neutral and are removed before the remaining eligible streak positions are compacted. Head-to-Head and the three Final Awards are unchanged.
 
 Migration `20260904151357_correct_answer_streaks.sql` adds default-zero Player statistics and a private, set-based history calculation. The existing host transition to Leaderboard or final Reveal → Finished finalises the current question; early Finish excludes unresolved answers. Late Typed Answer accept/undo recomputes the affected player, restart clears both statistics, and reconnect preserves them. Small individual badges and personal phone feedback appear from two correct answers; shared commentary announces only proven 3/5/10/15… milestones, with no replay after refreshing a leaderboard. No new RPC, broadcast, subscription, fetch or polling is added. See [streak architecture and focused verification](docs/correct-answer-streaks.md). Production and pending migration release remain deliberate.
+
+### Buzz-In (implemented locally, pending release)
+
+Buzz-In is an optional Standard question modifier for every current type except Connections. Progressive Reveal and Head-to-Head are excluded; Teams, Rounds, Wager, Speed Scoring and Double Score retain their existing behaviour. The first valid atomic claim wins a fixed ten-second answer window, shortened when the question itself closes sooner. Only that player may submit and there is no rebound. The host may reset an unanswered claim. Buzz time never replaces the existing question-open response time, so scoring and Final Awards keep their established inputs.
+
+Migration `20260904181607_core_buzz_in.sql` adds the saved flag and one complete nullable claim tuple on the session row. The claim function verifies player identity, takes an exclusive session-row lock and rechecks the phase, modifier and deadlines before writing. A successful claim and host reset use the existing room and controller refresh topics; losing claims and ordinary answer bursts write and publish nothing. Player-safe state carries only winner ID and authoritative timestamps. The UI gates existing answer controls behind the claim, shows restrained shared-screen status and gives the controller winner/countdown/reset controls. Portable v12 stores only the authored flag. See [Buzz-In architecture and local verification](docs/buzz-in.md). The migration and frontend were not applied or deployed to production.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -521,6 +527,8 @@ Pending, deliberately unapplied migrations:
 20260904122702_connections_questions.sql
 20260904131727_progressive_reveal.sql
 20260904141715_wagers.sql
+20260904151357_correct_answer_streaks.sql
+20260904181607_core_buzz_in.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

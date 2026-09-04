@@ -134,8 +134,12 @@ export function PlayPage() {
           </section>}
           <PlayerQuestion question={question} roster={state.roster} closesAt={headToHead ? null : state.questionClosesAt}
             answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours}
+            buzz={state.buzz} playerId={currentPlayer.id} players={state.players} teams={state.teams}
             openedAt={state.questionOpenedAt} initialAnswer={submittedAnswer}
             modeLabel={headToHead ? `Question ${question.questionNumber} of ${question.totalQuestions} · Untimed` : undefined}
+            onBuzz={question.buzzInEnabled ? async () => {
+              return repository.claimBuzz(roomCode, playerSession.playerId, playerSession.reconnectToken)
+            } : undefined}
             onSubmit={async (payload) => {
               await repository.submitAnswer(roomCode, playerSession.playerId, playerSession.reconnectToken, payload)
               saveSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt, payload)

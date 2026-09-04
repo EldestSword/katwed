@@ -88,7 +88,7 @@ it.each(['question','locked'] as const)('early finish from %s preserves prior co
   await g.action('next');await g.open();await g.submit({type:'typed-answer',value:'Alex'})
   if(phase==='locked')await g.action('lock');await g.action('finish');expect(await g.stats()).toEqual([1,1])
 })
-it('legacy Demo players normalise missing stats without altering saved quiz v11',async()=>{
+it('legacy Demo players normalise missing stats without altering saved quiz v12',async()=>{
   const g=await setup([typed()]);const raw=JSON.parse(localStorage.getItem('katwed.demo.state.v2')!)
   delete raw.sessions[0].players[0].currentCorrectStreak;delete raw.sessions[0].players[0].longestCorrectStreak
   localStorage.setItem('katwed.demo.state.v2',JSON.stringify(raw));expect(await g.stats()).toEqual([0,0])

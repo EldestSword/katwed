@@ -56,6 +56,8 @@ import {
   questionPreludeKind,
 } from '../../features/game/launchSettings'
 import { HOST_RESPONSE_DETAIL_LIMIT, hostResponseRecordForAnswer } from '../../features/game/hostResponses'
+import { BUZZ_ANSWER_WINDOW_SECONDS, canUseBuzzIn } from '../../features/game/buzz'
+import type { BuzzClaimResult } from '../../types/domain'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -117,7 +119,7 @@ function normaliseState(state: DemoState): DemoState {
     )
     return normaliseQuizRounds(normaliseQuizHeadToHead({
       ...quiz,
-      questions: quiz.questions.map(normalisePinpointQuestion),
+      questions: quiz.questions.map(question => ({ ...normalisePinpointQuestion(question), buzzInEnabled: question.buzzInEnabled ?? false })),
       ...answerPalette,
       soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
       coverImagePath: quiz.coverImagePath ?? null,
@@ -153,6 +155,7 @@ function normaliseState(state: DemoState): DemoState {
         : [settings.doubleScoreIntroMs]
       return {
         ...session,
+        buzz: session.buzz ?? null,
         teams: session.teams ?? [],
         players: session.players.map((player) => ({ ...player, ...normaliseStreaks(player), teamId: player.teamId ?? null })),
         settings,
@@ -203,6 +206,7 @@ function safeBase(question: Question, questionNumber: number, totalQuestions: nu
     timeLimitSeconds: question.timeLimitSeconds,
     points: question.points,
     speedScoringEnabled: question.speedScoringEnabled,
+    buzzInEnabled: question.buzzInEnabled ?? false,
     doubleScore: question.doubleScore,
     displayOrder: question.displayOrder,
     media: question.media,
@@ -451,6 +455,7 @@ export class DemoGameRepository implements GameRepository {
         })),
         questions: input.questions.map((question, index) => ({
           ...question,
+          buzzInEnabled: question.buzzInEnabled ?? false,
           wagerEnabled: question.wagerEnabled ?? false,
           progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
           ...(question.type === 'connections' ? { clues: question.clues.map(clue => ({ ...clue, text: clue.text.trim() })), correctAnswer: question.correctAnswer.trim(), acceptedAnswers: question.acceptedAnswers.map(answer => answer.trim()), speedScoringEnabled: false } : {}),
@@ -568,6 +573,7 @@ export class DemoGameRepository implements GameRepository {
       const teamError = validateTeamLaunch(launchSettings, quiz.quizType)
       if (teamError) throw new RepositoryError('invalid-selection', teamError)
       if (quiz.quizType === 'head-to-head') {
+        if (quiz.questions.some(question => question.buzzInEnabled)) throw new RepositoryError('invalid-selection', 'Buzz-In is Standard-only.')
         if (quiz.questions.some(question => question.wagerEnabled)) throw new RepositoryError('invalid-selection', 'Wager is Standard-only.')
         const competitorIds = new Set(quiz.headToHeadCompetitors.map((competitor) => competitor.id))
         if (quiz.headToHeadCompetitors.length !== 2 || !quiz.questions.length ||
@@ -586,6 +592,7 @@ export class DemoGameRepository implements GameRepository {
       const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
       const doubleScoreVariantOrder = shuffledVariantIndices(settings.doubleScoreVariantDurationsMs?.length ?? 1)
       const session: GameSession = {
+        buzz: null,
         teams: settings.playMode === 'teams' ? (launchSettings?.teamNames ?? ['Team 1', 'Team 2']).map((name, displayOrder) => ({ id: uid('team'), sessionId, name: name.trim(), displayOrder })) : [],
         id: sessionId,
         quizId,
@@ -829,6 +836,7 @@ export class DemoGameRepository implements GameRepository {
       currentQuestion: question
         ? toSafeQuestion(question, session.currentQuestionIndex + 1, orderedQuestions.length, session.settings, session.connectionClueCount ?? 0, mayReveal)
         : null,
+      buzz: session.buzz ?? null,
       roster: question?.type === 'mashup'
         ? quiz.roster.filter((member) => member.active).sort((a, b) => a.displayOrder - b.displayOrder)
         : [],
@@ -905,7 +913,12 @@ export class DemoGameRepository implements GameRepository {
       }
       if (quiz.quizType === 'standard') {
         const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : 0
-        if (!closesAt || submittedAt > closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
+        if (!closesAt || submittedAt >= closesAt) throw new RepositoryError('late-submission', 'Time is up for this question.')
+        if (question.buzzInEnabled) {
+          const buzz = session.buzz
+          if (!buzz || buzz.winnerPlayerId !== playerId) throw new RepositoryError('invalid-player', 'Only the Buzz winner can answer this question.')
+          if (submittedAt >= Date.parse(buzz.answerDeadlineAt)) throw new RepositoryError('late-submission', 'Your Buzz answer window has closed.')
+        }
       }
       if (isHeadToHeadResolved(state, session, question.id, playerId)) {
         throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
@@ -952,7 +965,48 @@ export class DemoGameRepository implements GameRepository {
         if (quiz.quizType === 'standard') player.totalCorrectResponseMs += responseTimeMs
       }
       if (quiz.quizType === 'head-to-head') revealHeadToHeadWhenComplete(state, session, question)
-      this.write(state, quiz.quizType === 'head-to-head', session.id)
+      const buzzAutoLocked = quiz.quizType === 'standard' && Boolean(question.buzzInEnabled) && session.settings.autoLockWhenAllAnswered
+      if (buzzAutoLocked) {
+        session.phase = 'locked'
+        session.questionClosesAt = new Date(submittedAt).toISOString()
+        session.buzz = session.buzz ? { ...session.buzz, answerDeadlineAt: new Date(submittedAt).toISOString() } : null
+      }
+      this.write(state, quiz.quizType === 'head-to-head' || buzzAutoLocked, session.id)
+    })
+  }
+
+  async claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult> {
+    return this.withMutation(() => {
+      const state = this.read()
+      const session = state.sessions.find(candidate => candidate.roomCode === roomCode && candidate.status === 'active')
+      const quiz = session ? state.quizzes.find(candidate => candidate.id === session.quizId) : undefined
+      const player = session?.players.find(candidate => candidate.id === playerId)
+      const question = session && quiz ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex] : undefined
+      if (!session || !quiz || !question || quiz.quizType !== 'standard') throw new RepositoryError('invalid-room', 'This Buzz-In room is not active.')
+      if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      if (session.phase !== 'question' || !question.buzzInEnabled || !canUseBuzzIn(question, quiz.quizType)) throw new RepositoryError('invalid-phase', 'Buzzers are not open for this question.')
+      const now = Date.now(), openedAt = Date.parse(session.questionOpenedAt ?? ''), closesAt = Date.parse(session.questionClosesAt ?? '')
+      if (!Number.isFinite(openedAt) || !Number.isFinite(closesAt) || now < openedAt || now >= closesAt) throw new RepositoryError('late-submission', 'Buzzers are closed for this question.')
+      if (session.buzz) return clone({ won: false, ...session.buzz })
+      session.buzz = {
+        winnerPlayerId: playerId,
+        claimedAt: new Date(now).toISOString(),
+        answerDeadlineAt: new Date(Math.min(closesAt, now + BUZZ_ANSWER_WINDOW_SECONDS * 1_000)).toISOString(),
+      }
+      this.write(state, true, session.id)
+      return clone({ won: true, ...session.buzz })
+    })
+  }
+
+  async resetBuzz(sessionId: string): Promise<void> {
+    return this.withMutation(() => {
+      const state = this.read(), session = state.sessions.find(candidate => candidate.id === sessionId && candidate.status === 'active')
+      const quiz = session && state.quizzes.find(candidate => candidate.id === session.quizId)
+      const question = session && quiz ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex] : undefined
+      if (!session || !quiz || quiz.quizType !== 'standard' || session.phase !== 'question' || !question?.buzzInEnabled || !session.buzz) throw new RepositoryError('invalid-phase', 'Buzz cannot be reset now.')
+      if (session.answers.some(answer => answer.questionId === question.id && answer.playerId === session.buzz!.winnerPlayerId)) throw new RepositoryError('invalid-phase', 'Buzz cannot be reset after the winner has answered.')
+      session.buzz = null
+      this.write(state, true, session.id)
     })
   }
 
@@ -1016,7 +1070,7 @@ export class DemoGameRepository implements GameRepository {
       player.correctAnswerCount += Number(nextCorrect) - Number(previousCorrect)
       player.totalCorrectResponseMs += (nextCorrect ? answer.responseTimeMs : 0) - (previousCorrect ? answer.responseTimeMs : 0)
       if (session.phase === 'leaderboard') {
-        const revised = recomputePlayerStreaks([player], session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))[0]
+        const revised = recomputePlayerStreaks([player], session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))[0]
         player.currentCorrectStreak = revised.currentCorrectStreak
         player.longestCorrectStreak = revised.longestCorrectStreak
       }
@@ -1093,6 +1147,7 @@ export class DemoGameRepository implements GameRepository {
       const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
       const openCurrentQuestion = (allowIntro = false): void => {
         session.connectionClueCount = 0
+        session.buzz = null
         const question = orderedQuestions[session.currentQuestionIndex]
         if (!question) throw new RepositoryError('database', 'This quiz has no question to open.')
         const enteringRound = action === 'start' || question.roundId !== session.currentRoundId
@@ -1130,6 +1185,7 @@ export class DemoGameRepository implements GameRepository {
           }
           session.phase = 'locked'
           session.questionClosesAt = now.toISOString()
+          if (session.buzz) session.buzz.answerDeadlineAt = now.toISOString()
           break
         case 'reveal':
           if (session.phase !== 'locked') throw new RepositoryError('invalid-phase', 'Lock answers before the reveal.')
@@ -1141,7 +1197,7 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'Reveal the final results instead.')
           }
           session.phase = 'leaderboard'
-          session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))
+          session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))
           break
         case 'next':
           if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
@@ -1159,10 +1215,11 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
           }
           if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= orderedQuestions.length) {
-            session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1))
+            session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()
+            session.buzz = null
             break
           }
           if (!['question', 'locked'].includes(session.phase)) {
@@ -1171,9 +1228,11 @@ export class DemoGameRepository implements GameRepository {
           session.phase = 'finished'
           session.endedAt = now.toISOString()
           session.questionClosesAt = now.toISOString()
+          session.buzz = null
           break
         case 'restart':
           session.connectionClueCount = 0
+          session.buzz = null
           if (session.phase !== 'finished') throw new RepositoryError('invalid-phase', 'Finish the game before restarting it.')
           session.phase = 'lobby'
           session.currentRoundId = orderedRounds(quiz.rounds)[0].id
@@ -1197,6 +1256,7 @@ export class DemoGameRepository implements GameRepository {
           session.status = 'closed'
           session.phase = 'finished'
           session.endedAt = now.toISOString()
+          session.buzz = null
           break
       }
       this.write(state, true, session.id)

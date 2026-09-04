@@ -15,6 +15,7 @@ const repositoryMocks = vi.hoisted(() => ({
   changePhase: vi.fn(),
   revealConnectionClue: vi.fn(),
   setTypedAnswerOverride: vi.fn(),
+  resetBuzz: vi.fn(),
   subscribe: vi.fn(),
 }))
 
@@ -74,6 +75,7 @@ describe('HostGamePage Standard auto-lock', () => {
     repositoryMocks.changePhase.mockResolvedValue(undefined)
     repositoryMocks.revealConnectionClue.mockResolvedValue(undefined)
     repositoryMocks.setTypedAnswerOverride.mockResolvedValue(undefined)
+    repositoryMocks.resetBuzz.mockResolvedValue(undefined)
     repositoryMocks.subscribe.mockReturnValue(() => undefined)
   })
 
@@ -134,6 +136,30 @@ describe('HostGamePage Standard auto-lock', () => {
     renderController(state({ submittedCount: 2 }))
     await user.click(await screen.findByRole('button', { name: 'Close answers now' }))
     expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock')
+  })
+
+  it('shows the authoritative Buzz winner and lets the host reset only before an answer', async () => {
+    const user = userEvent.setup()
+    const definition = { ...mixedDemoQuiz.questions.find(question => question.id === 'mixed-boolean')!, buzzInEnabled: true }
+    repositoryMocks.getHostSession.mockResolvedValue({
+      session: { ...session, questionOrder: [definition.id] },
+      quiz: { ...mixedDemoQuiz, questions: [definition] },
+    })
+    const winner = players[0]
+    renderController(state({
+      currentQuestion: { ...state().currentQuestion!, id: definition.id, buzzInEnabled: true },
+      buzz: {
+        winnerPlayerId: winner.id,
+        claimedAt: new Date().toISOString(),
+        answerDeadlineAt: new Date(Date.now() + 10_000).toISOString(),
+      },
+      submittedCount: 0,
+    }))
+
+    expect(await screen.findAllByText('Player 1 buzzed first')).not.toHaveLength(0)
+    expect(screen.getAllByText('0 / 1').some(element => element.offsetParent !== null || element.isConnected)).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Reset buzz' }))
+    expect(repositoryMocks.resetBuzz).toHaveBeenCalledExactlyOnceWith('session')
   })
 
   it('uses the persisted shuffled question order for Up next', async () => {

@@ -27,6 +27,7 @@ import { connectionSafeFields } from '../features/questions/connections'
 import { ConnectionClues } from '../features/game/ConnectionClues'
 import { ConnectionsEditor } from '../features/quiz-editor/ConnectionsEditor'
 import { WagerSettings } from '../features/quiz-editor/WagerSettings'
+import { BuzzInSettings } from '../features/quiz-editor/BuzzInSettings'
 import { ProgressiveRevealSettings } from '../features/quiz-editor/ProgressiveRevealSettings'
 import { canOfferProgressiveReveal } from '../features/scoring/progressiveReveal'
 import { ArrangementPrompt } from '../features/game/ArrangementResult'
@@ -330,6 +331,7 @@ export function QuizEditorPage() {
                   {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
                 </fieldset>
                 <WagerSettings question={selected} update={updateQuestion} />
+                <BuzzInSettings question={selected} quizType={quiz.quizType} update={updateQuestion} />
               </> : <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
             </div></details>
             <details className="question-settings-group"><summary>Media &amp; presentation</summary><div>
@@ -435,7 +437,7 @@ function QuizSettingsDialog({
           <div className="quiz-settings-content">
         {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
           <header><p className="eyebrow">Game</p><h2 id="settings-game-heading">Choose how this quiz plays</h2></header>
-          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} hasWager={quiz.questions.some(question => question.wagerEnabled)} />
+          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} hasWager={quiz.questions.some(question => question.wagerEnabled)} hasBuzz={quiz.questions.some(question => question.buzzInEnabled)} />
             {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           </div>
         </section>}
@@ -550,7 +552,7 @@ function EditorAnswerPreview({
   return <p className="editor-preview__context">{context}</p>
 }
 
-function QuizTypePicker({ quizType, select, hasConnections, hasProgressive, hasWager }: { quizType: QuizType; select(quizType: QuizType): void; hasConnections: boolean; hasProgressive: boolean; hasWager: boolean }) {
+function QuizTypePicker({ quizType, select, hasConnections, hasProgressive, hasWager, hasBuzz }: { quizType: QuizType; select(quizType: QuizType): void; hasConnections: boolean; hasProgressive: boolean; hasWager: boolean; hasBuzz: boolean }) {
   const options: Array<{ id: QuizType; name: string; description: string }> = [
     { id: 'standard', name: 'Standard', description: 'Everyone answers every question using normal Katwed scoring.' },
     { id: 'head-to-head', name: 'Head to Head', description: 'Two named competitors take turns with questions assigned specifically to them.' },
@@ -563,11 +565,11 @@ function QuizTypePicker({ quizType, select, hasConnections, hasProgressive, hasW
           key={option.id}
           type="button"
           aria-pressed={quizType === option.id}
-          disabled={option.id === 'head-to-head' && (hasConnections || hasProgressive || hasWager)}
+          disabled={option.id === 'head-to-head' && (hasConnections || hasProgressive || hasWager || hasBuzz)}
           onClick={() => select(option.id)}
         >
           <strong>{option.name}</strong>
-          <small>{option.id === 'head-to-head' && hasWager ? 'Disable Wager to use Head to Head.' : option.id === 'head-to-head' && hasProgressive ? 'Disable Progressive Reveal to use Head to Head.' : option.id === 'head-to-head' && hasConnections ? 'Connections needs host-controlled clues. Remove Connections questions to use Head to Head.' : option.description}</small>
+          <small>{option.id === 'head-to-head' && hasBuzz ? 'Disable Buzz-In to use Head to Head.' : option.id === 'head-to-head' && hasWager ? 'Disable Wager to use Head to Head.' : option.id === 'head-to-head' && hasProgressive ? 'Disable Progressive Reveal to use Head to Head.' : option.id === 'head-to-head' && hasConnections ? 'Connections needs host-controlled clues. Remove Connections questions to use Head to Head.' : option.description}</small>
           <span>{quizType === option.id ? 'Selected' : 'Choose'}</span>
         </button>)}
       </div>

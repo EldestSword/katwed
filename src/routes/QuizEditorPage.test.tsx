@@ -117,6 +117,30 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(screen.getByRole('checkbox', { name: 'Let players risk extra points' })).toBeChecked()
   })
 
+  it('authors, duplicates, saves and reloads the fixed Buzz-In modifier', async () => {
+    const user = userEvent.setup()
+    const q = { ...mixedDemoQuiz.questions[0], roundId: sampleQuiz.rounds[0].id, buzzInEnabled: false }
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [q] }))
+    const view = renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    await user.click(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' }))
+    expect(screen.getByText('First buzz wins', { exact: true })).toBeVisible()
+    expect(screen.getByText('10 second answer window', { exact: true })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+    expect(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' })).toBeChecked()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    const savedInput = repositoryMocks.saveQuiz.mock.calls.at(-1)![0] as QuizSaveInput
+    expect(savedInput.questions).toHaveLength(2)
+    expect(savedInput.questions[0].buzzInEnabled).toBe(true)
+    expect(savedInput.questions[1].buzzInEnabled).toBe(true)
+    const saved = await repositoryMocks.saveQuiz.mock.results.at(-1)!.value
+    const dialog = await openQuizSettings(user, 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    view.unmount(); repositoryMocks.getQuiz.mockResolvedValue(saved); renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    expect(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' })).toBeChecked()
+  })
+
   it('does not offer wagers in the Head-to-Head editor', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
     renderEditor(); await screen.findByText('Scoring', { exact: true })

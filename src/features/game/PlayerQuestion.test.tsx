@@ -63,6 +63,66 @@ describe('PlayerQuestion mash-up', () => {
   })
 })
 
+describe('PlayerQuestion Buzz-In', () => {
+  const buzzQuestion: SafeQuestion = {
+    id: 'buzz', type: 'true-false', prompt: 'Buzz if you know it', supportingText: 'One answer only',
+    media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show',
+    points: 1000, speedScoringEnabled: false, doubleScore: false, wagerEnabled: true, buzzInEnabled: true,
+    displayOrder: 0, questionNumber: 1, totalQuestions: 1, timeLimitSeconds: 30,
+  }
+  const players = [
+    { id: 'winner', sessionId: 'session', nickname: 'Carol', teamId: 'blue', connected: true, joinedAt: '', totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0 },
+    { id: 'loser', sessionId: 'session', nickname: 'Roger', teamId: 'red', connected: true, joinedAt: '', totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0 },
+  ]
+  const teams = [
+    { id: 'blue', sessionId: 'session', name: 'Blue Team', displayOrder: 0 },
+    { id: 'red', sessionId: 'session', name: 'Red Team', displayOrder: 1 },
+  ]
+
+  it('shows prompt, Wager and one large buzzer before exposing answer controls', () => {
+    render(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} playerId="winner" players={players} teams={teams} onBuzz={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'Buzz if you know it' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'BUZZ' })).toBeVisible()
+    expect(screen.getByRole('group', { name: 'Your wager' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'True' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull()
+  })
+
+  it('reveals the existing answer controls only after an authoritative winning result', async () => {
+    const user = userEvent.setup()
+    const result = { won: true, winnerPlayerId: 'winner', claimedAt: new Date().toISOString(), answerDeadlineAt: new Date(Date.now() + 10_000).toISOString() }
+    const onBuzz = vi.fn().mockResolvedValue(result)
+    render(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} playerId="winner" players={players} teams={teams} onBuzz={onBuzz} onSubmit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'BUZZ' }))
+    expect(await screen.findByText('You got the buzz!')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'True' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Lock in' })).toBeDisabled()
+    expect(onBuzz).toHaveBeenCalledOnce()
+  })
+
+  it('names the winner and locks out every other player', () => {
+    const buzz = { winnerPlayerId: 'winner', claimedAt: new Date().toISOString(), answerDeadlineAt: new Date(Date.now() + 10_000).toISOString() }
+    render(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} buzz={buzz} playerId="loser" players={players} teams={teams} onBuzz={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByText('Carol · Blue Team buzzed first')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Waiting for their answer…' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'True' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'BUZZ' })).toBeNull()
+  })
+
+  it('keeps the selected Wager after winning and reopens the buzzer after an authoritative reset', async () => {
+    const user = userEvent.setup()
+    const view = render(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} buzz={null} playerId="winner" players={players} teams={teams} onBuzz={vi.fn()} onSubmit={vi.fn()} />)
+    await user.click(screen.getByRole('radio', { name: /^50%/ }))
+    const won = { winnerPlayerId: 'winner', claimedAt: new Date().toISOString(), answerDeadlineAt: new Date(Date.now() + 10_000).toISOString() }
+    view.rerender(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} buzz={won} playerId="winner" players={players} teams={teams} onBuzz={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: /^50%/ })).toBeChecked()
+    expect(screen.getByText('You got the buzz!')).toBeVisible()
+    view.rerender(<PlayerQuestion question={buzzQuestion} roster={[]} closesAt={closesAt} buzz={null} playerId="winner" players={players} teams={teams} onBuzz={vi.fn()} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'BUZZ' })).toBeVisible()
+    expect(screen.getByRole('radio', { name: /^50%/ })).toBeChecked()
+  })
+})
+
 describe('PlayerQuestion image choices', () => {
   it('opens enlargement without selecting the answer and closes with Escape', async () => {
     const user = userEvent.setup()

@@ -142,6 +142,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const streakEvent = useStreakCommentary(state)
   const awardsBaseline = useFinalAwardsHistory(teamMode ? null : state)
   const remaining = useCountdown(state.questionClosesAt)
+  const buzzRemaining = useCountdown(state.buzz?.answerDeadlineAt ?? null)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
   const configuredPrelude = state.questionPreludeKind ?? (question?.doubleScore ? 'double-score' : null)
@@ -153,6 +154,9 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const showChoices = Boolean(question && choicesVisible(question, state.phase))
   const composition = question ? questionComposition(question, showMedia, showChoices) : undefined
   const promptDensity = question ? questionTextDensity(question.prompt, showMedia) : undefined
+  const buzzWinner = state.buzz ? state.players.find(player => player.id === state.buzz?.winnerPlayerId) : undefined
+  const buzzTeam = buzzWinner?.teamId ? state.teams?.find(team => team.id === buzzWinner.teamId) : undefined
+  const buzzWinnerLabel = buzzWinner ? `${buzzWinner.nickname}${buzzTeam ? ` · ${buzzTeam.name}` : ''}` : 'A player'
 
   return (
     <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live={state.phase === 'leaderboard' ? 'off' : 'polite'}>
@@ -184,6 +188,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
       {state.phase === 'question' && question && !activePrelude && (
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
+          {question.buzzInEnabled && <div className={`presentation-buzz ${state.buzz ? 'is-won' : 'is-open'}`}>{state.buzz ? <><strong>{buzzWinnerLabel} buzzed first!</strong><span aria-hidden="true">{buzzRemaining > 0 ? `${buzzRemaining} seconds to answer` : 'Answer window closed'}</span><span className="sr-only" role="status">{buzzWinnerLabel} buzzed first. {buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.'}</span></> : <strong>Buzzers open</strong>}</div>}
           <div className="presentation-question__body">
             {question.type === 'connections' && <p className="eyebrow connection-intro-label">Find the connection</p>}
             <div className="presentation-question__copy" data-question-density={promptDensity}>{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
@@ -191,7 +196,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
             {question.type === 'slider' && <SliderContext question={question} />}
             <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
           </div>
-          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} /><SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} /></footer>
+          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} />{question.buzzInEnabled ? state.buzz && <SubmissionStatus submitted={state.submittedCount} total={1} label="eligible answer" /> : <SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} />}</footer>
         </div>
       )}
 
@@ -203,6 +208,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
           <div className="presentation-reveal__copy" data-question-density={questionTextDensity(question.prompt, showMedia)}><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
           {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} progressiveRevealEnabled={question.progressiveRevealEnabled} revealed /></div>}
           <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
+          {question.buzzInEnabled && buzzWinner && <p className="presentation-buzz-reveal">Buzz won by {buzzWinnerLabel}</p>}
           {state.reveal.caption && <aside className="reveal-caption"><span>More to know</span><p>{state.reveal.caption}</p></aside>}
           {headToHead && <div className="presentation-reveal__head-to-head"><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>}
         </div>

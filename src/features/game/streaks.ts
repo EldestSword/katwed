@@ -25,11 +25,12 @@ export function calculateCorrectStreaks(history: readonly (boolean | null | unde
 }
 
 /** A single indexed pass over answers; never infer correctness from awarded points. */
-export function recomputePlayerStreaks(players: readonly Player[], answers: readonly PlayerAnswer[], completedQuestionIds: readonly string[]): Player[] {
+export function recomputePlayerStreaks(players: readonly Player[], answers: readonly PlayerAnswer[], completedQuestionIds: readonly string[], neutralQuestionIds: ReadonlySet<string> = new Set()): Player[] {
   const byPlayer = new Map<string, Map<string, boolean>>()
   for (const answer of answers) {
     if (!byPlayer.has(answer.playerId)) byPlayer.set(answer.playerId, new Map())
     byPlayer.get(answer.playerId)!.set(answer.questionId, answer.correct)
   }
-  return players.map(player => ({ ...player, ...calculateCorrectStreaks(completedQuestionIds.map(id => byPlayer.get(player.id)?.get(id))) }))
+  const eligibleQuestionIds = completedQuestionIds.filter(id => !neutralQuestionIds.has(id))
+  return players.map(player => ({ ...player, ...calculateCorrectStreaks(eligibleQuestionIds.map(id => byPlayer.get(player.id)?.get(id))) }))
 }

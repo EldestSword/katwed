@@ -3,10 +3,14 @@ import { useCountdown } from '../../hooks/useCountdown'
 import type {
   AnswerColourTuple,
   AnswerPaletteId,
+  BuzzClaimResult,
+  BuzzState,
   ChoiceOption,
   PlayerAnswerPayload,
   RosterMember,
   SafeQuestion,
+  Player,
+  GameTeam,
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
@@ -44,6 +48,11 @@ interface PlayerQuestionProps {
   modeLabel?: string
   answerPaletteId?: AnswerPaletteId
   customAnswerColours?: AnswerColourTuple
+  buzz?: BuzzState | null
+  playerId?: string
+  players?: Player[]
+  teams?: GameTeam[]
+  onBuzz?(): Promise<BuzzClaimResult>
   onSubmit(payload: PlayerAnswerPayload): Promise<void>
 }
 
@@ -94,6 +103,11 @@ export function PlayerQuestion({
   modeLabel,
   answerPaletteId = 'classic',
   customAnswerColours = CLASSIC_ANSWER_COLOURS,
+  buzz = null,
+  playerId = '',
+  players = [],
+  teams = [],
+  onBuzz,
   onSubmit,
 }: PlayerQuestionProps) {
   const [wagerPercent, setWagerPercent] = useState<WagerPercent>(initialAnswer?.wagerPercent ?? 0)
@@ -106,8 +120,16 @@ export function PlayerQuestion({
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
   const [wideAnswerLayout, setWideAnswerLayout] = useState(false)
+  const [claimingBuzz, setClaimingBuzz] = useState(false)
+  const [claimedBuzz, setClaimedBuzz] = useState<BuzzState | null>(buzz)
+  const [buzzError, setBuzzError] = useState('')
   const remaining = useCountdown(closesAt)
-  const timedOut = closesAt !== null && remaining <= 0
+  const effectiveBuzz = buzz ?? claimedBuzz
+  const buzzRemaining = useCountdown(effectiveBuzz?.answerDeadlineAt ?? null)
+  const buzzQuestion = question.buzzInEnabled === true
+  const playerWonBuzz = buzzQuestion && effectiveBuzz?.winnerPlayerId === playerId
+  const buzzWindowClosed = playerWonBuzz && buzzRemaining <= 0
+  const timedOut = (closesAt !== null && remaining <= 0) || buzzWindowClosed
   const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   const requestWideAnswerLayout = useCallback(() => setWideAnswerLayout(true), [])
 
@@ -119,7 +141,16 @@ export function PlayerQuestion({
     setError('')
     setLimitMessage('')
     setWideAnswerLayout(false)
+    setClaimedBuzz(null)
+    setBuzzError('')
   }, [initialAnswer, question.id, openedAt])
+
+  useEffect(() => {
+    setClaimedBuzz(buzz)
+    if (!buzz) setBuzzError('')
+    // Safe-state parsing replaces the players array on each authoritative
+    // refresh, including a host reset whose Buzz value returns to null.
+  }, [buzz, players])
 
   const canSubmit = useMemo(() => {
     if (question.type === 'mashup') return mashupSelection.length === 2
@@ -156,6 +187,21 @@ export function PlayerQuestion({
     }
   }
 
+  async function claimBuzz() {
+    if (!onBuzz || claimingBuzz || timedOut || effectiveBuzz) return
+    setClaimingBuzz(true)
+    setBuzzError('')
+    try {
+      const result = await onBuzz()
+      setClaimedBuzz(result)
+      if (!result.won) setBuzzError('Too late — another player buzzed first.')
+    } catch (reason) {
+      setBuzzError(reason instanceof Error ? reason.message : 'The buzzer could not be reached. Please try again.')
+    } finally {
+      setClaimingBuzz(false)
+    }
+  }
+
   if (submitted && answer) {
     return (
       <section className="player-waiting" aria-live="polite">
@@ -170,6 +216,27 @@ export function PlayerQuestion({
 
   const showMedia = question.mediaVisibility === 'players' || question.mediaVisibility === 'both'
   const visibleVisualMedia = showMedia && question.media.type !== 'none'
+  const buzzWinner = effectiveBuzz ? players.find(player => player.id === effectiveBuzz.winnerPlayerId) : undefined
+  const buzzTeam = buzzWinner?.teamId ? teams.find(team => team.id === buzzWinner.teamId) : undefined
+  const buzzWinnerLabel = buzzWinner ? `${buzzWinner.nickname}${buzzTeam ? ` · ${buzzTeam.name}` : ''}` : 'Another player'
+  if (buzzQuestion && (!playerWonBuzz || buzzWindowClosed)) {
+    return (
+      <section className="player-question player-question--buzz" aria-labelledby="question-instruction">
+        <div className="question-meta">
+          {modeLabel ? <span>{modeLabel}</span> : <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact />}
+          {question.doubleScore && <DoubleScoreBadge />}
+          {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
+        </div>
+        <div className="player-question__prompt" data-question-density={questionTextDensity(question.prompt, visibleVisualMedia)}><h1 id="question-instruction">{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
+        {showMedia && question.type !== 'pinpoint' && <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} />}
+        {showMedia && question.type === 'pinpoint' && <QuestionMedia media={question.media} openedAt={openedAt} />}
+        {question.wagerEnabled && !effectiveBuzz && <WagerControl points={question.points} value={wagerPercent} disabled={claimingBuzz || timedOut} onChange={setWagerPercent} />}
+        {!effectiveBuzz ? <div className="buzz-gate" aria-live="polite"><p className="eyebrow">Buzzers open</p><button className="buzz-button" type="button" disabled={claimingBuzz || timedOut} aria-busy={claimingBuzz} onClick={() => void claimBuzz()}>{claimingBuzz ? 'BUZZING…' : 'BUZZ'}</button>{timedOut && <p>Time is up. Waiting for the host.</p>}{buzzError && <StatusMessage tone="error">{buzzError}</StatusMessage>}</div>
+          : buzzWindowClosed ? <div className="buzz-result buzz-result--closed" aria-live="polite"><p className="eyebrow">Answer window closed</p><h2>Waiting for the host.</h2></div>
+            : <div className="buzz-result" aria-live="polite"><p className="eyebrow">{buzzWinnerLabel} buzzed first</p><h2>Waiting for their answer…</h2>{buzzError && <p>Too late</p>}</div>}
+      </section>
+    )
+  }
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
@@ -187,6 +254,7 @@ export function PlayerQuestion({
 
       <ProgressiveRevealPoints question={question} openedAt={openedAt} />
       {question.wagerEnabled && <WagerControl points={question.points} value={wagerPercent} disabled={submitting || timedOut} onChange={setWagerPercent} />}
+      {playerWonBuzz && <div className="buzz-result buzz-result--winner"><p className="eyebrow" role="status">You got the buzz!</p><h2 aria-hidden="true">{buzzRemaining} {buzzRemaining === 1 ? 'second' : 'seconds'} to answer</h2><span className="sr-only">Your answer window is open.</span></div>}
       {question.type === 'single-choice' && (
         <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (

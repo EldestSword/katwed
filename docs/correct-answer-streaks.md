@@ -1,6 +1,6 @@
 # Correct Answer Streaks — Phase 2 Pass 7B
 
-Streaks are Standard runtime statistics, including Individual games, Teams, Rounds and all ten current question types. They are not a question modifier, saved quiz setting or score bonus. Portable format stays **v11**; schemas and v1–v11 import/export behaviour are unchanged. Head-to-Head and the existing three Final Awards remain unchanged.
+Streaks are Standard runtime statistics for Individual games, Teams and Rounds. They are not a question modifier, saved quiz setting or score bonus. Buzz-In questions are streak-neutral: they neither advance nor break a run, and the remaining eligible history is compacted before streaks are calculated. Portable v12 contains only the authored Buzz flag and still excludes runtime streak values. Head-to-Head and the existing three Final Awards remain unchanged.
 
 ## Authoritative history
 

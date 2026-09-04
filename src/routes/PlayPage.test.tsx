@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   startHeadToHead: vi.fn(),
   skipHeadToHead: vi.fn(),
   continueHeadToHead: vi.fn(),
+  claimBuzz: vi.fn(),
   submitAnswer: vi.fn(),
   refresh: vi.fn(),
 }))
@@ -61,6 +62,7 @@ vi.mock('../services/repository', () => ({
     startHeadToHead: mocks.startHeadToHead,
     skipHeadToHead: mocks.skipHeadToHead,
     continueHeadToHead: mocks.continueHeadToHead,
+    claimBuzz: mocks.claimBuzz,
     submitAnswer: mocks.submitAnswer,
   },
 }))
@@ -86,10 +88,36 @@ describe('PlayPage quiz background', () => {
     mocks.reconnectPlayer.mockResolvedValue({ player, reconnectToken: savedSession.reconnectToken })
     mocks.setPlayerPresence.mockResolvedValue(undefined)
     mocks.submitAnswer.mockResolvedValue(undefined)
+    mocks.claimBuzz.mockResolvedValue({
+      won: true, winnerPlayerId: player.id,
+      claimedAt: new Date().toISOString(), answerDeadlineAt: new Date(Date.now() + 10_000).toISOString(),
+    })
     mocks.refresh.mockResolvedValue(undefined)
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('uses the authoritative Buzz result immediately without an extra safe-state fetch', async () => {
+    const user = userEvent.setup()
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState, phase: 'question', buzz: null,
+        currentQuestion: {
+          id: 'buzz', type: 'true-false', prompt: 'Buzz prompt', supportingText: '', timeLimitSeconds: 30,
+          points: 1000, speedScoringEnabled: false, doubleScore: false, buzzInEnabled: true, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show', questionNumber: 1, totalQuestions: 1,
+        },
+        questionOpenedAt: new Date(Date.now() - 1_000).toISOString(), questionClosesAt: new Date(Date.now() + 30_000).toISOString(),
+      },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'BUZZ' }))
+    expect(mocks.claimBuzz).toHaveBeenCalledExactlyOnceWith('123456', player.id, 'token')
+    expect(mocks.refresh).not.toHaveBeenCalled()
+    expect(mocks.submitAnswer).not.toHaveBeenCalled()
+    expect(await screen.findByText('You got the buzz!')).toBeVisible()
+  })
 
   it('updates the lobby team from safe state, then shows team standings and final honours', async () => {
     const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>

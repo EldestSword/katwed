@@ -21,7 +21,7 @@ import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 import { TeamLobby } from '../features/teams/TeamLobby'
 import { isTeamGame } from '../features/teams/teams'
 
-type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close' | 'clue'
+type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close' | 'clue' | 'reset-buzz'
 
 export function HostGamePage() {
   const sessionId = useParams().sessionId ?? ''
@@ -38,6 +38,7 @@ export function HostGamePage() {
   const schedulerRef = useRef<RefreshScheduler | null>(null)
   const navigate = useNavigate()
   const remaining = useCountdown(state?.questionClosesAt ?? null)
+  const buzzRemaining = useCountdown(state?.buzz?.answerDeadlineAt ?? null)
   const configuredPrelude = state?.questionPreludeKind ?? (state?.currentQuestion?.doubleScore ? 'double-score' : null)
   const activePrelude = useQuestionPrelude(configuredPrelude, state?.questionOpenedAt ?? null)
 
@@ -93,6 +94,7 @@ export function HostGamePage() {
     setError('')
     try {
       if (kind === 'clue') await repository.revealConnectionClue(sessionId)
+      else if (kind === 'reset-buzz') await repository.resetBuzz(sessionId)
       else await repository.changePhase(sessionId, kind)
       await refresh()
       if (kind === 'close') await navigate('/host')
@@ -134,12 +136,13 @@ export function HostGamePage() {
       joinedPlayerCount: state.players.length,
       deadlineReached: remaining === 0 && deadlineReached,
       autoLockWhenAllAnswered: state.sessionSettings?.autoLockWhenAllAnswered ?? true,
+      eligibleResponderCount: state.currentQuestion?.buzzInEnabled ? (state.buzz ? 1 : 0) : undefined,
     }) && autoLockAttempt.current !== questionId) {
       if (activePrelude) return
       autoLockAttempt.current = questionId
       void action('lock')
     }
-  }, [action, activePrelude, remaining, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.sessionSettings?.autoLockWhenAllAnswered, state?.submittedCount])
+  }, [action, activePrelude, remaining, state?.buzz, state?.currentQuestion?.buzzInEnabled, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.sessionSettings?.autoLockWhenAllAnswered, state?.submittedCount])
 
   if (loading) return <LoadingScreen message="Preparing the game controller…" />
   if (!session || !quiz || !state) {
@@ -159,6 +162,9 @@ export function HostGamePage() {
   const run = (kind: HostAction) => void action(kind)
   const teamMode = isTeamGame(state)
   const unassigned = teamMode && state.players.some((player) => !player.teamId)
+  const buzzWinner = state.buzz ? state.players.find(player => player.id === state.buzz?.winnerPlayerId) : undefined
+  const buzzTeam = buzzWinner?.teamId ? state.teams?.find(team => team.id === buzzWinner.teamId) : undefined
+  const buzzWinnerAnswered = Boolean(state.buzz && session.hostResponses.some(response => response.questionId === question?.id && response.playerId === state.buzz?.winnerPlayerId))
   const teamAction = async (playerId?: string, teamId?: string) => {
     if (actionInFlight.current) return
     actionInFlight.current = true; setWorking(true); setError('')
@@ -191,10 +197,11 @@ export function HostGamePage() {
           {state.phase === 'round-intro' && state.currentRound && <p>{state.currentRound.subtitle}<br />Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds} · {state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p>}
           <dl className="controller-stats">
             <div><dt>Time</dt><dd>{activePrelude === 'double-score' ? 'Double Score' : activePrelude === 'question-type' ? 'Intro' : headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
-            <div><dt>Answered</dt><dd>{state.submittedCount} / {state.players.length}</dd></div>
+            <div><dt>Answered</dt><dd>{state.submittedCount} / {question?.buzzInEnabled ? (state.buzz ? 1 : 0) : state.players.length}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
           </dl>
           <div className="controller-actions" role="group" aria-label="Game controls">
+            {!headToHead && state.phase === 'question' && question?.buzzInEnabled && <section className="controller-buzz"><p className="eyebrow" role="status">{state.buzz ? `${buzzWinner?.nickname ?? 'A player'}${buzzTeam ? ` · ${buzzTeam.name}` : ''} buzzed first` : 'Buzzers open'}</p><strong aria-hidden="true">{state.buzz ? (buzzRemaining > 0 ? `Answer window: ${buzzRemaining} seconds` : 'Answer window closed') : 'No winner yet'}</strong><span className="sr-only">{state.buzz ? (buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.') : 'No winner yet.'}</span>{state.buzz && !buzzWinnerAnswered && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('reset-buzz')}>Reset buzz</button>}</section>}
             {!headToHead && state.phase === 'question' && question?.type === 'connections' && currentQuestionDefinition?.type === 'connections' && <HostConnectionsControls question={question} definition={currentQuestionDefinition} disabled={working || Boolean(activePrelude) || remaining <= 0} onReveal={() => run('clue')} />}
             {headToHead && <StatusMessage>Head-to-Head progression is controlled by the two competitors. This controller is read-only apart from closing the room.</StatusMessage>}
             {!headToHead && state.phase === 'lobby' && <button className="button button--primary" disabled={working || !state.players.length || unassigned} type="button" onClick={() => run('start')}>Start game</button>}

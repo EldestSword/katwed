@@ -15,7 +15,7 @@ describe('Portable Connections v9', () => {
     const file = { ...withoutProgressiveFlag(exportQuizToPortable(source)), formatVersion: 9 }
     expect(file.formatVersion).toBe(9); expect(validate(file), JSON.stringify(validate.errors)).toBe(true)
     const input = parseKatwedQuizJson(JSON.stringify(file)).input
-    expect(withoutProgressiveFlag(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! }))).toEqual({ ...file, formatVersion: 11 })
+    expect(withoutProgressiveFlag(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! }))).toEqual({ ...file, formatVersion: 10 })
     const q = input.questions[0]
     if (q.type !== 'connections') throw new Error('fixture')
     expect(q.clues[0].id).not.toBe('clue-1'); expect(q.clues.map(c => c.text)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars'])
@@ -38,9 +38,9 @@ describe('Portable Connections v9', () => {
   it.each([1, 2, 3, 4, 5, 6, 7, 8])('rejects Connections in historical v%d', formatVersion => {
     expect(() => parseKatwedQuizJson(JSON.stringify({ ...exportQuizToPortable(connectionsQuiz()), formatVersion }))).toThrow()
   })
-  it('imports v8 Ordering/Matching and re-exports v10', () => {
+  it('imports v8 Ordering/Matching and re-exports v12', () => {
     const source = arrangementQuiz(), file = { ...withoutProgressiveFlag(exportQuizToPortable(source)), formatVersion: 8 }
     const input = parseKatwedQuizJson(JSON.stringify(file)).input
-    expect(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! }).formatVersion).toBe(11)
+    expect(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! }).formatVersion).toBe(12)
   })
 })

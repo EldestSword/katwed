@@ -29,4 +29,10 @@ describe('Standard answer auto-lock', () => {
     expect(check({ submittedCount: 4, autoLockWhenAllAnswered: false })).toBe(false)
     expect(check({ submittedCount: 4, autoLockWhenAllAnswered: false, deadlineReached: true })).toBe(true)
   })
+
+  it('treats only the Buzz winner as eligible after a claim', () => {
+    expect(check({ joinedPlayerCount: 20, submittedCount: 0, eligibleResponderCount: 0 })).toBe(false)
+    expect(check({ joinedPlayerCount: 20, submittedCount: 0, eligibleResponderCount: 1 })).toBe(false)
+    expect(check({ joinedPlayerCount: 20, submittedCount: 1, eligibleResponderCount: 1 })).toBe(true)
+  })
 })

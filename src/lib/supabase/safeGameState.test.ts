@@ -43,6 +43,28 @@ const safeState = {
 }
 
 describe('parseSafeGameState', () => {
+  it('accepts only minimal, in-window Buzz state for an eligible current question', () => {
+    const questionOpenedAt = '2026-09-04T12:00:00Z'
+    const questionClosesAt = '2026-09-04T12:00:30Z'
+    const buzz = { winnerPlayerId: 'player', claimedAt: '2026-09-04T12:00:05Z', answerDeadlineAt: '2026-09-04T12:00:15Z' }
+    const state = {
+      ...safeState, phase: 'question', reveal: null, submittedCount: 0, questionOpenedAt, questionClosesAt, buzz,
+      currentQuestion: { ...safeState.currentQuestion, buzzInEnabled: true },
+    }
+    expect(parseSafeGameState(state).buzz).toEqual(buzz)
+    expect(JSON.stringify(parseSafeGameState(state))).not.toMatch(/reconnectToken|answerPayload|correctOptionId/)
+    expect(() => parseSafeGameState({ ...state, buzz: { ...buzz, winnerPlayerId: 'stranger' } })).toThrow(/not in this room/)
+    expect(() => parseSafeGameState({ ...state, questionClosesAt: '2026-09-04T12:00:14Z' })).toThrow(/outside the question window/)
+    expect(() => parseSafeGameState({ ...state, currentQuestion: { ...state.currentQuestion, buzzInEnabled: false } })).toThrow(/not valid in this phase/)
+  })
+
+  it('rejects Buzz-In on Head-to-Head, Connections and Progressive Reveal questions', () => {
+    const base = { ...safeState, phase: 'question', reveal: null, submittedCount: 0, buzz: null }
+    expect(() => parseSafeGameState({ ...base, quizType: 'head-to-head', currentQuestion: { ...safeState.currentQuestion, buzzInEnabled: true } })).toThrow(/Invalid Buzz-In/)
+    expect(() => parseSafeGameState({ ...base, currentQuestion: { ...safeState.currentQuestion, type: 'connections', buzzInEnabled: true } })).toThrow(/Invalid Buzz-In/)
+    expect(() => parseSafeGameState({ ...base, currentQuestion: { ...safeState.currentQuestion, buzzInEnabled: true, progressiveRevealEnabled: true } })).toThrow(/Invalid Buzz-In/)
+  })
+
   it.each([
     { kind: 'rectangle', x: .2, y: .3, width: .4, height: .5 },
     { kind: 'polygon', points: [{ x: .1, y: .1 }, { x: .9, y: .1 }, { x: .4, y: .9 }] },

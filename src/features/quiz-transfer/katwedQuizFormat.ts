@@ -32,7 +32,8 @@ import {
 import { isSoundPackId } from '../audio/soundPacks'
 
 export const KATWED_QUIZ_FORMAT = 'katwed-quiz' as const
-export const KATWED_QUIZ_FORMAT_VERSION = 11 as const
+export const KATWED_QUIZ_FORMAT_VERSION = 12 as const
+export const KATWED_QUIZ_V11_FORMAT_VERSION = 11 as const
 export const KATWED_QUIZ_V10_FORMAT_VERSION = 10 as const
 export const KATWED_QUIZ_V9_FORMAT_VERSION = 9 as const
 export const KATWED_QUIZ_V8_FORMAT_VERSION = 8 as const
@@ -237,11 +238,14 @@ export interface KatwedQuizFileV10 { format: typeof KATWED_QUIZ_FORMAT; formatVe
 
 export type PortableQuestionV11 = PortableQuestionV10 & { wagerEnabled: boolean }
 export interface PortableQuizV11 extends Omit<PortableQuizV10, 'questions'> { questions: PortableQuestionV11[] }
-export interface KatwedQuizFileV11 { format: typeof KATWED_QUIZ_FORMAT; formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION; quiz: PortableQuizV11 }
+export interface KatwedQuizFileV11 { format: typeof KATWED_QUIZ_FORMAT; formatVersion: typeof KATWED_QUIZ_V11_FORMAT_VERSION; quiz: PortableQuizV11 }
+export type PortableQuestionV12 = PortableQuestionV11 & { buzzInEnabled: boolean }
+export interface PortableQuizV12 extends Omit<PortableQuizV11, 'questions'> { questions: PortableQuestionV12[] }
+export interface KatwedQuizFileV12 { format: typeof KATWED_QUIZ_FORMAT; formatVersion: typeof KATWED_QUIZ_FORMAT_VERSION; quiz: PortableQuizV12 }
 
-export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4 | KatwedQuizFileV5 | KatwedQuizFileV6 | KatwedQuizFileV7 | KatwedQuizFileV8 | KatwedQuizFileV9 | KatwedQuizFileV10 | KatwedQuizFileV11
-type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3 | PortableQuizV4 | PortableQuizV5 | PortableQuizV6 | PortableQuizV7 | PortableQuizV8 | PortableQuizV9 | PortableQuizV10 | PortableQuizV11
-type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3 | PortableQuestionV6 | PortableQuestionV7 | PortableQuestionV8 | PortableQuestionV9 | PortableQuestionV10 | PortableQuestionV11
+export type KatwedQuizFile = KatwedQuizFileV1 | KatwedQuizFileV2 | KatwedQuizFileV3 | KatwedQuizFileV4 | KatwedQuizFileV5 | KatwedQuizFileV6 | KatwedQuizFileV7 | KatwedQuizFileV8 | KatwedQuizFileV9 | KatwedQuizFileV10 | KatwedQuizFileV11 | KatwedQuizFileV12
+type PortableQuiz = PortableQuizV1 | PortableQuizV2 | PortableQuizV3 | PortableQuizV4 | PortableQuizV5 | PortableQuizV6 | PortableQuizV7 | PortableQuizV8 | PortableQuizV9 | PortableQuizV10 | PortableQuizV11 | PortableQuizV12
+type PortableQuestion = PortableQuestionV1 | PortableQuestionV2 | PortableQuestionV3 | PortableQuestionV6 | PortableQuestionV7 | PortableQuestionV8 | PortableQuestionV9 | PortableQuestionV10 | PortableQuestionV11 | PortableQuestionV12
 // Common metadata is normalised while each question retains its source-version fields.
 type ParsedPortableQuiz = Omit<PortableQuizV6, 'questions'> & { rounds?: PortableRoundV7[]; questions: PortableQuestion[] }
 
@@ -353,7 +357,7 @@ function safeMediaReference(value: unknown, subject: string): string {
   return value.trim()
 }
 
-function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): QuestionMedia {
+function parseMedia(value: unknown, subject: string, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12): QuestionMedia {
   const media = record(value, `${subject} media`)
   const type = stringField(media, 'type', `${subject} media`)
   switch (type) {
@@ -430,7 +434,7 @@ const commonQuestionKeys = [
   'revealCaption', 'media', 'mediaVisibility', 'presentationChoiceVisibility',
 ] as const
 
-function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): PortableQuestion {
+function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12): PortableQuestion {
   const subject = `Question ${index + 1}`
   const question = record(value, subject)
   const type = stringField(question, 'type', subject)
@@ -451,7 +455,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
   if (formatVersion < 8 && (type === 'ordering' || type === 'matching')) fail(`${subject} requires format version 8.`)
   if (formatVersion === 1 && type === 'typed-answer') fail(`${subject} uses Typed Answer, which requires format version 2.`)
   const scoringKeys = formatVersion >= 3 ? ['speedScoringEnabled', 'doubleScore'] : []
-  exactKeys(question, [...commonQuestionKeys, ...(formatVersion >= 11 ? ['wagerEnabled'] : []), ...(formatVersion >= 10 ? ['progressiveRevealEnabled'] : []), ...(formatVersion >= 7 ? ['roundKey'] : []), ...scoringKeys, ...variantKeys[type as Question['type']]], subject)
+  exactKeys(question, [...commonQuestionKeys, ...(formatVersion >= 12 ? ['buzzInEnabled'] : []), ...(formatVersion >= 11 ? ['wagerEnabled'] : []), ...(formatVersion >= 10 ? ['progressiveRevealEnabled'] : []), ...(formatVersion >= 7 ? ['roundKey'] : []), ...scoringKeys, ...variantKeys[type as Question['type']]], subject)
 
   const key = parseKey(question.key, `${subject} key`)
   const assignedTo = question.assignedTo === undefined || question.assignedTo === null
@@ -464,6 +468,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
     fail(`${subject} has an unsupported presentation choice visibility.`)
   }
   const base = {
+    ...(formatVersion >= 12 ? { buzzInEnabled: booleanField(question, 'buzzInEnabled', subject) } : {}),
     ...(formatVersion >= 11 ? { wagerEnabled: booleanField(question, 'wagerEnabled', subject) } : {}),
     ...(formatVersion >= 10 ? { progressiveRevealEnabled: booleanField(question, 'progressiveRevealEnabled', subject) } : {}),
     key,
@@ -609,7 +614,7 @@ function parseQuestion(value: unknown, index: number, formatVersion: 1 | 2 | 3 |
   }
 }
 
-function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): ParsedPortableQuiz {
+function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12): ParsedPortableQuiz {
   const quiz = record(value, 'The quiz')
   exactKeys(quiz, [
     'title', 'quizType', 'themeId', 'backgroundId', 'coverImagePath', 'competitors', 'roster', 'questions',
@@ -692,6 +697,7 @@ function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 
     if (formatVersion >= 7 && (!('roundKey' in question) || !roundKeys.has(String(question.roundKey)))) fail(`Question ${index + 1} has an invalid round reference.`)
     if (quizType === 'standard' && question.assignedTo !== null) fail(`Question ${index + 1} cannot be assigned in a Standard quiz.`)
     if (quizType === 'head-to-head') {
+      if ('buzzInEnabled' in question && question.buzzInEnabled) fail('Buzz-In is Standard-only and cannot be imported in Head-to-Head.')
       if ('wagerEnabled' in question && question.wagerEnabled) fail('Wager is Standard-only and cannot be imported in Head-to-Head.')
       if (question.type === 'connections') fail('Connections is Standard-only and cannot be imported in Head-to-Head.')
       if (!question.assignedTo) fail(`Question ${index + 1} must be assigned to a competitor.`)
@@ -703,6 +709,8 @@ function parsePortableQuiz(value: unknown, formatVersion: 1 | 2 | 3 | 4 | 5 | 6 
         fail(`Question ${index + 1} cannot use Standard scoring settings in Head-to-Head.`)
       }
     }
+    if ('buzzInEnabled' in question && question.buzzInEnabled && question.type === 'connections') fail('Buzz-In cannot be imported on Connections questions.')
+    if ('buzzInEnabled' in question && question.buzzInEnabled && 'progressiveRevealEnabled' in question && question.progressiveRevealEnabled) fail('Buzz-In cannot be combined with Progressive Reveal.')
     if (question.type === 'mashup') {
       if (question.correctPersonKeys.some((key) => !rosterKeys.has(key))) {
         fail(`Question ${index + 1} has an invalid people-bank reference.`)
@@ -773,6 +781,7 @@ export function createQuizSaveInputFromPortable(
       supportingText: question.supportingText ?? '',
       timeLimitSeconds: question.timeLimitSeconds ?? 30,
       points: question.points ?? 1000,
+      buzzInEnabled: 'buzzInEnabled' in question ? Boolean(question.buzzInEnabled) : false,
       wagerEnabled: 'wagerEnabled' in question ? Boolean(question.wagerEnabled) : false,
       progressiveRevealEnabled: 'progressiveRevealEnabled' in question ? Boolean(question.progressiveRevealEnabled) : false,
       speedScoringEnabled: 'speedScoringEnabled' in question ? question.speedScoringEnabled ?? false : false,
@@ -923,11 +932,12 @@ export function parseKatwedQuizJson(
     file.formatVersion !== KATWED_QUIZ_V8_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_V9_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_V10_FORMAT_VERSION &&
+    file.formatVersion !== KATWED_QUIZ_V11_FORMAT_VERSION &&
     file.formatVersion !== KATWED_QUIZ_FORMAT_VERSION
   ) {
     fail('This Katwed quiz format version is not supported.')
   }
-  const formatVersion = file.formatVersion as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+  const formatVersion = file.formatVersion as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
   const quiz = parsePortableQuiz(file.quiz, formatVersion)
   const portable = {
     format: KATWED_QUIZ_FORMAT,
@@ -989,7 +999,7 @@ function exportOptions(options: readonly ChoiceOption[]): { options: PortableCho
   return { options: portable, keys }
 }
 
-export function exportQuizToPortable(source: Quiz): KatwedQuizFileV11 {
+export function exportQuizToPortable(source: Quiz): KatwedQuizFileV12 {
   const quiz = normaliseQuizRounds(source)
   const validation = validateQuizSave(quiz)
   if (validation.length) fail(validation[0])
@@ -999,8 +1009,9 @@ export function exportQuizToPortable(source: Quiz): KatwedQuizFileV11 {
   const competitorKeys = new Map(competitors.map((competitor, index) => [competitor.id, `competitor-${index + 1}`]))
   const roster = [...quiz.roster].sort((a, b) => a.displayOrder - b.displayOrder)
   const rosterKeys = new Map(roster.map((member, index) => [member.id, `person-${index + 1}`]))
-  const questions = orderedRoundQuestions(quiz).map((question, index): PortableQuestionV11 => {
+  const questions = orderedRoundQuestions(quiz).map((question, index): PortableQuestionV12 => {
     const base = {
+      buzzInEnabled: question.buzzInEnabled ?? false,
       wagerEnabled: question.wagerEnabled ?? false,
       progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
       key: `q${index + 1}`,

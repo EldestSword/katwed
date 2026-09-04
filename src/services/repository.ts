@@ -5,6 +5,7 @@ import { SupabaseGameRepository } from '../lib/supabase/SupabaseGameRepository'
 import type { GameRepository, QuizDeleteResult, QuizSaveInput, RealtimeStatusCallback } from './gameRepository'
 import { RepositoryError } from './gameRepository'
 import type {
+  BuzzClaimResult,
   GameSession,
   JoinResult,
   PlayerAnswerPayload,
@@ -47,11 +48,13 @@ class UnconfiguredRepository implements GameRepository {
   reconnectPlayer(_session: PlayerSession): Promise<JoinResult | null> { return this.fail() }
   setPlayerPresence(_session: PlayerSession, _connected: boolean): Promise<void> { return this.fail() }
   getSafeGameState(_roomCode: string): Promise<SafeGameState | null> { return this.fail() }
+  claimBuzz(_roomCode: string, _playerId: string, _token: string): Promise<BuzzClaimResult> { return this.fail() }
   submitAnswer(_roomCode: string, _playerId: string, _token: string, _payload: PlayerAnswerPayload): Promise<void> { return this.fail() }
   startHeadToHead(_roomCode: string, _playerId: string, _token: string): Promise<void> { return this.fail() }
   skipHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }
   continueHeadToHead(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<void> { return this.fail() }
   setTypedAnswerOverride(_sessionId: string, _answerId: string, _correctOverride: true | null): Promise<void> { return this.fail() }
+  resetBuzz(_sessionId: string): Promise<void> { return this.fail() }
   changePhase(_sessionId: string, _action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void> { return this.fail() }
   subscribe(_subject: string, _callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {
     queueMicrotask(() => onStatus?.('CLOSED'))

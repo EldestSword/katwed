@@ -138,6 +138,8 @@ export interface ChoiceOption {
 
 interface QuestionBase {
   /** Missing on legacy questions means false. */
+  buzzInEnabled?: boolean
+  /** Missing on legacy questions means false. */
   wagerEnabled?: boolean
   /** Missing on legacy client data means false. Saved/portable v10 data is explicit. */
   progressiveRevealEnabled?: boolean
@@ -441,6 +443,8 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  /** One authoritative per-question Buzz claim; null before a claim or after reset. */
+  buzz?: BuzzState | null
   /** Missing only in pre-Connections clients/local fixtures; equivalent to zero. */
   connectionClueCount?: number
   teams?: GameTeam[]
@@ -478,6 +482,8 @@ export interface LeaderboardEntry {
 }
 
 export interface SafeGameState {
+  /** Public live Buzz status. Missing legacy state is equivalent to null. */
+  buzz?: BuzzState | null
   teams?: GameTeam[]
   currentRound?: SafeRound | null
   sessionId: string
@@ -518,6 +524,16 @@ export interface PlayerSession {
 export interface JoinResult {
   player: Player
   reconnectToken: string
+}
+
+export interface BuzzState {
+  winnerPlayerId: string
+  claimedAt: string
+  answerDeadlineAt: string
+}
+
+export interface BuzzClaimResult extends BuzzState {
+  won: boolean
 }
 
 export interface HeadToHeadJoinSlot {
