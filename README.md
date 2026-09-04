@@ -111,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 9 is the export target on the Phase 2 development branch. It adds Standard-only Connections with ordered text clues and exact typed connections. V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–9 import; versions 1–6 receive a silent default Round 1 and legacy Pinpoint coordinates become equivalent circles. All nine schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [`docs/katwed-quiz-format-v9.md`](docs/katwed-quiz-format-v9.md) and the [v9 JSON Schema](docs/schemas/katwed-quiz-v9.schema.json); the v1–v8 documentation and schemas remain unchanged for existing generators. Team Mode and live clue progress remain session-only.
+Version 10 is the export target on the Phase 2 development branch. It adds an explicit `progressiveRevealEnabled` question modifier. V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–10 import; v1–v9 default the modifier to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v10](docs/katwed-quiz-format-v10.md) and the [v10 JSON Schema](docs/schemas/katwed-quiz-v10.schema.json); v1–v9 documentation and schemas remain unchanged. Team Mode and live clue progress remain session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -138,6 +138,12 @@ Forward migration `20260904100005_core_team_mode.sql` follows Core Rounds and pr
 Standard Individual and Team games support 2–6 ordered text clues. Clue 1 opens with the normal question timer; the host reveals each further clue without changing phase or extending the deadline. Players make one exact-normalised typed guess. Correct answers earn `floor(base points × (total clues − revealed clues + 1) / total clues)`, then Double Score; ordinary speed scoring never applies. Public state contains only revealed clue records. All clues and the primary answer appear at answer reveal; alternatives remain private.
 
 The editor provides clue ordering, alternatives and a live points ladder. Player drafts/focus survive clue updates, and the presentation/compact views grow with the visible list. Head-to-Head is explicitly unsupported. New migration `20260904122702_connections_questions.sql` adds session progress and an owner-only clue action using the existing session locks and broadcast path: at most five room refresh signals plus their existing host-topic copies per question, with no answer broadcasts, new subscriptions or faster polling. See [Connections architecture and verification](docs/connections.md).
+
+### Progressive Reveal (implemented locally, pending release)
+
+Progressive Reveal is an optional saved question modifier for Standard image questions, including Teams and Rounds. Blur, pixelate, tiles and zoom-out use their existing image reveal duration, which must be positive and no longer than the question timer or 180 seconds. Pinpoint, Connections and Head-to-Head are excluded. Earned base points decay linearly from 100% to 25% over that duration, are floored, then doubled when Double Score is enabled. Progressive Reveal replaces ordinary Speed Scoring, including for positive partial Matching/Multiple Select points; correctness rules are unchanged.
+
+The image and local points badge use the existing authoritative opening timestamp. Reduced motion uses four discrete reveal steps without exposing the complete image early, and enlargement is unavailable until the image completes or Answer Reveal begins. Public alt text stays neutral throughout Question and Locked; private authoring keeps descriptive alt text. New migration `20260904131727_progressive_reveal.sql` adds only the saved question flag and patches existing validation, serialisation and scoring. No session state, progress writes, RPC calls, broadcasts, subscriptions, fetches or polling are added. See [Progressive Reveal architecture and verification](docs/progressive-reveal.md). All pending migrations require a deliberate database-first release; none was applied to production in this pass.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -501,6 +507,7 @@ Pending, deliberately unapplied migrations:
 20260904100005_core_team_mode.sql
 20260904110937_ordering_matching_questions.sql
 20260904122702_connections_questions.sql
+20260904131727_progressive_reveal.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -682,7 +689,7 @@ Planned work:
 
 ### Ordering and Matching (Phase 2 development)
 
-Ordering and Matching add two text-only question types on the feature branch. Hosts author 2–8 ordered items or paired rows; players use touch/mouse reordering with keyboard up/down controls, or tap/keyboard pairing with numbered markers. Safe network serialisation scrambles arrays independently of answer keys and authored order, and remains stable across polling and reconnect. Matching partial points stay fixed over time, Double Score applies, and fully correct answers use generic speed scoring. H2H remains binary. Both types work with Rounds and individual contributions to Team totals.
+Ordering and Matching add two text-only question types on the feature branch. Hosts author 2–8 ordered items or paired rows; players use touch/mouse reordering with keyboard up/down controls, or tap/keyboard pairing with numbered markers. Safe network serialisation scrambles arrays independently of answer keys and authored order, and remains stable across polling and reconnect. Without Progressive Reveal, Matching partial points stay fixed over time, Double Score applies, and fully correct answers use generic speed scoring. H2H remains binary. Both types work with Rounds and individual contributions to Team totals.
 
 Forward migration `20260904110937_ordering_matching_questions.sql` follows `20260904100005_core_team_mode.sql` and patches retained database validation, save/load, safe/reveal serialisation and scoring. It is safe to apply before the new frontend for existing quizzes and clients, but remains pending deliberate production release. No new Realtime channels, broadcasts, polling or browser fetches are added. See [architecture and local verification](docs/ordering-matching.md) and [portable v8](docs/katwed-quiz-format-v8.md).
 

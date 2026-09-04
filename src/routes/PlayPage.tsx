@@ -149,12 +149,12 @@ export function PlayPage() {
         </>
       ))}
 
-      {state.phase === 'locked' && <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}<p className="player-waiting__next">Waiting for the reveal…</p></section>}
+      {state.phase === 'locked' && <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}{question?.progressiveRevealEnabled && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled />}<p className="player-waiting__next">Waiting for the reveal…</p></section>}
       {state.phase === 'reveal' && state.reveal && question && (
         <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
           <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer} playerId={currentPlayer.id}
             roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
-          {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
+          {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} revealed />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead ? <>
             <HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} />

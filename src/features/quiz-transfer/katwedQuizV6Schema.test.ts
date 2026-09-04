@@ -3,13 +3,14 @@ import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
 import { mixedDemoQuiz } from '../../lib/demo/sampleData'
 import { exportQuizToPortable } from './katwedQuizFormat'
+import { withoutProgressiveFlag } from '../../test/legacyPortable'
 
 const ajv = new Ajv2020({ strict: false })
 const validate = ajv.compile(JSON.parse(readFileSync('docs/schemas/katwed-quiz-v6.schema.json', 'utf8')))
 
 describe('portable v6 schema', () => {
   it('validates complete exports with all three target variants', () => {
-    const exported = exportQuizToPortable(mixedDemoQuiz)
+    const exported = withoutProgressiveFlag(exportQuizToPortable(mixedDemoQuiz))
     const { rounds, ...quiz } = exported.quiz
     expect(rounds).toHaveLength(1)
     const file = { ...exported, formatVersion: 6, quiz: { ...quiz, questions: quiz.questions.map(({ roundKey, ...question }) => { expect(roundKey).toBeTruthy(); return question }) } }

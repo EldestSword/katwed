@@ -1,3 +1,4 @@
+import { withoutProgressiveFlag } from '../../test/legacyPortable'
 import { readFileSync } from 'node:fs'
 import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
@@ -12,11 +13,11 @@ describe('Portable Ordering/Matching v8', () => {
     if (quiz.questions[1].type === 'matching') quiz.questions[1].scoringMode = mode
     quiz.rounds.push({ ...quiz.rounds[0], id: 'final-round', title: 'Final round', introEnabled: true, displayOrder: 1 })
     quiz.questions.push({ ...mixedDemoQuiz.questions.find(q => q.type === 'pinpoint')!, roundId: 'final-round', displayOrder: 2 })
-    const file = { ...exportQuizToPortable(quiz), formatVersion: 8 }
+    const file = { ...withoutProgressiveFlag(exportQuizToPortable(quiz)), formatVersion: 8 }
     expect(file.formatVersion).toBe(8); expect(validate(file), JSON.stringify(validate.errors)).toBe(true)
     const parsed = parseKatwedQuizJson(JSON.stringify(file)).input
     const copy = { ...quiz, ...parsed, id: parsed.rounds![0].quizId, rounds: parsed.rounds! }
-    expect(exportQuizToPortable(copy)).toEqual({ ...file, formatVersion: 9 })
+    expect(withoutProgressiveFlag(exportQuizToPortable(copy))).toEqual({ ...file, formatVersion: 10 })
     expect(parsed.questions[0].id).not.toBe(quiz.questions[0].id)
     if (parsed.questions[0].type === 'ordering') expect(parsed.questions[0].items[0].id).not.toBe('item-0')
     expect(JSON.stringify(file)).not.toMatch(/teamId|playMode|teamAssignment|teamNames/)

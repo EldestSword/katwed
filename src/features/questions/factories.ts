@@ -10,6 +10,7 @@ const common = (quizId: string, displayOrder: number, speedScoringEnabled: boole
   timeLimitSeconds: 30,
   points: 1000,
   speedScoringEnabled,
+  progressiveRevealEnabled: false,
   doubleScore: false,
   displayOrder,
   revealCaption: '',

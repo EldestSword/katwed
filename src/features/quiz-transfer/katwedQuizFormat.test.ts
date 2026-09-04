@@ -1,3 +1,4 @@
+import { withoutProgressiveFlag } from '../../test/legacyPortable'
 import { describe, expect, it } from 'vitest'
 import { headToHeadDemoQuiz, mixedDemoQuiz } from '../../lib/demo/sampleData'
 import type { Quiz } from '../../types/domain'
@@ -31,7 +32,7 @@ function uuidFactory() {
 }
 
 function asV6(file: ReturnType<typeof exportQuizToPortable>): KatwedQuizFileV6 {
-  const { rounds, ...quiz } = file.quiz
+  const { rounds, ...quiz } = withoutProgressiveFlag(file).quiz
   expect(rounds).toHaveLength(1)
   return { ...file, formatVersion: 6, quiz: { ...quiz, questions: quiz.questions.filter((q) => q.type !== 'ordering' && q.type !== 'matching' && q.type !== 'connections').map(({ roundKey, ...question }) => { expect(roundKey).toBeTruthy(); return question }) } }
 }
@@ -77,7 +78,7 @@ describe('Katwed quiz portable parser', () => {
     expect(imported.input.questions[0]).toMatchObject({ target: { kind: 'circle', x: .5, y: .43, radius: .12 } })
     expect(imported.input.questions[0]).not.toHaveProperty('targetX')
     const exported = exportQuizToPortable(quizFromInput(imported))
-    expect(exported.formatVersion).toBe(9)
+    expect(exported.formatVersion).toBe(10)
     expect(exported.quiz.questions[0]).not.toHaveProperty('targetRadius')
   })
 
@@ -108,7 +109,7 @@ describe('Katwed quiz portable parser', () => {
     expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), format: 'another-format' }))).toThrow(
       'not a Katwed quiz file',
     )
-    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 10 }))).toThrow(
+    expect(() => parseKatwedQuizJson(JSON.stringify({ ...standardFile(), formatVersion: 11 }))).toThrow(
       'format version is not supported',
     )
   })
@@ -313,7 +314,7 @@ describe('Katwed quiz portable parser', () => {
       type: 'typed-answer', correctAnswer: 'Red Dwarf', acceptedAnswers: ['The Red Dwarf'],
     })
     const exported = exportQuizToPortable(quizFromInput(parsed))
-    expect(exported.formatVersion).toBe(9)
+    expect(exported.formatVersion).toBe(10)
     expect(exported.quiz.questions[0]).toMatchObject({ type: 'typed-answer', correctAnswer: 'Red Dwarf' })
   })
 
@@ -374,7 +375,7 @@ describe('Katwed quiz portable parser', () => {
     expect(parsed.input.answerPaletteId).toBe('classic')
     expect(parsed.input.customAnswerColours).toEqual(mixedDemoQuiz.customAnswerColours)
     expect(exportQuizToPortable(quizFromInput(parsed))).toMatchObject({
-      formatVersion: 9,
+      formatVersion: 10,
       quiz: {
         answerPaletteId: 'classic',
         customAnswerColours: mixedDemoQuiz.customAnswerColours,
@@ -541,7 +542,7 @@ describe('Katwed quiz portable v2 ID remapping and round trip', () => {
     const serialised = serialiseKatwedQuiz(headToHeadDemoQuiz)
     const portable = JSON.parse(serialised) as KatwedQuizFileV6
     expect(portable.format).toBe('katwed-quiz')
-    expect(portable.formatVersion).toBe(9)
+    expect(portable.formatVersion).toBe(10)
     expect(portable.quiz.competitors.map((competitor) => competitor.key)).toEqual(['competitor-1', 'competitor-2'])
     expect(portable.quiz.questions[0].key).toBe('q1')
     expect(portable.quiz.questions[0].assignedTo).toBe('competitor-1')

@@ -8,6 +8,7 @@ import type { QuizSaveInput } from '../services/gameRepository'
 import type { Quiz } from '../types/domain'
 import { QuizEditorPage } from './QuizEditorPage'
 import { connectionsFixture } from '../test/connectionsFixtures'
+import { progressiveQuestion } from '../test/progressiveFixtures'
 
 const repositoryMocks = vi.hoisted(() => ({
   getQuiz: vi.fn(),
@@ -93,6 +94,37 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveTextContent('Remove Connections questions to use Head to Head.')
     expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
+  })
+
+  it('edits the Progressive modifier, previews decay and Double Score, and clears it when media is removed', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [{ ...progressiveQuestion(), roundId: sampleQuiz.rounds[0].id, progressiveRevealEnabled: false }] }))
+    const user = userEvent.setup(); renderEditor()
+    await screen.findByRole('heading', { name: 'Question settings' })
+    await user.click(screen.getByText('Media & presentation', { exact: true }))
+    const toggle = screen.getByLabelText('Score falls as the image becomes clearer')
+    await user.click(toggle)
+    expect(screen.getByRole('list', { name: 'Progressive score preview' })).toHaveTextContent('625 pts')
+    await user.click(screen.getByText('Scoring', { exact: true }))
+    expect(screen.queryByLabelText('Faster answers score more')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Double score', { exact: true }))
+    expect(screen.getByRole('list', { name: 'Progressive score preview' })).toHaveTextContent('1,250 pts')
+    await user.selectOptions(screen.getByLabelText('Reveal effect'), 'immediate')
+    expect(screen.getAllByText(/Progressive Reveal needs a timed image effect/)[0]).toBeVisible()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
+    await user.selectOptions(within(screen.getByRole('group', { name: 'Media' })).getByLabelText('Type'), 'none')
+    expect(screen.queryByLabelText('Score falls as the image becomes clearer')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Faster answers score more')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ questions: [expect.objectContaining({ progressiveRevealEnabled: false, media: { type: 'none' } })] }))
+  })
+
+  it('blocks a Progressive quiz from switching to Head to Head', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [progressiveQuestion()] }))
+    renderEditor()
+    const dialog = await openQuizSettings(userEvent.setup(), 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    expect(within(dialog).getByText(/Disable Progressive Reveal/)).toBeVisible()
   })
 
   it('omits Connections from both Head-to-Head question pickers', async () => {

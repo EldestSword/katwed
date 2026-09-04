@@ -3,7 +3,8 @@ select plan(1);
 
 -- No persistent data. Exercise the actual question trigger on an isolated row.
 create temporary table pinpoint_validation_probe (
-  question_type text, media jsonb, type_config jsonb default '{}', answer_key jsonb
+  question_type text, media jsonb, type_config jsonb default '{}', answer_key jsonb,
+  progressive_reveal_enabled boolean not null default false
 );
 create trigger pinpoint_validation_probe_trigger before insert or update on pinpoint_validation_probe
 for each row execute function public.validate_question_json();

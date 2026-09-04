@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { QuestionMedia as QuestionMediaModel } from '../types/domain'
 import { ImageViewer } from './ImageViewer'
 import { QuestionImage } from './QuestionImage'
+import { PROGRESSIVE_NEUTRAL_ALT, PROGRESSIVE_REDUCED_MOTION_STEPS, progressiveRevealProgress } from '../features/scoring/progressiveReveal'
 import {
   LEGACY_TILE_COLUMNS,
   LEGACY_TILE_ROWS,
@@ -26,14 +27,19 @@ export function QuestionMedia({
   openedAt,
   compact = false,
   allowEnlarge = true,
+  progressiveRevealEnabled = false,
+  revealed = false,
 }: {
   media: QuestionMediaModel
   openedAt: string | null
   compact?: boolean
   allowEnlarge?: boolean
+  progressiveRevealEnabled?: boolean
+  revealed?: boolean
 }) {
   const [now, setNow] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
+  const imagePath = media.type === 'image' ? media.path : ''
   const reducedMotion = useReducedMotion()
   const duration = media.type === 'image' ? media.revealDurationSeconds * 1000 : 0
   const tileColumns = media.type === 'image' && media.tileGridSize
@@ -50,19 +56,22 @@ export function QuestionMedia({
     [media, openedAt, tileCount],
   )
   const progress = useMemo(() => {
+    if (progressiveRevealEnabled) return revealed ? 1 : progressiveRevealProgress(openedAt, now, duration)
     if (!openedAt || !duration) return 1
     return Math.max(0, Math.min(1, (now - new Date(openedAt).getTime()) / duration))
-  }, [duration, now, openedAt])
+  }, [duration, now, openedAt, progressiveRevealEnabled, revealed])
 
   useEffect(() => {
     setNow(Date.now())
   }, [openedAt])
 
   useEffect(() => {
-    if (progress >= 1 || reducedMotion) return
+    if (progress >= 1 || (reducedMotion && !progressiveRevealEnabled)) return
     const timer = window.setInterval(() => setNow(Date.now()), 100)
     return () => window.clearInterval(timer)
-  }, [progress, reducedMotion])
+  }, [progress, reducedMotion, progressiveRevealEnabled])
+
+  useEffect(() => setViewerOpen(false), [imagePath, openedAt, progressiveRevealEnabled])
 
   if (media.type === 'none') return null
   if (media.type === 'youtube') {
@@ -83,7 +92,11 @@ export function QuestionMedia({
     )
   }
 
-  const effectiveProgress = reducedMotion ? 1 : progress
+  const effectiveProgress = reducedMotion
+    ? progressiveRevealEnabled ? Math.floor(progress * PROGRESSIVE_REDUCED_MOTION_STEPS) / PROGRESSIVE_REDUCED_MOTION_STEPS : 1
+    : progress
+  const mayEnlarge = allowEnlarge && (!progressiveRevealEnabled || progress >= 1)
+  const alt = progressiveRevealEnabled && progress < 1 ? PROGRESSIVE_NEUTRAL_ALT : media.altText || 'Question image'
   const style = media.revealEffect === 'blur'
     ? { filter: `blur(${(1 - effectiveProgress) * 28}px)` }
     : media.revealEffect === 'pixelate'
@@ -92,9 +105,9 @@ export function QuestionMedia({
         ? { transform: `scale(${1 + (1 - effectiveProgress) * 1.3})` }
         : undefined
   return (
-    <div className={`question-media question-media--${media.revealEffect}`}>
-      <div className="question-media__image" style={style}>
-        <QuestionImage path={media.path} alt={media.altText || 'Question image'} />
+    <div className={`question-media question-media--${media.revealEffect}`} data-progressive={progressiveRevealEnabled || undefined} data-reveal-progress={effectiveProgress}>
+      <div className="question-media__image" style={{ ...style, ...(progressiveRevealEnabled && reducedMotion ? { transition: 'none' } : {}) }}>
+        <QuestionImage path={media.path} alt={alt} />
       </div>
       {media.revealEffect === 'tiles' && effectiveProgress < 1 && (
         <div
@@ -112,13 +125,13 @@ export function QuestionMedia({
           ))}
         </div>
       )}
-      {allowEnlarge && (
+      {mayEnlarge && (
         <button className="enlarge-button" type="button" onClick={(event) => {
           event.stopPropagation()
           setViewerOpen(true)
         }}>Enlarge image</button>
       )}
-      {viewerOpen && <ImageViewer path={media.path} alt={media.altText || 'Question image'} onClose={() => setViewerOpen(false)} />}
+      {viewerOpen && mayEnlarge && <ImageViewer path={media.path} alt={alt} onClose={() => setViewerOpen(false)} />}
     </div>
   )
 }

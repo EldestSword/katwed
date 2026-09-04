@@ -137,6 +137,8 @@ export interface ChoiceOption {
 }
 
 interface QuestionBase {
+  /** Missing on legacy client data means false. Saved/portable v10 data is explicit. */
+  progressiveRevealEnabled?: boolean
   roundId: string
   id: string
   quizId: string

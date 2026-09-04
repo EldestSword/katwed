@@ -18,6 +18,7 @@ import './styles/audio.css'
 import './styles/teams.css'
 import './styles/arrangement.css'
 import './styles/connections.css'
+import './styles/progressive-reveal.css'
 
 const router = createBrowserRouter([
   {

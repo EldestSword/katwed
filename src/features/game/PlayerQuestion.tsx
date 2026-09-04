@@ -10,6 +10,7 @@ import type {
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
+import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { ImageViewer } from '../../components/ImageViewer'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import { GameTimer } from '../../components/design-system/GameTimer'
@@ -156,6 +157,7 @@ export function PlayerQuestion({
         <div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h2>Answer locked</h2></div></div>
         <PlayerSubmissionSummary answer={answer} question={question} roster={roster} answerPaletteId={answerPaletteId} customAnswerColours={customAnswerColours} />
         {question.type === 'connections' && <ConnectionClues question={question} />}
+        {question.progressiveRevealEnabled && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled />}
         <p className="player-waiting__next">Waiting for the reveal…</p>
       </section>
     )
@@ -175,9 +177,10 @@ export function PlayerQuestion({
         {question.supportingText && <p>{question.supportingText}</p>}
       </div>
       {showMedia && question.type !== 'pinpoint' && (
-        <QuestionMedia media={question.media} openedAt={openedAt} />
+        <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} />
       )}
 
+      <ProgressiveRevealPoints question={question} openedAt={openedAt} />
       {question.type === 'single-choice' && (
         <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (

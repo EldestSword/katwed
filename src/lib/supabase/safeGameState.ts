@@ -1,4 +1,6 @@
 import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
+import { PROGRESSIVE_NEUTRAL_ALT, progressiveRevealValidation } from '../../features/scoring/progressiveReveal'
+import type { SafeQuestion } from '../../types/domain'
 import { onlyFields, validTextItems, validMatchingPairs, validPermutation } from '../../features/questions/arrangementQuestions'
 import { connectionStagePoints, validConnectionClues } from '../../features/questions/connections'
 import type { GameTeam, RevealPayload, SafeGameState } from '../../types/domain'
@@ -116,6 +118,9 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if (safeQuestion.progressiveRevealEnabled !== undefined && typeof safeQuestion.progressiveRevealEnabled !== 'boolean') throw new Error('Invalid Progressive Reveal setting.')
+    if (safeQuestion.progressiveRevealEnabled && (progressiveRevealValidation(safeQuestion as unknown as SafeQuestion, normaliseQuizType(value.quizType)).length ||
+      safeQuestion.speedScoringEnabled !== false || (!revealAllowed && isRecord(safeQuestion.media) && safeQuestion.media.altText !== PROGRESSIVE_NEUTRAL_ALT))) throw new Error('Invalid or spoiler-bearing Progressive Reveal state.')
     if (safeQuestion.type === 'connections') {
       const count = Number(safeQuestion.revealedClueCount), total = Number(safeQuestion.totalClues)
       if (normaliseQuizType(value.quizType) !== 'standard' || !validConnectionClues(safeQuestion.visibleClues, 0) ||

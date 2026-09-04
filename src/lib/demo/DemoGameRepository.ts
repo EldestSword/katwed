@@ -3,6 +3,7 @@ import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
 import { connectionSafeFields } from '../../features/questions/connections'
+import { progressiveSafeMedia } from '../../features/scoring/progressiveReveal'
 import type {
   GameSession,
   GameSessionSettings,
@@ -230,6 +231,9 @@ function toSafeQuestion(
 ): SafeQuestion {
   const base = {
     ...safeBase(question, questionNumber, totalQuestions),
+    progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
+    speedScoringEnabled: question.progressiveRevealEnabled ? false : question.speedScoringEnabled,
+    media: progressiveSafeMedia(question.media, Boolean(question.progressiveRevealEnabled), mayReveal),
     forceRandomiseOptions: settings.shuffleAnswerOptions,
     optionOrderSeed: settings.shuffleAnswerOptions ? `${settings.answerOptionSeed}:${question.id}` : undefined,
   }
@@ -444,6 +448,7 @@ export class DemoGameRepository implements GameRepository {
         })),
         questions: input.questions.map((question, index) => ({
           ...question,
+          progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
           ...(question.type === 'connections' ? { clues: question.clues.map(clue => ({ ...clue, text: clue.text.trim() })), correctAnswer: question.correctAnswer.trim(), acceptedAnswers: question.acceptedAnswers.map(answer => answer.trim()), speedScoringEnabled: false } : {}),
           ...(question.type === 'ordering' ? { items: question.items.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
           ...(question.type === 'matching' ? { leftItems: question.leftItems.map((item) => ({ ...item, label: item.label.trim() })), rightItems: question.rightItems.map((item) => ({ ...item, label: item.label.trim() })) } : {}),

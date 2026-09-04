@@ -1,3 +1,4 @@
+import { withoutProgressiveFlag } from '../../test/legacyPortable'
 import { readFileSync } from 'node:fs'
 import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
@@ -22,10 +23,10 @@ describe('portable Core Rounds v7', () => {
       const quiz = fixture()
       const pinpoint = quiz.questions.find((q) => q.type === 'pinpoint')!; pinpoint.target = target
       const portable = exportQuizToPortable(quiz)
-      expect(portable.formatVersion).toBe(9)
-      expect(validate({ ...portable, formatVersion: 7 }), JSON.stringify(validate.errors)).toBe(true)
+      expect(portable.formatVersion).toBe(10)
+      expect(validate({ ...withoutProgressiveFlag(portable), formatVersion: 7 }), JSON.stringify(validate.errors)).toBe(true)
       expect(portable.quiz.rounds.map((r) => r.key)).toEqual(['round-1', 'round-2'])
-      const parsed = parseKatwedQuizJson(JSON.stringify({ ...portable, formatVersion: 7 })).input
+      const parsed = parseKatwedQuizJson(JSON.stringify({ ...withoutProgressiveFlag(portable), formatVersion: 7 })).input
       const copy: Quiz = { ...quiz, ...parsed, id: parsed.rounds![0].quizId, rounds: parsed.rounds! }
       expect(exportQuizToPortable(copy)).toEqual(portable)
       expect(copy.rounds.every((r) => !quiz.rounds.some((old) => old.id === r.id))).toBe(true)
@@ -46,7 +47,7 @@ describe('portable Core Rounds v7', () => {
     expect(() => parseKatwedQuizJson(JSON.stringify(file))).toThrow()
   })
   it.each([1, 2, 3, 4, 5, 6])('gives legacy v%d files one silent round without losing target data', (version) => {
-    const raw = exportQuizToPortable(mixedDemoQuiz) as unknown as { formatVersion: number; quiz: Record<string, unknown> & { questions: Array<Record<string, unknown>> } }
+    const raw = withoutProgressiveFlag(exportQuizToPortable(mixedDemoQuiz)) as unknown as { formatVersion: number; quiz: Record<string, unknown> & { questions: Array<Record<string, unknown>> } }
     raw.formatVersion = version
     delete raw.quiz.rounds
     if (version < 5) delete raw.quiz.soundPackId

@@ -28,6 +28,7 @@ import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
 import { ArrangementPrompt, ArrangementResult } from './ArrangementResult'
 import { ConnectionClues } from './ConnectionClues'
+import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
@@ -183,21 +184,21 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
           <div className="presentation-question__body">
             {question.type === 'connections' && <p className="eyebrow connection-intro-label">Find the connection</p>}
             <div className="presentation-question__copy" data-question-density={promptDensity}>{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
-            {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
+            {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} progressiveRevealEnabled={question.progressiveRevealEnabled} /></div>}
             {question.type === 'slider' && <SliderContext question={question} />}
             <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
           </div>
-          <footer className="presentation-question__footer"><SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} /></footer>
+          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} /><SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} /></footer>
         </div>
       )}
 
-      {state.phase === 'locked' && <div className="presentation-locked">{question && <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />}<div className="presentation-locked__mark" aria-hidden="true"><span>!</span></div><p className="eyebrow">Submissions closed</p><h1>Answers locked</h1><p>Ready for the reveal</p></div>}
+      {state.phase === 'locked' && <div className="presentation-locked">{question && <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />}<div className="presentation-locked__mark" aria-hidden="true"><span>!</span></div><p className="eyebrow">Submissions closed</p><h1>Answers locked</h1><p>Ready for the reveal</p>{question?.progressiveRevealEnabled && showMedia && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled compact={compact} allowEnlarge={false} />}</div>}
 
       {state.phase === 'reveal' && state.reveal && question && (
         <div className="presentation-reveal">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} showTimer={false} />
           <div className="presentation-reveal__copy" data-question-density={questionTextDensity(question.prompt, showMedia)}><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
-          {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
+          {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} progressiveRevealEnabled={question.progressiveRevealEnabled} revealed /></div>}
           <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
           {state.reveal.caption && <aside className="reveal-caption"><span>More to know</span><p>{state.reveal.caption}</p></aside>}
           {headToHead && <div className="presentation-reveal__head-to-head"><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>}
