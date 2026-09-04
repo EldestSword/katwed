@@ -82,6 +82,20 @@
 .final-podium li > span:last-child { font-weight: 900; }
 .final-podium .is-current { box-shadow: 0 0 0 4px var(--quiz-focus), var(--quiz-shadow); }
 
+/* Secondary to the podium; no entrance delay or additional animation. */
+.final-awards { width: min(100%, 70rem); min-width: 0; margin: .35rem 0 1rem; }
+.final-awards > h2 { margin: 0 0 .6rem; color: inherit; font: 800 .85rem var(--font-ui); letter-spacing: .12em; text-transform: uppercase; }
+.final-awards__cards { display: flex; justify-content: center; gap: .75rem; }
+.final-award { flex: 1 1 0; min-width: 0; max-width: 24rem; padding: .8rem 1rem; border: 1px solid var(--quiz-border); border-radius: var(--radius-md); color: var(--quiz-text); background: var(--quiz-leaderboard-surface); }
+.final-award h3 { display: flex; align-items: center; justify-content: center; gap: .45rem; margin: 0 0 .35rem; font: 800 clamp(.75rem, 1.1vw, 1rem) var(--font-ui); }
+.final-award h3 > span { color: var(--quiz-accent); font-size: 1.3em; }
+.final-award p { margin: .2rem 0 0; }
+.final-award__winner { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.1rem, 1.9vw, 1.75rem); line-height: 1.15; overflow-wrap: anywhere; }
+.final-award__metric, .final-award__ranks { font-size: clamp(.85rem, 1.25vw, 1.1rem); font-variant-numeric: tabular-nums; }
+.final-award.is-current { border-color: var(--quiz-focus); box-shadow: inset 0 0 0 1px var(--quiz-focus); }
+.final-results--player .final-awards__cards { flex-wrap: wrap; }
+.final-results--player .final-award { flex-basis: 12rem; max-width: none; }
+
 .head-to-head-final__competitors { width: min(92vw, 68rem); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(.8rem, 2vw, 1.5rem); }
 .head-to-head-final__competitors article { min-height: 15rem; padding: clamp(1rem, 3vw, 2.5rem); display: grid; place-items: center; align-content: center; gap: .65rem; border: 2px solid var(--quiz-border); border-radius: var(--radius-xl); color: var(--quiz-text); background: var(--quiz-leaderboard-surface); box-shadow: var(--quiz-shadow); }
 .head-to-head-final__competitors article.is-winner { border-color: var(--quiz-room-accent); background: var(--quiz-leaderboard-highlight); transform: translateY(-.5rem); }

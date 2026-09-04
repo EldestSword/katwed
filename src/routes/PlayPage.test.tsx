@@ -91,6 +91,31 @@ describe('PlayPage quiz background', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it('carries truthful final-award history to the player without extra repository work', async () => {
+    const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
+    const show = (phase: SafeGameState['phase'], number: number, entries = previousBoard) => mocks.useSafeGameState.mockReturnValue({
+      state: { ...standingsState(phase, entries, number), sessionId: player.sessionId, players: [player],
+        questionOpenedAt: '2026-09-04T10:00:00Z', leaderboard: entries.map((entry) => entry.playerId === 'jaki' ? { ...entry, playerId: player.id } : entry) },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    show('leaderboard', 1)
+    const view = render(page())
+    await screen.findByRole('heading', { name: 'Leaderboard' })
+    const presenceCalls = mocks.setPlayerPresence.mock.calls.length
+    show('question', 2, [])
+    view.rerender(page())
+    expect(screen.queryByRole('region', { name: 'Tonight’s awards' })).toBeNull()
+    show('finished', 5, currentBoard)
+    view.rerender(page())
+    const card = screen.getByRole('article', { name: 'Biggest Climber' })
+    expect(card).toHaveTextContent('3rd → 1st')
+    expect(card).toHaveClass('is-current')
+    expect(mocks.setPlayerPresence).toHaveBeenCalledTimes(presenceCalls)
+    expect(mocks.reconnectPlayer).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).not.toHaveBeenCalled()
+    expect(mocks.submitAnswer).not.toHaveBeenCalled()
+  })
+
   it('retains revealed leaderboard history for personal movement without extra repository work or hidden-phase scores', async () => {
     const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
     const stateFor = (phase: SafeGameState['phase'], entries = previousBoard, questionNumber = 1): SafeGameState => ({

@@ -1,16 +1,21 @@
 import { BrandBang } from '../../components/design-system/BrandBang'
 import { Leaderboard } from '../../components/Leaderboard'
 import type { HeadToHeadGameCompetitor, LeaderboardEntry } from '../../types/domain'
+import { calculateFinalAwards, type FinalAwardsBaseline } from './finalAwards'
+import { FinalAwardCards } from './FinalAwardCards'
 
 export function FinalResults({
   entries,
   currentPlayerId,
   variant,
+  awardsBaseline = null,
 }: {
   entries: LeaderboardEntry[]
   currentPlayerId?: string
   variant: 'player' | 'presentation'
+  awardsBaseline?: FinalAwardsBaseline | null
 }) {
+  const awards = calculateFinalAwards(entries, awardsBaseline)
   const podium = entries.filter((entry) => entry.rank <= 3)
   const remaining = entries.filter((entry) => entry.rank > 3)
   const winners = entries.filter((entry) => entry.rank === 1)
@@ -31,6 +36,7 @@ export function FinalResults({
           </li>
         ))}
       </ol>
+      <FinalAwardCards awards={awards} currentPlayerId={currentPlayerId} />
       {remaining.length > 0 && <Leaderboard entries={remaining} currentPlayerId={currentPlayerId} variant={variant} />}
     </div>
   )
