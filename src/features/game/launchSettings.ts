@@ -1,5 +1,6 @@
 import { orderedRounds } from '../quiz-editor/rounds'
 import { normalisePlayMode, normaliseTeamAssignment } from '../teams/teams'
+import { normaliseCompetitionMode, normaliseSurvivorStartingLives } from './survivor'
 import type {
   GameSessionSettings,
   LaunchGameSettings,
@@ -30,6 +31,8 @@ export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 't
 
 export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): LaunchGameSettings {
   return {
+    competitionMode: 'points',
+    survivorStartingLives: 3,
     playMode: 'individual',
     soundPackId: normaliseSoundPackId(quiz.soundPackId),
     shuffleQuestionOrder: false,
@@ -44,7 +47,10 @@ export function normaliseLaunchGameSettings(
   quiz: Pick<Quiz, 'soundPackId'>,
 ): LaunchGameSettings {
   const defaults = defaultLaunchGameSettings(quiz)
+  const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    competitionMode,
+    survivorStartingLives: normaliseSurvivorStartingLives(value?.survivorStartingLives),
     playMode: normalisePlayMode(value?.playMode),
     ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode), teamNames: (value.teamNames ?? ['Team 1', 'Team 2']).map((name) => name.trim()) } : {}),
     soundPackId: normaliseSoundPackId(value?.soundPackId ?? defaults.soundPackId),
@@ -80,7 +86,10 @@ export function normaliseGameSessionSettings(
 ): GameSessionSettings {
   const soundPackId = normaliseSoundPackId(value?.soundPackId ?? fallbackSoundPackId)
   const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
+  const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    competitionMode,
+    survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(value?.survivorStartingLives) : null,
     playMode: normalisePlayMode(value?.playMode),
     ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode) } : {}),
     soundPackId,

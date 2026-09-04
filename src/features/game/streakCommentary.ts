@@ -1,5 +1,6 @@
 import type { LeaderboardEntry, Player } from '../../types/domain'
 import { selectLeaderboardCommentary, type LeaderboardCommentary } from './leaderboardMovement'
+import type { SurvivorCommentary } from './survivorCommentary'
 
 export type StreakCommentary = { kind: 'streak'; playerId: string; streak: number; message: string }
 export const isStreakMilestone = (streak: number): boolean => Number.isInteger(streak) && (streak === 3 || streak >= 5 && streak % 5 === 0)
@@ -20,8 +21,11 @@ export function selectStreakMilestone(before: ReadonlyMap<string, number> | null
 }
 
 /** Keep existing movement detection intact; merge the two sources into one game-show beat. */
-export function selectLiveCommentary(previous: readonly LeaderboardEntry[] | null, current: readonly LeaderboardEntry[], streak: StreakCommentary | null): LeaderboardCommentary | null {
+export function selectLiveCommentary(previous: readonly LeaderboardEntry[] | null, current: readonly LeaderboardEntry[], streak: StreakCommentary | null,
+  survivor: SurvivorCommentary | null = null, survivorMode = false): LeaderboardCommentary | StreakCommentary | SurvivorCommentary | null {
+  if (survivor) return survivor
   const movement = selectLeaderboardCommentary(previous, current)
+  if (survivorMode && streak?.streak && streak.streak >= 5) return streak
   if (!streak || movement?.kind === 'new-leader' || movement?.kind === 'top-three') return movement
   if (streak.streak >= 5 || movement?.kind !== 'major-climb') return streak
   return movement

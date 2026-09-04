@@ -1,4 +1,5 @@
 import type { GameTeam, LaunchGameSettings, LeaderboardEntry, Player, QuizType, SafeGameState, SessionPlayMode, TeamAssignmentMode, TeamLeaderboardEntry } from '../../types/domain'
+import { isSurvivorGame, survivorStandings } from '../game/survivor'
 
 export const normalisePlayMode = (value: unknown): SessionPlayMode => value === 'teams' ? 'teams' : 'individual'
 export const normaliseTeamAssignment = (value: unknown): TeamAssignmentMode => value === 'host' || value === 'balanced-random' ? value : 'player-choice'
@@ -38,9 +39,12 @@ export function teamDisplayEntries(entries: readonly TeamLeaderboardEntry[]): Le
 }
 
 export function competitionState(state: SafeGameState | null): SafeGameState | null {
-  if (!state || !isTeamGame(state)) return state
-  return { ...state, sessionId: `${state.sessionId}:teams`, leaderboard: ['leaderboard', 'finished'].includes(state.phase)
+  if (!state) return state
+  if (isTeamGame(state)) return { ...state, sessionId: `${state.sessionId}:teams`, leaderboard: ['leaderboard', 'finished'].includes(state.phase)
     ? teamDisplayEntries(teamStandings(state.teams ?? [], state.players, state.leaderboard)) : [] }
+  if (isSurvivorGame(state)) return { ...state, sessionId: `${state.sessionId}:survivor`, leaderboard: ['leaderboard', 'finished'].includes(state.phase)
+    ? survivorStandings(state.players) : [] }
+  return state
 }
 
 export function smallestTeam(teams: readonly GameTeam[], players: readonly Pick<Player, 'teamId'>[], random = Math.random): string {

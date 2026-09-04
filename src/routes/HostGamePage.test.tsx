@@ -34,6 +34,7 @@ const session: GameSession = {
   questionClosesAt: '2026-08-26T12:01:00.000Z', startedAt: '2026-08-26T12:00:00.000Z',
   endedAt: null,
   settings: {
+    competitionMode: 'points', survivorStartingLives: null,
     soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
     shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
@@ -136,6 +137,42 @@ describe('HostGamePage Standard auto-lock', () => {
     renderController(state({ submittedCount: 2 }))
     await user.click(await screen.findByRole('button', { name: 'Close answers now' }))
     expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock')
+  })
+
+  it('uses only alive Survivor players for auto-lock and shows private life status', async () => {
+    const survivorPlayers = players.map((player, index) => ({
+      ...player, survivorLivesRemaining: index < 2 ? 1 : 0, survivorEliminatedAtQuestion: index < 2 ? null : 1,
+    }))
+    renderController(state({
+      players: survivorPlayers, submittedCount: 2, eligibleResponderCount: 2, survivorAliveCount: 2,
+      sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 1 },
+    }))
+    await waitFor(() => expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock'))
+    expect((await screen.findAllByText('OUT')).length).toBeGreaterThan(0)
+    expect(screen.getByText('Remaining').nextElementSibling).toHaveTextContent('2')
+  })
+
+  it('offers the final reveal instead of Next on a one-survivor terminal leaderboard', async () => {
+    const survivorPlayers = players.slice(0, 2).map((player, index) => ({
+      ...player, survivorLivesRemaining: index === 0 ? 1 : 0, survivorEliminatedAtQuestion: index === 0 ? null : 2,
+    }))
+    renderController(state({
+      phase: 'leaderboard', currentQuestion: { ...state().currentQuestion!, questionNumber: 1, totalQuestions: 3 },
+      players: survivorPlayers, submittedCount: 0, eligibleResponderCount: 1, survivorAliveCount: 1,
+      leaderboard: [], sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 1 },
+    }))
+    expect(await screen.findByRole('button', { name: 'Reveal final result' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Next question' })).toBeNull()
+  })
+
+  it('keeps Survivor early Finish available after Reveal so completed damage is included', async () => {
+    renderController(state({
+      phase: 'reveal', currentQuestion: { ...state().currentQuestion!, questionNumber: 1, totalQuestions: 3 },
+      sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 3 },
+      reveal: { type: 'true-false', correctValue: true, caption: '', counts: { true: 0, false: 0 } },
+    }))
+    expect(await screen.findByRole('button', { name: 'Show leaderboard' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Finish game' })).toBeEnabled()
   })
 
   it('shows the authoritative Buzz winner and lets the host reset only before an answer', async () => {

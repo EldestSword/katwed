@@ -11,6 +11,7 @@ import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPal
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { normaliseStreaks } from '../../features/game/streaks'
 import { buzzInValidation, normaliseBuzzState } from '../../features/game/buzz'
+import { eligibleResponderCount, isSurvivorSettings, normaliseSurvivorPlayer, survivorAliveCount, survivorPlayerStateIsValid } from '../../features/game/survivor'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -79,13 +80,26 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const round = value.currentRound
+  const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
+  const sessionSettings = normaliseGameSessionSettings(
+    rawSettings as Partial<SafeGameState['sessionSettings']>,
+    value.soundPackId,
+    typeof value.sessionId === 'string' ? value.sessionId : undefined,
+  )
+  const quizType = normaliseQuizType(value.quizType)
+  if (isSurvivorSettings(sessionSettings) && (quizType === 'head-to-head' || sessionSettings.playMode === 'teams')) {
+    throw new Error('The server returned an invalid Survivor session.')
+  }
   const withStreaks = (entry: unknown): Record<string, unknown> & { currentCorrectStreak: number; longestCorrectStreak: number } => {
     if (!isRecord(entry)) throw new Error('Invalid player statistics.')
     const streaks = normaliseStreaks(entry)
     if (value.quizType === 'head-to-head' && streaks.longestCorrectStreak !== 0) throw new Error('Head-to-Head does not track streaks.')
     return { ...entry, ...streaks }
   }
-  const players = value.players.map(withStreaks)
+  const players = value.players.map(withStreaks).map((player) => {
+    if (!survivorPlayerStateIsValid(player, sessionSettings)) throw new Error('The server returned invalid Survivor player state.')
+    return normaliseSurvivorPlayer(player as unknown as SafeGameState['players'][number], sessionSettings)
+  })
   const leaderboard = value.leaderboard.map(withStreaks)
   const teams = value.teams ?? []
   if (!Array.isArray(teams) || !teams.every((team): team is GameTeam => isGameTeam(team, value.sessionId)) ||
@@ -180,12 +194,19 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     Date.parse(buzz.claimedAt) < Date.parse(value.questionOpenedAt) ||
     Date.parse(buzz.answerDeadlineAt) > Date.parse(value.questionClosesAt))) throw new Error('Buzz state is outside the question window.')
   const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
-  const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
-  const sessionSettings = normaliseGameSessionSettings(
-    rawSettings as Partial<SafeGameState['sessionSettings']>,
-    value.soundPackId,
-    typeof value.sessionId === 'string' ? value.sessionId : undefined,
-  )
+  const aliveCount = isSurvivorSettings(sessionSettings) ? survivorAliveCount(players) : players.length
+  const expectedEligible = eligibleResponderCount({
+    buzz,
+    currentQuestion: isRecord(value.currentQuestion) ? value.currentQuestion as unknown as SafeGameState['currentQuestion'] : null,
+    players,
+    sessionSettings,
+  })
+  if (value.survivorAliveCount !== undefined && (!Number.isInteger(value.survivorAliveCount) || value.survivorAliveCount !== aliveCount)) {
+    throw new Error('The server returned an invalid Survivor alive count.')
+  }
+  if (value.eligibleResponderCount !== undefined && (!Number.isInteger(value.eligibleResponderCount) || value.eligibleResponderCount !== expectedEligible)) {
+    throw new Error('The server returned an invalid eligible responder count.')
+  }
   const questionPreludeKind = value.questionPreludeKind === 'double-score' || value.questionPreludeKind === 'question-type'
     ? value.questionPreludeKind
     : null
@@ -197,6 +218,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     ...answerPalette,
     players,
     leaderboard,
+    eligibleResponderCount: expectedEligible,
+    survivorAliveCount: aliveCount,
     teams,
     buzz,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
@@ -204,7 +227,7 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     sessionSettings,
     questionPreludeKind,
     doubleScoreVariantIndex,
-    quizType: normaliseQuizType(value.quizType),
+    quizType,
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],
     headToHeadResults: Array.isArray(value.headToHeadResults) ? value.headToHeadResults : [],

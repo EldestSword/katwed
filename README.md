@@ -163,6 +163,12 @@ Buzz-In is an optional Standard question modifier for every current type except 
 
 Migration `20260904181607_core_buzz_in.sql` adds the saved flag and one complete nullable claim tuple on the session row. The claim function verifies player identity, takes an exclusive session-row lock and rechecks the phase, modifier and deadlines before writing. A successful claim and host reset use the existing room and controller refresh topics; losing claims and ordinary answer bursts write and publish nothing. Player-safe state carries only winner ID and authoritative timestamps. The UI gates existing answer controls behind the claim, shows restrained shared-screen status and gives the controller winner/countdown/reset controls. Portable v12 stores only the authored flag. See [Buzz-In architecture and local verification](docs/buzz-in.md). The migration and frontend were not applied or deployed to production.
 
+### Core Survivor Mode (implemented locally, pending release)
+
+Any Standard quiz can launch as Points (the default) or individual-only Survivor with one or three starting lives. Fully correct ordinary answers are safe; wrong, partial and missing answers cost one life. Buzz-In questions are neutral for every player. Eliminated players remain connected as spectators but the server rejects future answers and Buzz claims. Scores remain unchanged and serve only as a late survival-standing tiebreaker.
+
+Migration `20260904203000_core_survivor_mode.sql` stores session mode and authoritative Player life state. A private, bounded history calculation finalises lives only at Leaderboard or final Results, and existing Typed Answer corrections can revive or re-eliminate a Player by recomputing history. Alive Players rank first by lives; eliminated Players rank by their actual elimination question before score, correct count, response time and stable name/ID fallbacks. A terminal board with one survivor or a total wipeout requires the host to reveal the final result. The feature adds no quiz-format field, score change, Realtime channel, subscription, polling increase or Player broadcast. Portable format remains v12. See [Survivor Mode architecture and focused verification](docs/survivor-mode.md). The migration and frontend have not been applied or deployed to production.
+
 ### Typed Answer and deterministic tile reveal
 
 Typed Answer uses one primary answer plus up to 19 optional alternatives. Matching applies Unicode NFKC normalisation, lower-casing and removal of every non-letter/non-number character, then requires an exact match. It is intentionally not fuzzy. The player submits a trimmed answer of at most 120 characters; PostgreSQL repeats validation and authoritative scoring for Standard and Head-to-Head games. Only the primary answer is revealed, while alternatives remain secret answer-key data.
@@ -529,6 +535,7 @@ Pending, deliberately unapplied migrations:
 20260904141715_wagers.sql
 20260904151357_correct_answer_streaks.sql
 20260904181607_core_buzz_in.sql
+20260904203000_core_survivor_mode.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

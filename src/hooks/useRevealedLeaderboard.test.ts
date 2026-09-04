@@ -69,6 +69,19 @@ describe('revealed leaderboard memory', () => {
     expect(result.current.reveal?.entries).toEqual(currentBoard)
   })
 
+  it('observes a Survivor life-only correction on the same revealed board', () => {
+    const initial = previousBoard.map((entry) => ({ ...entry, survivorLivesRemaining: 2, survivorEliminatedAtQuestion: null }))
+    const corrected = initial.map((entry, index) => index === 0
+      ? { ...entry, survivorLivesRemaining: 1, survivorEliminatedAtQuestion: null }
+      : entry)
+    const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: standingsState('leaderboard', initial) })
+    const first = result.current.reveal
+    rerender(standingsState('leaderboard', corrected))
+    expect(result.current.reveal).not.toBe(first)
+    expect(result.current.reveal?.entries[0].survivorLivesRemaining).toBe(1)
+    expect(result.current.reveal?.previous).toBeNull()
+  })
+
   it.each(['lobby', 'finished'] as const)('clears the baseline on %s so a restart cannot compare with the old game', (phase) => {
     const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: standingsState('leaderboard') })
     rerender(standingsState(phase))

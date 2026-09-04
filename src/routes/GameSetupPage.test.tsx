@@ -19,6 +19,7 @@ const session: GameSession = {
   id: 'session-new', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'lobby',
   currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null, startedAt: null, endedAt: null,
   settings: {
+    competitionMode: 'points', survivorStartingLives: null,
     soundPackId: 'none', doubleScoreIntroMs: 5000, shuffleQuestionOrder: true,
     shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, showPlayerAnswersToHost: false,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'answer-seed',
@@ -72,6 +73,8 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
+      competitionMode: 'points',
+      survivorStartingLives: 3,
       playMode: 'individual',
       soundPackId: 'none',
       shuffleQuestionOrder: true,
@@ -87,6 +90,21 @@ describe('GameSetupPage', () => {
     renderSetup()
     expect(await screen.findByRole('heading', { name: 'Controller session-existing' })).toBeVisible()
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
+  })
+
+  it('defaults to Points and launches an individual one-life Survivor without allowing Teams', async () => {
+    const user = userEvent.setup()
+    renderSetup()
+    expect(await screen.findByRole('button', { name: 'Points' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Survivor' }))
+    expect(screen.getByRole('button', { name: '3 lives' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Teams' })).toBeDisabled()
+    expect(screen.getByText('Survivor V1 is for individual play.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '1 life' }))
+    await user.click(screen.getByRole('button', { name: 'Start lobby' }))
+    expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, expect.objectContaining({
+      competitionMode: 'survivor', survivorStartingLives: 1, playMode: 'individual',
+    }))
   })
 
   it('shows and safely selects every newly imported sound pack', async () => {
@@ -127,5 +145,6 @@ describe('GameSetupPage', () => {
     expect(document.querySelector('.game-setup-summary__cover img')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /Auto-close answers/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Teams' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Survivor' })).not.toBeInTheDocument()
   })
 })

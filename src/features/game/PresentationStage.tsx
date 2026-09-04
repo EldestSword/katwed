@@ -15,6 +15,9 @@ import { useFinalAwardsHistory } from '../../hooks/useFinalAwardsHistory'
 import { competitionState, isTeamGame } from '../teams/teams'
 import { TeamLobby } from '../teams/TeamLobby'
 import { TeamFinalResults } from '../teams/TeamFinalResults'
+import { isSurvivorGame, survivorAliveCount } from './survivor'
+import { useSurvivorHistory } from '../../hooks/useSurvivorHistory'
+import { SurvivorFinalResults } from './SurvivorFinalResults'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
@@ -138,9 +141,11 @@ function StageHeader({ question, compact, remaining, headToHead, showTimer = tru
 
 export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
   const teamMode = isTeamGame(state)
+  const survivorMode = isSurvivorGame(state)
   const leaderboard = useRevealedLeaderboard(competitionState(state))
   const streakEvent = useStreakCommentary(state)
-  const awardsBaseline = useFinalAwardsHistory(teamMode ? null : state)
+  const survivorEvent = useSurvivorHistory(state)
+  const awardsBaseline = useFinalAwardsHistory(teamMode || survivorMode ? null : state)
   const remaining = useCountdown(state.questionClosesAt)
   const buzzRemaining = useCountdown(state.buzz?.answerDeadlineAt ?? null)
   const question = state.currentQuestion
@@ -157,14 +162,15 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const buzzWinner = state.buzz ? state.players.find(player => player.id === state.buzz?.winnerPlayerId) : undefined
   const buzzTeam = buzzWinner?.teamId ? state.teams?.find(team => team.id === buzzWinner.teamId) : undefined
   const buzzWinnerLabel = buzzWinner ? `${buzzWinner.nickname}${buzzTeam ? ` · ${buzzTeam.name}` : ''}` : 'A player'
+  const aliveCount = survivorMode ? survivorAliveCount(state.players) : state.players.length
 
   return (
     <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live={state.phase === 'leaderboard' ? 'off' : 'polite'}>
       {state.phase === 'lobby' && (
         <div className={`presentation-lobby ${headToHead ? 'presentation-lobby--head-to-head' : ''}`}>
-          <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">Lobby</GameBadge></header>
+          <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">{survivorMode ? 'Survivor' : 'Lobby'}</GameBadge></header>
           <div className="presentation-lobby__join">
-            <p className="eyebrow">The show is about to start</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
+            <p className="eyebrow">{survivorMode ? `${state.sessionSettings?.survivorStartingLives ?? 3} lives each` : 'The show is about to start'}</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
             <strong className="presentation-room-code" aria-label={`Room code ${state.roomCode}`}>{state.roomCode}</strong>
             <div className="presentation-lobby__join-tools"><div className="presentation-qr-panel"><QRCodeSVG value={joinUrl} size={compact ? 92 : 300} level="M" bgColor="#ffffff" fgColor="#111827" title="QR code for joining this Katwed room" /></div><p>Scan or visit<br /><strong>{window.location.host}</strong></p></div>
           </div>
@@ -182,12 +188,13 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'round-intro' && state.currentRound && <div className="presentation-round-intro"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p className="presentation-round-intro__subtitle">{state.currentRound.subtitle}</p>}<span>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</span></div>}
+      {state.phase === 'round-intro' && state.currentRound && <div className="presentation-round-intro"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p className="presentation-round-intro__subtitle">{state.currentRound.subtitle}</p>}<span>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</span>{survivorMode && <strong>{aliveCount} {aliveCount === 1 ? 'player' : 'players'} remaining</strong>}</div>}
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro compact={compact} questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
       {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} compact={compact} />}
       {state.phase === 'question' && question && !activePrelude && (
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
+          {survivorMode && <p className="presentation-survivor-count">{aliveCount} {aliveCount === 1 ? 'PLAYER' : 'PLAYERS'} REMAINING</p>}
           {question.buzzInEnabled && <div className={`presentation-buzz ${state.buzz ? 'is-won' : 'is-open'}`}>{state.buzz ? <><strong>{buzzWinnerLabel} buzzed first!</strong><span aria-hidden="true">{buzzRemaining > 0 ? `${buzzRemaining} seconds to answer` : 'Answer window closed'}</span><span className="sr-only" role="status">{buzzWinnerLabel} buzzed first. {buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.'}</span></> : <strong>Buzzers open</strong>}</div>}
           <div className="presentation-question__body">
             {question.type === 'connections' && <p className="eyebrow connection-intro-label">Find the connection</p>}
@@ -196,7 +203,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
             {question.type === 'slider' && <SliderContext question={question} />}
             <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
           </div>
-          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} />{question.buzzInEnabled ? state.buzz && <SubmissionStatus submitted={state.submittedCount} total={1} label="eligible answer" /> : <SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} />}</footer>
+          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} />{question.buzzInEnabled ? state.buzz && <SubmissionStatus submitted={state.submittedCount} total={1} label="eligible answer" /> : <SubmissionStatus submitted={state.submittedCount} total={state.eligibleResponderCount ?? state.players.length} label={headToHead ? 'responses resolved' : 'answered'} />}</footer>
         </div>
       )}
 
@@ -214,8 +221,8 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
-      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} streakEvent={streakEvent} players={teamMode ? undefined : state.players} /></div>}
-      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">{survivorMode ? 'Survival standings' : 'Current standings'}</p><h1>{survivorMode && aliveCount === 0 ? 'TOTAL WIPEOUT' : survivorMode && aliveCount === 1 ? 'LAST PLAYER STANDING' : 'Leaderboard'}</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} streakEvent={streakEvent} survivorEvent={survivorEvent} survivorMode={survivorMode} players={teamMode ? undefined : state.players} /></div>}
+      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : survivorMode ? <SurvivorFinalResults players={state.players} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
     </section>
   )
 }

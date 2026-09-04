@@ -57,6 +57,7 @@ describe('PresentationStage quiz theme', () => {
     const introState: SafeGameState = {
       ...state('question'), quizType: 'standard', questionPreludeKind: 'double-score',
       sessionSettings: {
+        competitionMode: 'points', survivorStartingLives: null,
         soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
         shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
         questionTypeIntrosEnabled: true, answerOptionSeed: 'session',

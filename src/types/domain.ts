@@ -43,8 +43,12 @@ export const QUIZ_THEME_IDS = [
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 export type SoundPackId = string
 export type QuestionPreludeKind = 'double-score' | 'question-type' | null
+export type CompetitionMode = 'points' | 'survivor'
+export type SurvivorStartingLives = 1 | 3
 
 export interface LaunchGameSettings {
+  competitionMode?: CompetitionMode
+  survivorStartingLives?: SurvivorStartingLives
   playMode?: SessionPlayMode
   teamAssignmentMode?: TeamAssignmentMode
   /** Launch-only names; GameTeam records are canonical after launch. */
@@ -57,7 +61,9 @@ export interface LaunchGameSettings {
   showPlayerAnswersToHost: boolean
 }
 
-export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames'> {
+export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames' | 'competitionMode' | 'survivorStartingLives'> {
+  competitionMode: CompetitionMode
+  survivorStartingLives: SurvivorStartingLives | null
   doubleScoreIntroMs: number
   doubleScoreVariantDurationsMs?: number[]
   questionTypeIntrosEnabled: boolean
@@ -400,6 +406,9 @@ export interface Quiz {
 }
 
 export interface Player {
+  /** Session-only Survivor state. Missing legacy values mean Points mode defaults. */
+  survivorLivesRemaining?: number
+  survivorEliminatedAtQuestion?: number | null
   /** Missing in legacy clients; repository boundaries normalise both statistics to zero. */
   currentCorrectStreak?: number
   longestCorrectStreak?: number
@@ -470,6 +479,9 @@ export interface GameSession {
 }
 
 export interface LeaderboardEntry {
+  /** Present on Survivor display rows only. */
+  survivorLivesRemaining?: number
+  survivorEliminatedAtQuestion?: number | null
   /** Individual statistics only; Team adapters deliberately omit them. */
   currentCorrectStreak?: number
   longestCorrectStreak?: number
@@ -507,6 +519,8 @@ export interface SafeGameState {
   headToHeadResolutions?: HeadToHeadResolution[]
   headToHeadResults?: HeadToHeadResult[]
   submittedCount: number
+  eligibleResponderCount?: number
+  survivorAliveCount?: number
   leaderboard: LeaderboardEntry[]
   reveal: RevealPayload | null
   questionOpenedAt: string | null
@@ -545,6 +559,8 @@ export interface HeadToHeadJoinSlot {
 }
 
 export interface RoomJoinInfo {
+  competitionMode?: CompetitionMode
+  survivorStartingLives?: SurvivorStartingLives | null
   playMode?: SessionPlayMode
   teamAssignmentMode?: TeamAssignmentMode
   teams?: Array<GameTeam & { memberCount: number }>

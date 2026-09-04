@@ -1,13 +1,15 @@
 import type { Ref } from 'react'
 import type { LeaderboardEntry } from '../types/domain'
 import { StreakBadge } from '../features/game/StreakBadge'
+import { survivorStatusLabel } from '../features/game/survivor'
 
-export function LeaderboardRow({ entry, currentPlayerId, visual, movement, emphasised, rowRef, showStreak = false }: {
+export function LeaderboardRow({ entry, currentPlayerId, visual, movement, emphasised, newlyEliminated, rowRef, showStreak = false }: {
   entry: LeaderboardEntry
   currentPlayerId?: string
   visual?: { score: number; rank: number; layoutRank: number }
   movement?: number
   emphasised?: boolean
+  newlyEliminated?: boolean
   rowRef?: Ref<HTMLLIElement>
   showStreak?: boolean
 }) {
@@ -16,10 +18,11 @@ export function LeaderboardRow({ entry, currentPlayerId, visual, movement, empha
   const points = `${score.toLocaleString('en-GB')} ${score === 1 ? 'point' : 'points'}`
   return (
     <li ref={rowRef} data-player-id={entry.playerId} data-rank={entry.rank}
-      className={`leaderboard__entry ${(visual?.layoutRank ?? entry.rank) <= 3 ? 'is-top-rank' : ''} ${entry.playerId === currentPlayerId ? 'is-current' : ''} ${emphasised ? 'is-moving-highlight' : ''}`.trim()}>
+      className={`leaderboard__entry ${(visual?.layoutRank ?? entry.rank) <= 3 ? 'is-top-rank' : ''} ${entry.playerId === currentPlayerId ? 'is-current' : ''} ${emphasised ? 'is-moving-highlight' : ''} ${(entry.survivorLivesRemaining ?? 1) <= 0 ? 'is-eliminated' : ''} ${newlyEliminated ? 'is-newly-eliminated' : ''}`.trim()}>
       <span className="leaderboard__rank">{visual ? <><span aria-hidden="true">{rank}</span><span className="sr-only">{entry.rank}</span></> : rank}</span>
       <strong className="leaderboard__name">{entry.nickname}{showStreak && <StreakBadge streak={entry.currentCorrectStreak} />}</strong>
       <span className="leaderboard__points">
+        {entry.survivorLivesRemaining !== undefined && <strong className="leaderboard__survival">{survivorStatusLabel(entry)}</strong>}
         {visual ? <><span aria-hidden="true">{points}</span><span className="sr-only">{entry.totalScore.toLocaleString('en-GB')} {entry.totalScore === 1 ? 'point' : 'points'}</span></> : points}
         {Boolean(movement) && <span className="leaderboard__movement" data-direction={movement! > 0 ? 'up' : 'down'}>
           <span aria-hidden="true">{movement! > 0 ? '↑' : '↓'} {Math.abs(movement!)}</span>

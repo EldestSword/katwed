@@ -8,6 +8,7 @@ import { hostResponseRecordForAnswer } from './hostResponses'
 
 const question = mixedDemoQuiz.questions.find((candidate) => candidate.type === 'typed-answer')!
 const settings: GameSessionSettings = {
+  competitionMode: 'points', survivorStartingLives: null,
   soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
   shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
   questionTypeIntrosEnabled: true, answerOptionSeed: 'seed',

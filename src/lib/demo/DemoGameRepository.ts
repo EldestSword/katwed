@@ -58,6 +58,14 @@ import {
 import { HOST_RESPONSE_DETAIL_LIMIT, hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 import { BUZZ_ANSWER_WINDOW_SECONDS, canUseBuzzIn } from '../../features/game/buzz'
 import type { BuzzClaimResult } from '../../types/domain'
+import {
+  isSurvivorSettings,
+  normaliseSurvivorPlayer,
+  recomputeSurvivorPlayers,
+  survivorAliveCount,
+  survivorStandings,
+  validateSurvivorLaunch,
+} from '../../features/game/survivor'
 
 interface DemoHeadToHeadSkip {
   sessionId: string
@@ -157,7 +165,7 @@ function normaliseState(state: DemoState): DemoState {
         ...session,
         buzz: session.buzz ?? null,
         teams: session.teams ?? [],
-        players: session.players.map((player) => ({ ...player, ...normaliseStreaks(player), teamId: player.teamId ?? null })),
+        players: session.players.map((player) => normaliseSurvivorPlayer({ ...player, ...normaliseStreaks(player), teamId: player.teamId ?? null }, settings)),
         settings,
         currentRoundId: session.currentRoundId ?? orderedSessionQuestions(quiz.questions, questionOrder)[session.currentQuestionIndex]?.roundId ?? quiz.rounds[0].id,
         questionOrder,
@@ -572,6 +580,8 @@ export class DemoGameRepository implements GameRepository {
       if (quiz.archivedAt !== null) throw new RepositoryError('database', 'Restore this quiz before launching it.')
       const teamError = validateTeamLaunch(launchSettings, quiz.quizType)
       if (teamError) throw new RepositoryError('invalid-selection', teamError)
+      const survivorError = validateSurvivorLaunch(launchSettings, quiz.quizType)
+      if (survivorError) throw new RepositoryError('invalid-selection', survivorError)
       if (quiz.quizType === 'head-to-head') {
         if (quiz.questions.some(question => question.buzzInEnabled)) throw new RepositoryError('invalid-selection', 'Buzz-In is Standard-only.')
         if (quiz.questions.some(question => question.wagerEnabled)) throw new RepositoryError('invalid-selection', 'Wager is Standard-only.')
@@ -657,6 +667,8 @@ export class DemoGameRepository implements GameRepository {
       quizType: quiz.quizType,
       status: session.status,
       playMode: session.settings.playMode ?? 'individual',
+      competitionMode: session.settings.competitionMode,
+      survivorStartingLives: session.settings.survivorStartingLives,
       teamAssignmentMode: session.settings.teamAssignmentMode,
       teams: (session.teams ?? []).map((team) => ({ ...team, memberCount: session.players.filter((player) => player.teamId === team.id).length })),
       phase: session.phase,
@@ -702,6 +714,8 @@ export class DemoGameRepository implements GameRepository {
       )) throw new RepositoryError('duplicate-nickname', 'That nickname is already in this game.')
       const player: Player = {
         currentCorrectStreak: 0, longestCorrectStreak: 0,
+        survivorLivesRemaining: isSurvivorSettings(session.settings) ? session.settings.survivorStartingLives ?? 3 : 0,
+        survivorEliminatedAtQuestion: null,
         id: uid('player'),
         sessionId: session.id,
         nickname,
@@ -741,6 +755,8 @@ export class DemoGameRepository implements GameRepository {
       }
       const player: Player = {
         currentCorrectStreak: 0, longestCorrectStreak: 0,
+        survivorLivesRemaining: 0,
+        survivorEliminatedAtQuestion: null,
         id: uid('player'),
         sessionId: session.id,
         nickname: competitor.displayName,
@@ -879,7 +895,11 @@ export class DemoGameRepository implements GameRepository {
         }
       }) : [],
       submittedCount: currentAnswers.length + (question ? state.headToHeadSkips.filter((skip) => skip.sessionId === session.id && skip.questionId === question.id).length : 0),
-      leaderboard: !headToHead && scoresVisible ? sortLeaderboard(session.players) : [],
+      eligibleResponderCount: question?.buzzInEnabled ? (session.buzz ? 1 : 0) : isSurvivorSettings(session.settings) ? survivorAliveCount(session.players) : session.players.length,
+      survivorAliveCount: isSurvivorSettings(session.settings) ? survivorAliveCount(session.players) : session.players.length,
+      leaderboard: !headToHead && scoresVisible
+        ? (isSurvivorSettings(session.settings) ? survivorStandings(session.players) : sortLeaderboard(session.players))
+        : [],
       reveal: mayReveal && question ? revealFor(question, currentAnswers, quiz) : null,
       questionOpenedAt: session.questionOpenedAt,
       questionClosesAt: session.questionClosesAt,
@@ -906,6 +926,9 @@ export class DemoGameRepository implements GameRepository {
         ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]
         : undefined
       if (!quiz || !question) throw new RepositoryError('database', 'The current question could not be loaded.')
+      if (isSurvivorSettings(session.settings) && (player.survivorLivesRemaining ?? 0) <= 0) {
+        throw new RepositoryError('invalid-player', 'Eliminated players can only spectate.')
+      }
       const submittedAt = Date.now()
       const authoritativeOpenedAt = session.questionOpenedAt ? new Date(session.questionOpenedAt).getTime() : 0
       if (!authoritativeOpenedAt || submittedAt < authoritativeOpenedAt) {
@@ -984,6 +1007,7 @@ export class DemoGameRepository implements GameRepository {
       const question = session && quiz ? orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex] : undefined
       if (!session || !quiz || !question || quiz.quizType !== 'standard') throw new RepositoryError('invalid-room', 'This Buzz-In room is not active.')
       if (!player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      if (isSurvivorSettings(session.settings) && (player.survivorLivesRemaining ?? 0) <= 0) throw new RepositoryError('invalid-player', 'Eliminated players cannot claim the Buzz.')
       if (session.phase !== 'question' || !question.buzzInEnabled || !canUseBuzzIn(question, quiz.quizType)) throw new RepositoryError('invalid-phase', 'Buzzers are not open for this question.')
       const now = Date.now(), openedAt = Date.parse(session.questionOpenedAt ?? ''), closesAt = Date.parse(session.questionClosesAt ?? '')
       if (!Number.isFinite(openedAt) || !Number.isFinite(closesAt) || now < openedAt || now >= closesAt) throw new RepositoryError('late-submission', 'Buzzers are closed for this question.')
@@ -1073,6 +1097,12 @@ export class DemoGameRepository implements GameRepository {
         const revised = recomputePlayerStreaks([player], session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))[0]
         player.currentCorrectStreak = revised.currentCorrectStreak
         player.longestCorrectStreak = revised.longestCorrectStreak
+        if (isSurvivorSettings(session.settings)) {
+          const survivor = recomputeSurvivorPlayers([player], session.answers, quiz.questions, session.questionOrder,
+            session.currentQuestionIndex + 1, session.settings.survivorStartingLives ?? 3)[0]
+          player.survivorLivesRemaining = survivor.survivorLivesRemaining
+          player.survivorEliminatedAtQuestion = survivor.survivorEliminatedAtQuestion
+        }
       }
       this.write(state, true, session.id)
     })
@@ -1145,6 +1175,14 @@ export class DemoGameRepository implements GameRepository {
       }
       const now = new Date()
       const orderedQuestions = orderedSessionQuestions(quiz.questions, session.questionOrder)
+      const finaliseCompletedQuestions = (completedQuestionCount: number): void => {
+        session.players = recomputePlayerStreaks(session.players, session.answers,
+          session.questionOrder.slice(0, completedQuestionCount), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))
+        if (isSurvivorSettings(session.settings)) {
+          session.players = recomputeSurvivorPlayers(session.players, session.answers, quiz.questions, session.questionOrder,
+            completedQuestionCount, session.settings.survivorStartingLives ?? 3)
+        }
+      }
       const openCurrentQuestion = (allowIntro = false): void => {
         session.connectionClueCount = 0
         session.buzz = null
@@ -1197,10 +1235,13 @@ export class DemoGameRepository implements GameRepository {
             throw new RepositoryError('invalid-phase', 'Reveal the final results instead.')
           }
           session.phase = 'leaderboard'
-          session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))
+          finaliseCompletedQuestions(session.currentQuestionIndex + 1)
           break
         case 'next':
           if (session.phase !== 'leaderboard') throw new RepositoryError('invalid-phase', 'Show the leaderboard first.')
+          if (isSurvivorSettings(session.settings) && survivorAliveCount(session.players) <= 1) {
+            throw new RepositoryError('invalid-phase', 'Reveal the final result before continuing.')
+          }
           if (session.currentQuestionIndex + 1 >= orderedQuestions.length) {
             throw new RepositoryError('invalid-phase', 'There is no next question.')
           }
@@ -1211,11 +1252,21 @@ export class DemoGameRepository implements GameRepository {
           if (session.phase === 'question' && session.questionOpenedAt && now.getTime() < new Date(session.questionOpenedAt).getTime()) {
             throw new RepositoryError('invalid-phase', 'Wait for the Double Score intro to finish.')
           }
-          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < orderedQuestions.length) {
+          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 < orderedQuestions.length && !isSurvivorSettings(session.settings)) {
             throw new RepositoryError('invalid-phase', 'Show the leaderboard before continuing.')
           }
-          if (session.phase === 'reveal' && session.currentQuestionIndex + 1 >= orderedQuestions.length) {
-            session.players = recomputePlayerStreaks(session.players, session.answers, session.questionOrder.slice(0, session.currentQuestionIndex + 1), new Set(quiz.questions.filter(question => question.buzzInEnabled).map(question => question.id)))
+          if (session.phase === 'reveal') {
+            finaliseCompletedQuestions(session.currentQuestionIndex + 1)
+            session.phase = 'finished'
+            session.endedAt = now.toISOString()
+            session.questionClosesAt = now.toISOString()
+            session.buzz = null
+            break
+          }
+          if (session.phase === 'leaderboard') {
+            if (!isSurvivorSettings(session.settings) || survivorAliveCount(session.players) > 1) {
+              throw new RepositoryError('invalid-phase', 'The Survivor game is not ready for its final result.')
+            }
             session.phase = 'finished'
             session.endedAt = now.toISOString()
             session.questionClosesAt = now.toISOString()
@@ -1250,6 +1301,8 @@ export class DemoGameRepository implements GameRepository {
             player.totalCorrectResponseMs = 0
             player.currentCorrectStreak = 0
             player.longestCorrectStreak = 0
+            player.survivorLivesRemaining = isSurvivorSettings(session.settings) ? session.settings.survivorStartingLives ?? 3 : 0
+            player.survivorEliminatedAtQuestion = null
           })
           break
         case 'close':

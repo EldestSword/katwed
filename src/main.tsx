@@ -20,6 +20,7 @@ import './styles/arrangement.css'
 import './styles/connections.css'
 import './styles/progressive-reveal.css'
 import './styles/buzz.css'
+import './styles/survivor.css'
 
 const router = createBrowserRouter([
   {

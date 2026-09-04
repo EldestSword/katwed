@@ -1,0 +1,39 @@
+.survivor-setup { margin: 0 0 1.2rem; padding: 0 0 1.2rem; border: 0; border-bottom: 1px solid var(--host-line); }
+.survivor-setup > legend { font-weight: 900; }
+.survivor-setup > p, .survivor-lives-choice > p, .setting-guidance { color: var(--host-muted); }
+.survivor-lives-choice { margin-top: 1rem; padding: 1rem; border-radius: 11px; background: var(--host-accent-soft); }
+.survivor-lives-choice h3, .survivor-lives-choice p { margin: 0 0 .55rem; }
+.survivor-life-chip { min-width: 5.5rem; padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--quiz-accent) 55%, transparent); border-radius: 999px; text-align: center; }
+.survivor-life-chip strong { display: block; color: var(--quiz-accent); }
+.survivor-life-chip.is-out strong { color: var(--quiz-danger, #b42318); }
+.survivor-lobby-copy { display: grid; gap: .35rem; margin: .75rem auto; }
+.survivor-lobby-copy strong { font-family: var(--font-display); font-size: clamp(1.6rem, 7vw, 2.6rem); color: var(--quiz-accent); }
+.survivor-lobby-copy p, .survivor-round-status { margin: 0; }
+.survivor-spectator { text-align: center; }
+.survivor-spectator > .eyebrow { color: var(--quiz-danger, #b42318); }
+.survivor-spectator h2 { overflow-wrap: anywhere; }
+.presentation-survivor-count { width: fit-content; margin: .25rem auto; padding: .3rem .75rem; border-radius: 999px; background: color-mix(in srgb, var(--quiz-accent) 18%, transparent); font-weight: 900; letter-spacing: .06em; }
+.leaderboard__points:has(.leaderboard__survival) { display: grid; justify-items: end; line-height: 1.15; }
+.leaderboard__survival { color: var(--quiz-accent); font-size: .82em; letter-spacing: .035em; }
+.leaderboard__entry.is-eliminated { opacity: .68; }
+.leaderboard__entry.is-eliminated .leaderboard__survival { color: var(--quiz-danger, #b42318); }
+.leaderboard__entry.is-newly-eliminated { opacity: 1; box-shadow: inset 4px 0 0 var(--quiz-danger, #b42318); }
+.player-survivor-result { display: grid; gap: .2rem; margin: 0 0 .8rem; padding: .85rem; border-radius: var(--radius-card); background: color-mix(in srgb, var(--quiz-accent) 14%, transparent); text-align: center; }
+.player-survivor-result strong { font-family: var(--font-display); font-size: 1.35rem; }
+.player-survivor-result.is-out { background: color-mix(in srgb, var(--quiz-danger, #b42318) 12%, transparent); }
+.survivor-final__winner { margin: .1rem 0 .65rem; font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 3rem); font-weight: 900; }
+.survivor-final .final-podium li > span:last-child { display: block; }
+.presentation-stage--compact .presentation-survivor-count { margin: .1rem auto; padding: .1rem .4rem; font-size: .48rem; }
+.presentation-stage--compact .leaderboard__survival { font-size: .62rem; }
+.presentation-stage--compact .survivor-final__winner { font-size: 1rem; }
+
+@media (max-width: 480px) {
+  .game-bar { flex-wrap: wrap; }
+  .survivor-life-chip { max-width: 100%; }
+  .leaderboard__points:has(.leaderboard__survival) { white-space: normal; }
+  .leaderboard__survival { font-size: .72rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard__entry.is-newly-eliminated { transition: none; }
+}

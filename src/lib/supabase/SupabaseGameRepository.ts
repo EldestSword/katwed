@@ -30,6 +30,7 @@ import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
 import { normaliseStreaks } from '../../features/game/streaks'
 import { normaliseBuzzState } from '../../features/game/buzz'
 import type { BuzzClaimResult } from '../../types/domain'
+import { normaliseCompetitionMode, normaliseSurvivorPlayer, normaliseSurvivorStartingLives } from '../../features/game/survivor'
 
 type JsonObject = Record<string, unknown>
 
@@ -84,16 +85,17 @@ function normaliseGameSession(
       typeof (response as { submittedAt?: unknown }).submittedAt === 'string'
     ))
     : answers.map(hostResponseRecordForAnswer)
+  const settings = normaliseGameSessionSettings(
+    raw.settings ?? fallbackSettings,
+    fallbackSettings?.soundPackId ?? fallbackSoundPackId,
+    session.id,
+  )
   return {
     ...session,
     buzz: normaliseBuzzState(session.buzz),
-    players: session.players.map(player => ({ ...player, ...normaliseStreaks(player) })),
+    players: session.players.map(player => normaliseSurvivorPlayer({ ...player, ...normaliseStreaks(player) }, settings)),
     currentRoundId: session.currentRoundId ?? null,
-    settings: normaliseGameSessionSettings(
-      raw.settings ?? fallbackSettings,
-      fallbackSettings?.soundPackId ?? fallbackSoundPackId,
-      session.id,
-    ),
+    settings,
     questionOrder: Array.isArray(raw.questionOrder)
       ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
       : [],
@@ -208,7 +210,11 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null> {
-    return this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
+    const result = await this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
+    if (!result) return null
+    const competitionMode = normaliseCompetitionMode(result.competitionMode)
+    return { ...result, competitionMode,
+      survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(result.survivorStartingLives) : null }
   }
 
   async joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult> {

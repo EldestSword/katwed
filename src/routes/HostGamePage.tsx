@@ -20,6 +20,7 @@ import { createRefreshScheduler, type RefreshScheduler } from '../services/refre
 import { liveViewPollInterval } from '../features/game/liveRefreshPolicy'
 import { TeamLobby } from '../features/teams/TeamLobby'
 import { isTeamGame } from '../features/teams/teams'
+import { isSurvivorGame, isTerminalSurvivor, survivorAliveCount } from '../features/game/survivor'
 
 type HostAction = 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close' | 'clue' | 'reset-buzz'
 
@@ -136,13 +137,13 @@ export function HostGamePage() {
       joinedPlayerCount: state.players.length,
       deadlineReached: remaining === 0 && deadlineReached,
       autoLockWhenAllAnswered: state.sessionSettings?.autoLockWhenAllAnswered ?? true,
-      eligibleResponderCount: state.currentQuestion?.buzzInEnabled ? (state.buzz ? 1 : 0) : undefined,
+      eligibleResponderCount: state.eligibleResponderCount,
     }) && autoLockAttempt.current !== questionId) {
       if (activePrelude) return
       autoLockAttempt.current = questionId
       void action('lock')
     }
-  }, [action, activePrelude, remaining, state?.buzz, state?.currentQuestion?.buzzInEnabled, state?.currentQuestion?.id, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.sessionSettings?.autoLockWhenAllAnswered, state?.submittedCount])
+  }, [action, activePrelude, remaining, state?.currentQuestion?.id, state?.eligibleResponderCount, state?.phase, state?.players.length, state?.questionClosesAt, state?.quizType, state?.sessionSettings?.autoLockWhenAllAnswered, state?.submittedCount])
 
   if (loading) return <LoadingScreen message="Preparing the game controller…" />
   if (!session || !quiz || !state) {
@@ -161,6 +162,9 @@ export function HostGamePage() {
   const headToHead = state.quizType === 'head-to-head'
   const run = (kind: HostAction) => void action(kind)
   const teamMode = isTeamGame(state)
+  const survivorMode = isSurvivorGame(state)
+  const terminalSurvivor = isTerminalSurvivor(state)
+  const aliveCount = survivorMode ? survivorAliveCount(state.players) : state.players.length
   const unassigned = teamMode && state.players.some((player) => !player.teamId)
   const buzzWinner = state.buzz ? state.players.find(player => player.id === state.buzz?.winnerPlayerId) : undefined
   const buzzTeam = buzzWinner?.teamId ? state.teams?.find(team => team.id === buzzWinner.teamId) : undefined
@@ -193,12 +197,13 @@ export function HostGamePage() {
           <div className="controller-preview"><PresentationStage state={state} compact /></div>
         </section>
         <aside className="controller-panel">
-          <div className="controller-panel__heading"><div><p className="eyebrow">Current state</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'round-intro' ? state.currentRound?.title : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
+          <div className="controller-panel__heading"><div><p className="eyebrow">{survivorMode ? `Survivor · ${state.sessionSettings?.survivorStartingLives ?? 3} lives each` : 'Current state'}</p><h1>{state.phase === 'lobby' ? 'Waiting for players' : state.phase === 'round-intro' ? state.currentRound?.title : state.phase === 'finished' ? 'Quiz complete' : question ? `Question ${question.questionNumber}` : 'Game controller'}</h1></div>{question && <span>{question.questionNumber} / {question.totalQuestions}</span>}</div>
           {state.phase === 'round-intro' && state.currentRound && <p>{state.currentRound.subtitle}<br />Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds} · {state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p>}
           <dl className="controller-stats">
             <div><dt>Time</dt><dd>{activePrelude === 'double-score' ? 'Double Score' : activePrelude === 'question-type' ? 'Intro' : headToHead ? 'Untimed' : state.phase === 'question' ? `${remaining}s` : '—'}</dd></div>
-            <div><dt>Answered</dt><dd>{state.submittedCount} / {question?.buzzInEnabled ? (state.buzz ? 1 : 0) : state.players.length}</dd></div>
+            <div><dt>Answered</dt><dd>{state.submittedCount} / {state.eligibleResponderCount ?? (question?.buzzInEnabled ? (state.buzz ? 1 : 0) : state.players.length)}</dd></div>
             <div><dt>Connected</dt><dd>{state.players.filter((player) => player.connected).length} / {state.players.length}</dd></div>
+            {survivorMode && <div><dt>Remaining</dt><dd>{aliveCount}</dd></div>}
           </dl>
           <div className="controller-actions" role="group" aria-label="Game controls">
             {!headToHead && state.phase === 'question' && question?.buzzInEnabled && <section className="controller-buzz"><p className="eyebrow" role="status">{state.buzz ? `${buzzWinner?.nickname ?? 'A player'}${buzzTeam ? ` · ${buzzTeam.name}` : ''} buzzed first` : 'Buzzers open'}</p><strong aria-hidden="true">{state.buzz ? (buzzRemaining > 0 ? `Answer window: ${buzzRemaining} seconds` : 'Answer window closed') : 'No winner yet'}</strong><span className="sr-only">{state.buzz ? (buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.') : 'No winner yet.'}</span>{state.buzz && !buzzWinnerAnswered && <button className="button button--secondary" disabled={working} type="button" onClick={() => run('reset-buzz')}>Reset buzz</button>}</section>}
@@ -211,8 +216,9 @@ export function HostGamePage() {
             {!headToHead && state.phase === 'locked' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('reveal')}>Reveal answer</button>}
             {!headToHead && state.phase === 'reveal' && !isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('leaderboard')}>Show leaderboard</button>}
             {!headToHead && state.phase === 'reveal' && isFinalQuestion && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final results</button>}
-            {!headToHead && state.phase === 'leaderboard' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>{nextRound ? 'Next round' : 'Next question'}</button>}
-            {!headToHead && ['question', 'locked'].includes(state.phase) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
+            {!headToHead && state.phase === 'leaderboard' && terminalSurvivor && <button className="button button--primary" disabled={working} type="button" onClick={() => run('finish')}>Reveal final result</button>}
+            {!headToHead && state.phase === 'leaderboard' && !terminalSurvivor && <button className="button button--primary" disabled={working} type="button" onClick={() => run('next')}>{nextRound ? 'Next round' : 'Next question'}</button>}
+            {!headToHead && (['question', 'locked'].includes(state.phase) || survivorMode && state.phase === 'reveal' && !isFinalQuestion) && <button className="button button--secondary" disabled={working || Boolean(activePrelude)} type="button" onClick={() => run('finish')}>Finish game</button>}
             {!headToHead && state.phase === 'finished' && <button className="button button--primary" disabled={working} type="button" onClick={() => run('restart')}>Restart quiz</button>}
             <button className="button button--ghost" disabled={working} type="button" onClick={() => {
               if (window.confirm('Close this room for every player?')) run('close')
@@ -238,9 +244,9 @@ export function HostGamePage() {
             />
           )}
           <HostAudioControls soundPackId={state.soundPackId ?? session.settings.soundPackId} />
-          {(headToHead || state.phase === 'lobby') && <section className="controller-monitor">
+          {(headToHead || state.phase === 'lobby' || survivorMode) && <section className="controller-monitor">
             <div className="controller-section-heading"><h2>Players</h2><span>{state.players.length}</span></div>
-            <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>
+            <ul className="controller-players">{state.players.map((player) => <li key={player.id}>{player.nickname}<span>{survivorMode ? (player.survivorLivesRemaining ?? 0) > 0 ? `${player.survivorLivesRemaining} ${(player.survivorLivesRemaining ?? 0) === 1 ? 'life' : 'lives'}` : 'OUT' : player.connected ? 'Connected' : 'Disconnected'}</span></li>)}</ul>
           </section>}
           <section className="controller-up-next">
             <p className="eyebrow">Up next</p>
