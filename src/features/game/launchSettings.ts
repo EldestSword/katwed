@@ -32,6 +32,7 @@ export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 't
 export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'> & Partial<Pick<Quiz, 'quizType'>>): LaunchGameSettings {
   return {
     automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head',
+    powerUpsEnabled: false,
     competitionMode: 'points',
     survivorStartingLives: 3,
     playMode: 'individual',
@@ -50,6 +51,7 @@ export function normaliseLaunchGameSettings(
   const defaults = defaultLaunchGameSettings(quiz)
   const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    powerUpsEnabled: quiz.quizType !== 'head-to-head' && value?.powerUpsEnabled === true,
     automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head' && value?.playMode !== 'teams' &&
       (value?.automaticTieBreakersEnabled ?? defaults.automaticTieBreakersEnabled) === true,
     competitionMode,
@@ -91,6 +93,8 @@ export function normaliseGameSessionSettings(
   const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
   const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    powerUpsEnabled: value?.powerUpsEnabled === true,
+    ...(typeof value?.powerUpRunId === 'string' ? { powerUpRunId: value.powerUpRunId } : {}),
     automaticTieBreakersEnabled: value?.automaticTieBreakersEnabled === true,
     competitionMode,
     survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(value?.survivorStartingLives) : null,

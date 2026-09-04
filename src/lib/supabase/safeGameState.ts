@@ -150,12 +150,18 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   const round = value.currentRound
   const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
+  const privatePowerUpKeys = ['powerUps', 'powerUpUses', 'powerupUses', 'inventory', 'currentPowerUpActivation']
+  if ([value, rawSettings, ...value.players as unknown[], ...value.leaderboard as unknown[]].some(entry => isRecord(entry) && privatePowerUpKeys.some(key => key in entry))) {
+    throw new Error('Private Power-Up state must not appear in room state.')
+  }
+  if (rawSettings && 'powerUpsEnabled' in rawSettings && typeof rawSettings.powerUpsEnabled !== 'boolean') throw new Error('Invalid Power-Ups setting.')
   const sessionSettings = normaliseGameSessionSettings(
     rawSettings as Partial<SafeGameState['sessionSettings']>,
     value.soundPackId,
     typeof value.sessionId === 'string' ? value.sessionId : undefined,
   )
   const quizType = normaliseQuizType(value.quizType)
+  if (quizType === 'head-to-head' && sessionSettings.powerUpsEnabled) throw new Error('Head-to-Head cannot enable Power-Ups.')
   if (isSurvivorSettings(sessionSettings) && (quizType === 'head-to-head' || sessionSettings.playMode === 'teams')) {
     throw new Error('The server returned an invalid Survivor session.')
   }

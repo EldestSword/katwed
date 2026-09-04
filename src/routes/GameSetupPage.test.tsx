@@ -65,6 +65,7 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('checkbox', { name: /Shuffle question order/ }))
     await user.click(screen.getByRole('checkbox', { name: /Shuffle all answer choices/ }))
     const autoLock = screen.getByRole('checkbox', { name: /Auto-close answers/ })
+    expect(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ })).not.toBeChecked()
     expect(autoLock).toBeChecked()
     await user.click(autoLock)
     const liveAnswers = screen.getByRole('checkbox', { name: /Show live player answers/ })
@@ -73,6 +74,7 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
+      powerUpsEnabled: false,
       automaticTieBreakersEnabled: true,
       competitionMode: 'points',
       survivorStartingLives: 3,
@@ -93,6 +95,15 @@ describe('GameSetupPage', () => {
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
   })
 
+  it('can enable personal Power-Ups when launching Teams', async () => {
+    const user = userEvent.setup()
+    renderSetup()
+    await user.click(await screen.findByRole('button', { name: 'Teams' }))
+    await user.click(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ }))
+    await user.click(screen.getByRole('button', { name: 'Start lobby' }))
+    expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, expect.objectContaining({ playMode: 'teams', powerUpsEnabled: true }))
+  })
+
   it('defaults to Points and launches an individual one-life Survivor without allowing Teams', async () => {
     const user = userEvent.setup()
     renderSetup()
@@ -102,9 +113,10 @@ describe('GameSetupPage', () => {
     expect(screen.getByRole('button', { name: 'Teams' })).toBeDisabled()
     expect(screen.getByText('Survivor V1 is for individual play.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: '1 life' }))
+    await user.click(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ }))
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, expect.objectContaining({
-      competitionMode: 'survivor', survivorStartingLives: 1, playMode: 'individual',
+      competitionMode: 'survivor', survivorStartingLives: 1, playMode: 'individual', powerUpsEnabled: true,
     }))
   })
 
@@ -148,5 +160,6 @@ describe('GameSetupPage', () => {
     expect(screen.queryByRole('checkbox', { name: /Auto-close answers/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Teams' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Survivor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Give every player three one-use Power-Ups/ })).not.toBeInTheDocument()
   })
 })

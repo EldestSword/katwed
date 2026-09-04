@@ -130,6 +130,7 @@ export function GameSetupPage() {
           </fieldset>
 
           <div className="game-setup-toggles">
+            {quiz.quizType === 'standard' && <fieldset><legend>Power-Ups</legend><SessionToggle label="Give every player three one-use Power-Ups" note="Each player gets Double Up, 50/50 and Fast Five once per game." checked={settings.powerUpsEnabled === true} onChange={(checked) => update('powerUpsEnabled', checked)} /></fieldset>}
             <SessionToggle label="Shuffle question order" note="Creates one stable order for this room without changing the saved quiz." checked={settings.shuffleQuestionOrder} onChange={(checked) => update('shuffleQuestionOrder', checked)} />
             <SessionToggle label="Shuffle all answer choices" note="Forces eligible Single Choice and Multiple Select answers into one stable session order." checked={settings.shuffleAnswerOptions} onChange={(checked) => update('shuffleAnswerOptions', checked)} />
             {quiz.quizType === 'standard' && <SessionToggle label="Auto-close answers when everyone has locked in" note="Turn off to keep the timer running until time expires or you close answers manually." checked={settings.autoLockWhenAllAnswered} onChange={(checked) => update('autoLockWhenAllAnswered', checked)} />}

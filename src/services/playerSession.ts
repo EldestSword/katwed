@@ -1,4 +1,5 @@
 import { extractWager } from '../features/scoring/wager'
+import { extractPowerUp } from '../features/game/powerUps'
 import { ANSWER_CORE_FIELDS } from '../features/questions/answerPayload'
 import type { MatchingPair, PlayerAnswerPayload, PlayerSession } from '../types/domain'
 import { onlyFields } from '../features/questions/arrangementQuestions'
@@ -30,7 +31,8 @@ export function clearPlayerSession(roomCode: string): void {
 
 function isSubmittedAnswer(value: unknown): value is PlayerAnswerPayload {
   if (!value || typeof value !== 'object' || !('type' in value)) return false
-  const wager = extractWager(value as PlayerAnswerPayload, true)
+  const powerUp = extractPowerUp(value as PlayerAnswerPayload)
+  const wager = powerUp && extractWager(powerUp.answer, true)
   if (!wager) return false
   const candidate = wager.answer as Record<string, unknown>
   const fields = ANSWER_CORE_FIELDS[wager.answer.type]

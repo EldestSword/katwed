@@ -169,6 +169,12 @@ Any Standard quiz can launch as Points (the default) or individual-only Survivor
 
 Migration `20260904203000_core_survivor_mode.sql` stores session mode and authoritative Player life state. A private, bounded history calculation finalises lives only at Leaderboard or final Results, and existing Typed Answer corrections can revive or re-eliminate a Player by recomputing history. Alive Players rank first by lives; eliminated Players rank by their actual elimination question before score, correct count, response time and stable name/ID fallbacks. A terminal board with one survivor or a total wipeout requires the host to reveal the final result. The feature adds no quiz-format field, score change, Realtime channel, subscription, polling increase or Player broadcast. Portable format remains v12. See [Survivor Mode architecture and focused verification](docs/survivor-mode.md). The migration and frontend have not been applied or deployed to production.
 
+### Core Power-Ups (implemented locally, pending release)
+
+Standard Individual, Team and Survivor games can optionally give each player one Double Up, one 50/50 and one Fast Five per run. The setting defaults off. At most one can be used per question: Double Up doubles positive final points after Wagers, 50/50 privately retains two Single Choice options, and Fast Five reduces only the Speed Scoring input by five seconds. Real response times, correctness, lives and existing answer controls remain authoritative. Buzz-In, Head-to-Head and Tie-Breaker questions have no Power-Ups; portable format stays v12.
+
+Migration `20260904223001_core_power_ups.sql` adds private constrained use records, authenticated 50/50 activation and personal join/reconnect recovery. Double Up and Fast Five use the existing answer transaction; 50/50 makes one explicit private RPC. There are no new broadcasts, subscriptions, channels or polling. Restart restores inventory using a new run identity. See [Power-Up architecture and verification](docs/power-ups.md). The migration and frontend await deliberate release and were not applied or deployed to production.
+
 ### Automatic Tie-Breakers (implemented locally, pending release)
 
 New Standard Individual Points and Survivor sessions automatically divert a genuine first-place tie into a 20-second closest-number tie-breaker. Points uses equal highest `totalScore`; Survivor uses equal highest living life count, or equal latest elimination in a total wipeout. Equal distance falls back to authoritative response time. If distance and response time are both identical, only the still-tied finalists receive another unused question. One last living Survivor, Teams, Head-to-Head and emergency early Finish retain their existing results.
@@ -542,6 +548,8 @@ Pending, deliberately unapplied migrations:
 20260904151357_correct_answer_streaks.sql
 20260904181607_core_buzz_in.sql
 20260904203000_core_survivor_mode.sql
+20260904223000_automatic_tiebreakers.sql
+20260904223001_core_power_ups.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

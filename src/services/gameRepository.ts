@@ -5,6 +5,7 @@ import type {
   LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
   Quiz,
   RoomJoinInfo,
   SafeGameState,
@@ -68,6 +69,7 @@ export interface GameRepository {
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
   claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
+  activateFiftyFifty(roomCode: string, playerId: string, reconnectToken: string, questionId: string): Promise<PersonalPowerUpState>
   submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, value: string): Promise<void>
   resolveTieBreaker(sessionId: string): Promise<void>
   nextTieBreaker(sessionId: string): Promise<void>

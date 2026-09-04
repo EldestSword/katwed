@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCountdown } from '../../hooks/useCountdown'
 import type {
   AnswerColourTuple,
@@ -11,6 +11,8 @@ import type {
   SafeQuestion,
   Player,
   GameTeam,
+  PersonalPowerUpState,
+  AnswerPowerUpId,
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
@@ -38,6 +40,8 @@ import {
   resolveAnswerColours,
 } from '../answer-palettes/answerPalettes'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
+import { PowerUpTray } from './PowerUpTray'
+import { POWER_UP_NAMES } from './powerUps'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -53,6 +57,8 @@ interface PlayerQuestionProps {
   players?: Player[]
   teams?: GameTeam[]
   onBuzz?(): Promise<BuzzClaimResult>
+  powerUps?: PersonalPowerUpState | null
+  onFiftyFifty?(): Promise<void>
   onSubmit(payload: PlayerAnswerPayload): Promise<void>
 }
 
@@ -108,8 +114,15 @@ export function PlayerQuestion({
   players = [],
   teams = [],
   onBuzz,
+  powerUps = null,
+  onFiftyFifty,
   onSubmit,
 }: PlayerQuestionProps) {
+  const [selectedPowerUp, setSelectedPowerUp] = useState<AnswerPowerUpId | null>(null)
+  const [activatingPowerUp, setActivatingPowerUp] = useState(false)
+  const answerArea = useRef<HTMLDivElement>(null)
+  const activation = powerUps?.uses.find(use => use.questionId === question.id)
+  const retainedOptions = activation?.powerUp === 'fifty-fifty' ? activation.optionIds : undefined
   const [wagerPercent, setWagerPercent] = useState<WagerPercent>(initialAnswer?.wagerPercent ?? 0)
   const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
   const [mashupSelection, setMashupSelection] = useState<string[]>(
@@ -134,6 +147,7 @@ export function PlayerQuestion({
   const requestWideAnswerLayout = useCallback(() => setWideAnswerLayout(true), [])
 
   useEffect(() => {
+    setSelectedPowerUp(null)
     setWagerPercent(initialAnswer?.wagerPercent ?? 0)
     setAnswer(initialAnswer)
     setMashupSelection(initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [])
@@ -144,6 +158,28 @@ export function PlayerQuestion({
     setClaimedBuzz(null)
     setBuzzError('')
   }, [initialAnswer, question.id, openedAt])
+
+  useEffect(() => {
+    if (retainedOptions && answer?.type === 'single-choice' && !retainedOptions.includes(answer.optionId)) setAnswer(null)
+  }, [retainedOptions, answer])
+
+  async function activateFiftyFifty() {
+    if (!onFiftyFifty || activatingPowerUp || submitting || timedOut || selectedPowerUp) return
+    setActivatingPowerUp(true)
+    setError('')
+    let previousFocus = document.activeElement
+    const trackFocus = (event: FocusEvent) => { if (event.target instanceof HTMLElement) previousFocus = event.target }
+    document.addEventListener('focusin', trackFocus)
+    try {
+      await onFiftyFifty()
+      // The activation button normally retains focus. If a choice had focus and
+      // was removed while the RPC was pending, focus a surviving choice.
+      requestAnimationFrame(() => {
+        if (previousFocus && !document.contains(previousFocus) && document.activeElement === document.body) answerArea.current?.querySelector<HTMLButtonElement>('button')?.focus()
+      })
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '50/50 could not be activated.') }
+    finally { document.removeEventListener('focusin', trackFocus); setActivatingPowerUp(false) }
+  }
 
   useEffect(() => {
     setClaimedBuzz(buzz)
@@ -172,11 +208,11 @@ export function PlayerQuestion({
       : answer?.type === 'typed-answer' || answer?.type === 'connections'
         ? { ...answer, value: answer.value.trim() }
         : answer
-    if (!payload || !canSubmit || submitted || submitting || timedOut) return
+    if (!payload || !canSubmit || submitted || submitting || activatingPowerUp || timedOut) return
     setSubmitting(true)
     setError('')
     try {
-      const submission = question.wagerEnabled ? { ...payload, wagerPercent } : payload
+      const submission = { ...payload, ...(question.wagerEnabled ? { wagerPercent } : {}), ...(selectedPowerUp ? { powerUp: selectedPowerUp } : {}) }
       await onSubmit(submission)
       setAnswer(submission)
       setSubmitted(true)
@@ -207,6 +243,7 @@ export function PlayerQuestion({
       <section className="player-waiting" aria-live="polite">
         <div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h2>Answer locked</h2></div></div>
         <PlayerSubmissionSummary answer={answer} question={question} roster={roster} answerPaletteId={answerPaletteId} customAnswerColours={customAnswerColours} />
+        {activation && <p className="power-up-status">Power-Up: {POWER_UP_NAMES[activation.powerUp]}</p>}
         {question.type === 'connections' && <ConnectionClues question={question} />}
         {question.progressiveRevealEnabled && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled />}
         <p className="player-waiting__next">Waiting for the reveal…</p>
@@ -253,11 +290,12 @@ export function PlayerQuestion({
       )}
 
       <ProgressiveRevealPoints question={question} openedAt={openedAt} />
+      {powerUps && !buzzQuestion && <PowerUpTray question={question} state={powerUps} selected={selectedPowerUp} busy={activatingPowerUp} disabled={submitting || timedOut} onSelect={setSelectedPowerUp} onFiftyFifty={() => void activateFiftyFifty()} />}
       {question.wagerEnabled && <WagerControl points={question.points} value={wagerPercent} disabled={submitting || timedOut} onChange={setWagerPercent} />}
       {playerWonBuzz && <div className="buzz-result buzz-result--winner"><p className="eyebrow" role="status">You got the buzz!</p><h2 aria-hidden="true">{buzzRemaining} {buzzRemaining === 1 ? 'second' : 'seconds'} to answer</h2><span className="sr-only">Your answer window is open.</span></div>}
       {question.type === 'single-choice' && (
-        <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
-          {orderedQuestionOptions(question).map((option, position) => (
+        <div ref={answerArea} className="answer-grid" data-option-count={retainedOptions?.length ?? question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
+          {orderedQuestionOptions(question).map((option, position) => !retainedOptions || retainedOptions.includes(option.id) ? (
             <ChoiceCard
               key={option.id}
               option={option}
@@ -267,7 +305,7 @@ export function PlayerQuestion({
               onNeedsWideLayout={requestWideAnswerLayout}
               onSelect={() => setAnswer({ type: 'single-choice', optionId: option.id })}
             />
-          ))}
+          ) : null)}
         </div>
       )}
 
@@ -399,7 +437,7 @@ export function PlayerQuestion({
         {error && <StatusMessage tone="error">{error}</StatusMessage>}
       </div>
       <button className="button button--primary button--wide button--large lock-button" type="button" aria-busy={submitting}
-        disabled={!canSubmit || submitted || submitting || timedOut}
+        disabled={!canSubmit || submitted || submitting || activatingPowerUp || timedOut}
         onClick={() => void lockIn()}>{submitting ? 'Submitting…' : 'Lock in'}</button>
     </section>
   )

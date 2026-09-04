@@ -10,6 +10,7 @@ import type {
   JoinResult,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
   Quiz,
   RoomJoinInfo,
   SafeGameState,
@@ -50,6 +51,7 @@ class UnconfiguredRepository implements GameRepository {
   getSafeGameState(_roomCode: string): Promise<SafeGameState | null> { return this.fail() }
   claimBuzz(_roomCode: string, _playerId: string, _token: string): Promise<BuzzClaimResult> { return this.fail() }
   submitAnswer(_roomCode: string, _playerId: string, _token: string, _payload: PlayerAnswerPayload): Promise<void> { return this.fail() }
+  activateFiftyFifty(_roomCode: string, _playerId: string, _token: string, _questionId: string): Promise<PersonalPowerUpState> { return this.fail() }
   submitTieBreakerAnswer(_roomCode: string, _playerId: string, _token: string, _value: string): Promise<void> { return this.fail() }
   resolveTieBreaker(_sessionId: string): Promise<void> { return this.fail() }
   nextTieBreaker(_sessionId: string): Promise<void> { return this.fail() }

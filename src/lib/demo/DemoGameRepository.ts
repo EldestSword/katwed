@@ -4,6 +4,7 @@ import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
 import { connectionSafeFields } from '../../features/questions/connections'
 import { applyWager, extractWager } from '../../features/scoring/wager'
+import { extractPowerUp, powerUpFinalPoints, powerUpScoringTime, powerUpUnavailableReason } from '../../features/game/powerUps'
 import { normaliseStreaks, recomputePlayerStreaks } from '../../features/game/streaks'
 import { progressiveSafeMedia } from '../../features/scoring/progressiveReveal'
 import type {
@@ -17,6 +18,8 @@ import type {
   PlayerAnswer,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
+  PowerUpUse,
   Question,
   Quiz,
   RoomJoinInfo,
@@ -102,6 +105,7 @@ interface DemoTieBreakerAnswer {
 }
 
 interface DemoGameSession extends GameSession {
+  powerUpUses: Array<PowerUpUse & { playerId: string }>
   tieBreakerQuestion: DemoTieBreakerQuestion | null
   tieBreakerRound: number
   tieBreakerWinnerPlayerId: string | null
@@ -359,6 +363,7 @@ function hostSessionView(session: DemoGameSession, quiz: Quiz): GameSession {
     : []
   const visible = { ...session }
   for (const key of [
+    'powerUpUses',
     'tieBreakerQuestion',
     'tieBreakerRound',
     'tieBreakerWinnerPlayerId',
@@ -369,6 +374,11 @@ function hostSessionView(session: DemoGameSession, quiz: Quiz): GameSession {
     'tieBreakerClosesAt',
   ] as const) Reflect.deleteProperty(visible, key)
   return { ...visible, tieBreaker: demoTieBreakerState(session), hostResponses, answers }
+}
+
+function personalPowerUps(session: DemoGameSession, playerId: string): PersonalPowerUpState | null {
+  if (!session.settings.powerUpsEnabled) return null
+  return { runId: session.settings.powerUpRunId ?? session.id, uses: (session.powerUpUses ?? []).filter(use => use.playerId === playerId).map(use => ({ questionId: use.questionId, powerUp: use.powerUp, ...(use.optionIds ? { optionIds: [...use.optionIds] } : {}) })) }
 }
 
 function isDemoState(value: unknown): value is DemoState {
@@ -541,6 +551,10 @@ function revealFor(question: Question, answers: readonly PlayerAnswer[], quiz: Q
   }
 }
 
+// Keep async private assists atomic when Web Locks are unavailable (for example
+// embedded browsers and tests). Repository instances in this document share it.
+let demoMutationTail: Promise<void> = Promise.resolve()
+
 export class DemoGameRepository implements GameRepository {
   readonly mode = 'demo' as const
   private readonly channel: BroadcastChannel | null
@@ -578,11 +592,13 @@ export class DemoGameRepository implements GameRepository {
     }
   }
 
-  private async withMutation<T>(operation: () => T): Promise<T> {
+  private async withMutation<T>(operation: () => T | Promise<T>): Promise<T> {
     if (navigator.locks) {
       return navigator.locks.request('katwed-demo-state-write-v2', operation) as Promise<T>
     }
-    return operation()
+    const result = demoMutationTail.then(operation)
+    demoMutationTail = result.then(() => undefined, () => undefined)
+    return result
   }
 
   async listQuizzes(): Promise<Quiz[]> {
@@ -778,6 +794,7 @@ export class DemoGameRepository implements GameRepository {
       const settings = createGameSessionSettings(launchSettings, quiz, sessionId)
       const doubleScoreVariantOrder = shuffledVariantIndices(settings.doubleScoreVariantDurationsMs?.length ?? 1)
       const session: DemoGameSession = {
+        powerUpUses: [],
         tieBreakerQuestion: null,
         tieBreakerRound: 0,
         tieBreakerWinnerPlayerId: null,
@@ -800,7 +817,7 @@ export class DemoGameRepository implements GameRepository {
         questionClosesAt: null,
         startedAt: null,
         endedAt: null,
-        settings,
+        settings: { ...settings, powerUpRunId: crypto.randomUUID() },
         doubleScoreVariantOrder,
         doubleScoreVariantCursor: 0,
         currentDoubleScoreVariantIndex: null,
@@ -915,7 +932,7 @@ export class DemoGameRepository implements GameRepository {
       session.players.push(player)
       state.reconnectTokens[player.id] = reconnectToken
       this.write(state, false, session.id)
-      return clone({ player, reconnectToken })
+      return clone({ player, reconnectToken, powerUps: personalPowerUps(session, player.id) })
     })
   }
 
@@ -981,6 +998,7 @@ export class DemoGameRepository implements GameRepository {
           totalCorrectResponseMs: 0,
         },
         reconnectToken: saved.reconnectToken,
+        powerUps: personalPowerUps(session, player.id),
         tieBreakerSubmission: session.tieBreakerAnswers.some((answer) =>
           answer.round === session.tieBreakerRound && answer.playerId === player.id)
           ? { round: session.tieBreakerRound, questionId: session.tieBreakerQuestion?.id ?? '' }
@@ -1139,7 +1157,15 @@ export class DemoGameRepository implements GameRepository {
       if (isHeadToHeadResolved(state, session, question.id, playerId)) {
         throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
       }
-      const wager = extractWager(payload, quiz.quizType === 'standard' && question.wagerEnabled === true)
+      const power = extractPowerUp(payload)
+      if (!power) throw new RepositoryError('invalid-selection', 'Invalid Power-Up answer metadata.')
+      if (power.powerUp) {
+        if (!session.settings.powerUpsEnabled || quiz.quizType !== 'standard') throw new RepositoryError('invalid-selection', 'Power-Ups are not enabled.')
+        const reason = powerUpUnavailableReason(power.powerUp, question)
+        if (reason) throw new RepositoryError('invalid-selection', reason)
+        if ((session.powerUpUses ?? []).some(use => use.playerId === playerId && (use.powerUp === power.powerUp || use.questionId === question.id))) throw new RepositoryError('invalid-selection', 'That Power-Up or question has already been used.')
+      }
+      const wager = extractWager(power.answer, quiz.quizType === 'standard' && question.wagerEnabled === true)
       if (!wager) throw new RepositoryError('invalid-selection', 'That wager is not valid for this question.')
       payload = wager.answer
       if (question.type === 'mashup' && payload.type === 'mashup') {
@@ -1156,8 +1182,8 @@ export class DemoGameRepository implements GameRepository {
       const assigned = quiz.quizType === 'head-to-head' && player.competitorId === question.assignedCompetitorId
       const ordinaryPoints = quiz.quizType === 'head-to-head'
         ? (assigned && score.correct ? 1 : 0)
-        : calculateStandardQuestionScore(score.points, question.type === 'matching' && !score.correct ? { ...question, speedScoringEnabled: false } : question, responseTimeMs, closesAt - openedAt)
-      const pointsAwarded = quiz.quizType === 'standard' ? applyWager(ordinaryPoints, question.points, score.correct, wager.percent) : ordinaryPoints
+        : calculateStandardQuestionScore(score.points, question.type === 'matching' && !score.correct ? { ...question, speedScoringEnabled: false } : question, powerUpScoringTime(responseTimeMs, power.powerUp), closesAt - openedAt)
+      const pointsAwarded = quiz.quizType === 'standard' ? powerUpFinalPoints(applyWager(ordinaryPoints, question.points, score.correct, wager.percent), power.powerUp) : ordinaryPoints
       const answer: PlayerAnswer = {
         ...(quiz.quizType === 'standard' ? { wagerPercent: wager.percent } : {}),
         id: uid('answer'),
@@ -1173,6 +1199,7 @@ export class DemoGameRepository implements GameRepository {
         correct: score.correct,
         pointsAwarded,
       }
+      if (power.powerUp) (session.powerUpUses ??= []).push({ playerId, questionId: question.id, powerUp: power.powerUp })
       session.answers.push(answer)
       session.hostResponses.push(hostResponseRecordForAnswer(answer))
       player.totalScore += pointsAwarded
@@ -1188,6 +1215,32 @@ export class DemoGameRepository implements GameRepository {
         session.buzz = session.buzz ? { ...session.buzz, answerDeadlineAt: new Date(submittedAt).toISOString() } : null
       }
       this.write(state, quiz.quizType === 'head-to-head' || buzzAutoLocked, session.id)
+    })
+  }
+
+  async activateFiftyFifty(roomCode: string, playerId: string, reconnectToken: string, questionId: string): Promise<PersonalPowerUpState> {
+    return this.withMutation(async () => {
+      const state = this.read()
+      const session = state.sessions.find(s => s.roomCode === roomCode && s.status === 'active')
+      const quiz = state.quizzes.find(q => q.id === session?.quizId)
+      const player = session?.players.find(p => p.id === playerId)
+      if (!session || !quiz || !player || state.reconnectTokens[playerId] !== reconnectToken) throw new RepositoryError('invalid-player', 'Your player session could not be verified.')
+      const question = orderedSessionQuestions(quiz.questions, session.questionOrder)[session.currentQuestionIndex]
+      if (!session.settings.powerUpsEnabled || quiz.quizType !== 'standard' || session.phase !== 'question' || question?.id !== questionId) throw new RepositoryError('invalid-phase', 'Power-Ups are not available for this question.')
+      if (!session.questionOpenedAt || !session.questionClosesAt || Date.now() < Date.parse(session.questionOpenedAt) || Date.now() >= Date.parse(session.questionClosesAt)) throw new RepositoryError('late-submission', 'Answers are not open.')
+      if (isSurvivorSettings(session.settings) && (player.survivorLivesRemaining ?? 0) <= 0) throw new RepositoryError('invalid-player', 'Eliminated players can only spectate.')
+      const reason = powerUpUnavailableReason('fifty-fifty', question)
+      if (reason || question.type !== 'single-choice') throw new RepositoryError('invalid-selection', reason ?? 'Single Choice only')
+      if (session.answers.some(a => a.playerId === playerId && a.questionId === questionId)) throw new RepositoryError('duplicate-submission', 'You have already answered.')
+      if ((session.powerUpUses ?? []).some(use => use.playerId === playerId && (use.powerUp === 'fifty-fifty' || use.questionId === questionId))) throw new RepositoryError('invalid-selection', 'That Power-Up or question has already been used.')
+      const wrong = await Promise.all(question.options.filter(o => o.id !== question.correctOptionId).map(async option => {
+        const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${session.id}:${playerId}:${questionId}:${option.id}`))
+        return { id: option.id, hash: Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('') }
+      }))
+      wrong.sort((a, b) => a.hash.localeCompare(b.hash) || a.id.localeCompare(b.id))
+      ;(session.powerUpUses ??= []).push({ playerId, questionId, powerUp: 'fifty-fifty', optionIds: [question.correctOptionId, wrong[0].id].sort() })
+      this.write(state, false, session.id)
+      return clone(personalPowerUps(session, playerId)!)
     })
   }
 
@@ -1346,10 +1399,11 @@ export class DemoGameRepository implements GameRepository {
       const previousCorrect = answer.correct
       const previousPoints = answer.pointsAwarded
       const nextCorrect = nextOverride ?? automaticCorrect
+      const powerUp = session.powerUpUses?.find(use => use.playerId === player.id && use.questionId === question.id)?.powerUp
       const ordinaryPoints = nextCorrect
-        ? calculateStandardQuestionScore(question.points, question, answer.responseTimeMs, question.timeLimitSeconds * 1_000)
+        ? calculateStandardQuestionScore(question.points, question, powerUpScoringTime(answer.responseTimeMs, powerUp), question.timeLimitSeconds * 1_000)
         : 0
-      const nextPoints = applyWager(ordinaryPoints, question.points, nextCorrect, answer.wagerPercent ?? 0)
+      const nextPoints = powerUpFinalPoints(applyWager(ordinaryPoints, question.points, nextCorrect, answer.wagerPercent ?? 0), powerUp)
       answer.automaticCorrect = automaticCorrect
       answer.hostCorrectOverride = nextOverride
       answer.correct = nextCorrect
@@ -1568,6 +1622,8 @@ export class DemoGameRepository implements GameRepository {
           session.endedAt = null
           session.hostResponses = []
           session.answers = []
+          session.powerUpUses = []
+          session.settings.powerUpRunId = crypto.randomUUID()
           session.tieBreakerQuestion = null
           session.tieBreakerRound = 0
           session.tieBreakerWinnerPlayerId = null

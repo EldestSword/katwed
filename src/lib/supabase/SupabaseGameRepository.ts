@@ -7,6 +7,7 @@ import type {
   LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
   Quiz,
   RoomJoinInfo,
   SafeGameState,
@@ -31,6 +32,7 @@ import { normaliseStreaks } from '../../features/game/streaks'
 import { normaliseBuzzState } from '../../features/game/buzz'
 import type { BuzzClaimResult } from '../../types/domain'
 import { normaliseCompetitionMode, normaliseSurvivorPlayer, normaliseSurvivorStartingLives } from '../../features/game/survivor'
+import { parsePersonalPowerUps } from '../../features/game/powerUps'
 
 type JsonObject = Record<string, unknown>
 
@@ -124,7 +126,7 @@ export class SupabaseGameRepository implements GameRepository {
     if (result.error) throw normaliseError(result.error)
     if (['join_room', 'join_team_room', 'join_head_to_head_room', 'reconnect_player'].includes(name) && result.data) {
       const joined = result.data as JoinResult
-      return { ...joined, player: { ...joined.player, ...normaliseStreaks(joined.player) } } as T
+      return { ...joined, powerUps: parsePersonalPowerUps(joined.powerUps), player: { ...joined.player, ...normaliseStreaks(joined.player) } } as T
     }
     return result.data as unknown as T
   }
@@ -299,6 +301,14 @@ export class SupabaseGameRepository implements GameRepository {
       p_reconnect_token: reconnectToken,
       p_value: value,
     })
+  }
+
+  async activateFiftyFifty(roomCode: string, playerId: string, reconnectToken: string, questionId: string): Promise<PersonalPowerUpState> {
+    const state = parsePersonalPowerUps(await this.rpc('activate_fifty_fifty', {
+      p_room_code: roomCode, p_player_id: playerId, p_reconnect_token: reconnectToken, p_question_id: questionId,
+    }))
+    if (!state) throw new Error('Power-Ups are not available.')
+    return state
   }
 
   async resolveTieBreaker(sessionId: string): Promise<void> {

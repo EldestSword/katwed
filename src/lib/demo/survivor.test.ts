@@ -16,7 +16,7 @@ async function setup(startingLives: 1 | 3 = 1, buzzSecond = true) {
   const quiz = await repo.saveQuiz(wagerQuiz([question('q1'), question('q2', buzzSecond)]))
   const session = await repo.launchGame(quiz.id, {
     ...defaultLaunchGameSettings(quiz), competitionMode: 'survivor', survivorStartingLives: startingLives,
-    autoLockWhenAllAnswered: false, soundPackId: 'none',
+    autoLockWhenAllAnswered: false, soundPackId: 'none', automaticTieBreakersEnabled: false,
   })
   const carol = await repo.joinRoom(session.roomCode, 'Carol')
   const roger = await repo.joinRoom(session.roomCode, 'Roger')

@@ -47,6 +47,7 @@ export type CompetitionMode = 'points' | 'survivor'
 export type SurvivorStartingLives = 1 | 3
 
 export interface LaunchGameSettings {
+  powerUpsEnabled?: boolean
   automaticTieBreakersEnabled?: boolean
   competitionMode?: CompetitionMode
   survivorStartingLives?: SurvivorStartingLives
@@ -63,6 +64,8 @@ export interface LaunchGameSettings {
 }
 
 export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames' | 'competitionMode' | 'survivorStartingLives'> {
+  /** Changes only on restart; public run identity contains no inventory. */
+  powerUpRunId?: string
   automaticTieBreakersEnabled?: boolean
   competitionMode: CompetitionMode
   survivorStartingLives: SurvivorStartingLives | null
@@ -266,7 +269,20 @@ export type Question =
 
 export type WagerPercent = 0 | 25 | 50 | 100
 
-export type PlayerAnswerPayload = PlayerAnswerCore & { wagerPercent?: WagerPercent }
+export const POWER_UP_IDS = ['double-up', 'fifty-fifty', 'fast-five'] as const
+export type PowerUpId = typeof POWER_UP_IDS[number]
+export type AnswerPowerUpId = Exclude<PowerUpId, 'fifty-fifty'>
+export interface PowerUpUse {
+  questionId: string
+  powerUp: PowerUpId
+  optionIds?: string[]
+}
+export interface PersonalPowerUpState {
+  runId: string
+  uses: PowerUpUse[]
+}
+
+export type PlayerAnswerPayload = PlayerAnswerCore & { wagerPercent?: WagerPercent; powerUp?: AnswerPowerUpId }
 
 export type PlayerAnswerCore =
   | { type: 'single-choice'; optionId: string }
@@ -542,6 +558,7 @@ export interface PlayerSession {
 }
 
 export interface JoinResult {
+  powerUps?: PersonalPowerUpState | null
   player: Player
   reconnectToken: string
   tieBreakerSubmission?: TieBreakerSubmissionStatus | null
