@@ -10,6 +10,8 @@ import type {
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
+import { WagerControl } from './WagerControl'
+import type { WagerPercent } from '../../types/domain'
 import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { ImageViewer } from '../../components/ImageViewer'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
@@ -94,6 +96,7 @@ export function PlayerQuestion({
   customAnswerColours = CLASSIC_ANSWER_COLOURS,
   onSubmit,
 }: PlayerQuestionProps) {
+  const [wagerPercent, setWagerPercent] = useState<WagerPercent>(initialAnswer?.wagerPercent ?? 0)
   const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
   const [mashupSelection, setMashupSelection] = useState<string[]>(
     initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [],
@@ -109,13 +112,14 @@ export function PlayerQuestion({
   const requestWideAnswerLayout = useCallback(() => setWideAnswerLayout(true), [])
 
   useEffect(() => {
+    setWagerPercent(initialAnswer?.wagerPercent ?? 0)
     setAnswer(initialAnswer)
     setMashupSelection(initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [])
     setSubmitted(Boolean(initialAnswer))
     setError('')
     setLimitMessage('')
     setWideAnswerLayout(false)
-  }, [initialAnswer, question.id])
+  }, [initialAnswer, question.id, openedAt])
 
   const canSubmit = useMemo(() => {
     if (question.type === 'mashup') return mashupSelection.length === 2
@@ -137,12 +141,13 @@ export function PlayerQuestion({
       : answer?.type === 'typed-answer' || answer?.type === 'connections'
         ? { ...answer, value: answer.value.trim() }
         : answer
-    if (!payload || !canSubmit || submitted || timedOut) return
+    if (!payload || !canSubmit || submitted || submitting || timedOut) return
     setSubmitting(true)
     setError('')
     try {
-      await onSubmit(payload)
-      setAnswer(payload)
+      const submission = question.wagerEnabled ? { ...payload, wagerPercent } : payload
+      await onSubmit(submission)
+      setAnswer(submission)
       setSubmitted(true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Your answer could not be submitted. Please try again.')
@@ -181,6 +186,7 @@ export function PlayerQuestion({
       )}
 
       <ProgressiveRevealPoints question={question} openedAt={openedAt} />
+      {question.wagerEnabled && <WagerControl points={question.points} value={wagerPercent} disabled={submitting || timedOut} onChange={setWagerPercent} />}
       {question.type === 'single-choice' && (
         <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
           {orderedQuestionOptions(question).map((option, position) => (

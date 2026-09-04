@@ -96,6 +96,33 @@ describe('QuizEditorPage quiz appearance', () => {
     expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
   })
 
+  it('authors fixed wagers, updates the base preview, saves and prevents H2H conversion', async () => {
+    const user = userEvent.setup()
+    const q = { ...mixedDemoQuiz.questions[0], roundId: sampleQuiz.rounds[0].id }
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [q] }))
+    const view = renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    await user.click(screen.getByRole('checkbox', { name: 'Let players risk extra points' }))
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('50% · 500 pts')
+    await user.clear(screen.getByLabelText('Maximum points')); await user.type(screen.getByLabelText('Maximum points'), '999')
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('25% · 249 pts')
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('50% · 499 pts')
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz.mock.calls.at(-1)![0].questions[0]).toMatchObject({ wagerEnabled: true, points: 999 })
+    const saved = await repositoryMocks.saveQuiz.mock.results.at(-1)!.value
+    const dialog = await openQuizSettings(user, 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    view.unmount(); repositoryMocks.getQuiz.mockResolvedValue(saved); renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    expect(screen.getByRole('checkbox', { name: 'Let players risk extra points' })).toBeChecked()
+  })
+
+  it('does not offer wagers in the Head-to-Head editor', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
+    renderEditor(); await screen.findByText('Scoring', { exact: true })
+    expect(screen.queryByRole('checkbox', { name: 'Let players risk extra points', hidden: true })).toBeNull()
+  })
+
   it('edits the Progressive modifier, previews decay and Double Score, and clears it when media is removed', async () => {
     repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [{ ...progressiveQuestion(), roundId: sampleQuiz.rounds[0].id, progressiveRevealEnabled: false }] }))
     const user = userEvent.setup(); renderEditor()

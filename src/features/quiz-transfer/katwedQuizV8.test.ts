@@ -17,7 +17,7 @@ describe('Portable Ordering/Matching v8', () => {
     expect(file.formatVersion).toBe(8); expect(validate(file), JSON.stringify(validate.errors)).toBe(true)
     const parsed = parseKatwedQuizJson(JSON.stringify(file)).input
     const copy = { ...quiz, ...parsed, id: parsed.rounds![0].quizId, rounds: parsed.rounds! }
-    expect(withoutProgressiveFlag(exportQuizToPortable(copy))).toEqual({ ...file, formatVersion: 10 })
+    expect(withoutProgressiveFlag(exportQuizToPortable(copy))).toEqual({ ...file, formatVersion: 11 })
     expect(parsed.questions[0].id).not.toBe(quiz.questions[0].id)
     if (parsed.questions[0].type === 'ordering') expect(parsed.questions[0].items[0].id).not.toBe('item-0')
     expect(JSON.stringify(file)).not.toMatch(/teamId|playMode|teamAssignment|teamNames/)

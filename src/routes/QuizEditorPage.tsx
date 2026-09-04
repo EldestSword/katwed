@@ -26,6 +26,7 @@ import { remapArrangementItems, shuffledTextItems } from '../features/questions/
 import { connectionSafeFields } from '../features/questions/connections'
 import { ConnectionClues } from '../features/game/ConnectionClues'
 import { ConnectionsEditor } from '../features/quiz-editor/ConnectionsEditor'
+import { WagerSettings } from '../features/quiz-editor/WagerSettings'
 import { ProgressiveRevealSettings } from '../features/quiz-editor/ProgressiveRevealSettings'
 import { canOfferProgressiveReveal } from '../features/scoring/progressiveReveal'
 import { ArrangementPrompt } from '../features/game/ArrangementResult'
@@ -216,6 +217,7 @@ export function QuizEditorPage() {
       points: selected.points,
       speedScoringEnabled: type === 'connections' ? false : selected.speedScoringEnabled,
       doubleScore: selected.doubleScore,
+      wagerEnabled: selected.wagerEnabled ?? false,
       assignedCompetitorId: selected.assignedCompetitorId,
       revealCaption: selected.revealCaption,
     }))
@@ -224,6 +226,7 @@ export function QuizEditorPage() {
   const changeQuizType = (quizType: QuizType) => {
     if (quizType === quiz.quizType) return
     if (quizType === 'head-to-head') {
+      if (quiz.questions.some(question => question.wagerEnabled)) { setMessage({ tone: 'error', text: 'Disable Wager before switching to Head-to-Head.' }); return }
       if (quiz.questions.some(question => question.progressiveRevealEnabled)) { setMessage({ tone: 'error', text: 'Disable Progressive Reveal before switching to Head-to-Head.' }); return }
       if (quiz.questions.some(question => question.type === 'connections')) { setMessage({ tone: 'error', text: 'Connections is Standard-only. Remove Connections questions before switching to Head-to-Head.' }); return }
       if (quiz.rounds.length !== 1) { setMessage({ tone: 'error', text: 'Head-to-Head supports one round. Move your questions into one round and delete the empty rounds first.' }); return }
@@ -326,6 +329,7 @@ export function QuizEditorPage() {
                   <label><input type="checkbox" checked={selected.doubleScore} onChange={(event) => updateQuestion((question) => ({ ...question, doubleScore: event.target.checked }))} /> Double score</label>
                   {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
                 </fieldset>
+                <WagerSettings question={selected} update={updateQuestion} />
               </> : <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
             </div></details>
             <details className="question-settings-group"><summary>Media &amp; presentation</summary><div>
@@ -431,7 +435,7 @@ function QuizSettingsDialog({
           <div className="quiz-settings-content">
         {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
           <header><p className="eyebrow">Game</p><h2 id="settings-game-heading">Choose how this quiz plays</h2></header>
-          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} />
+          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} hasWager={quiz.questions.some(question => question.wagerEnabled)} />
             {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           </div>
         </section>}
@@ -546,7 +550,7 @@ function EditorAnswerPreview({
   return <p className="editor-preview__context">{context}</p>
 }
 
-function QuizTypePicker({ quizType, select, hasConnections, hasProgressive }: { quizType: QuizType; select(quizType: QuizType): void; hasConnections: boolean; hasProgressive: boolean }) {
+function QuizTypePicker({ quizType, select, hasConnections, hasProgressive, hasWager }: { quizType: QuizType; select(quizType: QuizType): void; hasConnections: boolean; hasProgressive: boolean; hasWager: boolean }) {
   const options: Array<{ id: QuizType; name: string; description: string }> = [
     { id: 'standard', name: 'Standard', description: 'Everyone answers every question using normal Katwed scoring.' },
     { id: 'head-to-head', name: 'Head to Head', description: 'Two named competitors take turns with questions assigned specifically to them.' },
@@ -559,11 +563,11 @@ function QuizTypePicker({ quizType, select, hasConnections, hasProgressive }: { 
           key={option.id}
           type="button"
           aria-pressed={quizType === option.id}
-          disabled={option.id === 'head-to-head' && (hasConnections || hasProgressive)}
+          disabled={option.id === 'head-to-head' && (hasConnections || hasProgressive || hasWager)}
           onClick={() => select(option.id)}
         >
           <strong>{option.name}</strong>
-          <small>{option.id === 'head-to-head' && hasProgressive ? 'Disable Progressive Reveal to use Head to Head.' : option.id === 'head-to-head' && hasConnections ? 'Connections needs host-controlled clues. Remove Connections questions to use Head to Head.' : option.description}</small>
+          <small>{option.id === 'head-to-head' && hasWager ? 'Disable Wager to use Head to Head.' : option.id === 'head-to-head' && hasProgressive ? 'Disable Progressive Reveal to use Head to Head.' : option.id === 'head-to-head' && hasConnections ? 'Connections needs host-controlled clues. Remove Connections questions to use Head to Head.' : option.description}</small>
           <span>{quizType === option.id ? 'Selected' : 'Choose'}</span>
         </button>)}
       </div>

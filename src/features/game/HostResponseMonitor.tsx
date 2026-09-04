@@ -1,3 +1,4 @@
+import { WagerSummary } from './WagerControl'
 import type {
   GamePhase,
   GameTeam,
@@ -69,7 +70,7 @@ export function HostResponseMonitor({
         <p className="controller-response-note">Individual answers are hidden for rooms over {HOST_RESPONSE_DETAIL_LIMIT} players.</p>
       )}
       <ul className="controller-response-list">
-        {rows.map(({ player, answer, status }) => {
+        {rows.map(({ player, answer, response, status }) => {
           const automaticCorrect = answer?.automaticCorrect ?? answer?.correct ?? false
           const hostAccepted = answer?.hostCorrectOverride === true
           return (
@@ -78,6 +79,7 @@ export function HostResponseMonitor({
                 <strong>{player.nickname}{teams?.some((team) => team.id === player.teamId) && <small> · {teams.find((team) => team.id === player.teamId)?.name}</small>}</strong>
                 <span>{STATUS_COPY[status]}{!player.connected ? ' · Disconnected' : ''}</span>
               </div>
+              {question.wagerEnabled && response && <WagerSummary points={question.points} percent={response.wagerPercent ?? answer?.wagerPercent ?? 0} />}
               {showDetails && answer && <p>{formatHostAnswer(answer, question, roster, settings)}</p>}
               {showDetails && answer && question.type === 'typed-answer' && phase !== 'question' && (
                 <div className="controller-response-judgement">

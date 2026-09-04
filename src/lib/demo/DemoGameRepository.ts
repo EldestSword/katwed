@@ -3,6 +3,7 @@ import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import { smallestTeam, validateTeamLaunch } from '../../features/teams/teams'
 import { shuffledTextItems } from '../../features/questions/arrangementQuestions'
 import { connectionSafeFields } from '../../features/questions/connections'
+import { applyWager, extractWager } from '../../features/scoring/wager'
 import { progressiveSafeMedia } from '../../features/scoring/progressiveReveal'
 import type {
   GameSession,
@@ -231,6 +232,7 @@ function toSafeQuestion(
 ): SafeQuestion {
   const base = {
     ...safeBase(question, questionNumber, totalQuestions),
+    wagerEnabled: question.wagerEnabled ?? false,
     progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
     speedScoringEnabled: question.progressiveRevealEnabled ? false : question.speedScoringEnabled,
     media: progressiveSafeMedia(question.media, Boolean(question.progressiveRevealEnabled), mayReveal),
@@ -448,6 +450,7 @@ export class DemoGameRepository implements GameRepository {
         })),
         questions: input.questions.map((question, index) => ({
           ...question,
+          wagerEnabled: question.wagerEnabled ?? false,
           progressiveRevealEnabled: question.progressiveRevealEnabled ?? false,
           ...(question.type === 'connections' ? { clues: question.clues.map(clue => ({ ...clue, text: clue.text.trim() })), correctAnswer: question.correctAnswer.trim(), acceptedAnswers: question.acceptedAnswers.map(answer => answer.trim()), speedScoringEnabled: false } : {}),
           ...(question.type === 'ordering' ? { items: question.items.map((item) => ({ ...item, label: item.label.trim() })) } : {}),
@@ -564,6 +567,7 @@ export class DemoGameRepository implements GameRepository {
       const teamError = validateTeamLaunch(launchSettings, quiz.quizType)
       if (teamError) throw new RepositoryError('invalid-selection', teamError)
       if (quiz.quizType === 'head-to-head') {
+        if (quiz.questions.some(question => question.wagerEnabled)) throw new RepositoryError('invalid-selection', 'Wager is Standard-only.')
         const competitorIds = new Set(quiz.headToHeadCompetitors.map((competitor) => competitor.id))
         if (quiz.headToHeadCompetitors.length !== 2 || !quiz.questions.length ||
           quiz.questions.some((question) => !question.assignedCompetitorId || !competitorIds.has(question.assignedCompetitorId))) {
@@ -903,6 +907,9 @@ export class DemoGameRepository implements GameRepository {
       if (isHeadToHeadResolved(state, session, question.id, playerId)) {
         throw new RepositoryError('duplicate-submission', 'You have already answered this question.')
       }
+      const wager = extractWager(payload, quiz.quizType === 'standard' && question.wagerEnabled === true)
+      if (!wager) throw new RepositoryError('invalid-selection', 'That wager is not valid for this question.')
+      payload = wager.answer
       if (question.type === 'mashup' && payload.type === 'mashup') {
         const activeIds = new Set(quiz.roster.filter((member) => member.active).map((member) => member.id))
         if (payload.memberIds.some((id) => !activeIds.has(id))) {
@@ -915,10 +922,12 @@ export class DemoGameRepository implements GameRepository {
       const closesAt = session.questionClosesAt ? new Date(session.questionClosesAt).getTime() : openedAt
       const responseTimeMs = Math.max(0, submittedAt - openedAt)
       const assigned = quiz.quizType === 'head-to-head' && player.competitorId === question.assignedCompetitorId
-      const pointsAwarded = quiz.quizType === 'head-to-head'
+      const ordinaryPoints = quiz.quizType === 'head-to-head'
         ? (assigned && score.correct ? 1 : 0)
         : calculateStandardQuestionScore(score.points, question.type === 'matching' && !score.correct ? { ...question, speedScoringEnabled: false } : question, responseTimeMs, closesAt - openedAt)
+      const pointsAwarded = quiz.quizType === 'standard' ? applyWager(ordinaryPoints, question.points, score.correct, wager.percent) : ordinaryPoints
       const answer: PlayerAnswer = {
+        ...(quiz.quizType === 'standard' ? { wagerPercent: wager.percent } : {}),
         id: uid('answer'),
         sessionId: session.id,
         questionId: question.id,
@@ -992,9 +1001,10 @@ export class DemoGameRepository implements GameRepository {
       const previousCorrect = answer.correct
       const previousPoints = answer.pointsAwarded
       const nextCorrect = nextOverride ?? automaticCorrect
-      const nextPoints = nextCorrect
+      const ordinaryPoints = nextCorrect
         ? calculateStandardQuestionScore(question.points, question, answer.responseTimeMs, question.timeLimitSeconds * 1_000)
         : 0
+      const nextPoints = applyWager(ordinaryPoints, question.points, nextCorrect, answer.wagerPercent ?? 0)
       answer.automaticCorrect = automaticCorrect
       answer.hostCorrectOverride = nextOverride
       answer.correct = nextCorrect

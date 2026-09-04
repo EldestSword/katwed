@@ -111,7 +111,7 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 10 is the export target on the Phase 2 development branch. It adds an explicit `progressiveRevealEnabled` question modifier. V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–10 import; v1–v9 default the modifier to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v10](docs/katwed-quiz-format-v10.md) and the [v10 JSON Schema](docs/schemas/katwed-quiz-v10.schema.json); v1–v9 documentation and schemas remain unchanged. Team Mode and live clue progress remain session-only.
+Version 11 is the export target on the Phase 2 development branch. It adds an explicit `wagerEnabled` question modifier. V10 Progressive Reveal, V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–11 import; v1–v10 default Wager to false, v1–v9 default Progressive Reveal to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v11](docs/katwed-quiz-format-v11.md) and the [v11 JSON Schema](docs/schemas/katwed-quiz-v11.schema.json); v1–v10 documentation and schemas remain unchanged. Team settings, live clue progress and player wager choices remain session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
 
@@ -144,6 +144,12 @@ The editor provides clue ordering, alternatives and a live points ladder. Player
 Progressive Reveal is an optional saved question modifier for Standard image questions, including Teams and Rounds. Blur, pixelate, tiles and zoom-out use their existing image reveal duration, which must be positive and no longer than the question timer or 180 seconds. Pinpoint, Connections and Head-to-Head are excluded. Earned base points decay linearly from 100% to 25% over that duration, are floored, then doubled when Double Score is enabled. Progressive Reveal replaces ordinary Speed Scoring, including for positive partial Matching/Multiple Select points; correctness rules are unchanged.
 
 The image and local points badge use the existing authoritative opening timestamp. Reduced motion uses four discrete reveal steps without exposing the complete image early, and enlargement is unavailable until the image completes or Answer Reveal begins. Public alt text stays neutral throughout Question and Locked; private authoring keeps descriptive alt text. New migration `20260904131727_progressive_reveal.sql` adds only the saved question flag and patches existing validation, serialisation and scoring. No session state, progress writes, RPC calls, broadcasts, subscriptions, fetches or polling are added. See [Progressive Reveal architecture and verification](docs/progressive-reveal.md). All pending migrations require a deliberate database-first release; none was applied to production in this pass.
+
+### Wagers (implemented locally, pending release)
+
+Wager is an optional saved modifier on every Standard question type, including Teams and Rounds. Players default to No wager and may risk 25%, 50% or 100% of the authored base points. Stake is `floor(base points × percentage / 100)`: a fully correct answer adds it after all ordinary scoring; an incorrect or partial answer loses it. Double Score does not double the stake. Awarded points and individual/Team totals may be negative, while existing correctness metrics, rankings and Final Awards retain their rules.
+
+Migration `20260904141715_wagers.sql` adds a default-false question flag and default-zero percentage on the existing answer row. Strict metadata extraction, ordinary scoring, wager adjustment and the existing insert/score update share one transaction. Typed Answer accept/undo recalculates from the original response time and stored wager. Head-to-Head rejects the modifier. Player drafts stay local until Lock in, submitted summaries survive refresh, and only the private controller sees submitted wagers. There are no additional broadcasts, subscriptions, polling, fetches, preliminary RPCs or answer writes. See [Wager architecture and local verification](docs/wagers.md). The migration and its pending predecessors await a deliberate database-first release; production is unchanged.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -324,7 +330,7 @@ One primary answer and up to 19 alternatives are matched exactly after Unicode N
 
 Uses the optional quiz people bank. Exactly two distinct active people must be selected. The complete pair is required and no partial mode exists.
 
-All points are non-negative integers. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. Pending Standard scoring can optionally reduce positive scores from 100% to 50% according to authoritative response time; Head-to-Head remains fixed at one or zero.
+Authored base points and ordinary earned points are non-negative integers. Wager adjustments may produce negative awarded points and cumulative player/Team totals, without clamping. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. Pending Standard scoring can optionally reduce positive scores from 100% to 50% according to authoritative response time; Head-to-Head remains fixed at one or zero.
 
 ## Media
 
@@ -508,6 +514,7 @@ Pending, deliberately unapplied migrations:
 20260904110937_ordering_matching_questions.sql
 20260904122702_connections_questions.sql
 20260904131727_progressive_reveal.sql
+20260904141715_wagers.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

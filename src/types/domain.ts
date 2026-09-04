@@ -137,6 +137,8 @@ export interface ChoiceOption {
 }
 
 interface QuestionBase {
+  /** Missing on legacy questions means false. */
+  wagerEnabled?: boolean
   /** Missing on legacy client data means false. Saved/portable v10 data is explicit. */
   progressiveRevealEnabled?: boolean
   roundId: string
@@ -252,7 +254,11 @@ export type Question =
   | MatchingQuestion
   | MashupQuestion
 
-export type PlayerAnswerPayload =
+export type WagerPercent = 0 | 25 | 50 | 100
+
+export type PlayerAnswerPayload = PlayerAnswerCore & { wagerPercent?: WagerPercent }
+
+export type PlayerAnswerCore =
   | { type: 'single-choice'; optionId: string }
   | { type: 'multiple-select'; optionIds: string[] }
   | { type: 'true-false'; value: boolean }
@@ -406,6 +412,7 @@ export interface Player {
 }
 
 export interface PlayerAnswer {
+  wagerPercent?: WagerPercent
   id: string
   sessionId: string
   questionId: string
@@ -421,6 +428,7 @@ export interface PlayerAnswer {
 }
 
 export interface HostResponseRecord {
+  wagerPercent?: WagerPercent
   id: string
   sessionId: string
   questionId: string

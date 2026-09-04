@@ -118,6 +118,8 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if (safeQuestion.wagerEnabled !== undefined && typeof safeQuestion.wagerEnabled !== 'boolean') throw new Error('Invalid Wager setting.')
+    if (safeQuestion.wagerEnabled && normaliseQuizType(value.quizType) === 'head-to-head') throw new Error('Wager is Standard-only.')
     if (safeQuestion.progressiveRevealEnabled !== undefined && typeof safeQuestion.progressiveRevealEnabled !== 'boolean') throw new Error('Invalid Progressive Reveal setting.')
     if (safeQuestion.progressiveRevealEnabled && (progressiveRevealValidation(safeQuestion as unknown as SafeQuestion, normaliseQuizType(value.quizType)).length ||
       safeQuestion.speedScoringEnabled !== false || (!revealAllowed && isRecord(safeQuestion.media) && safeQuestion.media.altText !== PROGRESSIVE_NEUTRAL_ALT))) throw new Error('Invalid or spoiler-bearing Progressive Reveal state.')

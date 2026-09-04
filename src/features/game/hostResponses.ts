@@ -30,6 +30,7 @@ export function hostResponseRecordForAnswer(answer: PlayerAnswer): HostResponseR
     playerId: answer.playerId,
     resolutionStatus: answer.resolutionStatus,
     submittedAt: answer.submittedAt,
+    ...(answer.wagerPercent !== undefined ? { wagerPercent: answer.wagerPercent } : {}),
   }
 }
 

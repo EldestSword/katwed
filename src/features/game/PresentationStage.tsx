@@ -28,6 +28,7 @@ import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
 import { ArrangementPrompt, ArrangementResult } from './ArrangementResult'
 import { ConnectionClues } from './ConnectionClues'
+import { WagerIndicator } from './WagerControl'
 import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
 
@@ -122,7 +123,7 @@ function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPa
 function StageHeader({ question, compact, remaining, headToHead, showTimer = true }: { question: SafeQuestion; compact: boolean; remaining: number; headToHead: boolean; showTimer?: boolean }) {
   return (
     <header className="presentation-question__header">
-      <div><QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />{!headToHead && question.doubleScore && <DoubleScoreBadge />}</div>
+      <div><QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />{!headToHead && question.doubleScore && <DoubleScoreBadge />}{!headToHead && question.wagerEnabled && <WagerIndicator points={question.points} />}</div>
       {headToHead ? (
         <GameBadge tone="neutral" large={!compact}>Untimed</GameBadge>
       ) : showTimer ? (

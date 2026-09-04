@@ -5,7 +5,7 @@ import { progressiveQuiz } from '../../test/progressiveFixtures'
 import { mixedDemoQuiz } from '../../lib/demo/sampleData'
 import { arrangementQuiz } from '../../test/arrangementFixtures'
 import { connectionsFixture } from '../../test/connectionsFixtures'
-import { withoutProgressiveFlag } from '../../test/legacyPortable'
+import { withoutProgressiveFlag, withoutWagerFlag } from '../../test/legacyPortable'
 import { exportQuizToPortable, parseKatwedQuizJson } from './katwedQuizFormat'
 const validate = new Ajv2020({ strict: false }).compile(JSON.parse(readFileSync('docs/schemas/katwed-quiz-v10.schema.json', 'utf8')))
 
@@ -14,20 +14,20 @@ it('round trips all types, image settings, explicit flags, Double Score and roun
   source.questions.push(...mixedDemoQuiz.questions, ...arrangementQuiz().questions, connectionsFixture())
   source.questions = source.questions.map((q, i) => ({ ...q, displayOrder: i, roundId: source.rounds[0].id }))
   source.questions[0].doubleScore = true
-  const file = exportQuizToPortable(source)
+  const file = withoutWagerFlag(exportQuizToPortable(source))
   expect(file.formatVersion).toBe(10)
   expect(validate(file), JSON.stringify(validate.errors)).toBe(true)
   const input = parseKatwedQuizJson(JSON.stringify(file)).input
   expect(input.questions[0]).toMatchObject({ progressiveRevealEnabled: true, doubleScore: true, media: source.questions[0].media })
   expect(input.questions.slice(1).every(q => q.progressiveRevealEnabled === false)).toBe(true)
-  expect(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! })).toEqual(file)
+  expect(withoutWagerFlag(exportQuizToPortable({ ...source, ...input, id: input.rounds![0].quizId, rounds: input.rounds! }))).toEqual(file)
   expect(JSON.stringify(file)).not.toMatch(/sessionId|questionOpenedAt|availablePoints|revealedClueCount|playMode|teamNames/)
 })
 it.each(['missing', 'string', 'immediate', 'duration', 'timer', 'media', 'h2h', 'connections', 'pinpoint'] as const)('rejects invalid v10 %s', kind => {
   const source = progressiveQuiz()
   if (kind === 'connections') source.questions[0] = { ...connectionsFixture(), media: source.questions[0].media }
   if (kind === 'pinpoint') source.questions[0] = { ...mixedDemoQuiz.questions.find(q => q.type === 'pinpoint')!, progressiveRevealEnabled: false }
-  const file = exportQuizToPortable(source), q = file.quiz.questions[0]
+  const file = withoutWagerFlag(exportQuizToPortable(source)), q = file.quiz.questions[0]
   if (kind === 'connections' || kind === 'pinpoint') q.progressiveRevealEnabled = true
   if (kind === 'missing') Reflect.deleteProperty(q, 'progressiveRevealEnabled')
   if (kind === 'string') Object.assign(q, { progressiveRevealEnabled: 'true' })

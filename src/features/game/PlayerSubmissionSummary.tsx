@@ -1,3 +1,4 @@
+import { WagerSummary } from './WagerControl'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RosterMember, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, CLASSIC_ANSWER_COLOURS, resolveAnswerColours } from '../answer-palettes/answerPalettes'
@@ -5,7 +6,7 @@ import { optionPosition } from '../questions/optionOrdering'
 import { formatSliderValue } from './revealFormatting'
 import { ArrangementResult } from './ArrangementResult'
 
-export function PlayerSubmissionSummary({
+function AnswerSummary({
   answer,
   question,
   roster,
@@ -69,4 +70,8 @@ export function PlayerSubmissionSummary({
       )}
     </div>
   )
+}
+
+export function PlayerSubmissionSummary(props: Parameters<typeof AnswerSummary>[0]) {
+  return <><AnswerSummary {...props} />{props.question.wagerEnabled && <WagerSummary points={props.question.points} percent={props.answer.wagerPercent ?? 0} />}</>
 }

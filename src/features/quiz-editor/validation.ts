@@ -59,6 +59,7 @@ function validateOptions(
 
 export function validateQuestion(question: Question, roster: readonly RosterMember[]): QuestionValidation {
   const messages: string[] = progressiveRevealValidation(question)
+  if (question.wagerEnabled !== undefined && typeof question.wagerEnabled !== 'boolean') messages.push('Choose a valid Wager setting.')
   if (!question.prompt.trim() || question.prompt.length > 300) {
     messages.push('Give the question a prompt of 1–300 characters.')
   }
@@ -198,6 +199,7 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   }
 
   if (input.quizType === 'head-to-head') {
+    if (input.questions.some(question => question.wagerEnabled)) messages.push('Wager is Standard-only. Disable it before switching to Head-to-Head.')
     if (input.questions.some(question => question.progressiveRevealEnabled)) messages.push('Progressive Reveal is Standard-only. Disable it before switching to Head-to-Head.')
     if (input.questions.some(question => question.type === 'connections')) messages.push('Connections is Standard-only. Remove Connections questions before switching to Head-to-Head.')
     if (input.questions.some((question) => question.speedScoringEnabled || question.doubleScore)) {

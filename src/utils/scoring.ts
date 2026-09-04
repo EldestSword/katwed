@@ -1,3 +1,5 @@
+import { extractWager } from '../features/scoring/wager'
+import { ANSWER_CORE_FIELDS } from '../features/questions/answerPayload'
 import { normalisePinpointTarget, pinpointContains } from '../features/game/pinpointTargets'
 import { onlyFields, validMatchingPairs, validPermutation } from '../features/questions/arrangementQuestions'
 import { connectionStagePoints } from '../features/questions/connections'
@@ -50,7 +52,11 @@ function approximatelyOnStep(value: number, minimum: number, step: number): bool
 export interface QuestionScoringContext { revealedClueCount?: number }
 
 export function scoreQuestion(question: Question, answer: PlayerAnswerPayload, context: QuestionScoringContext = {}): QuestionScore {
+  const wager = extractWager(answer, question.wagerEnabled === true)
+  if (!wager) return invalid('invalid-wager')
+  answer = wager.answer
   if (question.type !== answer.type) return invalid('answer-type')
+  if (!onlyFields(answer, ANSWER_CORE_FIELDS[question.type])) return invalid('answer-fields')
 
   switch (question.type) {
     case 'connections': {
