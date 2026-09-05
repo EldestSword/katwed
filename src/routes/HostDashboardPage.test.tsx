@@ -29,9 +29,12 @@ function quiz(
   archivedAt: string | null = null,
   coverImagePath: string | null = null,
 ): Quiz {
+  const source = structuredClone(sampleQuiz)
   return {
-    ...structuredClone(sampleQuiz),
+    ...source,
     id,
+    rounds: source.rounds.map(round => ({ ...round, quizId: id })),
+    questions: source.questions.map(question => ({ ...question, quizId: id })),
     title,
     createdAt,
     updatedAt,

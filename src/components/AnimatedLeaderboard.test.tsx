@@ -41,6 +41,22 @@ describe('AnimatedLeaderboard', () => {
     expect(container.querySelector('.leaderboard__movement')).toBeNull()
   })
 
+  it('animates negative wager totals without losing their signs or authoritative ranks', async () => {
+    const previous = board(['Carol', 'Roger'], [-1000, -2000])
+    const entries = board(['Roger', 'Carol'], [-500, -1500])
+    const { container } = render(<AnimatedLeaderboard reveal={{ id: 3, previous, entries }} onSettled={settle} />)
+    const roger = container.querySelector('[data-player-id="roger"]')!
+    expect(roger.querySelector('.leaderboard__points [aria-hidden]')).toHaveTextContent('-2,000 points')
+    await advance(600)
+    const partial = Number(roger.querySelector('.leaderboard__points [aria-hidden]')!.textContent!.replace(/[^\d-]/g, ''))
+    expect(partial).toBeGreaterThan(-2000)
+    expect(partial).toBeLessThan(-500)
+    await advance(1400)
+    expect(order(container)).toEqual(['roger', 'carol'])
+    expect(roger.querySelector('.leaderboard__points')).toHaveTextContent('-500 points')
+    expect(screen.getByRole('status')).toHaveTextContent('Roger takes the lead!')
+  })
+
   it('measures only at the reorder and applies opposite transform displacements to climbing and falling rows', async () => {
     const cancel = vi.fn()
     const animations: Array<{ id: string | undefined; frames: Keyframe[] }> = []
