@@ -18,7 +18,7 @@ Katwed! version 2 is deployed on Netlify from the `EldestSword/katwed` GitHub re
 
 ### Phase 2 release candidate
 
-`phase2/release-candidate` contains the complete Phase 2 tree and its integration checks. The pending database stack is the twelve ordered Phase 2 migrations followed by `20260904232901_rc_tiebreaker_rpc_privileges.sql`, which removes inherited anonymous execution privileges from three owner-only tie-break controls. Earlier migrations remain unchanged. See the [release-candidate evidence, database-first release order and manual UAT checklist](docs/phase2-release-candidate.md). Production migration, frontend deployment and PR creation remain separate deliberate actions.
+`phase2/release-candidate` contains the complete Phase 2 tree and its integration checks. The pending database stack is the twelve ordered Phase 2 migrations followed by `20260904232901_rc_tiebreaker_rpc_privileges.sql` (owner-only tie-break controls) and `20260905081403_rc_tiebreaker_content_audit.sql` (13 audited bank corrections). The full repository chain now has 47 migrations; earlier migrations remain unchanged. Draft PR #22 awaits the Linux GitHub gate and deliberate release approval. See the [release-candidate evidence, database-first release order and manual UAT checklist](docs/phase2-release-candidate.md). Production migration, frontend deployment and merging the PR remain separate deliberate actions.
 
 ### Implemented and production-tested
 
@@ -184,6 +184,8 @@ Migration `20260904223001_core_power_ups.sql` adds private constrained use recor
 New Standard Individual Points and Survivor sessions automatically divert a genuine first-place tie into a 20-second closest-number tie-breaker. Points uses equal highest `totalScore`; Survivor uses equal highest living life count, or equal latest elimination in a total wipeout. Equal distance falls back to authoritative response time. If distance and response time are both identical, only the still-tied finalists receive another unused question. One last living Survivor, Teams, Head-to-Head and emergency early Finish retain their existing results.
 
 Migration `20260904223000_automatic_tiebreakers.sql` seeds the supplied 200-question researched bank into a private RLS-forced table and stores contenders and decimal-string submissions separately from quiz answers. The database calculates distance with PostgreSQL `NUMERIC`, keeps scores, streaks, lives and Final Awards unchanged, and moves only the resolved winner to final rank one. Old clients omit the capability flag, receive its database default of false and never enter the new phases; the new frontend explicitly enables it only for supported sessions. The existing session refresh path covers phase changes, while individual estimates emit no broadcast and no new subscription, channel or polling loop exists. Quiz export remains portable v12. See [Automatic Tie-Breakers architecture and verification](docs/automatic-tiebreakers.md). This migration and frontend have not been applied or deployed to production.
+
+The current audited bank is [v1.3](docs/data/tiebreaker-bank-v1.3.json); the [original supplied bank](docs/data/tiebreaker-bank-v1.json) remains as historical evidence. Run `node scripts/validate-tiebreaker-bank.mjs` to validate v1.3, or supply an explicit JSON path to validate another revision. Validation is entirely offline. The content-only forward migration `20260905081403_rc_tiebreaker_content_audit.sql` corrects the 13 audited rows, checks their expected old content and preserves IDs, enabled status and all security/selection behaviour. The original seed migration is immutable.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -554,6 +556,8 @@ Pending, deliberately unapplied migrations:
 20260904203000_core_survivor_mode.sql
 20260904223000_automatic_tiebreakers.sql
 20260904223001_core_power_ups.sql
+20260904232901_rc_tiebreaker_rpc_privileges.sql
+20260905081403_rc_tiebreaker_content_audit.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.

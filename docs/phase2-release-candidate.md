@@ -5,14 +5,17 @@
 - Production/main baseline (`origin/main`, verified again after validation): `97912b03e5979f5a21e9b589b34677c18735dc19`.
 - Supplied Phase 2 base: `7eb000ead70d5eb53188e4ad9a07ec239cb7cb24` (Pass 11 Power-Ups).
 - Branch: `phase2/release-candidate`.
-- Validated code revision: `31d4c15bd50c35ac2bd0faa1b49f31db8723126b`. The final RC tip is the immediately following documentation-only commit containing this report and the README release link.
+- Initial locally validated code revision: `31d4c15bd50c35ac2bd0faa1b49f31db8723126b`.
+- Reviewed head before the CI/content follow-up: `89bb3df1b00952bbacb72428b657e6cc85444ce3`.
+- Follow-up validated code revision: `9d9e7ed22effd99c0190a570f5dc82f1a87b6a80`; the immediately following commit updates only README and this report.
+- Review: draft PR [#22](https://github.com/EldestSword/katwed/pull/22), kept in draft throughout this follow-up.
 - Local validation date: 5 September 2026.
 
 The initial RC was 14 commits ahead of `origin/main`, zero behind, with `origin/main` as its exact merge base. The pre-existing local `main` reference is older (`d4f8240cb20125143c18f4083d9cd8323cd88da6`) and was left untouched. The complete changed-file inventory was inspected. Earlier feature branches were already incorporated and were not merged again. The theme importer version-list extension was intentional; no unrelated artwork, generated output, credentials or production settings were added. Existing untracked artwork remains outside the commits.
 
-This pass does not release the application. Main, hosted Supabase, Netlify and the production database were not changed. No PR, merge or deployment was performed.
+These passes do not release the application. Main, hosted Supabase, Netlify and the production database were not changed. The existing draft PR was neither marked ready nor merged, and no deployment was performed.
 
-The RC adds six commits: four fixes grouped by root cause, one integration-test commit and this documentation commit. Eighteen files changed during integration; the complete inventory appears below.
+The initial integration pass added six commits: four fixes grouped by root cause, one integration-test commit and one documentation commit. Eighteen files changed in that initial pass; its inventory appears below. The subsequent CI/content follow-up is recorded separately.
 
 ## Preserved feature inventory
 
@@ -45,11 +48,13 @@ All twelve pending migrations were read in order and remain byte-for-byte unchan
 
 One forward RC migration follows them: `20260904232901_rc_tiebreaker_rpc_privileges.sql`. Supabase default privileges can grant EXECUTE directly to `anon`; revoking `PUBLIC` alone leaves that separate grant intact. The existing three host tie-break RPCs checked ownership but retained this unnecessarily broad API grant. The forward migration revokes anonymous execution of `host_resolve_tiebreaker`, `host_next_tiebreaker` and `host_reveal_tiebreaker_final`, retaining authenticated access and every existing owner check. See [Supabase API security guidance](https://supabase.com/docs/guides/api/securing-your-api). The original migration was preserved to avoid rewriting the reviewed function chain.
 
+A second forward RC migration, `20260905081403_rc_tiebreaker_content_audit.sql`, follows the privilege correction. It updates only the 13 v1.3 audited bank rows and rejects unexpected prior content. The complete order is now **47 migrations**: 33 baseline, twelve Phase 2, then these two RC corrections. The seed migration and all earlier migrations remain unchanged.
+
 The final audit found no anonymously executable `host_*` RPC. All 15 public tables have RLS. The private tie-break bank, contenders, answers and Power-Up use tables retain FORCE RLS and revoked direct client grants. Fixed security-definer search paths, qualified pgcrypto calls, reconnect-token validation, owner checks and same-session foreign keys remain intact. Tests reject pre-reveal answers/Pinpoint targets, future Connections clues, other players' private state and early tie-break answers/sources.
 
 ## Database and old-client evidence
 
-A fresh disposable PostgreSQL 17 database, `katwed_rc_final` on loopback port 55439, applied **all 46 repository migrations from zero** successfully: 33 baseline migrations, the twelve Phase 2 migrations, then the RC grant correction. No migration was skipped and no application predecessor function was pre-populated. This verifies that the successive retained-function patches match the actual chain.
+During the initial integration, a fresh disposable PostgreSQL 17 database, `katwed_rc_final` on loopback port 55439, applied **all 46 then-current repository migrations from zero** successfully: 33 baseline migrations, the twelve Phase 2 migrations, then the RC grant correction. No migration was skipped and no application predecessor function was pre-populated. This verifies that the successive retained-function patches match the actual chain. The follow-up's fresh 47-migration result is recorded below.
 
 The platform baseline supplied Supabase roles and default table/function/sequence grants, `auth.uid`, minimal Auth/Storage/Realtime structures, a captured `realtime.send`, and real pgcrypto and pgTAP in `extensions`. The first local build lacked the platform's default grants; that omission was corrected and the complete final chain rebuilt from zero before accepting security results.
 
@@ -96,7 +101,7 @@ All checks used disposable synthetic data and 75 simultaneous native PostgreSQL 
 
 No deadlock, statement timeout or duplicate answer/use row occurred. The Connections boundary race also passed: an answer holding the lock before clue advance received 1,000 points; clue advance first caused the later answer to receive 500. Local results do not certify hosted Free-plan capacity, quotas, transport or latency.
 
-## Application gates and UI inspection
+## Initial local application gates and UI inspection
 
 The complete unit/component suite passed: **167 files, 1,610 tests, zero failures or skips**, using two workers (356.67 seconds). The final complete Playwright run passed **118/118 checks: 59 scenarios in each of `chromium` and `mobile-chromium`, zero failures, skips, retries or flaky results**, using one worker (1,454.06 seconds / 24.2 minutes). Complete typecheck, lint and production build passed; Vite built 257 modules in 12.00 seconds without a bundle-size warning.
 
@@ -136,7 +141,7 @@ A subsequent browser run was stopped after 33 passes when screenshot review expo
 
 The next complete run passed 117 of 118 checks. Its sole failure was the new editor test forcing a 1440 px desktop viewport inside phone emulation: native focus panned the wide layout, and the trace repeatedly showed clicks intercepted by unrelated visible elements. The identical failure reproduced in the isolated mobile test. The fixture now uses 390 px for phones and 1440 px for desktop; all image, layout, authoring and persistence assertions remain. Both isolated editor projects then passed (38.2 seconds), before the final complete browser rerun.
 
-### Files changed during integration
+### Files changed during the initial integration
 
 | Purpose | Files |
 |---|---|
@@ -147,6 +152,44 @@ The next complete run passed 117 of 118 checks. Its sole failure was the new edi
 | Updated integrated contracts and negative-score regression | `src/routes/HostDashboardPage.test.tsx`, `src/lib/supabase/teamRepository.test.ts`, `src/components/AnimatedLeaderboard.test.tsx`, `supabase/tests/realtime_scaling_test.sql`, `tests/e2e/smoke.spec.ts` |
 | Combined games and old-client/load proof | `supabase/tests/rc_cross_feature.mjs`, `supabase/tests/rc_legacy_and_load.mjs`, `tests/e2e/rc-integration.spec.ts` |
 | Release guidance | `README.md`, `docs/phase2-release-candidate.md` |
+
+## CI run 114 and bank v1.3 follow-up
+
+[GitHub run 114](https://github.com/EldestSword/katwed/actions/runs/33950592240) passed `npm ci`, lint, typecheck, the complete unit/component suite and production build. Both Linux browser jobs failed: desktop **48 passed / 11 failed**, mobile **49 passed / 10 failed**, with zero retries. These failures were investigated using logs, screenshots, traces and focused reproduction; they were not retried or excluded from the gate.
+
+The follow-up adds four commits: `c8e9062` (dense layout), `5f26f4a` (asynchronous browser contracts), `9d9e7ed` (v1.3 content and SQL assertions), then this documentation-only commit. All work stays on `phase2/release-candidate`.
+
+| Failure group | Root cause and correction |
+|---|---|
+| A: dense Presentation layout | Linux font metrics wrapped more lines. Global `li { line-height: 1.45 }` overrode the dense containers' inherited `1.2`, and ordinary reveal margins amplified the overflow. Dense Arrangement result rows and Connections clue rows now set `line-height: 1.2` directly. Full dense Arrangement reveal uses `1rem 2rem` stage padding, `clamp(.25rem, .6vh, .5rem)` list gaps and `.4rem` list margins. The full dense Connections answer card uses `.25rem` margins/gaps, zero paragraph margins and a `clamp(2rem, 4vw, 3.5rem)` answer heading. Item font sizes and normal-content styles remain unchanged; no clipping was added. All original geometry assertions remain, with an additional wider fallback-font check at the same text size. |
+| B: Demo lobby launch | Start lobby awaits repository operations and the Demo Web Lock before saving/navigating. A completed click did not prove completion. A shared test helper now waits for the controller URL, polls the matching persisted session's `lobby` phase and requires the Start game button before returning its room code. Buzz, Survivor, Wager and Tie-Break fixtures use it. |
+| C: Typed correction/streak read | Host correction uses the same asynchronous write contract. The tests now poll the stored streak after Mark Correct/Undo/Mark Correct (`4`, `0`, `4`) before reloads or further reads. No Streak semantics changed. |
+| D: Survivor tie-break/reconnect | The CI trace still showed only one of two submissions. Reloading Carol immediately after Lock in could cancel her queued Demo write. The fixture now polls her persisted answer first, then polls the authoritative result phase, both answers and Carol's winner ID before asserting the Presentation heading. A focused run also exposed shared demo-tab storage changing to Jaki before Carol's React reconnect completed; reload now waits for the correct player's visible game bar before another tab restores its identity. The former negative input-absence assertion is replaced with positive Answer locked feedback. The resolver and result UI are unchanged. |
+
+No arbitrary sleeps, increased timeouts, weakened geometry assertions or retries were introduced. The workflow retains application checks, separate `chromium` and `mobile-chromium` jobs, one worker per browser job, retries zero, the final `validate` gate and cancel-in-progress.
+
+The supplied [v1.3 bank](data/tiebreaker-bank-v1.3.json) is copied verbatim. It corrects TB009–TB016 to JPL equatorial radii, TB098 to **7,650 ft**, and makes the NASA Sun Facts and three Spotify album-version prompts explicit. TB036 and TB198–TB200 numeric answers are unchanged. Exactly 13 rows differ from the original bank. Both the original audit copy and `20260904223000_automatic_tiebreakers.sql` remain unchanged.
+
+`20260905081403_rc_tiebreaker_content_audit.sql` checks all expected prior content fields under a row lock before updating those 13 rows. Unexpected or missing content aborts the transaction, including any earlier updates. It preserves IDs, enabled status, table security, RLS, grants and selection/resolution logic. Offline validation deliberately selects the current or historical revision:
+
+```sh
+node scripts/validate-tiebreaker-bank.mjs
+node scripts/validate-tiebreaker-bank.mjs docs/data/tiebreaker-bank-v1.json
+```
+
+Both bank validations passed: **200 questions, 200 unique IDs/prompts, numeric answers, units, source titles and HTTPS URLs**. A fresh disposable PostgreSQL 17 database, `katwed_rc_ci114` on loopback port 55439, applied **all 47 migrations from zero** with the same platform baseline described above and no pre-populated application functions. All 200 resulting content records matched v1.3 exactly. The updated Tie-Break SQL fixture passed (one top-level TAP result containing the full assertion programme), including audited values/wording and denied direct `anon`/`authenticated` reads of all three private tie-break tables with FORCE RLS intact. Additional transactional checks proved that an unexpected TB098 value rejects the migration atomically and that a disabled row stays disabled. The disposable server was stopped afterwards; no hosted database was contacted.
+
+The post-fix focused layout and RC G/J checks passed **6/6** across both browser projects, including wider-font geometry checks. Screenshots show all eight Matching pairs and all six Connections clues plus the answer at 1280×720; compact preview and 320 px player assertions also pass. This host is Windows and has no Linux/WSL runtime, so these results do not claim to reproduce Linux itself. GitHub's fresh PR run after push remains the authoritative Linux gate; the failed run was not manually rerun.
+
+The follow-up's complete unit/component suite passed **167 files / 1,610 tests**, with zero failures or skips and two workers (347.59 seconds). Typecheck, lint and production build passed; Vite built 257 modules in 14.53 seconds without a bundle-size warning.
+
+The final affected browser subset passed **38/38 checks: 19 in `chromium` and 19 in `mobile-chromium`**, with one worker, zero failures, skips, retries or flaky results (571.78 seconds / 9.5 minutes). It includes all scenarios in the eight files below. The complete 118-check suite was not repeated locally in this follow-up; its earlier Windows result is historical, and the fresh GitHub run will execute the full suite on Linux.
+
+```sh
+npx playwright test tests/e2e/arrangements.spec.ts tests/e2e/connections.spec.ts tests/e2e/buzz-in.spec.ts tests/e2e/survivor.spec.ts tests/e2e/wagers.spec.ts tests/e2e/tiebreakers.spec.ts tests/e2e/streaks.spec.ts tests/e2e/rc-integration.spec.ts --workers=1 --retries=0
+```
+
+Follow-up file inventory (18 files): the two dense Presentation styles; those eight browser specs and new `demoState.ts` / `presentationGeometry.ts` helpers; the bank validator, v1.3 JSON, content migration and Tie-Break SQL fixture; README and this report. The CI workflow, player implementation, scoring, resolver, polling and Realtime code are unchanged.
 
 ## Network audit
 
@@ -163,16 +206,16 @@ Production migration history must be reconciled deliberately before release. Rep
 Perform these steps later, after independent RC inspection:
 
 1. Freeze the reviewed release-candidate commit.
-2. Create the Phase 2 PR into main.
+2. Independently review the existing draft Phase 2 PR #22 into main.
 3. Require GitHub CI to pass.
-4. Verify production prerequisites, then deliberately apply the pending Phase 2 database stack in the order above, including the RC grant fix, before frontend merge/deploy.
+4. Verify production prerequisites, then deliberately apply the pending Phase 2 database stack in the order above, including both RC corrections (privileges, then v1.3 content), before frontend merge/deploy.
 5. Verify the **currently deployed** Katwed frontend still loads/saves existing quizzes and completes Standard/H2H games against the upgraded DB.
 6. Merge and deliberately deploy the Phase 2 frontend.
 7. Verify production frontend assets/routes and host access.
 8. Run a manual host/player/presentation smoke game.
 9. Check Supabase Realtime connections, message rate, errors and database/API load for unexpected behaviour.
 
-Rollback should normally restore the previous frontend while retaining the backwards-compatible database stack. Keep the previous deploy available. Do not attempt destructive down-migrations during a live quiz; investigate and apply a reviewed forward fix for database defects. Do not restart active rooms or discard answers as an incidental deployment action.
+Keep the previous deploy available, but assess active games and newly authored quizzes before restoring it. The old-client database contract evidence covers existing formats and legacy sessions; it does not prove the old frontend can render new Phase 2 question types or active new phases. A frontend rollback must account for those games while retaining the backwards-compatible database stack. Do not attempt destructive down-migrations during a live quiz; investigate and apply a reviewed forward fix for database defects. Do not restart active rooms or discard answers as an incidental deployment action.
 
 ## Later production UAT checklist
 
