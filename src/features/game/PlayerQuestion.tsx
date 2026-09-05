@@ -1,20 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCountdown } from '../../hooks/useCountdown'
 import type {
   AnswerColourTuple,
   AnswerPaletteId,
+  BuzzClaimResult,
+  BuzzState,
   ChoiceOption,
   PlayerAnswerPayload,
   RosterMember,
   SafeQuestion,
+  Player,
+  GameTeam,
+  PersonalPowerUpState,
+  AnswerPowerUpId,
 } from '../../types/domain'
 import { StatusMessage } from '../../components/StatusMessage'
 import { QuestionMedia } from '../../components/QuestionMedia'
+import { WagerControl } from './WagerControl'
+import type { WagerPercent } from '../../types/domain'
+import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { ImageViewer } from '../../components/ImageViewer'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import { GameTimer } from '../../components/design-system/GameTimer'
 import { QuestionProgressBadge } from '../../components/design-system/LiveGamePrimitives'
 import { PinpointSurface } from './PinpointSurface'
+import { PlayerSliderAnswer } from './PlayerSliderAnswer'
+import { PlayerOrderingAnswer } from './PlayerOrderingAnswer'
+import { PlayerMatchingAnswer } from './PlayerMatchingAnswer'
+import { PlayerConnectionsAnswer } from './PlayerConnectionsAnswer'
+import { ConnectionClues } from './ConnectionClues'
+import { validMatchingPairs, validPermutation } from '../questions/arrangementQuestions'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { MAX_TYPED_ANSWER_LENGTH, isMeaningfulTypedAnswer } from '../typed-answer/typedAnswer'
 import { DoubleScoreBadge } from './DoubleScoreIntro'
@@ -25,6 +40,8 @@ import {
   resolveAnswerColours,
 } from '../answer-palettes/answerPalettes'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
+import { PowerUpTray } from './PowerUpTray'
+import { POWER_UP_NAMES } from './powerUps'
 
 interface PlayerQuestionProps {
   question: SafeQuestion
@@ -35,6 +52,13 @@ interface PlayerQuestionProps {
   modeLabel?: string
   answerPaletteId?: AnswerPaletteId
   customAnswerColours?: AnswerColourTuple
+  buzz?: BuzzState | null
+  playerId?: string
+  players?: Player[]
+  teams?: GameTeam[]
+  onBuzz?(): Promise<BuzzClaimResult>
+  powerUps?: PersonalPowerUpState | null
+  onFiftyFifty?(): Promise<void>
   onSubmit(payload: PlayerAnswerPayload): Promise<void>
 }
 
@@ -85,8 +109,21 @@ export function PlayerQuestion({
   modeLabel,
   answerPaletteId = 'classic',
   customAnswerColours = CLASSIC_ANSWER_COLOURS,
+  buzz = null,
+  playerId = '',
+  players = [],
+  teams = [],
+  onBuzz,
+  powerUps = null,
+  onFiftyFifty,
   onSubmit,
 }: PlayerQuestionProps) {
+  const [selectedPowerUp, setSelectedPowerUp] = useState<AnswerPowerUpId | null>(null)
+  const [activatingPowerUp, setActivatingPowerUp] = useState(false)
+  const answerArea = useRef<HTMLDivElement>(null)
+  const activation = powerUps?.uses.find(use => use.questionId === question.id)
+  const retainedOptions = activation?.powerUp === 'fifty-fifty' ? activation.optionIds : undefined
+  const [wagerPercent, setWagerPercent] = useState<WagerPercent>(initialAnswer?.wagerPercent ?? 0)
   const [answer, setAnswer] = useState<PlayerAnswerPayload | null>(initialAnswer)
   const [mashupSelection, setMashupSelection] = useState<string[]>(
     initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [],
@@ -96,27 +133,70 @@ export function PlayerQuestion({
   const [error, setError] = useState('')
   const [limitMessage, setLimitMessage] = useState('')
   const [wideAnswerLayout, setWideAnswerLayout] = useState(false)
+  const [claimingBuzz, setClaimingBuzz] = useState(false)
+  const [claimedBuzz, setClaimedBuzz] = useState<BuzzState | null>(buzz)
+  const [buzzError, setBuzzError] = useState('')
   const remaining = useCountdown(closesAt)
-  const timedOut = closesAt !== null && remaining <= 0
+  const effectiveBuzz = buzz ?? claimedBuzz
+  const buzzRemaining = useCountdown(effectiveBuzz?.answerDeadlineAt ?? null)
+  const buzzQuestion = question.buzzInEnabled === true
+  const playerWonBuzz = buzzQuestion && effectiveBuzz?.winnerPlayerId === playerId
+  const buzzWindowClosed = playerWonBuzz && buzzRemaining <= 0
+  const timedOut = (closesAt !== null && remaining <= 0) || buzzWindowClosed
   const answerColours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   const requestWideAnswerLayout = useCallback(() => setWideAnswerLayout(true), [])
 
   useEffect(() => {
+    setSelectedPowerUp(null)
+    setWagerPercent(initialAnswer?.wagerPercent ?? 0)
     setAnswer(initialAnswer)
     setMashupSelection(initialAnswer?.type === 'mashup' ? [...initialAnswer.memberIds] : [])
     setSubmitted(Boolean(initialAnswer))
     setError('')
     setLimitMessage('')
     setWideAnswerLayout(false)
-  }, [initialAnswer, question.id])
+    setClaimedBuzz(null)
+    setBuzzError('')
+  }, [initialAnswer, question.id, openedAt])
+
+  useEffect(() => {
+    if (retainedOptions && answer?.type === 'single-choice' && !retainedOptions.includes(answer.optionId)) setAnswer(null)
+  }, [retainedOptions, answer])
+
+  async function activateFiftyFifty() {
+    if (!onFiftyFifty || activatingPowerUp || submitting || timedOut || selectedPowerUp) return
+    setActivatingPowerUp(true)
+    setError('')
+    let previousFocus = document.activeElement
+    const trackFocus = (event: FocusEvent) => { if (event.target instanceof HTMLElement) previousFocus = event.target }
+    document.addEventListener('focusin', trackFocus)
+    try {
+      await onFiftyFifty()
+      // The activation button normally retains focus. If a choice had focus and
+      // was removed while the RPC was pending, focus a surviving choice.
+      requestAnimationFrame(() => {
+        if (previousFocus && !document.contains(previousFocus) && document.activeElement === document.body) answerArea.current?.querySelector<HTMLButtonElement>('button')?.focus()
+      })
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '50/50 could not be activated.') }
+    finally { document.removeEventListener('focusin', trackFocus); setActivatingPowerUp(false) }
+  }
+
+  useEffect(() => {
+    setClaimedBuzz(buzz)
+    if (!buzz) setBuzzError('')
+    // Safe-state parsing replaces the players array on each authoritative
+    // refresh, including a host reset whose Buzz value returns to null.
+  }, [buzz, players])
 
   const canSubmit = useMemo(() => {
     if (question.type === 'mashup') return mashupSelection.length === 2
     if (!answer || answer.type !== question.type) return false
+    if (answer.type === 'ordering' && question.type === 'ordering') return validPermutation(answer.itemIds, question.items.map((item) => item.id))
+    if (answer.type === 'matching' && question.type === 'matching') return validMatchingPairs(answer.pairs, question.leftItems.map((item) => item.id), question.rightItems.map((item) => item.id))
     if (answer.type === 'multiple-select' && question.type === 'multiple-select') {
       return answer.optionIds.length >= question.minimumSelections && answer.optionIds.length <= question.maximumSelections
     }
-    if (answer.type === 'typed-answer') {
+    if (answer.type === 'typed-answer' || answer.type === 'connections') {
       return answer.value.length <= MAX_TYPED_ANSWER_LENGTH && isMeaningfulTypedAnswer(answer.value)
     }
     return true
@@ -125,15 +205,16 @@ export function PlayerQuestion({
   async function lockIn() {
     const payload = question.type === 'mashup' && mashupSelection.length === 2
       ? { type: 'mashup' as const, memberIds: [mashupSelection[0], mashupSelection[1]] as const }
-      : answer?.type === 'typed-answer'
+      : answer?.type === 'typed-answer' || answer?.type === 'connections'
         ? { ...answer, value: answer.value.trim() }
         : answer
-    if (!payload || !canSubmit || submitted || timedOut) return
+    if (!payload || !canSubmit || submitted || submitting || activatingPowerUp || timedOut) return
     setSubmitting(true)
     setError('')
     try {
-      await onSubmit(payload)
-      setAnswer(payload)
+      const submission = { ...payload, ...(question.wagerEnabled ? { wagerPercent } : {}), ...(selectedPowerUp ? { powerUp: selectedPowerUp } : {}) }
+      await onSubmit(submission)
+      setAnswer(submission)
       setSubmitted(true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Your answer could not be submitted. Please try again.')
@@ -142,11 +223,29 @@ export function PlayerQuestion({
     }
   }
 
+  async function claimBuzz() {
+    if (!onBuzz || claimingBuzz || timedOut || effectiveBuzz) return
+    setClaimingBuzz(true)
+    setBuzzError('')
+    try {
+      const result = await onBuzz()
+      setClaimedBuzz(result)
+      if (!result.won) setBuzzError('Too late — another player buzzed first.')
+    } catch (reason) {
+      setBuzzError(reason instanceof Error ? reason.message : 'The buzzer could not be reached. Please try again.')
+    } finally {
+      setClaimingBuzz(false)
+    }
+  }
+
   if (submitted && answer) {
     return (
       <section className="player-waiting" aria-live="polite">
         <div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h2>Answer locked</h2></div></div>
         <PlayerSubmissionSummary answer={answer} question={question} roster={roster} answerPaletteId={answerPaletteId} customAnswerColours={customAnswerColours} />
+        {activation && <p className="power-up-status">Power-Up: {POWER_UP_NAMES[activation.powerUp]}</p>}
+        {question.type === 'connections' && <ConnectionClues question={question} />}
+        {question.progressiveRevealEnabled && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled />}
         <p className="player-waiting__next">Waiting for the reveal…</p>
       </section>
     )
@@ -154,6 +253,27 @@ export function PlayerQuestion({
 
   const showMedia = question.mediaVisibility === 'players' || question.mediaVisibility === 'both'
   const visibleVisualMedia = showMedia && question.media.type !== 'none'
+  const buzzWinner = effectiveBuzz ? players.find(player => player.id === effectiveBuzz.winnerPlayerId) : undefined
+  const buzzTeam = buzzWinner?.teamId ? teams.find(team => team.id === buzzWinner.teamId) : undefined
+  const buzzWinnerLabel = buzzWinner ? `${buzzWinner.nickname}${buzzTeam ? ` · ${buzzTeam.name}` : ''}` : 'Another player'
+  if (buzzQuestion && (!playerWonBuzz || buzzWindowClosed)) {
+    return (
+      <section className="player-question player-question--buzz" aria-labelledby="question-instruction">
+        <div className="question-meta">
+          {modeLabel ? <span>{modeLabel}</span> : <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact />}
+          {question.doubleScore && <DoubleScoreBadge />}
+          {closesAt !== null && <GameTimer seconds={remaining} totalSeconds={question.timeLimitSeconds} />}
+        </div>
+        <div className="player-question__prompt" data-question-density={questionTextDensity(question.prompt, visibleVisualMedia)}><h1 id="question-instruction">{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
+        {showMedia && question.type !== 'pinpoint' && <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} />}
+        {showMedia && question.type === 'pinpoint' && <QuestionMedia media={question.media} openedAt={openedAt} />}
+        {question.wagerEnabled && !effectiveBuzz && <WagerControl points={question.points} value={wagerPercent} disabled={claimingBuzz || timedOut} onChange={setWagerPercent} />}
+        {!effectiveBuzz ? <div className="buzz-gate" aria-live="polite"><p className="eyebrow">Buzzers open</p><button className="buzz-button" type="button" disabled={claimingBuzz || timedOut} aria-busy={claimingBuzz} onClick={() => void claimBuzz()}>{claimingBuzz ? 'BUZZING…' : 'BUZZ'}</button>{timedOut && <p>Time is up. Waiting for the host.</p>}{buzzError && <StatusMessage tone="error">{buzzError}</StatusMessage>}</div>
+          : buzzWindowClosed ? <div className="buzz-result buzz-result--closed" aria-live="polite"><p className="eyebrow">Answer window closed</p><h2>Waiting for the host.</h2></div>
+            : <div className="buzz-result" aria-live="polite"><p className="eyebrow">{buzzWinnerLabel} buzzed first</p><h2>Waiting for their answer…</h2>{buzzError && <p>Too late</p>}</div>}
+      </section>
+    )
+  }
   return (
     <section className="player-question" aria-labelledby="question-instruction">
       <div className="question-meta">
@@ -166,12 +286,16 @@ export function PlayerQuestion({
         {question.supportingText && <p>{question.supportingText}</p>}
       </div>
       {showMedia && question.type !== 'pinpoint' && (
-        <QuestionMedia media={question.media} openedAt={openedAt} />
+        <QuestionMedia media={question.media} openedAt={openedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} />
       )}
 
+      <ProgressiveRevealPoints question={question} openedAt={openedAt} />
+      {powerUps && !buzzQuestion && <PowerUpTray question={question} state={powerUps} selected={selectedPowerUp} busy={activatingPowerUp} disabled={submitting || timedOut} onSelect={setSelectedPowerUp} onFiftyFifty={() => void activateFiftyFifty()} />}
+      {question.wagerEnabled && <WagerControl points={question.points} value={wagerPercent} disabled={submitting || timedOut} onChange={setWagerPercent} />}
+      {playerWonBuzz && <div className="buzz-result buzz-result--winner"><p className="eyebrow" role="status">You got the buzz!</p><h2 aria-hidden="true">{buzzRemaining} {buzzRemaining === 1 ? 'second' : 'seconds'} to answer</h2><span className="sr-only">Your answer window is open.</span></div>}
       {question.type === 'single-choice' && (
-        <div className="answer-grid" data-option-count={question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
-          {orderedQuestionOptions(question).map((option, position) => (
+        <div ref={answerArea} className="answer-grid" data-option-count={retainedOptions?.length ?? question.options.length} data-has-extra-long-answer={hasExtraLongAnswer(question.options.map((option) => option.label)) || undefined} data-answer-fit-wide={wideAnswerLayout || undefined} role="group" aria-label="Choose one answer">
+          {orderedQuestionOptions(question).map((option, position) => !retainedOptions || retainedOptions.includes(option.id) ? (
             <ChoiceCard
               key={option.id}
               option={option}
@@ -181,7 +305,7 @@ export function PlayerQuestion({
               onNeedsWideLayout={requestWideAnswerLayout}
               onSelect={() => setAnswer({ type: 'single-choice', optionId: option.id })}
             />
-          ))}
+          ) : null)}
         </div>
       )}
 
@@ -226,18 +350,14 @@ export function PlayerQuestion({
         </div>
       )}
 
+      {question.type === 'connections' && <PlayerConnectionsAnswer question={question} value={answer?.type === 'connections' ? answer.value : ''} disabled={submitting || timedOut} onChange={value => setAnswer({ type: 'connections', value })} />}
+      {question.type === 'ordering' && <PlayerOrderingAnswer key={question.id} items={question.items} value={answer?.type === 'ordering' ? answer.itemIds : null} disabled={submitting || timedOut} onChange={(itemIds) => setAnswer({ type: 'ordering', itemIds })} />}
+      {question.type === 'matching' && <PlayerMatchingAnswer key={question.id} leftItems={question.leftItems} rightItems={question.rightItems} pairs={answer?.type === 'matching' ? answer.pairs : []} disabled={submitting || timedOut} onChange={(pairs) => setAnswer({ type: 'matching', pairs })} />}
       {question.type === 'slider' && (
-        <div className="slider-answer">
-          <p className="eyebrow">Your value</p>
-          <output aria-live="polite">{question.prefix}{answer?.type === 'slider' ? answer.value : question.minimum}{question.suffix}{question.unitLabel ? ` ${question.unitLabel}` : ''}</output>
-          <div className="slider-answer__interaction">
-            <input type="range" min={question.minimum} max={question.maximum} step={question.step}
-              value={answer?.type === 'slider' ? answer.value : question.minimum}
-              aria-label={question.unitLabel || 'Answer value'}
-              onChange={(event) => setAnswer({ type: 'slider', value: Number(event.target.value) })} />
-          </div>
-          <div className="slider-answer__limits"><span><small>Minimum</small>{question.prefix}{question.minimum}{question.suffix}</span><span><small>Maximum</small>{question.prefix}{question.maximum}{question.suffix}</span></div>
-        </div>
+        <PlayerSliderAnswer key={question.id} question={question}
+          value={answer?.type === 'slider' ? answer.value : null}
+          disabled={submitting || timedOut}
+          onChange={(value) => setAnswer({ type: 'slider', value })} />
       )}
 
       {question.type === 'pinpoint' && (
@@ -317,7 +437,7 @@ export function PlayerQuestion({
         {error && <StatusMessage tone="error">{error}</StatusMessage>}
       </div>
       <button className="button button--primary button--wide button--large lock-button" type="button" aria-busy={submitting}
-        disabled={!canSubmit || submitted || submitting || timedOut}
+        disabled={!canSubmit || submitted || submitting || activatingPowerUp || timedOut}
         onClick={() => void lockIn()}>{submitting ? 'Submitting…' : 'Lock in'}</button>
     </section>
   )

@@ -21,7 +21,8 @@ export function useRevealedLeaderboard(state: SafeGameState | null) {
   const questionKey = JSON.stringify([state?.currentQuestion?.id, state?.questionOpenedAt])
   const visible = state?.phase === 'leaderboard' && state.status !== 'closed'
   const observation = JSON.stringify([state?.sessionId, state?.status, state?.phase, questionKey,
-    visible ? state.leaderboard.map(({ playerId, nickname, rank, totalScore }) => [playerId, nickname, rank, totalScore]) : null])
+    visible ? state.leaderboard.map(({ playerId, nickname, rank, totalScore, survivorLivesRemaining, survivorEliminatedAtQuestion }) =>
+      [playerId, nickname, rank, totalScore, survivorLivesRemaining, survivorEliminatedAtQuestion]) : null])
   const [history, setHistory] = useState<History>({ observation: '', sessionId: null, questionKey: '', baseline: null, reveal: null, sequence: 0 })
   let next = history
   if (history.observation !== observation) {

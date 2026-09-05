@@ -1,9 +1,11 @@
 import type {
+  BuzzClaimResult,
   GameSession,
   JoinResult,
   LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
   Quiz,
   RoomJoinInfo,
   SafeGameState,
@@ -12,6 +14,7 @@ import type {
 import type { StorageCleanupResult, StorageReport } from '../features/storage-manager/storageManager'
 
 export interface QuizSaveInput {
+  rounds?: Quiz['rounds']
   id?: string
   title: string
   quizType: Quiz['quizType']
@@ -56,17 +59,27 @@ export interface GameRepository {
   getHostLiveSession(sessionId: string): Promise<GameSession | null>
   getActiveSessionForQuiz(quizId: string): Promise<GameSession | null>
   getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null>
-  joinRoom(roomCode: string, nickname: string): Promise<JoinResult>
+  joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult>
+  assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void>
+  balanceTeams(sessionId: string): Promise<void>
+  revealConnectionClue(sessionId: string): Promise<void>
   joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult>
   reconnectPlayer(session: PlayerSession): Promise<JoinResult | null>
   setPlayerPresence(session: PlayerSession, connected: boolean): Promise<void>
   getSafeGameState(roomCode: string): Promise<SafeGameState | null>
+  claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult>
   submitAnswer(roomCode: string, playerId: string, reconnectToken: string, payload: PlayerAnswerPayload): Promise<void>
+  activateFiftyFifty(roomCode: string, playerId: string, reconnectToken: string, questionId: string): Promise<PersonalPowerUpState>
+  submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, value: string): Promise<void>
+  resolveTieBreaker(sessionId: string): Promise<void>
+  nextTieBreaker(sessionId: string): Promise<void>
+  revealTieBreakerFinal(sessionId: string): Promise<void>
   startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void>
   skipHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   continueHeadToHead(roomCode: string, playerId: string, reconnectToken: string, expectedQuestionId: string): Promise<void>
   setTypedAnswerOverride(sessionId: string, answerId: string, correctOverride: true | null): Promise<void>
-  changePhase(sessionId: string, action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
+  resetBuzz(sessionId: string): Promise<void>
+  changePhase(sessionId: string, action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close'): Promise<void>
   subscribe(roomOrSessionId: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe
 }
 

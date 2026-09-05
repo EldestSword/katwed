@@ -6,13 +6,16 @@ import { mixedDemoQuiz } from '../lib/demo/sampleData'
 import type { GameSession, Player, SafeGameState } from '../types/domain'
 import { hostResponseRecordForAnswer } from '../features/game/hostResponses'
 import { HostGamePage } from './HostGamePage'
+import { connectionsFixture, safeConnections } from '../test/connectionsFixtures'
 
 const repositoryMocks = vi.hoisted(() => ({
   getHostSession: vi.fn(),
   getHostLiveSession: vi.fn(),
   getSafeGameState: vi.fn(),
   changePhase: vi.fn(),
+  revealConnectionClue: vi.fn(),
   setTypedAnswerOverride: vi.fn(),
+  resetBuzz: vi.fn(),
   subscribe: vi.fn(),
 }))
 
@@ -25,11 +28,13 @@ const players: Player[] = Array.from({ length: 4 }, (_, index) => ({
 }))
 
 const session: GameSession = {
+  currentRoundId: null,
   id: 'session', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'question',
   currentQuestionIndex: 0, questionOpenedAt: '2026-08-26T12:00:00.000Z',
   questionClosesAt: '2026-08-26T12:01:00.000Z', startedAt: '2026-08-26T12:00:00.000Z',
   endedAt: null,
   settings: {
+    competitionMode: 'points', survivorStartingLives: null,
     soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
     shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
@@ -69,8 +74,22 @@ describe('HostGamePage Standard auto-lock', () => {
     repositoryMocks.getHostSession.mockResolvedValue({ session, quiz: mixedDemoQuiz })
     repositoryMocks.getHostLiveSession.mockResolvedValue(session)
     repositoryMocks.changePhase.mockResolvedValue(undefined)
+    repositoryMocks.revealConnectionClue.mockResolvedValue(undefined)
     repositoryMocks.setTypedAnswerOverride.mockResolvedValue(undefined)
+    repositoryMocks.resetBuzz.mockResolvedValue(undefined)
     repositoryMocks.subscribe.mockReturnValue(() => undefined)
+  })
+
+  it('routes clue reveal to its focused host action while keeping Close answers separate', async () => {
+    const definition = connectionsFixture(), user = userEvent.setup()
+    repositoryMocks.getHostSession.mockResolvedValue({ session: { ...session, questionOrder: [definition.id] }, quiz: { ...mixedDemoQuiz, questions: [definition] } })
+    renderController(state({ currentQuestion: safeConnections(), submittedCount: 1 }))
+    const button = await screen.findByRole('button', { name: 'Reveal next clue' })
+    expect(screen.getByRole('button', { name: 'Close answers now' })).toBeEnabled()
+    expect(screen.getByRole('region', { name: 'Connections controls' })).toHaveTextContent('Venus')
+    await user.click(button)
+    expect(repositoryMocks.revealConnectionClue).toHaveBeenCalledExactlyOnceWith('session')
+    expect(repositoryMocks.changePhase).not.toHaveBeenCalled()
   })
 
   it('does not lock at 3 of 4, including when the unanswered player is disconnected', async () => {
@@ -118,6 +137,66 @@ describe('HostGamePage Standard auto-lock', () => {
     renderController(state({ submittedCount: 2 }))
     await user.click(await screen.findByRole('button', { name: 'Close answers now' }))
     expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock')
+  })
+
+  it('uses only alive Survivor players for auto-lock and shows private life status', async () => {
+    const survivorPlayers = players.map((player, index) => ({
+      ...player, survivorLivesRemaining: index < 2 ? 1 : 0, survivorEliminatedAtQuestion: index < 2 ? null : 1,
+    }))
+    renderController(state({
+      players: survivorPlayers, submittedCount: 2, eligibleResponderCount: 2, survivorAliveCount: 2,
+      sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 1 },
+    }))
+    await waitFor(() => expect(repositoryMocks.changePhase).toHaveBeenCalledWith('session', 'lock'))
+    expect((await screen.findAllByText('OUT')).length).toBeGreaterThan(0)
+    expect(screen.getByText('Remaining').nextElementSibling).toHaveTextContent('2')
+  })
+
+  it('offers the final reveal instead of Next on a one-survivor terminal leaderboard', async () => {
+    const survivorPlayers = players.slice(0, 2).map((player, index) => ({
+      ...player, survivorLivesRemaining: index === 0 ? 1 : 0, survivorEliminatedAtQuestion: index === 0 ? null : 2,
+    }))
+    renderController(state({
+      phase: 'leaderboard', currentQuestion: { ...state().currentQuestion!, questionNumber: 1, totalQuestions: 3 },
+      players: survivorPlayers, submittedCount: 0, eligibleResponderCount: 1, survivorAliveCount: 1,
+      leaderboard: [], sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 1 },
+    }))
+    expect(await screen.findByRole('button', { name: 'Reveal final result' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Next question' })).toBeNull()
+  })
+
+  it('keeps Survivor early Finish available after Reveal so completed damage is included', async () => {
+    renderController(state({
+      phase: 'reveal', currentQuestion: { ...state().currentQuestion!, questionNumber: 1, totalQuestions: 3 },
+      sessionSettings: { ...session.settings, competitionMode: 'survivor', survivorStartingLives: 3 },
+      reveal: { type: 'true-false', correctValue: true, caption: '', counts: { true: 0, false: 0 } },
+    }))
+    expect(await screen.findByRole('button', { name: 'Show leaderboard' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Finish game' })).toBeEnabled()
+  })
+
+  it('shows the authoritative Buzz winner and lets the host reset only before an answer', async () => {
+    const user = userEvent.setup()
+    const definition = { ...mixedDemoQuiz.questions.find(question => question.id === 'mixed-boolean')!, buzzInEnabled: true }
+    repositoryMocks.getHostSession.mockResolvedValue({
+      session: { ...session, questionOrder: [definition.id] },
+      quiz: { ...mixedDemoQuiz, questions: [definition] },
+    })
+    const winner = players[0]
+    renderController(state({
+      currentQuestion: { ...state().currentQuestion!, id: definition.id, buzzInEnabled: true },
+      buzz: {
+        winnerPlayerId: winner.id,
+        claimedAt: new Date().toISOString(),
+        answerDeadlineAt: new Date(Date.now() + 10_000).toISOString(),
+      },
+      submittedCount: 0,
+    }))
+
+    expect(await screen.findAllByText('Player 1 buzzed first')).not.toHaveLength(0)
+    expect(screen.getAllByText('0 / 1').some(element => element.offsetParent !== null || element.isConnected)).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Reset buzz' }))
+    expect(repositoryMocks.resetBuzz).toHaveBeenCalledExactlyOnceWith('session')
   })
 
   it('uses the persisted shuffled question order for Up next', async () => {

@@ -15,6 +15,13 @@ import './styles/presentation.css'
 import './styles/player.css'
 import './styles/backstage.css'
 import './styles/audio.css'
+import './styles/teams.css'
+import './styles/arrangement.css'
+import './styles/connections.css'
+import './styles/progressive-reveal.css'
+import './styles/buzz.css'
+import './styles/survivor.css'
+import './styles/tiebreakers.css'
 
 const router = createBrowserRouter([
   {

@@ -4,6 +4,8 @@ import type { GameSessionSettings, Player, PlayerAnswer, PlayerAnswerPayload, Qu
 import { buildHostResponseRows, formatHostAnswer, hostResponseRecordForAnswer, responseSummary } from './hostResponses'
 
 const settings: GameSessionSettings = {
+  competitionMode: 'points',
+  survivorStartingLives: null,
   soundPackId: 'katwed',
   doubleScoreIntroMs: 5000,
   shuffleQuestionOrder: false,

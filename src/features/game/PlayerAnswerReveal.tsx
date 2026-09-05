@@ -1,3 +1,4 @@
+import { pinpointContains } from './pinpointTargets'
 import { GameBadge } from '../../components/design-system/GameBadge'
 import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RevealPayload, RosterMember, SafeQuestion } from '../../types/domain'
 import { CLASSIC_ANSWER_COLOURS, answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
@@ -7,6 +8,8 @@ import { PinpointSurface } from './PinpointSurface'
 import { PlayerSubmissionSummary } from './PlayerSubmissionSummary'
 import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
+import { ArrangementResult } from './ArrangementResult'
+import { ConnectionClues } from './ConnectionClues'
 
 type RevealOutcome = 'correct' | 'incorrect' | 'unknown'
 
@@ -17,6 +20,9 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
 function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null, playerId?: string): RevealOutcome {
   if (!answer || answer.type !== reveal.type) return 'unknown'
   switch (reveal.type) {
+    case 'connections': return playerId ? (reveal.correctPlayerIds.includes(playerId) ? 'correct' : 'incorrect') : answer.type === 'connections' && normaliseTypedAnswer(answer.value) === normaliseTypedAnswer(reveal.correctAnswer) ? 'correct' : 'unknown'
+    case 'ordering': return answer.type === 'ordering' && answer.itemIds.length === reveal.correctItemIds.length && answer.itemIds.every((id, i) => id === reveal.correctItemIds[i]) ? 'correct' : 'incorrect'
+    case 'matching': return answer.type === 'matching' && answer.pairs.length === reveal.correctPairs.length && answer.pairs.every((pair) => reveal.correctPairs.some((correct) => correct.leftId === pair.leftId && correct.rightId === pair.rightId)) ? 'correct' : 'incorrect'
     case 'single-choice': return answer.type === 'single-choice' && answer.optionId === reveal.correctOptionId ? 'correct' : 'incorrect'
     case 'multiple-select': {
       if (answer.type !== 'multiple-select') return 'unknown'
@@ -26,7 +32,7 @@ function revealOutcome(reveal: RevealPayload, answer: PlayerAnswerPayload | null
     }
     case 'true-false': return answer.type === 'true-false' && answer.value === reveal.correctValue ? 'correct' : 'incorrect'
     case 'slider': return answer.type === 'slider' && Math.abs(answer.value - reveal.correctValue) <= reveal.tolerance ? 'correct' : 'incorrect'
-    case 'pinpoint': return answer.type === 'pinpoint' && Math.hypot(answer.x - reveal.targetX, answer.y - reveal.targetY) <= reveal.targetRadius ? 'correct' : 'incorrect'
+    case 'pinpoint': return answer.type === 'pinpoint' && pinpointContains(reveal.target, answer) ? 'correct' : 'incorrect'
     case 'mashup': return answer.type === 'mashup' && sameSet(answer.memberIds, reveal.correctMemberIds) ? 'correct' : 'incorrect'
     case 'typed-answer':
       if (answer.type !== 'typed-answer') return 'unknown'
@@ -71,6 +77,9 @@ export function PlayerAnswerReveal({
   let correctAnswer
 
   switch (reveal.type) {
+    case 'connections': correctAnswer = <>{question.type === 'connections' && <ConnectionClues question={question} reveal />}<RevealAnswerCard><p>Correct connection</p><h2>{reveal.correctAnswer}</h2></RevealAnswerCard></>; break
+    case 'ordering': correctAnswer = <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />; break
+    case 'matching': correctAnswer = <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />; break
     case 'single-choice': {
       const label = question.type === 'single-choice' ? question.options.find((option) => option.id === reveal.correctOptionId)?.label : null
       const position = question.type === 'single-choice' ? optionPosition(question, reveal.correctOptionId) : -1
@@ -94,7 +103,7 @@ export function PlayerAnswerReveal({
     case 'pinpoint': {
       if (question.type === 'pinpoint') {
         const playerMarker = submittedAnswer?.type === 'pinpoint' ? [{ x: submittedAnswer.x, y: submittedAnswer.y, kind: 'player' as const, label: 'Your pin' }] : []
-        correctAnswer = <div className="player-pinpoint-reveal"><RevealAnswerCard><p>Correct answer</p><h2>Target area</h2></RevealAnswerCard><PinpointSurface path={question.media.path} alt={question.media.altText} mode="player-reveal" markers={playerMarker} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} /><div className="pinpoint-legend" aria-label="Pinpoint answer legend">{playerMarker.length > 0 && <span><i className="pinpoint-key pinpoint-key--player" />Your pin</span>}<span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div><p className="sr-only">The correct target location has been displayed.</p></div>
+        correctAnswer = <div className="player-pinpoint-reveal"><RevealAnswerCard><p>Correct answer</p><h2>Target area</h2></RevealAnswerCard><PinpointSurface path={question.media.path} alt={question.media.altText} mode="player-reveal" markers={playerMarker} target={reveal.target} /><div className="pinpoint-legend" aria-label="Pinpoint answer legend">{playerMarker.length > 0 && <span><i className="pinpoint-key pinpoint-key--player" />Your pin</span>}<span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div><p className="sr-only">The correct target location has been displayed.</p></div>
       }
       break
     }

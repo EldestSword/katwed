@@ -7,7 +7,8 @@ async function answer(page: Page, correct: boolean) {
   await expect(page.getByRole('heading', { name: 'Answer locked', exact: true })).toBeVisible()
 }
 
-test('Standard final awards retain truthful first ranks, fit screens and omit lost history after refresh', async ({ page, context }, testInfo) => {
+for (const multiRound of [false, true]) {
+test(multiRound ? 'Multi-round leaderboard movement and final awards survive Round Intro' : 'Standard final awards retain truthful first ranks, fit screens and omit lost history after refresh', async ({ page, context }, testInfo) => {
   test.setTimeout(120_000)
   await page.goto('/')
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
@@ -15,18 +16,21 @@ test('Standard final awards retain truthful first ranks, fit screens and omit lo
   await page.getByRole('button', { name: 'Enter demo host area' }).click()
   await expect(page.getByRole('article', { name: 'Katwed! Mixed Quiz' })).toBeVisible()
   // Synthetic local quiz; answer/phase transitions below still use the ordinary UI.
-  await page.evaluate(() => {
+  await page.evaluate((withRounds) => {
     const key = 'katwed.demo.state.v2'
     const state = JSON.parse(localStorage.getItem(key)!) as { quizzes: Quiz[] }
     const quiz = state.quizzes.find((candidate) => candidate.title === 'Katwed! Mixed Quiz')!
     const question = quiz.questions.find((candidate) => candidate.type === 'true-false')!
+    quiz.rounds = [{ id: quiz.id, quizId: quiz.id, title: 'Round 1', subtitle: '', displayOrder: 0, introEnabled: false }]
+    if (withRounds) quiz.rounds.push({ id: 'awards-round-2', quizId: quiz.id, title: 'The comeback', subtitle: '', displayOrder: 1, introEnabled: true })
     quiz.questions = [1000, 2000, 2000, 2000].map((points, index) => ({ ...question,
       id: `awards-question-${index + 1}`, prompt: `Awards question ${index + 1}`, supportingText: '',
+      roundId: quiz.rounds[withRounds && index > 0 ? 1 : 0].id,
       media: { type: 'none' }, correctValue: true, points, displayOrder: index,
       timeLimitSeconds: 120, speedScoringEnabled: false, doubleScore: false,
     }))
     localStorage.setItem(key, JSON.stringify(state))
-  })
+  }, multiRound)
   await page.reload()
   await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('button', { name: 'Launch game' }).click()
   await page.getByRole('button', { name: /None/ }).click()
@@ -61,7 +65,25 @@ test('Standard final awards retain truthful first ranks, fit screens and omit lo
       await expect(presentation.getByRole('heading', { name: 'Leaderboard', exact: true })).toBeVisible()
       await expect(jaki.getByRole('heading', { name: 'Leaderboard', exact: true })).toBeVisible()
       if (question === 0) await expect(presentation.getByRole('list', { name: 'Leaderboard' }).locator('li').filter({ hasText: 'Jaki' }).locator('.leaderboard__rank')).toHaveText('3')
-      await page.getByRole('button', { name: 'Next question', exact: true }).click()
+      if (multiRound && question === 1) {
+        const row = presentation.getByRole('list', { name: 'Leaderboard' }).locator('li').filter({ hasText: 'Jaki' })
+        await expect(row.locator('.leaderboard__movement')).toContainText('↑ 1')
+        const movement = jaki.getByRole('main').getByRole('status')
+        await expect(movement).toContainText('↑ 1')
+        await expect(movement).toContainText('You’re now 2nd')
+      }
+      if (multiRound && question === 0) {
+        await page.getByRole('button', { name: 'Next round', exact: true }).click()
+        for (const surface of [page.getByRole('region', { name: 'Presentation preview', exact: true }), presentation, jaki]) {
+          await expect(surface.getByRole('heading', { name: 'The comeback', exact: true })).toBeVisible()
+          await expect(surface.getByRole('list', { name: 'Leaderboard' })).toHaveCount(0)
+          await expect(surface.getByRole('region', { name: 'Tonight’s awards' })).toHaveCount(0)
+        }
+        await expect(jaki.getByRole('button', { name: 'Lock in', exact: true })).toHaveCount(0)
+        await page.getByRole('button', { name: 'Start round', exact: true }).click()
+      } else {
+        await page.getByRole('button', { name: 'Next question', exact: true }).click()
+      }
     }
   }
   await page.getByRole('button', { name: 'Reveal final results', exact: true }).click()
@@ -91,3 +113,4 @@ test('Standard final awards retain truthful first ranks, fit screens and omit lo
   await expect(jaki.getByRole('heading', { name: 'Jaki wins!', exact: true })).toBeVisible()
   await expect(jaki.getByRole('article', { name: 'Biggest Climber' })).toHaveCount(0)
 })
+}

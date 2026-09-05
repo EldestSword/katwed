@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SafeGameState } from '../types/domain'
 import { PlayPage } from './PlayPage'
-import { currentBoard, previousBoard, standingsState } from '../test/leaderboardFixtures'
+import { currentBoard, previousBoard, roundIntroState, standingsState } from '../test/leaderboardFixtures'
 
 const player = {
   id: 'player-1',
@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   startHeadToHead: vi.fn(),
   skipHeadToHead: vi.fn(),
   continueHeadToHead: vi.fn(),
+  claimBuzz: vi.fn(),
   submitAnswer: vi.fn(),
   refresh: vi.fn(),
 }))
@@ -61,6 +62,7 @@ vi.mock('../services/repository', () => ({
     startHeadToHead: mocks.startHeadToHead,
     skipHeadToHead: mocks.skipHeadToHead,
     continueHeadToHead: mocks.continueHeadToHead,
+    claimBuzz: mocks.claimBuzz,
     submitAnswer: mocks.submitAnswer,
   },
 }))
@@ -86,12 +88,68 @@ describe('PlayPage quiz background', () => {
     mocks.reconnectPlayer.mockResolvedValue({ player, reconnectToken: savedSession.reconnectToken })
     mocks.setPlayerPresence.mockResolvedValue(undefined)
     mocks.submitAnswer.mockResolvedValue(undefined)
+    mocks.claimBuzz.mockResolvedValue({
+      won: true, winnerPlayerId: player.id,
+      claimedAt: new Date().toISOString(), answerDeadlineAt: new Date(Date.now() + 10_000).toISOString(),
+    })
     mocks.refresh.mockResolvedValue(undefined)
   })
 
   afterEach(() => vi.useRealTimers())
 
-  it('carries truthful final-award history to the player without extra repository work', async () => {
+  it('uses the authoritative Buzz result immediately without an extra safe-state fetch', async () => {
+    const user = userEvent.setup()
+    mocks.useSafeGameState.mockReturnValue({
+      state: {
+        ...gameState, phase: 'question', buzz: null,
+        currentQuestion: {
+          id: 'buzz', type: 'true-false', prompt: 'Buzz prompt', supportingText: '', timeLimitSeconds: 30,
+          points: 1000, speedScoringEnabled: false, doubleScore: false, buzzInEnabled: true, displayOrder: 0,
+          media: { type: 'none' }, mediaVisibility: 'both', presentationChoiceVisibility: 'show', questionNumber: 1, totalQuestions: 1,
+        },
+        questionOpenedAt: new Date(Date.now() - 1_000).toISOString(), questionClosesAt: new Date(Date.now() + 30_000).toISOString(),
+      },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'BUZZ' }))
+    expect(mocks.claimBuzz).toHaveBeenCalledExactlyOnceWith('123456', player.id, 'token')
+    expect(mocks.refresh).not.toHaveBeenCalled()
+    expect(mocks.submitAnswer).not.toHaveBeenCalled()
+    expect(await screen.findByText('You got the buzz!')).toBeVisible()
+  })
+
+  it('updates the lobby team from safe state, then shows team standings and final honours', async () => {
+    const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
+    const teams = [{ id: 'blue', name: 'Blue Team', sessionId: player.sessionId, displayOrder: 0 }, { id: 'red', name: 'Red Team', sessionId: player.sessionId, displayOrder: 1 }]
+    const show = (phase: SafeGameState['phase'], teamId: string | null) => mocks.useSafeGameState.mockReturnValue({
+      state: { ...gameState, phase, teams, sessionSettings: { playMode: 'teams', teamAssignmentMode: 'host' }, players: [{ ...player, teamId }],
+        leaderboard: phase === 'leaderboard' || phase === 'finished' ? [{ playerId: player.id, nickname: player.nickname, rank: 1, totalScore: 3000, correctAnswerCount: 3, totalCorrectResponseMs: 9000 }] : [] },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    show('lobby', null)
+    const view = render(page())
+    await screen.findByText('Waiting for the host to put you on a team…')
+    show('lobby', 'red')
+    view.rerender(page())
+    expect(screen.getByText('Red Team')).toBeVisible()
+    expect(screen.queryByText('Waiting for the host to put you on a team…')).toBeNull()
+    show('leaderboard', 'red')
+    view.rerender(page())
+    const board = screen.getByRole('list', { name: 'Leaderboard' })
+    expect(board).toHaveTextContent('Red Team')
+    expect(board).not.toHaveTextContent('Quizzer')
+    show('finished', 'red')
+    view.rerender(page())
+    expect(screen.getByRole('heading', { name: 'Red Team' })).toBeVisible()
+    expect(screen.getByRole('list', { name: 'Top final positions' }).querySelector('.is-current')).toHaveTextContent('Red Team')
+    expect(screen.getByRole('region', { name: 'Individual honours' })).toHaveTextContent('Quizzer')
+    expect(screen.queryByRole('article', { name: 'Biggest Climber' })).toBeNull()
+    expect(mocks.reconnectPlayer).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).not.toHaveBeenCalled()
+  })
+
+  it('carries personal movement and truthful final awards across a round intro without extra repository work', async () => {
     const page = () => <MemoryRouter initialEntries={['/play/123456']}><Routes><Route path="/play/:roomCode" element={<PlayPage />} /></Routes></MemoryRouter>
     const show = (phase: SafeGameState['phase'], number: number, entries = previousBoard) => mocks.useSafeGameState.mockReturnValue({
       state: { ...standingsState(phase, entries, number), sessionId: player.sessionId, players: [player],
@@ -102,9 +160,23 @@ describe('PlayPage quiz background', () => {
     const view = render(page())
     await screen.findByRole('heading', { name: 'Leaderboard' })
     const presenceCalls = mocks.setPlayerPresence.mock.calls.length
+    mocks.useSafeGameState.mockReturnValue({
+      state: { ...roundIntroState(), sessionId: player.sessionId, players: [player] },
+      loading: false, error: '', refresh: mocks.refresh,
+    })
+    view.rerender(page())
+    expect(screen.getByRole('heading', { name: 'Next round' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Lock in' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Leaderboard' })).toBeNull()
+    expect(screen.queryByText(/You’re now/)).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Tonight’s awards' })).toBeNull()
     show('question', 2, [])
     view.rerender(page())
     expect(screen.queryByRole('region', { name: 'Tonight’s awards' })).toBeNull()
+    show('leaderboard', 2, currentBoard)
+    view.rerender(page())
+    expect(screen.getByRole('status')).toHaveTextContent('↑ 2')
+    expect(screen.getByRole('status')).toHaveTextContent('You’re now 1st')
     show('finished', 5, currentBoard)
     view.rerender(page())
     const card = screen.getByRole('article', { name: 'Biggest Climber' })
@@ -127,6 +199,8 @@ describe('PlayPage quiz background', () => {
     const view = render(page())
     await screen.findByRole('heading', { name: 'Leaderboard' })
     expect(screen.queryByText(/You’re now/)).toBeNull()
+    // Reconnect replaces the saved identity before phase-only presence counts are measured.
+    await act(async () => { await Promise.resolve() })
     const presenceCalls = mocks.setPlayerPresence.mock.calls.length
     for (const phase of ['question', 'locked', 'reveal'] as const) {
       show(stateFor(phase, [], 2))

@@ -5,6 +5,10 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { StoredImage } from '../components/StoredImage'
 import { soundPacks } from '../features/audio/soundPacks'
+import { TeamSetup } from '../features/teams/TeamSetup'
+import { validateTeamLaunch } from '../features/teams/teams'
+import { SurvivorSetup } from '../features/game/SurvivorSetup'
+import { validateSurvivorLaunch } from '../features/game/survivor'
 import {
   defaultLaunchGameSettings,
   quizUsesMixedQuestionTypes,
@@ -46,6 +50,7 @@ export function GameSetupPage() {
     ? [...new Set(quiz.questions.map((question) => question.type))]
     : [], [quiz])
   const mixed = quiz ? quizUsesMixedQuestionTypes(quiz.questions) : false
+  const launchError = quiz && settings ? validateTeamLaunch(settings, quiz.quizType) ?? validateSurvivorLaunch(settings, quiz.quizType) : null
 
   function update<K extends keyof LaunchGameSettings>(key: K, value: LaunchGameSettings[K]) {
     setSettings((current) => current ? { ...current, [key]: value } : current)
@@ -94,7 +99,9 @@ export function GameSetupPage() {
           <h2 id="setup-quiz-title">{quiz.title}</h2>
           <dl>
             <div><dt>Questions</dt><dd>{quiz.questions.length}</dd></div>
-            <div><dt>Game mode</dt><dd>{quiz.quizType === 'head-to-head' ? 'Head to Head' : 'Standard'}</dd></div>
+            <div><dt>Quiz type</dt><dd>{quiz.quizType === 'head-to-head' ? 'Head to Head' : 'Standard'}</dd></div>
+            {quiz.quizType === 'standard' && <div><dt>Game mode</dt><dd>{settings.competitionMode === 'survivor' ? `Survivor · ${settings.survivorStartingLives ?? 3} lives` : 'Points'}</dd></div>}
+            {quiz.quizType === 'standard' && settings.playMode !== 'teams' && <div><dt>Winner tie-breakers</dt><dd>Automatic · On</dd></div>}
             <div><dt>Format</dt><dd>{mixed ? 'Mixed format' : 'Single format'}</dd></div>
           </dl>
           <div className="game-setup-summary__types" aria-label="Question types present">
@@ -105,6 +112,8 @@ export function GameSetupPage() {
 
         <section className="game-setup-settings" aria-labelledby="session-settings-heading">
           <header><p className="eyebrow">This session only</p><h2 id="session-settings-heading">Presentation and play settings</h2></header>
+          {quiz.quizType === 'standard' && <SurvivorSetup settings={settings} onChange={setSettings} />}
+          {quiz.quizType === 'standard' && <TeamSetup settings={settings} onChange={setSettings} teamsDisabledReason={settings.competitionMode === 'survivor' ? 'Survivor V1 is for individual play.' : undefined} />}
 
           <fieldset className="game-setup-sound-packs">
             <legend>Music theme</legend>
@@ -121,6 +130,7 @@ export function GameSetupPage() {
           </fieldset>
 
           <div className="game-setup-toggles">
+            {quiz.quizType === 'standard' && <fieldset><legend>Power-Ups</legend><SessionToggle label="Give every player three one-use Power-Ups" note="Each player gets Double Up, 50/50 and Fast Five once per game." checked={settings.powerUpsEnabled === true} onChange={(checked) => update('powerUpsEnabled', checked)} /></fieldset>}
             <SessionToggle label="Shuffle question order" note="Creates one stable order for this room without changing the saved quiz." checked={settings.shuffleQuestionOrder} onChange={(checked) => update('shuffleQuestionOrder', checked)} />
             <SessionToggle label="Shuffle all answer choices" note="Forces eligible Single Choice and Multiple Select answers into one stable session order." checked={settings.shuffleAnswerOptions} onChange={(checked) => update('shuffleAnswerOptions', checked)} />
             {quiz.quizType === 'standard' && <SessionToggle label="Auto-close answers when everyone has locked in" note="Turn off to keep the timer running until time expires or you close answers manually." checked={settings.autoLockWhenAllAnswered} onChange={(checked) => update('autoLockWhenAllAnswered', checked)} />}
@@ -128,7 +138,8 @@ export function GameSetupPage() {
           </div>
 
           <footer>
-            <button className="button button--primary" type="button" disabled={starting || quiz.questions.length === 0} onClick={() => void startLobby()}>{starting ? 'Starting lobby…' : 'Start lobby'}</button>
+            <button className="button button--primary" type="button" disabled={starting || quiz.questions.length === 0 || Boolean(launchError)} onClick={() => void startLobby()}>{starting ? 'Starting lobby…' : 'Start lobby'}</button>
+            {launchError && <p role="alert">{launchError}</p>}
             <p>The room is created only when you start the lobby.</p>
           </footer>
         </section>

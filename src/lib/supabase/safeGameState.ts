@@ -1,9 +1,18 @@
-import type { RevealPayload, SafeGameState } from '../../types/domain'
+import { normalisePinpointTarget } from '../../features/game/pinpointTargets'
+import { PROGRESSIVE_NEUTRAL_ALT, progressiveRevealValidation } from '../../features/scoring/progressiveReveal'
+import type { SafeQuestion } from '../../types/domain'
+import { onlyFields, validTextItems, validMatchingPairs, validPermutation } from '../../features/questions/arrangementQuestions'
+import { connectionStagePoints, validConnectionClues } from '../../features/questions/connections'
+import type { GameTeam, RevealPayload, SafeGameState, SafeTieBreakerState, TieBreakerResultEntry } from '../../types/domain'
 import { normaliseQuizThemeId } from '../../features/themes/quizThemes'
 import { normaliseQuizBackgroundId } from '../../features/themes/quizBackgrounds'
 import { normaliseQuizType } from '../../features/head-to-head/headToHead'
 import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPalettes'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
+import { normaliseStreaks } from '../../features/game/streaks'
+import { buzzInValidation, normaliseBuzzState } from '../../features/game/buzz'
+import { eligibleResponderCount, isSurvivorSettings, normaliseSurvivorPlayer, survivorAliveCount, survivorPlayerStateIsValid } from '../../features/game/survivor'
+import { normaliseTieBreakerValue } from '../../features/game/tieBreakers'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -17,9 +26,87 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
 }
 
+function isCanonicalTieBreakerNumber(value: unknown): value is string {
+  return typeof value === 'string' && normaliseTieBreakerValue(value) === value
+}
+
+function parseTieBreakerResult(value: unknown, playerIds: ReadonlySet<string>): TieBreakerResultEntry {
+  if (!isRecord(value) || !onlyFields(value, ['playerId', 'nickname', 'value', 'absoluteError', 'responseTimeMs']) ||
+    typeof value.playerId !== 'string' || !playerIds.has(value.playerId) || typeof value.nickname !== 'string' || !value.nickname.trim() ||
+    !(value.value === null || isCanonicalTieBreakerNumber(value.value)) ||
+    !(value.absoluteError === null || isCanonicalTieBreakerNumber(value.absoluteError) && !value.absoluteError.startsWith('-')) ||
+    !(value.responseTimeMs === null || Number.isInteger(value.responseTimeMs) && Number(value.responseTimeMs) >= 0) ||
+    ((value.value === null) !== (value.absoluteError === null)) || ((value.value === null) !== (value.responseTimeMs === null))) {
+    throw new Error('The server returned an invalid tie-breaker result.')
+  }
+  return value as unknown as TieBreakerResultEntry
+}
+
+function parseTieBreakerState(value: unknown, phase: unknown, players: SafeGameState['players']): SafeTieBreakerState | null {
+  const tiePhase = phase === 'tiebreaker' || phase === 'tiebreaker-result'
+  if (value === undefined || value === null) {
+    if (tiePhase) throw new Error('The server omitted the active tie-breaker.')
+    return null
+  }
+  const allowedFields = [
+    'round', 'status', 'questionId', 'prompt', 'category', 'unit', 'openedAt', 'closesAt',
+    'contenderPlayerIds', 'submittedCount', 'correctAnswer', 'results', 'winnerPlayerId', 'unresolvedPlayerIds',
+  ]
+  if (!isRecord(value) || Object.keys(value).some((key) => !allowedFields.includes(key)) || !Number.isInteger(value.round) || Number(value.round) < 1 ||
+    (value.status !== 'question' && value.status !== 'result') || typeof value.questionId !== 'string' || !value.questionId ||
+    typeof value.prompt !== 'string' || !value.prompt.trim() || value.prompt.length > 500 ||
+    !(value.category === undefined || typeof value.category === 'string') || typeof value.unit !== 'string' || !value.unit.trim() ||
+    typeof value.openedAt !== 'string' || !Number.isFinite(Date.parse(value.openedAt)) ||
+    typeof value.closesAt !== 'string' || !Number.isFinite(Date.parse(value.closesAt)) || Date.parse(value.closesAt) <= Date.parse(value.openedAt) ||
+    !isStringArray(value.contenderPlayerIds) || value.contenderPlayerIds.length < 2 ||
+    new Set(value.contenderPlayerIds).size !== value.contenderPlayerIds.length || !Number.isInteger(value.submittedCount) || Number(value.submittedCount) < 0) {
+    throw new Error('The server returned an invalid tie-breaker state.')
+  }
+  const contenderPlayerIds = value.contenderPlayerIds as string[]
+  const playerIds = new Set(players.map((player) => player.id))
+  if (contenderPlayerIds.some((id) => !playerIds.has(id)) || Number(value.submittedCount) > contenderPlayerIds.length) {
+    throw new Error('The server returned invalid tie-breaker contenders.')
+  }
+  if ((tiePhase && value.status !== (phase === 'tiebreaker' ? 'question' : 'result')) ||
+    (!tiePhase && phase !== 'finished') ||
+    (phase === 'finished' && value.status !== 'result')) {
+    throw new Error('The server returned tie-breaker data in an invalid phase.')
+  }
+  if (value.status === 'question') {
+    if ('correctAnswer' in value || 'results' in value || 'winnerPlayerId' in value || 'unresolvedPlayerIds' in value) {
+      throw new Error('The server revealed the tie-breaker answer too early.')
+    }
+    return value as unknown as SafeTieBreakerState
+  }
+  if (!isCanonicalTieBreakerNumber(value.correctAnswer) || !Array.isArray(value.results) ||
+    !(value.winnerPlayerId === null || typeof value.winnerPlayerId === 'string') || !isStringArray(value.unresolvedPlayerIds)) {
+    throw new Error('The server returned an invalid tie-breaker outcome.')
+  }
+  const results = value.results.map((entry) => parseTieBreakerResult(entry, playerIds))
+  if (results.length !== contenderPlayerIds.length || new Set(results.map((entry) => entry.playerId)).size !== results.length ||
+    results.some((entry) => !contenderPlayerIds.includes(entry.playerId)) ||
+    (value.winnerPlayerId !== null && !contenderPlayerIds.includes(value.winnerPlayerId)) ||
+    new Set(value.unresolvedPlayerIds).size !== value.unresolvedPlayerIds.length ||
+    value.unresolvedPlayerIds.some((id) => !contenderPlayerIds.includes(id)) ||
+    (value.winnerPlayerId === null) !== (value.unresolvedPlayerIds.length > 0)) {
+    throw new Error('The server returned an inconsistent tie-breaker outcome.')
+  }
+  return { ...value, results } as unknown as SafeTieBreakerState
+}
+
+function isGameTeam(value: unknown, sessionId: unknown): value is GameTeam {
+  return isRecord(value) && Object.keys(value).every((key) => ['id', 'sessionId', 'name', 'displayOrder'].includes(key)) &&
+    typeof value.id === 'string' && value.sessionId === sessionId && typeof value.name === 'string' &&
+    value.name.trim().length > 0 && value.name.length <= 30 && Number.isInteger(value.displayOrder) &&
+    Number(value.displayOrder) >= 0 && Number(value.displayOrder) <= 7
+}
+
 function isRevealPayload(value: unknown): value is RevealPayload {
   if (!isRecord(value) || typeof value.type !== 'string' || typeof value.caption !== 'string') return false
   switch (value.type) {
+    case 'connections': return onlyFields(value, ['type', 'correctAnswer', 'correctPlayerIds', 'caption']) && typeof value.correctAnswer === 'string' && isStringArray(value.correctPlayerIds)
+    case 'ordering': return onlyFields(value, ['type', 'correctItemIds', 'caption']) && isStringArray(value.correctItemIds) && new Set(value.correctItemIds).size === value.correctItemIds.length
+    case 'matching': return onlyFields(value, ['type', 'correctPairs', 'scoringMode', 'caption']) && Array.isArray(value.correctPairs) && value.correctPairs.every((pair: unknown) => onlyFields(pair, ['leftId', 'rightId']) && typeof pair.leftId === 'string' && typeof pair.rightId === 'string') && (value.scoringMode === 'exact' || value.scoringMode === 'partial')
     case 'single-choice':
       return typeof value.correctOptionId === 'string' && isRecord(value.optionCounts)
     case 'multiple-select':
@@ -31,9 +118,7 @@ function isRevealPayload(value: unknown): value is RevealPayload {
     case 'slider':
       return isFiniteNumber(value.correctValue) && isFiniteNumber(value.tolerance) && Array.isArray(value.values)
     case 'pinpoint':
-      return isFiniteNumber(value.targetX) && value.targetX >= 0 && value.targetX <= 1 &&
-        isFiniteNumber(value.targetY) && value.targetY >= 0 && value.targetY <= 1 &&
-        isFiniteNumber(value.targetRadius) && value.targetRadius > 0 && value.targetRadius <= 1 &&
+      return normalisePinpointTarget(value) !== null &&
         Array.isArray(value.points) && value.points.every((point) =>
           isRecord(point) && isFiniteNumber(point.x) && point.x >= 0 && point.x <= 1 &&
           isFiniteNumber(point.y) && point.y >= 0 && point.y <= 1)
@@ -52,6 +137,7 @@ function outcomeNeutralReveal(reveal: RevealPayload | null): RevealPayload | nul
   if (!reveal) return null
   return {
     ...reveal,
+    ...(reveal.type === 'pinpoint' ? { target: normalisePinpointTarget(reveal)! } : {}),
     caption: reveal.caption.replace(/^Correct:\s*/i, ''),
   }
 }
@@ -62,12 +148,63 @@ export function parseSafeGameState(value: unknown): SafeGameState {
     throw new Error('The server returned an invalid safe game state.')
   }
 
+  const round = value.currentRound
+  const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
+  const privatePowerUpKeys = ['powerUps', 'powerUpUses', 'powerupUses', 'inventory', 'currentPowerUpActivation']
+  if ([value, rawSettings, ...value.players as unknown[], ...value.leaderboard as unknown[]].some(entry => isRecord(entry) && privatePowerUpKeys.some(key => key in entry))) {
+    throw new Error('Private Power-Up state must not appear in room state.')
+  }
+  if (rawSettings && 'powerUpsEnabled' in rawSettings && typeof rawSettings.powerUpsEnabled !== 'boolean') throw new Error('Invalid Power-Ups setting.')
+  const sessionSettings = normaliseGameSessionSettings(
+    rawSettings as Partial<SafeGameState['sessionSettings']>,
+    value.soundPackId,
+    typeof value.sessionId === 'string' ? value.sessionId : undefined,
+  )
+  const quizType = normaliseQuizType(value.quizType)
+  if (quizType === 'head-to-head' && sessionSettings.powerUpsEnabled) throw new Error('Head-to-Head cannot enable Power-Ups.')
+  if (isSurvivorSettings(sessionSettings) && (quizType === 'head-to-head' || sessionSettings.playMode === 'teams')) {
+    throw new Error('The server returned an invalid Survivor session.')
+  }
+  const withStreaks = (entry: unknown): Record<string, unknown> & { currentCorrectStreak: number; longestCorrectStreak: number } => {
+    if (!isRecord(entry)) throw new Error('Invalid player statistics.')
+    const streaks = normaliseStreaks(entry)
+    if (value.quizType === 'head-to-head' && streaks.longestCorrectStreak !== 0) throw new Error('Head-to-Head does not track streaks.')
+    return { ...entry, ...streaks }
+  }
+  const players = value.players.map(withStreaks).map((player) => {
+    if (!survivorPlayerStateIsValid(player, sessionSettings)) throw new Error('The server returned invalid Survivor player state.')
+    return normaliseSurvivorPlayer(player as unknown as SafeGameState['players'][number], sessionSettings)
+  })
+  const tieBreaker = parseTieBreakerState(value.tieBreaker, value.phase, players)
+  const leaderboard = value.leaderboard.map(withStreaks)
+  const teams = value.teams ?? []
+  if (!Array.isArray(teams) || !teams.every((team): team is GameTeam => isGameTeam(team, value.sessionId)) ||
+    new Set(teams.map((team) => team.id)).size !== teams.length ||
+    value.players.some((player) => isRecord(player) && player.teamId != null && !teams.some((team) => team.id === player.teamId))) {
+    throw new Error('The server returned invalid team membership.')
+  }
+  if (round !== undefined && round !== null && (!isRecord(round) ||
+    Object.keys(round).some((key) => !['id', 'title', 'subtitle', 'introEnabled', 'roundNumber', 'totalRounds', 'questionCount'].includes(key)) ||
+    typeof round.id !== 'string' || typeof round.title !== 'string' || !round.title.trim() || round.title.length > 80 ||
+    typeof round.subtitle !== 'string' || round.subtitle.length > 200 || typeof round.introEnabled !== 'boolean' ||
+    !Number.isInteger(round.roundNumber) || Number(round.roundNumber) < 1 ||
+    !Number.isInteger(round.totalRounds) || Number(round.totalRounds) < Number(round.roundNumber) ||
+    !Number.isInteger(round.questionCount) || Number(round.questionCount) < 0)) {
+    throw new Error('The server returned invalid round metadata.')
+  }
+  if (value.phase === 'round-intro' && (!round || value.currentQuestion !== null || value.questionOpenedAt !== null || value.questionClosesAt !== null || value.submittedCount !== 0)) {
+    throw new Error('The server returned question data during a round intro.')
+  }
   const revealAllowed = ['reveal', 'leaderboard', 'finished'].includes(value.phase)
   if ((!revealAllowed && value.reveal !== null) || (value.reveal !== null && !isRevealPayload(value.reveal))) {
     throw new Error('The server returned reveal data in an invalid phase.')
   }
   if (!revealAllowed && Array.isArray(value.headToHeadResults) && value.headToHeadResults.length > 0) {
     throw new Error('The server returned Head-to-Head results before the reveal.')
+  }
+  if ((value.phase === 'tiebreaker' || value.phase === 'tiebreaker-result') &&
+    (value.currentQuestion !== null || value.reveal !== null || value.questionOpenedAt !== null || value.questionClosesAt !== null || value.leaderboard.length > 0 || value.buzz != null)) {
+    throw new Error('The server mixed quiz question data into a tie-breaker.')
   }
 
   const scoresAllowed = normaliseQuizType(value.quizType) === 'head-to-head' || ['leaderboard', 'finished'].includes(value.phase)
@@ -85,11 +222,36 @@ export function parseSafeGameState(value: unknown): SafeGameState {
 
   if (isRecord(value.currentQuestion)) {
     const safeQuestion = value.currentQuestion
+    if (safeQuestion.buzzInEnabled !== undefined && typeof safeQuestion.buzzInEnabled !== 'boolean') throw new Error('Invalid Buzz-In setting.')
+    if (safeQuestion.buzzInEnabled && buzzInValidation(safeQuestion as unknown as SafeQuestion, normaliseQuizType(value.quizType)).length) throw new Error('Invalid Buzz-In question state.')
+    if (safeQuestion.wagerEnabled !== undefined && typeof safeQuestion.wagerEnabled !== 'boolean') throw new Error('Invalid Wager setting.')
+    if (safeQuestion.wagerEnabled && normaliseQuizType(value.quizType) === 'head-to-head') throw new Error('Wager is Standard-only.')
+    if (safeQuestion.progressiveRevealEnabled !== undefined && typeof safeQuestion.progressiveRevealEnabled !== 'boolean') throw new Error('Invalid Progressive Reveal setting.')
+    if (safeQuestion.progressiveRevealEnabled && (progressiveRevealValidation(safeQuestion as unknown as SafeQuestion, normaliseQuizType(value.quizType)).length ||
+      safeQuestion.speedScoringEnabled !== false || (!revealAllowed && isRecord(safeQuestion.media) && safeQuestion.media.altText !== PROGRESSIVE_NEUTRAL_ALT))) throw new Error('Invalid or spoiler-bearing Progressive Reveal state.')
+    if (safeQuestion.type === 'connections') {
+      const count = Number(safeQuestion.revealedClueCount), total = Number(safeQuestion.totalClues)
+      if (normaliseQuizType(value.quizType) !== 'standard' || !validConnectionClues(safeQuestion.visibleClues, 0) ||
+        !Number.isInteger(safeQuestion.revealedClueCount) || !Number.isInteger(safeQuestion.totalClues) || total < 2 || total > 6 || count < 0 || count > total ||
+        safeQuestion.visibleClues.length !== count || (['question', 'locked'].includes(value.phase) && count < 1) || (revealAllowed && count !== total) ||
+        safeQuestion.availablePoints !== connectionStagePoints(Number(safeQuestion.points), total, count) * (safeQuestion.doubleScore ? 2 : 1) ||
+        'clues' in safeQuestion || 'futureClues' in safeQuestion || (value.reveal && value.reveal.type !== 'connections')) throw new Error('The server returned invalid Connections clue state.')
+    }
+    if ((safeQuestion.type === 'ordering' && !validTextItems(safeQuestion.items)) ||
+      (safeQuestion.type === 'matching' && (!validTextItems(safeQuestion.leftItems) || !validTextItems(safeQuestion.rightItems) || safeQuestion.leftItems.length !== safeQuestion.rightItems.length || !['exact', 'partial'].includes(String(safeQuestion.scoringMode))))) {
+      throw new Error('The server returned invalid question items.')
+    }
+    if (safeQuestion.type === 'matching' && validTextItems(safeQuestion.leftItems) && validTextItems(safeQuestion.rightItems) && new Set([...safeQuestion.leftItems, ...safeQuestion.rightItems].map(item => item.id)).size !== safeQuestion.leftItems.length + safeQuestion.rightItems.length) throw new Error('The server returned duplicate item IDs.')
+    if (['ordering', 'matching'].includes(String(safeQuestion.type)) && value.reveal && value.reveal.type !== safeQuestion.type) throw new Error('The revealed answer does not match the question.')
+    if (value.reveal?.type === 'ordering' && safeQuestion.type === 'ordering' && validTextItems(safeQuestion.items) && !validPermutation(value.reveal.correctItemIds, safeQuestion.items.map((item) => item.id))) throw new Error('Invalid revealed order.')
+    if (value.reveal?.type === 'matching' && safeQuestion.type === 'matching' && validTextItems(safeQuestion.leftItems) && validTextItems(safeQuestion.rightItems) && !validMatchingPairs(value.reveal.correctPairs, safeQuestion.leftItems.map((item) => item.id), safeQuestion.rightItems.map((item) => item.id))) throw new Error('Invalid revealed pairs.')
     const forbiddenKeys = [
+      'correctItemIds', 'correctPairs', 'correctItemKeys',
       'correctOptionId',
       'correctOptionIds',
       'correctValue',
       'tolerance',
+      'target',
       'targetX',
       'targetY',
       'targetRadius',
@@ -104,13 +266,29 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   }
 
   const themeId = normaliseQuizThemeId(value.themeId)
+  const buzz = normaliseBuzzState(value.buzz)
+  if (buzz && !players.some(player => isRecord(player) && player.id === buzz.winnerPlayerId)) throw new Error('Buzz winner is not in this room.')
+  if (buzz && (!isRecord(value.currentQuestion) || value.currentQuestion.buzzInEnabled !== true || normaliseQuizType(value.quizType) !== 'standard' || !['question', 'locked', 'reveal', 'leaderboard'].includes(value.phase))) throw new Error('Buzz state is not valid in this phase.')
+  if (buzz && (typeof value.questionOpenedAt !== 'string' || typeof value.questionClosesAt !== 'string' ||
+    !Number.isFinite(Date.parse(value.questionOpenedAt)) || !Number.isFinite(Date.parse(value.questionClosesAt)) ||
+    Date.parse(buzz.claimedAt) < Date.parse(value.questionOpenedAt) ||
+    Date.parse(buzz.answerDeadlineAt) > Date.parse(value.questionClosesAt))) throw new Error('Buzz state is outside the question window.')
   const answerPalette = normaliseAnswerPalette(value.answerPaletteId, value.customAnswerColours)
-  const rawSettings = isRecord(value.sessionSettings) ? value.sessionSettings : undefined
-  const sessionSettings = normaliseGameSessionSettings(
-    rawSettings as Partial<SafeGameState['sessionSettings']>,
-    value.soundPackId,
-    typeof value.sessionId === 'string' ? value.sessionId : undefined,
-  )
+  const aliveCount = isSurvivorSettings(sessionSettings) ? survivorAliveCount(players) : players.length
+  const expectedEligible = tieBreaker && (value.phase === 'tiebreaker' || value.phase === 'tiebreaker-result')
+    ? tieBreaker.contenderPlayerIds.length
+    : eligibleResponderCount({
+    buzz,
+    currentQuestion: isRecord(value.currentQuestion) ? value.currentQuestion as unknown as SafeGameState['currentQuestion'] : null,
+    players,
+    sessionSettings,
+    })
+  if (value.survivorAliveCount !== undefined && (!Number.isInteger(value.survivorAliveCount) || value.survivorAliveCount !== aliveCount)) {
+    throw new Error('The server returned an invalid Survivor alive count.')
+  }
+  if (value.eligibleResponderCount !== undefined && (!Number.isInteger(value.eligibleResponderCount) || value.eligibleResponderCount !== expectedEligible)) {
+    throw new Error('The server returned an invalid eligible responder count.')
+  }
   const questionPreludeKind = value.questionPreludeKind === 'double-score' || value.questionPreludeKind === 'question-type'
     ? value.questionPreludeKind
     : null
@@ -120,12 +298,19 @@ export function parseSafeGameState(value: unknown): SafeGameState {
   return {
     ...value,
     ...answerPalette,
+    players,
+    leaderboard,
+    eligibleResponderCount: expectedEligible,
+    survivorAliveCount: aliveCount,
+    teams,
+    tieBreaker,
+    buzz,
     reveal: outcomeNeutralReveal((value.reveal ?? null) as RevealPayload | null),
     soundPackId: sessionSettings.soundPackId,
     sessionSettings,
     questionPreludeKind,
     doubleScoreVariantIndex,
-    quizType: normaliseQuizType(value.quizType),
+    quizType,
     headToHeadCompetitors: Array.isArray(value.headToHeadCompetitors) ? value.headToHeadCompetitors : [],
     headToHeadResolutions: Array.isArray(value.headToHeadResolutions) ? value.headToHeadResolutions : [],
     headToHeadResults: Array.isArray(value.headToHeadResults) ? value.headToHeadResults : [],

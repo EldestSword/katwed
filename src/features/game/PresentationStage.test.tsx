@@ -57,6 +57,7 @@ describe('PresentationStage quiz theme', () => {
     const introState: SafeGameState = {
       ...state('question'), quizType: 'standard', questionPreludeKind: 'double-score',
       sessionSettings: {
+        competitionMode: 'points', survivorStartingLives: null,
         soundPackId: 'katwed', doubleScoreIntroMs: 9000, shuffleQuestionOrder: false,
         shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
         questionTypeIntrosEnabled: true, answerOptionSeed: 'session',
@@ -131,6 +132,36 @@ describe('PresentationStage quiz theme', () => {
     }} />)
     expect(screen.getByText('Ordinary question')).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'DOUBLE SCORE!' })).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('shows restrained open and won Buzz status when compact is %s', (compact) => {
+    const now = Date.now()
+    const player = {
+      id: 'player', sessionId: 'session', nickname: 'Carol', teamId: 'blue', connected: true,
+      joinedAt: '', totalScore: 0, correctAnswerCount: 0, totalCorrectResponseMs: 0,
+    }
+    const buzzQuestion = {
+      id: 'buzz-question', type: 'true-false' as const, prompt: 'Buzz prompt', supportingText: '',
+      timeLimitSeconds: 30, points: 1000, speedScoringEnabled: false, doubleScore: false, buzzInEnabled: true,
+      displayOrder: 0, media: { type: 'none' as const }, mediaVisibility: 'both' as const,
+      presentationChoiceVisibility: 'show' as const, questionNumber: 1, totalQuestions: 1,
+    }
+    const open = {
+      ...state('question'), currentQuestion: buzzQuestion, players: [player],
+      teams: [{ id: 'blue', sessionId: 'session', name: 'Blue Team', displayOrder: 0 }],
+      questionOpenedAt: new Date(now - 1_000).toISOString(), questionClosesAt: new Date(now + 30_000).toISOString(),
+    }
+    const view = render(<PresentationStage state={open} compact={compact} />)
+    expect(screen.getByText('Buzzers open')).toBeVisible()
+    expect(screen.queryByText(/eligible answer/)).toBeNull()
+
+    view.rerender(<PresentationStage compact={compact} state={{
+      ...open,
+      buzz: { winnerPlayerId: player.id, claimedAt: new Date(now).toISOString(), answerDeadlineAt: new Date(now + 10_000).toISOString() },
+    }} />)
+    expect(screen.getByText('Carol · Blue Team buzzed first!')).toBeVisible()
+    expect(screen.getByText(/seconds to answer/)).toBeVisible()
+    expect(screen.getByText('eligible answer')).toBeVisible()
   })
 
   it('keeps randomised option order and positional colours identical on player, presentation and results', () => {

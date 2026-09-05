@@ -1,3 +1,8 @@
+import { roundValidation } from './rounds'
+import { progressiveRevealValidation } from '../scoring/progressiveReveal'
+import { arrangementValidation } from '../questions/arrangementQuestions'
+import { connectionValidation } from '../questions/connections'
+import { isPinpointTarget } from '../game/pinpointTargets'
 import { TILE_GRID_SIZES, type Question, type RosterMember } from '../../types/domain'
 import type { QuizSaveInput } from '../../services/gameRepository'
 import { isQuizThemeId } from '../themes/quizThemes'
@@ -5,12 +10,8 @@ import { isQuizBackgroundCompatible, isQuizBackgroundId } from '../themes/quizBa
 import { isQuizType } from '../head-to-head/headToHead'
 import { isAnswerColourTuple, isAnswerPaletteId } from '../answer-palettes/answerPalettes'
 import { isSoundPackId } from '../audio/soundPacks'
-import {
-  MAX_TYPED_ANSWER_LENGTH,
-  MAX_TYPED_ANSWER_VARIANTS,
-  isMeaningfulTypedAnswer,
-  normaliseTypedAnswer,
-} from '../typed-answer/typedAnswer'
+import { validateTypedAnswers } from '../typed-answer/typedAnswer'
+import { buzzInValidation } from '../game/buzz'
 
 export interface QuestionValidation {
   valid: boolean
@@ -58,7 +59,8 @@ function validateOptions(
 }
 
 export function validateQuestion(question: Question, roster: readonly RosterMember[]): QuestionValidation {
-  const messages: string[] = []
+  const messages: string[] = [...progressiveRevealValidation(question), ...buzzInValidation(question)]
+  if (question.wagerEnabled !== undefined && typeof question.wagerEnabled !== 'boolean') messages.push('Choose a valid Wager setting.')
   if (!question.prompt.trim() || question.prompt.length > 300) {
     messages.push('Give the question a prompt of 1–300 characters.')
   }
@@ -75,6 +77,13 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
   validateMedia(question, messages)
 
   switch (question.type) {
+    case 'connections':
+      messages.push(...connectionValidation(question))
+      break
+    case 'ordering':
+    case 'matching':
+      messages.push(...arrangementValidation(question))
+      break
     case 'single-choice': {
       const optionIds = validateOptions(question.options, messages)
       if (!optionIds.has(question.correctOptionId)) messages.push('Choose exactly one correct option.')
@@ -118,29 +127,10 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
       }
       break
     case 'pinpoint':
-      if (
-        question.targetX < 0 || question.targetX > 1 ||
-        question.targetY < 0 || question.targetY > 1
-      ) messages.push('Pinpoint coordinates must be normalised between 0 and 1.')
-      if (question.targetRadius <= 0 || question.targetRadius > 1) {
-        messages.push('Pinpoint radius must be greater than 0 and no more than 1.')
-      }
+      if (!isPinpointTarget(question.target)) messages.push('Draw a valid correct answer area on the image.')
       break
     case 'typed-answer': {
-      const answers = [question.correctAnswer, ...question.acceptedAnswers]
-      if (answers.length > MAX_TYPED_ANSWER_VARIANTS) {
-        messages.push('Typed Answer supports one primary answer and up to 19 alternatives.')
-      }
-      if (answers.some((answer) => answer.length > MAX_TYPED_ANSWER_LENGTH)) {
-        messages.push('Typed answers must be 120 characters or fewer.')
-      }
-      if (answers.some((answer) => !answer.trim() || !isMeaningfulTypedAnswer(answer))) {
-        messages.push('Every typed answer must contain at least one letter or number.')
-      }
-      const normalised = answers.map(normaliseTypedAnswer)
-      if (new Set(normalised).size !== normalised.length) {
-        messages.push('Typed answers must be different after ignoring capitals, spaces and punctuation.')
-      }
+      messages.push(...validateTypedAnswers(question.correctAnswer, question.acceptedAnswers))
       break
     }
     case 'mashup': {
@@ -163,6 +153,7 @@ export function validateQuestion(question: Question, roster: readonly RosterMemb
 
 export function validateQuizSave(input: QuizSaveInput): string[] {
   const messages: string[] = []
+  if (input.rounds !== undefined) messages.push(...roundValidation({ ...input, rounds: input.rounds }))
   const title = input.title.trim()
   if (!isQuizType(input.quizType)) messages.push('Choose a supported quiz type.')
   if (!title || title.length > 120) messages.push('Give the quiz a title of 1–120 characters.')
@@ -209,6 +200,10 @@ export function validateQuizSave(input: QuizSaveInput): string[] {
   }
 
   if (input.quizType === 'head-to-head') {
+    if (input.questions.some(question => question.buzzInEnabled)) messages.push('Buzz-In is Standard-only. Disable it before switching to Head-to-Head.')
+    if (input.questions.some(question => question.wagerEnabled)) messages.push('Wager is Standard-only. Disable it before switching to Head-to-Head.')
+    if (input.questions.some(question => question.progressiveRevealEnabled)) messages.push('Progressive Reveal is Standard-only. Disable it before switching to Head-to-Head.')
+    if (input.questions.some(question => question.type === 'connections')) messages.push('Connections is Standard-only. Remove Connections questions before switching to Head-to-Head.')
     if (input.questions.some((question) => question.speedScoringEnabled || question.doubleScore)) {
       messages.push('Head-to-Head questions cannot use Speed Scoring or Double Score.')
     }

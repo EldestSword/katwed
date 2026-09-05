@@ -44,9 +44,10 @@ select is(
   ),
   array[
     'status', 'phase', 'current_question_id', 'current_question_index',
-    'question_opened_at', 'question_closes_at', 'started_at', 'ended_at'
+    'question_opened_at', 'question_closes_at', 'started_at', 'ended_at',
+    'connection_clue_count', 'buzz_winner_player_id', 'buzz_claimed_at', 'buzz_answer_deadline_at'
   ]::text[],
-  'the session trigger watches only the intended phase and lifecycle columns'
+  'the session trigger watches only phase, lifecycle, explicit clue and Buzz state'
 );
 
 select ok(
@@ -85,10 +86,10 @@ select ok(
   'the isolated JSON implementation takes a shared session lock'
 );
 select ok(
-  position('for update' in lower(pg_get_functiondef(
+  position('for update' in replace(lower(pg_get_functiondef(
     'public.submit_answer_without_session_prelude(text,uuid,text,jsonb)'::regprocedure
-  ))) = 0,
-  'the isolated JSON implementation has no exclusive session lock'
+  )), 'if v_session.power_ups_enabled then perform 1 from public.players where id=p_player_id for update; end if;', '')) = 0,
+  'the isolated JSON implementation has no exclusive lock except its own Power-Up player row'
 );
 select ok(
   position('for share' in lower(pg_get_functiondef(

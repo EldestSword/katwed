@@ -13,17 +13,23 @@ vi.mock('../../services/questionImages', async () => ({
 }))
 
 import { DemoGameRepository } from './DemoGameRepository'
-import type { PlayerAnswerPayload, Question } from '../../types/domain'
+import type { PlayerAnswerPayload, Question, Quiz } from '../../types/domain'
 import { headToHeadDemoQuiz, mixedDemoQuiz } from './sampleData'
 import { exportQuizToPortable, parseKatwedQuizJson } from '../../features/quiz-transfer/katwedQuizFormat'
 
 function correctAnswer(question: Question): PlayerAnswerPayload {
   switch (question.type) {
+    case 'ordering': return { type: question.type, itemIds: question.correctItemIds }
+    case 'matching': return { type: question.type, pairs: question.correctPairs }
     case 'single-choice': return { type: question.type, optionId: question.correctOptionId }
     case 'multiple-select': return { type: question.type, optionIds: [...question.correctOptionIds] }
     case 'true-false': return { type: question.type, value: question.correctValue }
     case 'slider': return { type: question.type, value: question.correctValue }
-    case 'pinpoint': return { type: question.type, x: question.targetX, y: question.targetY }
+    case 'pinpoint': {
+      if (question.target?.kind !== 'circle') throw new Error('Expected the demo circle')
+      return { type: question.type, x: question.target.x, y: question.target.y }
+    }
+    case 'connections':
     case 'typed-answer': return { type: question.type, value: question.correctAnswer }
     case 'mashup': return { type: question.type, memberIds: question.correctMemberIds }
   }
@@ -371,14 +377,15 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.changePhase(session.id, 'restart')
     const restarted = (await repository.getHostSession(session.id))!.session
     expect(restarted.questionOrder).toEqual(session.questionOrder)
-    expect(restarted.settings).toEqual(session.settings)
+    expect(restarted.settings.powerUpRunId).not.toBe(session.settings.powerUpRunId)
+    expect(restarted.settings).toEqual({ ...session.settings, powerUpRunId: restarted.settings.powerUpRunId })
 
     const resumed = await repository.launchGame(quizBefore.id, {
       soundPackId: 'katwed', shuffleQuestionOrder: false,
       shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
     })
     expect(resumed.id).toBe(session.id)
-    expect(resumed.settings).toEqual(session.settings)
+    expect(resumed.settings).toEqual(restarted.settings)
   })
 
   it('returns named current-question response status without raw payloads when host detail is disabled', async () => {
@@ -498,6 +505,18 @@ describe('DemoGameRepository multi-format game state', () => {
     const quizzes = await new DemoGameRepository().listQuizzes()
     expect(quizzes[0].backgroundId).toBeNull()
     expect(quizzes[1].backgroundId).toBeNull()
+  })
+
+  it('normalises legacy Pinpoint targets persisted in demo storage', async () => {
+    await new DemoGameRepository().listQuizzes()
+    const state = JSON.parse(localStorage.getItem('katwed.demo.state.v2')!) as { quizzes: Quiz[] }
+    const question = state.quizzes.flatMap((quiz) => quiz.questions).find((q) => q.type === 'pinpoint')!
+    Reflect.deleteProperty(question, 'target')
+    Object.assign(question, { targetX: .5, targetY: .43, targetRadius: .12 })
+    localStorage.setItem('katwed.demo.state.v2', JSON.stringify(state))
+    const loaded = (await new DemoGameRepository().listQuizzes()).flatMap((q) => q.questions).find((q) => q.type === 'pinpoint')
+    expect(loaded).toMatchObject({ target: { kind: 'circle', x: .5, y: .43, radius: .12 } })
+    expect(loaded).not.toHaveProperty('targetRadius')
   })
 
   it('normalises older Demo quizzes to Standard without stale assignments', async () => {
@@ -1056,6 +1075,7 @@ describe('DemoGameRepository multi-format game state', () => {
     }
     const pinpointQuestion = await repository.getSafeGameState(session.roomCode)
     expect(pinpointQuestion?.currentQuestion?.type).toBe('pinpoint')
+    expect(pinpointQuestion?.currentQuestion).not.toHaveProperty('target')
     expect(JSON.stringify(pinpointQuestion)).not.toContain('targetX')
     expect(JSON.stringify(pinpointQuestion)).not.toContain('targetY')
     expect(JSON.stringify(pinpointQuestion)).not.toContain('targetRadius')

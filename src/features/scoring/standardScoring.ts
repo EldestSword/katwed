@@ -1,5 +1,6 @@
 import type { GameSessionSettings, Question, QuestionPreludeKind } from '../../types/domain'
 import { DEFAULT_DOUBLE_SCORE_DURATION_MS } from '../audio/soundPacks'
+import { progressiveRevealScore } from './progressiveReveal'
 import { questionPreludeDurationMs, questionPreludeKind } from '../game/launchSettings'
 
 export const DOUBLE_SCORE_INTRO_MS = DEFAULT_DOUBLE_SCORE_DURATION_MS
@@ -13,13 +14,16 @@ export function calculateTimedScore(baseScore: number, responseTimeMs: number, d
 
 export function calculateStandardQuestionScore(
   baseScore: number,
-  question: Pick<Question, 'doubleScore' | 'speedScoringEnabled'>,
+  question: Pick<Question, 'doubleScore' | 'speedScoringEnabled'> & Partial<Pick<Question, 'type' | 'media' | 'progressiveRevealEnabled'>>,
   responseTimeMs: number,
   durationMs: number,
 ): number {
   if (baseScore <= 0) return 0
+  if (question.progressiveRevealEnabled && question.type !== 'connections' && question.type !== 'pinpoint') {
+    return progressiveRevealScore(baseScore, responseTimeMs, question.media?.type === 'image' ? Math.max(1, Math.round(question.media.revealDurationSeconds * 1000)) : 0) * (question.doubleScore ? 2 : 1)
+  }
   const doubled = question.doubleScore ? baseScore * 2 : baseScore
-  return question.speedScoringEnabled
+  return question.speedScoringEnabled && question.type !== 'connections'
     ? calculateTimedScore(doubled, responseTimeMs, durationMs)
     : Math.floor(doubled)
 }

@@ -1,0 +1,4 @@
+.streak-badge { display: block; width: fit-content; max-width: 100%; margin-top: .2rem; padding: .15em .45em; border: 1px solid currentColor; border-radius: .4em; font-size: .65em; font-weight: 650; line-height: 1.2; letter-spacing: .03em; white-space: normal; }
+.player-streak { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem .65rem; margin: .75rem 0; overflow-wrap: anywhere; }
+.player-streak > span { opacity: .8; }
+.presentation-stage--compact .streak-badge { font-size: .6em; padding: .1em .35em; }

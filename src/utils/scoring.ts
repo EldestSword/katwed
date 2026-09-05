@@ -1,3 +1,8 @@
+import { extractWager } from '../features/scoring/wager'
+import { ANSWER_CORE_FIELDS } from '../features/questions/answerPayload'
+import { normalisePinpointTarget, pinpointContains } from '../features/game/pinpointTargets'
+import { onlyFields, validMatchingPairs, validPermutation } from '../features/questions/arrangementQuestions'
+import { connectionStagePoints } from '../features/questions/connections'
 import type {
   LeaderboardEntry,
   Player,
@@ -44,10 +49,37 @@ function approximatelyOnStep(value: number, minimum: number, step: number): bool
   return Math.abs(steps - Math.round(steps)) < 1e-8
 }
 
-export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): QuestionScore {
+export interface QuestionScoringContext { revealedClueCount?: number }
+
+export function scoreQuestion(question: Question, answer: PlayerAnswerPayload, context: QuestionScoringContext = {}): QuestionScore {
+  const wager = extractWager(answer, question.wagerEnabled === true)
+  if (!wager) return invalid('invalid-wager')
+  answer = wager.answer
   if (question.type !== answer.type) return invalid('answer-type')
+  if (!onlyFields(answer, ANSWER_CORE_FIELDS[question.type])) return invalid('answer-fields')
 
   switch (question.type) {
+    case 'connections': {
+      if (answer.type !== 'connections' || !onlyFields(answer, ['type', 'value']) || typeof answer.value !== 'string' ||
+        answer.value.trim().length > MAX_TYPED_ANSWER_LENGTH || !isMeaningfulTypedAnswer(answer.value)) return invalid('invalid-typed-answer')
+      const count = context.revealedClueCount
+      if (count === undefined || !Number.isInteger(count) || count < 1 || count > question.clues.length) return invalid('invalid-clue-stage')
+      const correct = typedAnswerMatches(answer.value, question.correctAnswer, question.acceptedAnswers)
+      return { valid: true, correct, points: correct ? connectionStagePoints(question.points, question.clues.length, count) : 0 }
+    }
+    case 'ordering': {
+      if (answer.type !== 'ordering') return invalid('answer-type')
+      if (!onlyFields(answer, ['type', 'itemIds']) || !validPermutation(answer.itemIds, question.items.map((item) => item.id))) return invalid('invalid-permutation')
+      const correct = answer.itemIds.every((id, i) => id === question.correctItemIds[i])
+      return { valid: true, correct, points: correct ? question.points : 0 }
+    }
+    case 'matching': {
+      if (answer.type !== 'matching') return invalid('answer-type')
+      if (!onlyFields(answer, ['type', 'pairs']) || !validMatchingPairs(answer.pairs, question.leftItems.map((item) => item.id), question.rightItems.map((item) => item.id))) return invalid('invalid-pairs')
+      const correctCount = answer.pairs.filter((pair) => question.correctPairs.some((expected) => expected.leftId === pair.leftId && expected.rightId === pair.rightId)).length
+      const correct = correctCount === question.correctPairs.length
+      return { valid: true, correct, points: correct ? question.points : question.scoringMode === 'partial' ? Math.floor(question.points * correctCount / question.correctPairs.length) : 0 }
+    }
     case 'single-choice': {
       const payload = answer as Extract<PlayerAnswerPayload, { type: 'single-choice' }>
       if (!question.options.some((option) => option.id === payload.optionId)) return invalid('invalid-option')
@@ -100,8 +132,7 @@ export function scoreQuestion(question: Question, answer: PlayerAnswerPayload): 
         payload.y < 0 ||
         payload.y > 1
       ) return invalid('invalid-coordinates')
-      const distance = Math.hypot(payload.x - question.targetX, payload.y - question.targetY)
-      const correct = distance <= question.targetRadius + Number.EPSILON
+      const correct = pinpointContains(normalisePinpointTarget(question), payload)
       return { valid: true, correct, points: correct ? question.points : 0 }
     }
     case 'typed-answer': {
@@ -130,6 +161,8 @@ export function sortLeaderboard(players: readonly Player[]): LeaderboardEntry[] 
   )
 
   return sorted.map((player, index) => ({
+    currentCorrectStreak: player.currentCorrectStreak ?? 0,
+    longestCorrectStreak: player.longestCorrectStreak ?? 0,
     playerId: player.id,
     nickname: player.nickname,
     totalScore: player.totalScore,

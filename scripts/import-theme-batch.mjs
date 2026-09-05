@@ -35,7 +35,7 @@ export const THEME_THUMBNAIL_QUALITY = 68
 
 export function portableSchemaPathsForBatch(batchId, rootPath) {
   if (!isLatestVisualThemeBatch(batchId)) return []
-  return [1, 2, 3, 4, 5].map((version) => (
+  return [1, 2, 3, 4, 5, 6].map((version) => (
     join(rootPath, 'docs', 'schemas', `katwed-quiz-v${version}.schema.json`)
   ))
 }

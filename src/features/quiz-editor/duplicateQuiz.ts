@@ -1,4 +1,5 @@
 import type { ChoiceOption, Question, Quiz } from '../../types/domain'
+import { remapArrangementItems } from '../questions/arrangementQuestions'
 import type { QuizSaveInput } from '../../services/gameRepository'
 
 type IdFactory = () => string
@@ -29,6 +30,12 @@ export function createDuplicateQuizInput(
   createId: IdFactory = () => crypto.randomUUID(),
 ): QuizSaveInput {
   const duplicateQuizId = createId()
+  const roundIds = new Map<string, string>()
+  const rounds = source.rounds.map((round) => {
+    const id = createId()
+    roundIds.set(round.id, id)
+    return { ...round, id, quizId: duplicateQuizId }
+  })
   const competitorIds = new Map<string, string>()
   const headToHeadCompetitors = source.headToHeadCompetitors.map((competitor) => {
     const id = createId()
@@ -47,12 +54,18 @@ export function createDuplicateQuizInput(
       ...structuredClone(question),
       id: createId(),
       quizId: duplicateQuizId,
+      roundId: remappedId(roundIds, question.roundId, 'round'),
       assignedCompetitorId: question.assignedCompetitorId === null
         ? null
         : remappedId(competitorIds, question.assignedCompetitorId, 'assigned competitor'),
     }
 
     switch (duplicate.type) {
+      case 'connections':
+        return { ...duplicate, clues: duplicate.clues.map(clue => ({ ...clue, id: createId() })) }
+      case 'ordering':
+      case 'matching':
+        return remapArrangementItems(duplicate, createId)
       case 'single-choice': {
         const { options, ids } = duplicateOptions(duplicate.options, createId)
         return {
@@ -95,6 +108,7 @@ export function createDuplicateQuizInput(
     customAnswerColours: [...source.customAnswerColours] as QuizSaveInput['customAnswerColours'],
     soundPackId: source.soundPackId,
     roster,
+    rounds,
     questions,
   }
 }

@@ -15,9 +15,11 @@ const repositoryMocks = vi.hoisted(() => ({
 vi.mock('../services/repository', () => ({ repository: repositoryMocks }))
 
 const session: GameSession = {
+  currentRoundId: null,
   id: 'session-new', quizId: mixedDemoQuiz.id, roomCode: '123456', status: 'active', phase: 'lobby',
   currentQuestionIndex: 0, questionOpenedAt: null, questionClosesAt: null, startedAt: null, endedAt: null,
   settings: {
+    competitionMode: 'points', survivorStartingLives: null,
     soundPackId: 'none', doubleScoreIntroMs: 5000, shuffleQuestionOrder: true,
     shuffleAnswerOptions: true, autoLockWhenAllAnswered: false, showPlayerAnswersToHost: false,
     questionTypeIntrosEnabled: true, answerOptionSeed: 'answer-seed',
@@ -63,6 +65,7 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('checkbox', { name: /Shuffle question order/ }))
     await user.click(screen.getByRole('checkbox', { name: /Shuffle all answer choices/ }))
     const autoLock = screen.getByRole('checkbox', { name: /Auto-close answers/ })
+    expect(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ })).not.toBeChecked()
     expect(autoLock).toBeChecked()
     await user.click(autoLock)
     const liveAnswers = screen.getByRole('checkbox', { name: /Show live player answers/ })
@@ -71,6 +74,11 @@ describe('GameSetupPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start lobby' }))
 
     expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, {
+      powerUpsEnabled: false,
+      automaticTieBreakersEnabled: true,
+      competitionMode: 'points',
+      survivorStartingLives: 3,
+      playMode: 'individual',
       soundPackId: 'none',
       shuffleQuestionOrder: true,
       shuffleAnswerOptions: true,
@@ -85,6 +93,31 @@ describe('GameSetupPage', () => {
     renderSetup()
     expect(await screen.findByRole('heading', { name: 'Controller session-existing' })).toBeVisible()
     expect(repositoryMocks.launchGame).not.toHaveBeenCalled()
+  })
+
+  it('can enable personal Power-Ups when launching Teams', async () => {
+    const user = userEvent.setup()
+    renderSetup()
+    await user.click(await screen.findByRole('button', { name: 'Teams' }))
+    await user.click(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ }))
+    await user.click(screen.getByRole('button', { name: 'Start lobby' }))
+    expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, expect.objectContaining({ playMode: 'teams', powerUpsEnabled: true }))
+  })
+
+  it('defaults to Points and launches an individual one-life Survivor without allowing Teams', async () => {
+    const user = userEvent.setup()
+    renderSetup()
+    expect(await screen.findByRole('button', { name: 'Points' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Survivor' }))
+    expect(screen.getByRole('button', { name: '3 lives' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Teams' })).toBeDisabled()
+    expect(screen.getByText('Survivor V1 is for individual play.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: '1 life' }))
+    await user.click(screen.getByRole('checkbox', { name: /Give every player three one-use Power-Ups/ }))
+    await user.click(screen.getByRole('button', { name: 'Start lobby' }))
+    expect(repositoryMocks.launchGame).toHaveBeenCalledWith(mixedDemoQuiz.id, expect.objectContaining({
+      competitionMode: 'survivor', survivorStartingLives: 1, playMode: 'individual', powerUpsEnabled: true,
+    }))
   })
 
   it('shows and safely selects every newly imported sound pack', async () => {
@@ -120,9 +153,13 @@ describe('GameSetupPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'A deliberately long single-format quiz title for the projector desk' })).toBeVisible()
     expect(screen.getByText('Head to Head')).toBeVisible()
+    expect(screen.queryByText('Automatic · On')).not.toBeInTheDocument()
     expect(screen.getByText('Single format')).toBeVisible()
     expect(screen.getByText('No question-type intros are needed for this quiz.')).toBeVisible()
     expect(document.querySelector('.game-setup-summary__cover img')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /Auto-close answers/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Teams' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Survivor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Give every player three one-use Power-Ups/ })).not.toBeInTheDocument()
   })
 })

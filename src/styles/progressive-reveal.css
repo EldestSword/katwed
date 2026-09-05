@@ -1,0 +1,23 @@
+.progressive-points { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: .35em; margin: .5rem 0; padding: .5rem .8rem; border-radius: var(--radius-sm); background: var(--purple); color: white; font-size: 1rem; }
+.progressive-points strong { font-variant-numeric: tabular-nums; }
+.presentation-stage .progressive-points { justify-self: center; margin: 0; font-size: clamp(1rem, 1.6vw, 1.5rem); }
+.presentation-stage--compact .progressive-points { padding: .15rem .4rem; font-size: .6rem; }
+.presentation-question__footer:has(.progressive-points) { gap: .75rem; align-items: center; margin-bottom: .75rem; }
+.presentation-stage--compact .presentation-question__footer:has(.progressive-points) { gap: .3rem; margin-bottom: .2rem; }
+.presentation-stage--compact:has(.progressive-points),
+.presentation-stage--compact:has(.question-media[data-progressive]) { min-height: 0; height: 100%; }
+.presentation-stage--compact .presentation-question:has(.progressive-points) { min-height: 0; height: 100%; }
+.presentation-stage--compact:has(.progressive-points) .presentation-question__media .question-media,
+.presentation-stage--compact:has(.progressive-points) .presentation-question__media .question-media img { max-height: 8.5rem; }
+.progressive-settings ol { list-style: none; padding: 0; }
+.progressive-settings li { display: flex; justify-content: space-between; gap: 1rem; padding: .2rem; }
+.presentation-locked:has(.question-media) { gap: .6rem; }
+.presentation-locked:has(.question-media) .presentation-locked__mark { display: none; }
+.presentation-locked .question-media { width: min(40vw, 360px); max-height: 30vh; }
+.presentation-locked .question-media img { max-height: 30vh; }
+.presentation-stage--compact .presentation-locked:has(.question-media) { gap: .15rem; }
+.presentation-stage--compact .presentation-locked .question-media { width: 8rem; max-height: 6rem; }
+.presentation-stage--compact .presentation-locked .question-media img { max-height: 6rem; }
+@media (prefers-reduced-motion: reduce) {
+  .question-media[data-progressive] .tile-cover span { transition: none; }
+}

@@ -1,10 +1,12 @@
+import { WagerSummary } from './WagerControl'
 import { AnswerTile } from '../../components/design-system/AnswerTile'
 import type { AnswerColourTuple, AnswerPaletteId, PlayerAnswerPayload, RosterMember, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, CLASSIC_ANSWER_COLOURS, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { optionPosition } from '../questions/optionOrdering'
 import { formatSliderValue } from './revealFormatting'
+import { ArrangementResult } from './ArrangementResult'
 
-export function PlayerSubmissionSummary({
+function AnswerSummary({
   answer,
   question,
   roster,
@@ -21,6 +23,7 @@ export function PlayerSubmissionSummary({
 }) {
   const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
   const heading = <p className="submission-summary__label">{label}</p>
+  if (answer.type === 'ordering' || answer.type === 'matching') return <ArrangementResult question={question} answer={answer} label={label} />
 
   if (answer.type === 'single-choice' && question.type === 'single-choice') {
     const option = question.options.find((candidate) => candidate.id === answer.optionId)
@@ -51,7 +54,7 @@ export function PlayerSubmissionSummary({
   let value = 'Answer submitted'
   if (answer.type === 'slider' && question.type === 'slider') value = formatSliderValue(answer.value, question)
   if (answer.type === 'pinpoint') value = 'Location selected'
-  if (answer.type === 'typed-answer') value = answer.value
+  if (answer.type === 'typed-answer' || answer.type === 'connections') value = answer.value
   if (answer.type === 'mashup') {
     value = answer.memberIds.map((id) => roster.find((member) => member.id === id)?.displayName ?? id).join(' + ')
   }
@@ -67,4 +70,8 @@ export function PlayerSubmissionSummary({
       )}
     </div>
   )
+}
+
+export function PlayerSubmissionSummary(props: Parameters<typeof AnswerSummary>[0]) {
+  return <><AnswerSummary {...props} />{props.question.wagerEnabled && <WagerSummary points={props.question.points} percent={props.answer.wagerPercent ?? 0} />}</>
 }

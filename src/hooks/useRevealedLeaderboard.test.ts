@@ -1,9 +1,28 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { currentBoard, previousBoard, standingsState } from '../test/leaderboardFixtures'
+import { currentBoard, previousBoard, roundIntroState, standingsState } from '../test/leaderboardFixtures'
 import { useRevealedLeaderboard } from './useRevealedLeaderboard'
 
 describe('revealed leaderboard memory', () => {
+  it('keeps the previous board through a question-free round intro without exposing or replaying it', () => {
+    const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: standingsState('leaderboard') })
+    const first = result.current.reveal!
+    rerender(roundIntroState())
+    act(() => result.current.settle(first.id))
+    expect(result.current.reveal).toBeNull()
+    rerender(standingsState('question', [], 2))
+    rerender(standingsState('leaderboard', currentBoard, 2))
+    expect(result.current.reveal?.previous).toEqual(previousBoard)
+    expect(result.current.reveal?.entries).toEqual(currentBoard)
+  })
+
+  it('cannot invent movement after a refresh at a later round intro', () => {
+    const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: roundIntroState() })
+    rerender(standingsState('question', [], 2))
+    rerender(standingsState('leaderboard', currentBoard, 2))
+    expect(result.current.reveal?.previous).toBeNull()
+  })
+
   it('retains the last revealed snapshot through question, locked and reveal without exposing it there', () => {
     const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: standingsState('leaderboard') })
     expect(result.current.reveal?.previous).toBeNull()
@@ -48,6 +67,19 @@ describe('revealed leaderboard memory', () => {
     rerender(standingsState('leaderboard', currentBoard))
     expect(result.current.reveal?.previous).toBeNull()
     expect(result.current.reveal?.entries).toEqual(currentBoard)
+  })
+
+  it('observes a Survivor life-only correction on the same revealed board', () => {
+    const initial = previousBoard.map((entry) => ({ ...entry, survivorLivesRemaining: 2, survivorEliminatedAtQuestion: null }))
+    const corrected = initial.map((entry, index) => index === 0
+      ? { ...entry, survivorLivesRemaining: 1, survivorEliminatedAtQuestion: null }
+      : entry)
+    const { result, rerender } = renderHook(useRevealedLeaderboard, { initialProps: standingsState('leaderboard', initial) })
+    const first = result.current.reveal
+    rerender(standingsState('leaderboard', corrected))
+    expect(result.current.reveal).not.toBe(first)
+    expect(result.current.reveal?.entries[0].survivorLivesRemaining).toBe(1)
+    expect(result.current.reveal?.previous).toBeNull()
   })
 
   it.each(['lobby', 'finished'] as const)('clears the baseline on %s so a restart cannot compare with the old game', (phase) => {

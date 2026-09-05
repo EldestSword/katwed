@@ -3,13 +3,15 @@ import { Link, useParams } from 'react-router-dom'
 import { PlayerLeaderboard } from '../features/game/PlayerLeaderboard'
 import { useRevealedLeaderboard } from '../hooks/useRevealedLeaderboard'
 import { useFinalAwardsHistory } from '../hooks/useFinalAwardsHistory'
+import { competitionState, isTeamGame } from '../features/teams/teams'
+import { TeamFinalResults } from '../features/teams/TeamFinalResults'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StatusMessage } from '../components/StatusMessage'
 import { PlayerQuestion } from '../features/game/PlayerQuestion'
 import { useSafeGameState } from '../hooks/useSafeGameState'
 import { repository } from '../services/repository'
 import { clearPlayerSession, loadPlayerSession, loadSubmittedAnswer, saveSubmittedAnswer } from '../services/playerSession'
-import type { HeadToHeadGameCompetitor, PlayerSession } from '../types/domain'
+import type { HeadToHeadGameCompetitor, PlayerSession, TieBreakerSubmissionStatus, PersonalPowerUpState } from '../types/domain'
 import { Logo } from '../components/AppShell'
 import { QuestionMedia } from '../components/QuestionMedia'
 import { PlayerAnswerReveal } from '../features/game/PlayerAnswerReveal'
@@ -21,6 +23,12 @@ import { PlayerSubmissionSummary } from '../features/game/PlayerSubmissionSummar
 import { FinalResults, HeadToHeadFinal } from '../features/game/FinalResults'
 import { QuestionTypeIntro } from '../features/game/QuestionTypeIntro'
 import { questionTypeRegistry } from '../features/questions/registry'
+import { isSurvivorGame, survivorAliveCount } from '../features/game/survivor'
+import { SurvivorFinalResults } from '../features/game/SurvivorFinalResults'
+import { useSurvivorHistory } from '../hooks/useSurvivorHistory'
+import { TieBreakerPlayer } from '../features/game/TieBreakerScreens'
+import { leaderboardBeforeTieBreaker } from '../features/game/tieBreakers'
+import { POWER_UP_NAMES } from '../features/game/powerUps'
 
 export function PlayPage() {
   const roomCode = (useParams().roomCode ?? '').replace(/\D/g, '')
@@ -29,9 +37,14 @@ export function PlayPage() {
   const [reconnectError, setReconnectError] = useState('')
   const [working, setWorking] = useState(false)
   const [localResolution, setLocalResolution] = useState<{ questionId: string; status: 'answered' | 'skipped' } | null>(null)
+  const [tieBreakerSubmission, setTieBreakerSubmission] = useState<TieBreakerSubmissionStatus | null>(null)
+  const [personalPowerUps, setPersonalPowerUps] = useState<PersonalPowerUpState | null>(null)
   const { state, loading, error, refresh } = useSafeGameState(roomCode)
-  const leaderboard = useRevealedLeaderboard(state)
-  const awardsBaseline = useFinalAwardsHistory(state)
+  const teamMode = isTeamGame(state)
+  const survivorMode = isSurvivorGame(state)
+  const survivorEvent = useSurvivorHistory(state)
+  const leaderboard = useRevealedLeaderboard(competitionState(state))
+  const awardsBaseline = useFinalAwardsHistory(teamMode || survivorMode ? null : state)
 
   useEffect(() => {
     const saved = loadPlayerSession(roomCode)
@@ -41,7 +54,11 @@ export function PlayPage() {
         clearPlayerSession(roomCode)
         setPlayerSession(null)
         setReconnectError('Your saved player session has expired.')
-      } else setPlayerSession({ ...saved, competitorId: result.player.competitorId ?? null })
+      } else {
+        setPlayerSession({ ...saved, competitorId: result.player.competitorId ?? null })
+        setTieBreakerSubmission(result.tieBreakerSubmission ?? null)
+        setPersonalPowerUps(result.powerUps ?? null)
+      }
     }).catch(() => setReconnectError('Connection lost. We’ll keep trying when the game updates.'))
       .finally(() => setReconnecting(false))
   }, [roomCode])
@@ -89,6 +106,14 @@ export function PlayPage() {
     ? { playerId: currentPlayer.id, competitorId: currentPlayer.competitorId ?? '', status: localResolution.status }
     : undefined)
   const submittedAnswer = question ? loadSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt) : null
+  const currentTeam = teamMode ? state.teams?.find((team) => team.id === currentPlayer.teamId) : undefined
+  const eliminated = survivorMode && (currentPlayer.survivorLivesRemaining ?? 0) <= 0
+  const lives = currentPlayer.survivorLivesRemaining ?? state.sessionSettings?.survivorStartingLives ?? 3
+  const powerUpRunId = state.sessionSettings?.powerUpRunId ?? state.sessionId
+  const powerUps = state.sessionSettings?.powerUpsEnabled && !headToHead
+    ? personalPowerUps?.runId === powerUpRunId ? personalPowerUps : { runId: powerUpRunId, uses: [] }
+    : null
+  const currentPowerUp = powerUps?.uses.find(use => use.questionId === question?.id)
 
   const runPlayerAction = (operation: () => Promise<void>, fallback: string, onSuccess?: () => void) => {
     setWorking(true)
@@ -100,7 +125,7 @@ export function PlayPage() {
 
   return (
     <main className="game-screen player-game quiz-themed-surface" {...quizThemeSurfaceProps(state.themeId, state.backgroundId)}>
-      <header className="game-bar"><Logo /><div><span className="muted">Room</span><strong>{roomCode}</strong></div><div><span className="muted">Playing as</span><strong>{currentPlayer.nickname}</strong></div></header>
+      <header className="game-bar"><Logo /><div><span className="muted">Room</span><strong>{roomCode}</strong></div><div><span className="muted">Playing as</span><strong>{currentPlayer.nickname}</strong></div>{survivorMode && <div className={`survivor-life-chip ${eliminated ? 'is-out' : ''}`}><span className="muted">Survivor</span><strong>{eliminated ? 'OUT' : `${lives} ${lives === 1 ? 'life' : 'lives'}`}</strong></div>}</header>
       {(error || reconnectError) && <StatusMessage tone="error">{error || reconnectError}</StatusMessage>}
 
       {state.phase === 'lobby' && (headToHead ? (
@@ -114,12 +139,15 @@ export function PlayPage() {
           {competitors.some((competitor) => !competitor.claimed) && <p>Both competitors must join before starting.</p>}
         </section>
       ) : (
-        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1><p>Waiting for the host to start.</p></section>
+        <section className="game-state-card lobby-state" aria-live="polite"><div className="bobble" aria-hidden="true">?</div><p className="eyebrow">{survivorMode ? 'SURVIVOR' : state.quizTitle}</p><h1>You’re in, {currentPlayer.nickname}!</h1>{survivorMode && <div className="survivor-lobby-copy"><strong>{lives} {lives === 1 ? 'LIFE' : 'LIVES'}</strong><p>Stay alive. A wrong, partial or missed answer costs a life.</p></div>}{teamMode && <p className="player-team-context">{currentTeam ? <>Playing for <strong>{currentTeam.name}</strong></> : 'Waiting for the host to put you on a team…'}</p>}<p>Waiting for the host to start.</p></section>
       ))}
 
+      {state.phase === 'round-intro' && state.currentRound && <section className="game-state-card player-round-intro" aria-live="polite"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p>{state.currentRound.subtitle}</p>}<p>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</p>{survivorMode && <p className="survivor-round-status">{eliminated ? 'You’re out, but you’re still watching.' : `${lives} ${lives === 1 ? 'life' : 'lives'} remaining`}</p>}<p>Waiting for the host to start the round…</p></section>}
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
       {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} />}
-      {state.phase === 'question' && question && !activePrelude && (resolution && !submittedAnswer ? (
+      {state.phase === 'question' && question && !activePrelude && (eliminated ? (
+        <section className="game-state-card survivor-spectator" aria-live="polite"><p className="eyebrow">YOU’RE OUT</p><h1>Spectating this question</h1><h2>{question.prompt}</h2>{question.supportingText && <p>{question.supportingText}</p>}{question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} />}<p>You can keep watching.</p></section>
+      ) : resolution && !submittedAnswer ? (
         <section className="player-waiting" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Head-to-Head</p><h2>{resolution.status === 'skipped' ? 'Question skipped' : 'Answer locked'}</h2></div></div><p className="player-waiting__next">Waiting for the other competitor…</p></section>
       ) : (
         <>
@@ -129,10 +157,20 @@ export function PlayPage() {
           </section>}
           <PlayerQuestion question={question} roster={state.roster} closesAt={headToHead ? null : state.questionClosesAt}
             answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours}
+            buzz={state.buzz} playerId={currentPlayer.id} players={state.players} teams={state.teams}
             openedAt={state.questionOpenedAt} initialAnswer={submittedAnswer}
+            powerUps={powerUps}
+            onFiftyFifty={async () => {
+              const updated = await repository.activateFiftyFifty(roomCode, currentPlayer.id, playerSession.reconnectToken, question.id)
+              setPersonalPowerUps(updated)
+            }}
             modeLabel={headToHead ? `Question ${question.questionNumber} of ${question.totalQuestions} · Untimed` : undefined}
+            onBuzz={question.buzzInEnabled ? async () => {
+              return repository.claimBuzz(roomCode, playerSession.playerId, playerSession.reconnectToken)
+            } : undefined}
             onSubmit={async (payload) => {
               await repository.submitAnswer(roomCode, playerSession.playerId, playerSession.reconnectToken, payload)
+              if (payload.powerUp && powerUps) setPersonalPowerUps({ ...powerUps, uses: [...powerUps.uses, { questionId: question.id, powerUp: payload.powerUp }] })
               saveSubmittedAnswer(playerSession.playerId, question.id, state.questionOpenedAt, payload)
               setLocalResolution({ questionId: question.id, status: 'answered' })
               if (headToHead) await refresh()
@@ -144,12 +182,13 @@ export function PlayPage() {
         </>
       ))}
 
-      {state.phase === 'locked' && <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}<p className="player-waiting__next">Waiting for the reveal…</p></section>}
+      {state.phase === 'locked' && (eliminated ? <section className="game-state-card survivor-spectator" aria-live="polite"><p className="eyebrow">YOU’RE OUT</p><h1>Still spectating</h1><p>Waiting for the reveal…</p></section> : <section className="game-state-card player-locked-state" aria-live="polite"><div className="player-waiting__status"><span className="waiting-tick" aria-hidden="true">✓</span><div><p className="eyebrow">Submitted</p><h1>Answer locked</h1></div></div>{question && submittedAnswer && <PlayerSubmissionSummary answer={submittedAnswer} question={question} roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />}{question?.progressiveRevealEnabled && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled />}<p className="player-waiting__next">Waiting for the reveal…</p></section>)}
+      {currentPowerUp && ['locked', 'reveal'].includes(state.phase) && <p className="power-up-status">{POWER_UP_NAMES[currentPowerUp.powerUp]} used</p>}
       {state.phase === 'reveal' && state.reveal && question && (
         <section className="reveal-state" aria-live="polite"><p className="eyebrow">Correct answer</p>
           <PlayerAnswerReveal reveal={state.reveal} question={question} submittedAnswer={submittedAnswer} playerId={currentPlayer.id}
             roster={state.roster} answerPaletteId={state.answerPaletteId} customAnswerColours={state.customAnswerColours} />
-          {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} />}
+          {question.type !== 'pinpoint' && question.mediaVisibility !== 'presentation' && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled={question.progressiveRevealEnabled} revealed />}
           {state.reveal.caption && <p>{state.reveal.caption}</p>}
           {headToHead ? <>
             <HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} />
@@ -160,8 +199,19 @@ export function PlayPage() {
           </> : question.questionNumber === question.totalQuestions && <p className="final-results-wait">Waiting for the host to reveal the final results.</p>}
         </section>
       )}
-      {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">How everybody stands</p><h1>Leaderboard</h1><PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={currentPlayer.id} onSettled={leaderboard.settle} /><p>Waiting for the next question…</p></section>}
-      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <section className="game-state-card"><p className="eyebrow">{survivorMode ? 'Survival standings' : teamMode ? 'Team standings' : 'How everybody stands'}</p><h1>{survivorMode && survivorAliveCount(state.players) === 0 ? 'TOTAL WIPEOUT' : survivorMode && survivorAliveCount(state.players) === 1 ? 'LAST PLAYER STANDING' : 'Leaderboard'}</h1>{currentTeam && <p>Playing for <strong>{currentTeam.name}</strong></p>}<PlayerLeaderboard reveal={leaderboard.reveal} currentPlayerId={teamMode ? currentTeam?.id ?? '' : currentPlayer.id} teamName={currentTeam?.name} personalStreak={currentPlayer.currentCorrectStreak} players={teamMode ? undefined : state.players} survivor={survivorMode} newlyEliminated={survivorEvent?.eliminatedPlayerIds.includes(currentPlayer.id)} onSettled={leaderboard.settle} /><p>{survivorMode && survivorAliveCount(state.players) <= 1 ? 'Waiting for the final result…' : 'Waiting for the next question…'}</p></section>}
+      {(state.phase === 'tiebreaker' || state.phase === 'tiebreaker-result') && state.tieBreaker && <TieBreakerPlayer state={state.tieBreaker} players={state.players} playerId={currentPlayer.id} working={working} alreadySubmitted={tieBreakerSubmission?.questionId === state.tieBreaker.questionId} onSubmit={async (value) => {
+        setWorking(true)
+        setReconnectError('')
+        try {
+          await repository.submitTieBreakerAnswer(roomCode, currentPlayer.id, playerSession.reconnectToken, value)
+          setTieBreakerSubmission({ questionId: state.tieBreaker!.questionId, round: state.tieBreaker!.round })
+          await refresh()
+        } catch (reason) {
+          setReconnectError(reason instanceof Error ? reason.message : 'Your tie-breaker answer could not be submitted.')
+        } finally { setWorking(false) }
+      }} />}
+      {state.phase === 'finished' && <section className="game-state-card finished-state">{headToHead ? <HeadToHeadFinal competitors={competitors} variant="player" /> : teamMode ? <TeamFinalResults state={state} currentPlayerId={currentPlayer.id} variant="player" /> : survivorMode ? <SurvivorFinalResults players={state.players} tieBreakerWinnerPlayerId={state.tieBreaker?.winnerPlayerId} currentPlayerId={currentPlayer.id} variant="player" /> : <FinalResults entries={state.leaderboard} awardEntries={state.tieBreaker?.winnerPlayerId ? leaderboardBeforeTieBreaker(state.leaderboard) : undefined} awardsBaseline={awardsBaseline} currentPlayerId={currentPlayer.id} variant="player" />}<Link className="button button--secondary" to="/">Leave game</Link></section>}
     </main>
   )
 }

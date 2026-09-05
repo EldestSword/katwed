@@ -23,10 +23,10 @@ function AwardCard({ award, currentPlayerId }: { award: FinalAward; currentPlaye
   </article>
 }
 
-export function FinalAwardCards({ awards, currentPlayerId }: { awards: readonly FinalAward[]; currentPlayerId?: string }) {
+export function FinalAwardCards({ awards, currentPlayerId, heading = 'Tonight’s awards' }: { awards: readonly FinalAward[]; currentPlayerId?: string; heading?: string }) {
   if (!awards.length) return null
-  return <section className="final-awards" aria-label="Tonight’s awards">
-    <h2>Tonight’s awards</h2>
+  return <section className="final-awards" aria-label={heading}>
+    <h2>{heading}</h2>
     <div className="final-awards__cards">{awards.map((award) => <AwardCard key={award.kind} award={award} currentPlayerId={currentPlayerId} />)}</div>
   </section>
 }

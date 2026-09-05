@@ -22,7 +22,7 @@ export function urgencyThreshold(timeLimitSeconds: number): number | null {
 }
 
 function eventKey(state: SafeGameState, cue: GameAudioCue): string {
-  return [state.sessionId, state.currentQuestion?.id ?? 'game', state.questionOpenedAt ?? 'unopened', cue].join(':')
+  return [state.sessionId, state.currentQuestion?.id ?? state.tieBreaker?.questionId ?? 'game', state.questionOpenedAt ?? state.tieBreaker?.openedAt ?? 'unopened', cue].join(':')
 }
 
 function presentationHasYouTube(state: SafeGameState): boolean {
@@ -74,6 +74,15 @@ export function deriveGameAudioIntent(
     }
   }
 
+  if (state.phase === 'tiebreaker') {
+    return {
+      music: { cue: 'question', loop: true, eventKey: eventKey(state, 'question') },
+      effect: null,
+      duckedForYouTube: false,
+      displayCue: 'question',
+    }
+  }
+
   if (state.phase === 'locked') {
     return {
       music: null,
@@ -82,7 +91,7 @@ export function deriveGameAudioIntent(
       displayCue: 'lock',
     }
   }
-  if (state.phase === 'reveal') {
+  if (state.phase === 'reveal' || state.phase === 'tiebreaker-result') {
     return {
       music: null,
       effect: { cue: 'reveal', loop: false, eventKey: eventKey(state, 'reveal') },

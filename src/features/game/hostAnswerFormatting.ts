@@ -1,5 +1,6 @@
 import type { Question, RosterMember } from '../../types/domain'
 import { formatSliderValue } from './revealFormatting'
+import { itemLabel, matchingLabels } from '../questions/arrangementQuestions'
 
 export interface HostAnswerSummary {
   label: string
@@ -17,6 +18,8 @@ function percentage(value: number): string {
 
 export function formatHostAnswer(question: Question, roster: readonly RosterMember[]): HostAnswerSummary {
   switch (question.type) {
+    case 'ordering': return { label: 'Correct order', value: question.correctItemIds.map((id) => itemLabel(question.items, id)).join(' → ') }
+    case 'matching': return { label: 'Correct pairs', value: matchingLabels(question, question.correctPairs).join(' · ') }
     case 'single-choice':
       return { label: 'Correct answer', value: choiceLabel(question, question.correctOptionId) }
     case 'multiple-select':
@@ -32,12 +35,18 @@ export function formatHostAnswer(question: Question, roster: readonly RosterMemb
         : 'Exact value required'
       return { label: 'Correct value', value: formatSliderValue(question.correctValue, question), detail }
     }
-    case 'pinpoint':
+    case 'pinpoint': {
+      const target = question.target
+      if (!target) return { label: 'Correct target', value: 'No area configured' }
+      if (target.kind === 'polygon') return { label: 'Correct target', value: 'Freehand area', detail: target.points.length + ' vertices' }
+      if (target.kind === 'rectangle') return { label: 'Correct target', value: 'Rectangle', detail: percentage(target.width) + ' wide · ' + percentage(target.height) + ' high' }
       return {
         label: 'Correct target',
-        value: `${percentage(question.targetX)} across · ${percentage(question.targetY)} down`,
-        detail: `Accepted radius: ${percentage(question.targetRadius)} of the normalised image scale`,
+        value: percentage(target.x) + ' across · ' + percentage(target.y) + ' down',
+        detail: 'Accepted radius: ' + percentage(target.radius) + ' of the normalised image scale',
       }
+    }
+    case 'connections':
     case 'typed-answer':
       return {
         label: 'Accepted answer',

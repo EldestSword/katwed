@@ -16,6 +16,10 @@ The mash-up rule remains strict: players select exactly two different people and
 
 Katwed! version 2 is deployed on Netlify from the `EldestSword/katwed` GitHub repository and uses a live Supabase project. The production setup has been exercised with real host authentication, stored quizzes, uploaded media and multiple player tabs.
 
+### Phase 2 release candidate
+
+`phase2/release-candidate` contains the complete Phase 2 tree and its integration checks. The pending database stack is the twelve ordered Phase 2 migrations followed by `20260904232901_rc_tiebreaker_rpc_privileges.sql` (owner-only tie-break controls) and `20260905081403_rc_tiebreaker_content_audit.sql` (13 audited bank corrections). The full repository chain now has 47 migrations; earlier migrations remain unchanged. Draft PR #22 awaits the Linux GitHub gate and deliberate release approval. See the [release-candidate evidence, database-first release order and manual UAT checklist](docs/phase2-release-candidate.md). Production migration, frontend deployment and merging the PR remain separate deliberate actions.
+
 ### Implemented and production-tested
 
 The hosted application has verified support for:
@@ -111,9 +115,77 @@ Active and Archived quizzes can be exported as ordinary UTF-8 `.katwed.json` fil
 
 Import treats local JSON as untrusted, enforces a 2 MB limit, rejects unknown structure and unsafe media schemes, remaps every portable reference to fresh UUIDs, then passes the result through the normal quiz validation and existing create-only `saveQuiz` boundary. A valid file receives a spoiler-safe dashboard preview containing metadata only; successful import remains in the Active library rather than opening the answer-bearing editor. Export actions are available in both library views and warn that the downloaded file contains correct answers.
 
-Version 5 is the export target. It adds the quiz-selected shared Presentation sound pack to the version 4 answer-palette definition, while the importer remains backward-compatible with versions 1–4 and safely defaults missing audio configuration to Katwed. Visual Theme Batches 1, 2 and 3 are additive expansions of the existing controlled theme/background IDs, so they do not change portable semantics or require version 6. All five schemas remain aligned with the trusted 51-theme/153-background registry, and all historical supported imports remain valid. All versions reference image paths and URLs but do not embed or upload image bytes. See [`docs/katwed-quiz-format-v5.md`](docs/katwed-quiz-format-v5.md) and the companion [JSON Schema](docs/schemas/katwed-quiz-v5.schema.json); the v1-v4 documentation and schemas remain available for existing generators.
+Version 12 is the export target on the Phase 2 development branch. It adds an explicit `buzzInEnabled` question modifier. V11 Wagers, V10 Progressive Reveal, V9 Connections, V8 Ordering/Matching, V7 rounds, V6 structured Pinpoint targets, sound, palettes and media retain their meanings. Versions 1–12 import; v1–v11 default Buzz-In to false, v1–v10 default Wager to false, v1–v9 default Progressive Reveal to false, and v1–v6 retain their silent default Round 1 and equivalent legacy Pinpoint circles. All schemas retain the trusted 51-theme/153-background registry. Files reference image paths and URLs without embedding image bytes. See [portable v12](docs/katwed-quiz-format-v12.md) and the [v12 JSON Schema](docs/schemas/katwed-quiz-v12.schema.json); v1–v11 documentation and schemas remain unchanged. Team settings, live clue progress, Buzz winners and player wager choices remain session-only.
 
 Import/export versions 1 and 2 and Typed Answer are deployed. Version 5 exports are implemented and tested locally. Its compatible database field is applied; the matching Audio Pass 1 frontend still awaits deliberate release approval.
+
+### Core Rounds (implemented locally, pending release)
+
+Standard quizzes now contain ordered rounds. The three-panel editor groups questions by round and supports round titles, subtitles, intro toggles, reordering and moving questions between rounds. New quizzes and legacy imports begin with a silent Round 1; added rounds default to an intro. Empty rounds are allowed while drafting and must receive questions before launch. Head-to-Head remains a single structural round with its existing competitor controls.
+
+Enabled rounds pause on a themed, host-controlled intro across Presentation, the compact controller preview and Player. **Start round** opens the first question with its full normal timer. **Next round** appears at round boundaries, session shuffle stays within rounds and final results still require explicit host reveal. Safe round metadata contains no question or answer key. The existing session broadcasts cover these transitions without extra polling or answer/player fan-out.
+
+Forward migration `20260903221013_core_rounds.sql` backfills one silent round per quiz and preserves existing question order and session timestamps. It follows the pending Visual Pinpoint migration and has not been applied to production. See [Core Rounds architecture and local verification](docs/core-rounds.md) and [portable format v7](docs/katwed-quiz-format-v7.md).
+
+The integration branch combines Pinpoint, Slider and Core Rounds with the existing animated leaderboard, commentary and Final Awards. Both client-memory history hooks survive `round-intro`, where there is no current question: the next leaderboard compares with the last revealed board, while Biggest Climber still compares with the legitimate Question 1 leaderboard. Intros show neither stale standings nor awards. Refreshing at a later intro cannot establish either baseline. Presentation, compact controller preview and Player share this behaviour without extra requests or persistence. The pending Phase 2 schema chain is Visual Pinpoint, Core Rounds, then Core Team Mode; development does not apply it to production or deploy the frontend.
+
+### Core Team Mode (implemented locally, pending release)
+
+Standard quizzes can launch as **Individuals** (the default) or **Teams**, with 2–8 named teams and Player choice, Balanced random or Host assigns membership. Teams belong to the game session; saved quizzes, Head-to-Head and portable format v7 are unchanged. The host can move players or balance teams in the lobby, and every player must be assigned before starting.
+
+Players still answer and score individually. Team standings sum only the authoritative individual leaderboard rows visible at Leaderboard or Final Results, with no stored team totals or extra score writes. Team names and stable team IDs reuse the existing animation/commentary history through Round Intro. Final Results crown a team; Most Correct and Quickest Thinker may appear as Individual honours, with no individual Biggest Climber.
+
+Forward migration `20260904100005_core_team_mode.sql` follows Core Rounds and preserves legacy Individual launch/join calls for a deliberate database-first release. Membership RPCs add no room broadcasts, subscriptions or faster polling. Existing Player focus/reconnect recovery and the 45-second healthy sanity refresh pick up host assignment changes. See [Team Mode architecture and verification](docs/team-mode.md).
+
+### Connections (implemented locally, pending release)
+
+Standard Individual and Team games support 2–6 ordered text clues. Clue 1 opens with the normal question timer; the host reveals each further clue without changing phase or extending the deadline. Players make one exact-normalised typed guess. Correct answers earn `floor(base points × (total clues − revealed clues + 1) / total clues)`, then Double Score; ordinary speed scoring never applies. Public state contains only revealed clue records. All clues and the primary answer appear at answer reveal; alternatives remain private.
+
+The editor provides clue ordering, alternatives and a live points ladder. Player drafts/focus survive clue updates, and the presentation/compact views grow with the visible list. Head-to-Head is explicitly unsupported. New migration `20260904122702_connections_questions.sql` adds session progress and an owner-only clue action using the existing session locks and broadcast path: at most five room refresh signals plus their existing host-topic copies per question, with no answer broadcasts, new subscriptions or faster polling. See [Connections architecture and verification](docs/connections.md).
+
+### Progressive Reveal (implemented locally, pending release)
+
+Progressive Reveal is an optional saved question modifier for Standard image questions, including Teams and Rounds. Blur, pixelate, tiles and zoom-out use their existing image reveal duration, which must be positive and no longer than the question timer or 180 seconds. Pinpoint, Connections and Head-to-Head are excluded. Earned base points decay linearly from 100% to 25% over that duration, are floored, then doubled when Double Score is enabled. Progressive Reveal replaces ordinary Speed Scoring, including for positive partial Matching/Multiple Select points; correctness rules are unchanged.
+
+The image and local points badge use the existing authoritative opening timestamp. Reduced motion uses four discrete reveal steps without exposing the complete image early, and enlargement is unavailable until the image completes or Answer Reveal begins. Public alt text stays neutral throughout Question and Locked; private authoring keeps descriptive alt text. New migration `20260904131727_progressive_reveal.sql` adds only the saved question flag and patches existing validation, serialisation and scoring. No session state, progress writes, RPC calls, broadcasts, subscriptions, fetches or polling are added. See [Progressive Reveal architecture and verification](docs/progressive-reveal.md). All pending migrations require a deliberate database-first release; none was applied to production in this pass.
+
+### Wagers (implemented locally, pending release)
+
+Wager is an optional saved modifier on every Standard question type, including Teams and Rounds. Players default to No wager and may risk 25%, 50% or 100% of the authored base points. Stake is `floor(base points × percentage / 100)`: a fully correct answer adds it after all ordinary scoring; an incorrect or partial answer loses it. Double Score does not double the stake. Awarded points and individual/Team totals may be negative, while existing correctness metrics, rankings and Final Awards retain their rules.
+
+Migration `20260904141715_wagers.sql` adds a default-false question flag and default-zero percentage on the existing answer row. Strict metadata extraction, ordinary scoring, wager adjustment and the existing insert/score update share one transaction. Typed Answer accept/undo recalculates from the original response time and stored wager. Head-to-Head rejects the modifier. Player drafts stay local until Lock in, submitted summaries survive refresh, and only the private controller sees submitted wagers. There are no additional broadcasts, subscriptions, polling, fetches, preliminary RPCs or answer writes. See [Wager architecture and local verification](docs/wagers.md). The migration and its pending predecessors await a deliberate database-first release; production is unchanged.
+
+### Correct Answer Streaks (implemented locally, pending release)
+
+Every Standard player now has current and longest correct-answer streaks as session statistics, including Teams and Rounds. Only the authoritative full-correct Boolean advances a streak; wrong, partial and missing answers break it. Streaks have **zero scoring or ranking effect** and add no saved setting. Buzz-In questions are neutral and are removed before the remaining eligible streak positions are compacted. Head-to-Head and the three Final Awards are unchanged.
+
+Migration `20260904151357_correct_answer_streaks.sql` adds default-zero Player statistics and a private, set-based history calculation. The existing host transition to Leaderboard or final Reveal → Finished finalises the current question; early Finish excludes unresolved answers. Late Typed Answer accept/undo recomputes the affected player, restart clears both statistics, and reconnect preserves them. Small individual badges and personal phone feedback appear from two correct answers; shared commentary announces only proven 3/5/10/15… milestones, with no replay after refreshing a leaderboard. No new RPC, broadcast, subscription, fetch or polling is added. See [streak architecture and focused verification](docs/correct-answer-streaks.md). Production and pending migration release remain deliberate.
+
+### Buzz-In (implemented locally, pending release)
+
+Buzz-In is an optional Standard question modifier for every current type except Connections. Progressive Reveal and Head-to-Head are excluded; Teams, Rounds, Wager, Speed Scoring and Double Score retain their existing behaviour. The first valid atomic claim wins a fixed ten-second answer window, shortened when the question itself closes sooner. Only that player may submit and there is no rebound. The host may reset an unanswered claim. Buzz time never replaces the existing question-open response time, so scoring and Final Awards keep their established inputs.
+
+Migration `20260904181607_core_buzz_in.sql` adds the saved flag and one complete nullable claim tuple on the session row. The claim function verifies player identity, takes an exclusive session-row lock and rechecks the phase, modifier and deadlines before writing. A successful claim and host reset use the existing room and controller refresh topics; losing claims and ordinary answer bursts write and publish nothing. Player-safe state carries only winner ID and authoritative timestamps. The UI gates existing answer controls behind the claim, shows restrained shared-screen status and gives the controller winner/countdown/reset controls. Portable v12 stores only the authored flag. See [Buzz-In architecture and local verification](docs/buzz-in.md). The migration and frontend were not applied or deployed to production.
+
+### Core Survivor Mode (implemented locally, pending release)
+
+Any Standard quiz can launch as Points (the default) or individual-only Survivor with one or three starting lives. Fully correct ordinary answers are safe; wrong, partial and missing answers cost one life. Buzz-In questions are neutral for every player. Eliminated players remain connected as spectators but the server rejects future answers and Buzz claims. Scores remain unchanged and serve only as a late survival-standing tiebreaker.
+
+Migration `20260904203000_core_survivor_mode.sql` stores session mode and authoritative Player life state. A private, bounded history calculation finalises lives only at Leaderboard or final Results, and existing Typed Answer corrections can revive or re-eliminate a Player by recomputing history. Alive Players rank first by lives; eliminated Players rank by their actual elimination question before score, correct count, response time and stable name/ID fallbacks. A terminal board with one survivor or a total wipeout requires the host to reveal the final result. The feature adds no quiz-format field, score change, Realtime channel, subscription, polling increase or Player broadcast. Portable format remains v12. See [Survivor Mode architecture and focused verification](docs/survivor-mode.md). The migration and frontend have not been applied or deployed to production.
+
+### Core Power-Ups (implemented locally, pending release)
+
+Standard Individual, Team and Survivor games can optionally give each player one Double Up, one 50/50 and one Fast Five per run. The setting defaults off. At most one can be used per question: Double Up doubles positive final points after Wagers, 50/50 privately retains two Single Choice options, and Fast Five reduces only the Speed Scoring input by five seconds. Real response times, correctness, lives and existing answer controls remain authoritative. Buzz-In, Head-to-Head and Tie-Breaker questions have no Power-Ups; portable format stays v12.
+
+Migration `20260904223001_core_power_ups.sql` adds private constrained use records, authenticated 50/50 activation and personal join/reconnect recovery. Double Up and Fast Five use the existing answer transaction; 50/50 makes one explicit private RPC. There are no new broadcasts, subscriptions, channels or polling. Restart restores inventory using a new run identity. See [Power-Up architecture and verification](docs/power-ups.md). The migration and frontend await deliberate release and were not applied or deployed to production.
+
+### Automatic Tie-Breakers (implemented locally, pending release)
+
+New Standard Individual Points and Survivor sessions automatically divert a genuine first-place tie into a 20-second closest-number tie-breaker. Points uses equal highest `totalScore`; Survivor uses equal highest living life count, or equal latest elimination in a total wipeout. Equal distance falls back to authoritative response time. If distance and response time are both identical, only the still-tied finalists receive another unused question. One last living Survivor, Teams, Head-to-Head and emergency early Finish retain their existing results.
+
+Migration `20260904223000_automatic_tiebreakers.sql` seeds the supplied 200-question researched bank into a private RLS-forced table and stores contenders and decimal-string submissions separately from quiz answers. The database calculates distance with PostgreSQL `NUMERIC`, keeps scores, streaks, lives and Final Awards unchanged, and moves only the resolved winner to final rank one. Old clients omit the capability flag, receive its database default of false and never enter the new phases; the new frontend explicitly enables it only for supported sessions. The existing session refresh path covers phase changes, while individual estimates emit no broadcast and no new subscription, channel or polling loop exists. Quiz export remains portable v12. See [Automatic Tie-Breakers architecture and verification](docs/automatic-tiebreakers.md). This migration and frontend have not been applied or deployed to production.
+
+The current audited bank is [v1.3](docs/data/tiebreaker-bank-v1.3.json); the [original supplied bank](docs/data/tiebreaker-bank-v1.json) remains as historical evidence. Run `node scripts/validate-tiebreaker-bank.mjs` to validate v1.3, or supply an explicit JSON path to validate another revision. Validation is entirely offline. The content-only forward migration `20260905081403_rc_tiebreaker_content_audit.sql` corrects the 13 audited rows, checks their expected old content and preserves IDs, enabled status and all security/selection behaviour. The original seed migration is immutable.
 
 ### Typed Answer and deterministic tile reveal
 
@@ -276,11 +348,15 @@ Large, accessible True and False controls. Visual order is stable.
 
 ### Slider
 
-Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player sees the current numeric value and can use a keyboard.
+Configurable minimum, maximum, step, answer, tolerance, prefix, suffix and unit. The player control starts at a snapped midpoint labelled as unchosen; Lock in stays disabled until an interaction selects a value. `PlayerSliderAnswer` retains a native keyboard-accessible range with a 40px thumb and 56px touch area, immediate pointer dragging and track taps, a travelling formatted value bubble, and decimal-safe single-step −/+ buttons. Pointer capture keeps dragging on the control and only the range suppresses touch scrolling. The player payload, scoring, authoring and presentation range context are unchanged; this player UI update requires no database migration.
 
 ### Pinpoint
 
-The player selects normalised `x` and `y` coordinates on a contained image. Scoring uses Euclidean distance from a normalised target and radius, independent of rendered size. Keyboard range controls provide an alternative.
+The player selects normalised `x` and `y` coordinates on a contained image. Keyboard range controls provide an alternative. Visual Pinpoint Authoring (implemented on the feature branch, pending release) lets the host draw a Circle, Rectangle or Freehand correct area directly on the image, clear or redraw it, and use Advanced settings for keyboard creation and precise numeric editing. The configured area is highlighted in authoring, editor preview and the existing player/presentation reveal, alongside response markers.
+
+Targets use one discriminated `target` object. Rectangles start at their top-left corner; polygons have 3–64 distinct vertices, a simple closed outline and a normalised area of at least 0.0001. Freehand strokes are sampled and simplified deterministically before saving; tiny or intersecting outlines are rejected. Pointer capture, touch scroll suppression and contained-image bounds keep drawing independent of letterboxing and container size. Existing normalised circles retain their exact distance/radius semantics, including their oval appearance on non-square images. Database scoring uses inclusive circle/rectangle boundaries and deterministic polygon ray casting. Player submissions remain ordinary points and correct targets remain withheld until the existing reveal phases.
+
+Forward migration `20260903203203_visual_pinpoint_targets.sql` upgrades legacy circles and the authoritative save/validation/scoring path without replacing phase or submission wrappers. Release it deliberately with the matching frontend; the old database cannot persist the new shape representation. This task does not apply the migration or deploy the frontend. See [portable v6 and geometry rules](docs/katwed-quiz-format-v6.md).
 
 ### Typed answer
 
@@ -290,7 +366,7 @@ One primary answer and up to 19 alternatives are matched exactly after Unicode N
 
 Uses the optional quiz people bank. Exactly two distinct active people must be selected. The complete pair is required and no partial mode exists.
 
-All points are non-negative integers. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. Pending Standard scoring can optionally reduce positive scores from 100% to 50% according to authoritative response time; Head-to-Head remains fixed at one or zero.
+Authored base points and ordinary earned points are non-negative integers. Wager adjustments may produce negative awarded points and cumulative player/Team totals, without clamping. Leaderboards are ordered by total score, correct-answer count, correct response time and nickname for deterministic ties. Pending Standard scoring can optionally reduce positive scores from 100% to 50% according to authoritative response time; Head-to-Head remains fixed at one or zero.
 
 ## Media
 
@@ -345,9 +421,9 @@ The presentation and Player page retain their own last revealed leaderboard in c
 
 `AnimatedLeaderboard` uses one shared score count-up clock followed by FLIP row movement with stable player IDs. Layout is measured only before and after reordering; browser transforms perform the movement. Scores count for 750ms, rows move for 900ms and temporary movement badges clear within 2.6 seconds. Phase changes cancel pending frames, timers and row animations. The full presentation still renders every supplied row; the compact preview retains its six-row limit. Final results use their separate podium renderer.
 
-Pure snapshot comparisons select at most one presentation commentary event: a known player taking first place, entering the top three, climbing at least three places, or a proven direct overtake within the top five, in that order. New players and first/refresh baselines never receive invented movement. Authoritative ranks and tie ordering are preserved. Phones show final standings with only their own up/down movement and new ordinal rank, without global commentary. Reduced motion skips score counting and row travel while preserving true movement indicators and commentary; animated score frames are excluded from live announcements.
+Pure snapshot comparisons select at most one presentation commentary event. Priority is new leader, entering the top three, a proven streak milestone of five or more, a climb of at least three places, a proven three-answer streak, then a direct overtake within the top five. Movement detection and authoritative ranks/tie ordering are preserved. Streak commentary has separate client memory; first/refresh baselines never invent movement or streak increments. Phones show their own rank movement and current streak from two correct answers, without global commentary. Reduced motion skips score counting and row travel while preserving true movement indicators and commentary; animated score frames are excluded from live announcements.
 
-### Lightweight final awards (feature branch, pending release)
+### Lightweight final awards
 
 Standard Final Results add up to three small cards beneath the existing podium. The pure `calculateFinalAwards` helper selects Most Correct from the highest positive correct-answer count, Quickest Thinker from the lowest average correct-answer response time among players with at least three correct answers, and Biggest Climber from the largest positive improvement between known first and final ranks. Exact averages are compared before rounding seconds for display. All genuine ties share the award; two names are shown together, longer lists are abbreviated visually with every winner and tied climb still available to assistive technology. No qualifying result means no card. Head-to-Head final results remain unchanged.
 
@@ -464,10 +540,24 @@ Applied production migrations, in order:
 202608300003_visual_theme_batch_3.sql
 ```
 
-Pending, deliberately unapplied migration:
+Pending, deliberately unapplied migrations:
 
 ```text
 20260901094653_realtime_scaling_free_tier.sql
+20260903203203_visual_pinpoint_targets.sql
+20260903221013_core_rounds.sql
+20260904100005_core_team_mode.sql
+20260904110937_ordering_matching_questions.sql
+20260904122702_connections_questions.sql
+20260904131727_progressive_reveal.sql
+20260904141715_wagers.sql
+20260904151357_correct_answer_streaks.sql
+20260904181607_core_buzz_in.sql
+20260904203000_core_survivor_mode.sql
+20260904223000_automatic_tiebreakers.sql
+20260904223001_core_power_ups.sql
+20260904232901_rc_tiebreaker_rpc_privileges.sql
+20260905081403_rc_tiebreaker_content_audit.sql
 ```
 
 `202607310001_multiformat_quiz_platform.sql` preserves existing mash-up rows, adds the generic six-format question model and keeps ownership, Row Level Security, phase changes and scoring authoritative in PostgreSQL.
@@ -647,11 +737,15 @@ Planned work:
 - custom themes.
 - deliberate review and release verification for the expanded theme frontend.
 
+### Ordering and Matching (Phase 2 development)
+
+Ordering and Matching add two text-only question types on the feature branch. Hosts author 2–8 ordered items or paired rows; players use touch/mouse reordering with keyboard up/down controls, or tap/keyboard pairing with numbered markers. Safe network serialisation scrambles arrays independently of answer keys and authored order, and remains stable across polling and reconnect. Without Progressive Reveal, Matching partial points stay fixed over time, Double Score applies, and fully correct answers use generic speed scoring. H2H remains binary. Both types work with Rounds and individual contributions to Team totals.
+
+Forward migration `20260904110937_ordering_matching_questions.sql` follows `20260904100005_core_team_mode.sql` and patches retained database validation, save/load, safe/reveal serialisation and scoring. It is safe to apply before the new frontend for existing quizzes and clients, but remains pending deliberate production release. No new Realtime channels, broadcasts, polling or browser fetches are added. See [architecture and local verification](docs/ordering-matching.md) and [portable v8](docs/katwed-quiz-format-v8.md).
+
 ### Further question formats
 
 Planned further formats:
-- ordering;
-- matching;
 - poll;
 - scale;
 - word cloud;

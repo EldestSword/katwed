@@ -1,3 +1,7 @@
+import { RoundNavigator } from '../features/quiz-editor/RoundNavigator'
+import { canonicaliseRounds, moveQuestionToRound } from '../features/quiz-editor/rounds'
+import { PinpointTargetEditor } from '../features/quiz-editor/PinpointTargetEditor'
+import { PinpointSurface } from '../features/game/PinpointSurface'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
@@ -17,6 +21,16 @@ import {
 import { quizThemeSurfaceProps } from '../features/themes/quizThemeSurface'
 import { createHeadToHeadCompetitors, nextHeadToHeadAssignment } from '../features/head-to-head/headToHead'
 import { MAX_TYPED_ANSWER_LENGTH, parseTypedAnswerAlternatives } from '../features/typed-answer/typedAnswer'
+import { ArrangementEditor } from '../features/quiz-editor/ArrangementEditor'
+import { remapArrangementItems, shuffledTextItems } from '../features/questions/arrangementQuestions'
+import { connectionSafeFields } from '../features/questions/connections'
+import { ConnectionClues } from '../features/game/ConnectionClues'
+import { ConnectionsEditor } from '../features/quiz-editor/ConnectionsEditor'
+import { WagerSettings } from '../features/quiz-editor/WagerSettings'
+import { BuzzInSettings } from '../features/quiz-editor/BuzzInSettings'
+import { ProgressiveRevealSettings } from '../features/quiz-editor/ProgressiveRevealSettings'
+import { canOfferProgressiveReveal } from '../features/scoring/progressiveReveal'
+import { ArrangementPrompt } from '../features/game/ArrangementResult'
 import { KATWED_IMAGE_ACCEPT, uploadQuestionImage, uploadQuizCover } from '../services/questionImages'
 import { repository } from '../services/repository'
 import type {
@@ -44,14 +58,6 @@ import { normaliseHexColour } from '../features/answer-palettes/colourContrast'
 import { orderedQuestionOptions } from '../features/questions/optionOrdering'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from '../features/game/liveQuestionTypography'
 
-function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
-  const target = index + direction
-  if (target < 0 || target >= items.length) return items
-  const copy = [...items]
-  ;[copy[index], copy[target]] = [copy[target], copy[index]]
-  return copy
-}
-
 function number(value: string): number {
   return Number(value) || 0
 }
@@ -65,6 +71,7 @@ export function QuizEditorPage() {
   const [coverUploading, setCoverUploading] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [quizSettingsOpen, setQuizSettingsOpen] = useState(false)
+  const [addRoundId, setAddRoundId] = useState('')
   const [addQuestionOpen, setAddQuestionOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<'presentation' | 'player'>('presentation')
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null)
@@ -97,7 +104,7 @@ export function QuizEditorPage() {
   const validation = selected && quiz ? validateQuestion(selected, quiz.roster) : null
 
   function update(updater: (current: Quiz) => Quiz) {
-    setQuiz((current) => current ? updater(current) : current)
+    setQuiz((current) => current ? canonicaliseRounds(updater(current)) : current)
     setDirty(true)
     setMessage(null)
   }
@@ -105,7 +112,11 @@ export function QuizEditorPage() {
   function updateQuestion(updater: (question: Question) => Question) {
     update((current) => ({
       ...current,
-      questions: current.questions.map((question) => question.id === selectedId ? updater(question) : question),
+      questions: current.questions.map((question) => {
+        if (question.id !== selectedId) return question
+        const next = updater(question)
+        return canOfferProgressiveReveal(next, current.quizType) ? next : { ...next, progressiveRevealEnabled: false }
+      }),
     }))
   }
 
@@ -113,11 +124,13 @@ export function QuizEditorPage() {
     if (!quiz) return
     const question = {
       ...createQuestion(type, quiz.id, quiz.questions.length, quiz.quizType === 'standard'),
+      roundId: quiz.rounds.find((round) => round.id === addRoundId)?.id || selected?.roundId || quiz.rounds[0].id,
       assignedCompetitorId: nextHeadToHeadAssignment(quiz),
     }
     update((current) => ({ ...current, questions: [...current.questions, question] }))
     setSelectedId(question.id)
     setAddQuestionOpen(false)
+    setAddRoundId('')
   }
 
   async function upload(file: File | undefined) {
@@ -159,6 +172,7 @@ export function QuizEditorPage() {
       id: quiz.id,
       title: quiz.title.trim(),
       quizType: quiz.quizType,
+      rounds: quiz.rounds,
       headToHeadCompetitors: quiz.headToHeadCompetitors.map((competitor) => ({
         ...competitor,
         displayName: competitor.displayName.trim(),
@@ -197,12 +211,14 @@ export function QuizEditorPage() {
     updateQuestion(() => ({
       ...replacement,
       id: selected.id,
+      roundId: selected.roundId,
       prompt: selected.prompt,
       supportingText: selected.supportingText,
       timeLimitSeconds: selected.timeLimitSeconds,
       points: selected.points,
-      speedScoringEnabled: selected.speedScoringEnabled,
+      speedScoringEnabled: type === 'connections' ? false : selected.speedScoringEnabled,
       doubleScore: selected.doubleScore,
+      wagerEnabled: selected.wagerEnabled ?? false,
       assignedCompetitorId: selected.assignedCompetitorId,
       revealCaption: selected.revealCaption,
     }))
@@ -211,6 +227,10 @@ export function QuizEditorPage() {
   const changeQuizType = (quizType: QuizType) => {
     if (quizType === quiz.quizType) return
     if (quizType === 'head-to-head') {
+      if (quiz.questions.some(question => question.wagerEnabled)) { setMessage({ tone: 'error', text: 'Disable Wager before switching to Head-to-Head.' }); return }
+      if (quiz.questions.some(question => question.progressiveRevealEnabled)) { setMessage({ tone: 'error', text: 'Disable Progressive Reveal before switching to Head-to-Head.' }); return }
+      if (quiz.questions.some(question => question.type === 'connections')) { setMessage({ tone: 'error', text: 'Connections is Standard-only. Remove Connections questions before switching to Head-to-Head.' }); return }
+      if (quiz.rounds.length !== 1) { setMessage({ tone: 'error', text: 'Head-to-Head supports one round. Move your questions into one round and delete the empty rounds first.' }); return }
       update((current) => ({
         ...current,
         quizType,
@@ -237,13 +257,6 @@ export function QuizEditorPage() {
     }))
   }
 
-  const assignmentLabel = (question: Question): string => {
-    if (quiz.quizType !== 'head-to-head') return ''
-    const competitor = quiz.headToHeadCompetitors.find((candidate) => candidate.id === question.assignedCompetitorId)
-    if (!competitor) return ' · Unassigned'
-    return ` · ${competitor.displayName.trim() || `Competitor ${competitor.displayOrder + 1}`}`
-  }
-
   return (
     <main className="editor-page editor-page--three-panel">
       <header className="editor-toolbar">
@@ -252,20 +265,7 @@ export function QuizEditorPage() {
       </header>
       {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
       <div className="editor-workspace">
-        <aside className="question-navigator">
-          <div className="question-navigator__header"><div><p className="eyebrow">Structure</p><h2>Questions <span>{quiz.questions.length}</span></h2></div><button className="button button--primary button--compact" type="button" onClick={() => setAddQuestionOpen(true)}>+ Add</button></div>
-          <ol>
-            {quiz.questions.map((question, index) => <li key={question.id}>
-              <button className={question.id === selectedId ? 'is-selected' : ''} type="button" onClick={() => setSelectedId(question.id)}>
-                <span>{index + 1}</span><span><strong>{question.prompt}</strong><small>{questionTypeRegistry[question.type].name}{assignmentLabel(question)}</small></span>
-              </button>
-              <div className="mini-actions">
-                <button type="button" disabled={index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, -1) }))}>↑</button>
-                <button type="button" disabled={index === quiz.questions.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => update((current) => ({ ...current, questions: move(current.questions, index, 1) }))}>↓</button>
-              </div>
-            </li>)}
-          </ol>
-        </aside>
+        <RoundNavigator quiz={quiz} selectedId={selectedId} select={setSelectedId} update={update} addQuestion={(roundId) => { setAddRoundId(roundId); setAddQuestionOpen(true) }} />
 
         <section className="editor-preview">
           {selected ? <>
@@ -277,13 +277,15 @@ export function QuizEditorPage() {
               data-question-density={questionTextDensity(selected.prompt, previewShowsMedia(selected, previewMode))}
               {...quizThemeSurfaceProps(quiz.themeId, quiz.backgroundId)}
               aria-label={`${quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'Katwed!'} theme preview`}
-            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media"><QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} /></div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
+            ><p className="eyebrow">{questionTypeRegistry[selected.type].name}</p><h1>{selected.prompt}</h1>{selected.supportingText && <p>{selected.supportingText}</p>}{previewShowsMedia(selected, previewMode) && <div className="editor-preview__media">{selected.type === 'pinpoint' ? <PinpointSurface path={selected.media.path} alt={selected.media.altText} mode="author" target={selected.target} allowEnlarge={false} /> : <QuestionMedia media={selected.media} openedAt={new Date().toISOString()} allowEnlarge={false} />}</div>}<EditorAnswerPreview question={selected} previewMode={previewMode} answerPaletteId={quiz.answerPaletteId} customAnswerColours={quiz.customAnswerColours} /></article>
             </div>
             <div className="heading-actions">
               <button className="button button--secondary" type="button" onClick={() => {
-                const duplicate = structuredClone(selected)
+                let duplicate = structuredClone(selected)
                 duplicate.id = crypto.randomUUID()
                 duplicate.displayOrder = quiz.questions.length
+                if (duplicate.type === 'ordering' || duplicate.type === 'matching') duplicate = remapArrangementItems(duplicate)
+                if (duplicate.type === 'connections') duplicate = { ...duplicate, clues: duplicate.clues.map(clue => ({ ...clue, id: crypto.randomUUID() })) }
                 if (duplicate.type === 'single-choice') {
                   const correctIndex = duplicate.options.findIndex((option) => option.id === duplicate.correctOptionId)
                   duplicate.options = duplicate.options.map((option) => ({ ...option, id: crypto.randomUUID() }))
@@ -304,14 +306,15 @@ export function QuizEditorPage() {
                 setSelectedId(quiz.questions[index + 1]?.id ?? quiz.questions[index - 1]?.id ?? '')
               }}>Delete</button>
             </div>
-          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from seven purpose-built question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
+          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from {quiz.quizType === 'standard' ? 'ten' : 'nine'} question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
         </section>
 
         <aside className="question-settings">
           {selected && <>
             <h2 className="sr-only">Question settings</h2><div className="question-settings__heading"><p className="eyebrow">Selected question</p><h2>Question {quiz.questions.findIndex((item) => item.id === selected.id) + 1}</h2><span>{questionTypeRegistry[selected.type].name}</span></div>
             <details className="question-settings-group" open><summary>Question</summary><div>
-              <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
+              <label><span>Type</span><select value={selected.type} onChange={(event) => changeType(event.target.value as QuestionType)}>{questionTypes.filter(item => quiz.quizType === 'standard' || item.type !== 'connections').map((item) => <option key={item.type} value={item.type}>{item.name}</option>)}</select></label>
+              {quiz.quizType === 'standard' && <label><span>Round</span><select value={selected.roundId} onChange={(event) => update((current) => moveQuestionToRound(current, selected.id, event.target.value))}>{quiz.rounds.map((round) => <option key={round.id} value={round.id}>{round.title}</option>)}</select></label>}
               <label><span>Prompt</span><textarea rows={3} value={selected.prompt} onChange={(event) => updateQuestion((question) => ({ ...question, prompt: event.target.value }))} /></label>
               <label><span>Supporting text</span><textarea rows={2} value={selected.supportingText} onChange={(event) => updateQuestion((question) => ({ ...question, supportingText: event.target.value }))} /></label>
               {quiz.quizType === 'head-to-head' && <QuestionCompetitorPicker question={selected} competitors={quiz.headToHeadCompetitors} select={(assignedCompetitorId) => updateQuestion((question) => ({ ...question, assignedCompetitorId }))} />}
@@ -322,15 +325,18 @@ export function QuizEditorPage() {
               {quiz.quizType === 'standard' ? <>
                 <label><span>Maximum points</span><input type="number" min="1" value={selected.points} onChange={(event) => updateQuestion((question) => ({ ...question, points: number(event.target.value) }))} /></label>
                 <fieldset className="standard-scoring-settings"><legend>Standard scoring</legend>
-                  <label><input type="checkbox" checked={selected.speedScoringEnabled} onChange={(event) => updateQuestion((question) => ({ ...question, speedScoringEnabled: event.target.checked }))} /> Faster answers score more</label>
-                  <p className="settings-note">Correct answers earn between 100% and 50% of the available points as the timer runs down.</p>
+                  {selected.type === 'connections' || selected.progressiveRevealEnabled ? <p className="settings-note">{selected.type === 'connections' ? 'Connections score by clue stage.' : 'Progressive Reveal replaces Speed Scoring.'}</p> : <><label><input type="checkbox" checked={selected.speedScoringEnabled} onChange={(event) => updateQuestion((question) => ({ ...question, speedScoringEnabled: event.target.checked }))} /> Faster answers score more</label>
+                  <p className="settings-note">Correct answers earn between 100% and 50% of the available points as the timer runs down.</p></>}
                   <label><input type="checkbox" checked={selected.doubleScore} onChange={(event) => updateQuestion((question) => ({ ...question, doubleScore: event.target.checked }))} /> Double score</label>
                   {selected.doubleScore && <p className="settings-note">Worth up to {(selected.points * 2).toLocaleString('en-GB')} points.</p>}
                 </fieldset>
+                <WagerSettings question={selected} update={updateQuestion} />
+                <BuzzInSettings question={selected} quizType={quiz.quizType} update={updateQuestion} />
               </> : <p className="settings-note">Head-to-Head uses 1 point for a correct assigned answer. Standard point values are ignored.</p>}
             </div></details>
             <details className="question-settings-group"><summary>Media &amp; presentation</summary><div>
               <MediaSettings question={selected} update={updateQuestion} upload={upload} />
+              <ProgressiveRevealSettings question={selected} quizType={quiz.quizType} update={updateQuestion} />
               <label><span>Media visibility</span><select value={selected.mediaVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, mediaVisibility: event.target.value as Question['mediaVisibility'] }))}><option value="presentation">Presentation only</option><option value="players">Player devices only</option><option value="both">Both</option></select></label>
               <label><span>Choices on presentation</span><select value={selected.presentationChoiceVisibility} onChange={(event) => updateQuestion((question) => ({ ...question, presentationChoiceVisibility: event.target.value as Question['presentationChoiceVisibility'] }))}><option value="show">Show choices</option><option value="hide">Hide choices</option><option value="after-lock">Reveal after answers close</option></select></label>
               <label><span>Reveal caption</span><textarea rows={2} value={selected.revealCaption} onChange={(event) => updateQuestion((question) => ({ ...question, revealCaption: event.target.value }))} /></label>
@@ -341,13 +347,13 @@ export function QuizEditorPage() {
         </aside>
       </div>
       {quizSettingsOpen && <QuizSettingsDialog quiz={quiz} update={update} close={closeQuizSettings} changeQuizType={changeQuizType} coverUploading={coverUploading} uploadCover={uploadCover} />}
-      {addQuestionOpen && <AddQuestionDialog close={() => setAddQuestionOpen(false)} add={addQuestion} />}
+      {addQuestionOpen && <AddQuestionDialog quizType={quiz.quizType} close={() => setAddQuestionOpen(false)} add={addQuestion} />}
       <footer className="editor-footer"><button className="button button--primary" type="button" disabled={saving} onClick={() => void save()}>Save quiz</button><button className="button button--secondary" type="button" onClick={() => void navigate('/host')}>Back to dashboard</button></footer>
     </main>
   )
 }
 
-function AddQuestionDialog({ close, add }: { close(): void; add(type: QuestionType): void }) {
+function AddQuestionDialog({ close, add, quizType }: { close(): void; add(type: QuestionType): void; quizType: QuizType }) {
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -359,7 +365,7 @@ function AddQuestionDialog({ close, add }: { close(): void; add(type: QuestionTy
   return createPortal(<div className="quiz-settings-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}>
     <div className="question-type-dialog" role="dialog" aria-modal="true" aria-labelledby="add-question-heading" ref={root}>
       <header><div><p className="eyebrow">Question library</p><h1 id="add-question-heading">Add question</h1><p>Pick a format. You can change it later.</p></div><button className="button button--ghost" type="button" onClick={close} aria-label="Close add question">Close</button></header>
-      <div className="question-type-dialog__grid">{questionTypes.map((definition) => <button key={definition.type} type="button" onClick={() => add(definition.type)}><span aria-hidden="true">{definition.icon}</span><strong>{definition.name}</strong><small>{definition.description}</small><i aria-hidden="true">→</i></button>)}</div>
+      <div className="question-type-dialog__grid">{questionTypes.filter(item => quizType === 'standard' || item.type !== 'connections').map((definition) => <button key={definition.type} type="button" onClick={() => add(definition.type)}><span aria-hidden="true">{definition.icon}</span><strong>{definition.name}</strong><small>{definition.description}</small><i aria-hidden="true">→</i></button>)}</div>
     </div>
   </div>, document.body)
 }
@@ -431,7 +437,7 @@ function QuizSettingsDialog({
           <div className="quiz-settings-content">
         {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
           <header><p className="eyebrow">Game</p><h2 id="settings-game-heading">Choose how this quiz plays</h2></header>
-          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} />
+          <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} hasWager={quiz.questions.some(question => question.wagerEnabled)} hasBuzz={quiz.questions.some(question => question.buzzInEnabled)} />
             {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           </div>
         </section>}
@@ -521,6 +527,9 @@ function EditorAnswerPreview({
   customAnswerColours: AnswerColourTuple
 }) {
   const colours = resolveAnswerColours(answerPaletteId, customAnswerColours)
+  if (question.type === 'connections') return <ConnectionClues question={{ ...question, ...connectionSafeFields(question, 1, false), questionNumber: 1, totalQuestions: 1 }} />
+  if (question.type === 'ordering') return <ArrangementPrompt question={{ ...question, items: shuffledTextItems(question.items, `${question.id}:ordering`), questionNumber: 1, totalQuestions: 1 }} />
+  if (question.type === 'matching') return <ArrangementPrompt question={{ ...question, leftItems: shuffledTextItems(question.leftItems, `${question.id}:left`), rightItems: shuffledTextItems(question.rightItems, `${question.id}:right`), questionNumber: 1, totalQuestions: 1 }} />
   const options = question.type === 'single-choice' || question.type === 'multiple-select'
     ? orderedQuestionOptions(question)
     : question.type === 'true-false'
@@ -543,7 +552,7 @@ function EditorAnswerPreview({
   return <p className="editor-preview__context">{context}</p>
 }
 
-function QuizTypePicker({ quizType, select }: { quizType: QuizType; select(quizType: QuizType): void }) {
+function QuizTypePicker({ quizType, select, hasConnections, hasProgressive, hasWager, hasBuzz }: { quizType: QuizType; select(quizType: QuizType): void; hasConnections: boolean; hasProgressive: boolean; hasWager: boolean; hasBuzz: boolean }) {
   const options: Array<{ id: QuizType; name: string; description: string }> = [
     { id: 'standard', name: 'Standard', description: 'Everyone answers every question using normal Katwed scoring.' },
     { id: 'head-to-head', name: 'Head to Head', description: 'Two named competitors take turns with questions assigned specifically to them.' },
@@ -556,10 +565,11 @@ function QuizTypePicker({ quizType, select }: { quizType: QuizType; select(quizT
           key={option.id}
           type="button"
           aria-pressed={quizType === option.id}
+          disabled={option.id === 'head-to-head' && (hasConnections || hasProgressive || hasWager || hasBuzz)}
           onClick={() => select(option.id)}
         >
           <strong>{option.name}</strong>
-          <small>{option.description}</small>
+          <small>{option.id === 'head-to-head' && hasBuzz ? 'Disable Buzz-In to use Head to Head.' : option.id === 'head-to-head' && hasWager ? 'Disable Wager to use Head to Head.' : option.id === 'head-to-head' && hasProgressive ? 'Disable Progressive Reveal to use Head to Head.' : option.id === 'head-to-head' && hasConnections ? 'Connections needs host-controlled clues. Remove Connections questions to use Head to Head.' : option.description}</small>
           <span>{quizType === option.id ? 'Selected' : 'Choose'}</span>
         </button>)}
       </div>
@@ -780,6 +790,7 @@ function MediaSettings({ question, update, upload }: { question: Question; updat
 }
 
 function TypeSettings({ question, roster, update }: { question: Question; roster: RosterMember[]; update(updater: (question: Question) => Question): void }) {
+  if (question.type === 'connections') return <ConnectionsEditor question={question} onChange={next => update(() => next)} />
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
     const toggleCorrect = (id: string) => update((current) => {
       if (current.type === 'single-choice') return { ...current, correctOptionId: id }
@@ -791,9 +802,10 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
       {question.type === 'multiple-select' && <><div className="two-columns"><label><span>Minimum</span><input type="number" min="1" value={question.minimumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, minimumSelections: number(event.target.value) } : current)} /></label><label><span>Maximum</span><input type="number" min="1" value={question.maximumSelections} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, maximumSelections: number(event.target.value) } : current)} /></label></div><label><span>Scoring</span><select value={question.scoringMode} onChange={(event) => update((current) => current.type === 'multiple-select' ? { ...current, scoringMode: event.target.value as 'exact' | 'partial-wipeout' } : current)}><option value="exact">Exact set</option><option value="partial-wipeout">Partial, wrong answer wipes out</option></select></label></>}
     </fieldset>
   }
+  if (question.type === 'ordering' || question.type === 'matching') return <ArrangementEditor question={question} onChange={(next) => update(() => next)} />
   if (question.type === 'true-false') return <label><span>Correct answer</span><select value={String(question.correctValue)} onChange={(event) => update((current) => current.type === 'true-false' ? { ...current, correctValue: event.target.value === 'true' } : current)}><option value="true">True</option><option value="false">False</option></select></label>
   if (question.type === 'slider') return <fieldset><legend>Slider answer</legend>{(['minimum', 'maximum', 'step', 'correctValue', 'tolerance'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" value={question[field]} onChange={(event) => update((current) => current.type === 'slider' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
-  if (question.type === 'pinpoint') return <fieldset><legend>Target</legend>{(['targetX', 'targetY', 'targetRadius'] as const).map((field) => <label key={field}><span>{field}</span><input type="number" min="0" max="1" step="0.01" value={question[field]} onChange={(event) => update((current) => current.type === 'pinpoint' ? { ...current, [field]: number(event.target.value) } : current)} /></label>)}</fieldset>
+  if (question.type === 'pinpoint') return <PinpointTargetEditor key={question.id + question.media.path} question={question} onChange={(target) => update((current) => current.type === 'pinpoint' ? { ...current, target } : current)} />
   if (question.type === 'typed-answer') return <fieldset><legend>Typed answer</legend>
     <label><span>Primary answer</span><input maxLength={MAX_TYPED_ANSWER_LENGTH} value={question.correctAnswer} onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, correctAnswer: event.target.value } : current)} /></label>
     <label><span>Also accept</span><textarea key={question.id} rows={6} defaultValue={question.acceptedAnswers.join('\n')} placeholder="One alternative per line" onChange={(event) => update((current) => current.type === 'typed-answer' ? { ...current, acceptedAnswers: parseTypedAnswerAlternatives(event.target.value) } : current)} /></label>

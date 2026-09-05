@@ -8,6 +8,7 @@ import { hostResponseRecordForAnswer } from './hostResponses'
 
 const question = mixedDemoQuiz.questions.find((candidate) => candidate.type === 'typed-answer')!
 const settings: GameSessionSettings = {
+  competitionMode: 'points', survivorStartingLives: null,
   soundPackId: 'katwed', doubleScoreIntroMs: 5000, shuffleQuestionOrder: false,
   shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
   questionTypeIntrosEnabled: true, answerOptionSeed: 'seed',
@@ -50,6 +51,15 @@ function renderMonitor(overrides: Partial<Parameters<typeof HostResponseMonitor>
 }
 
 describe('HostResponseMonitor', () => {
+  it('shows submitted wagers privately, including bounded rooms, without wager editing', () => {
+    const answer = { ...typedAnswer(players[1], 'Red Dwarf', true), wagerPercent: 50 as const }
+    const { container } = renderMonitor({ question: { ...question, wagerEnabled: true }, answers: [],
+      responses: [hostResponseRecordForAnswer(answer)], settings: { ...settings, showPlayerAnswersToHost: false } })
+    expect(within(screen.getByText('Mandy').closest('li')!).getByText('500 points')).toBeVisible()
+    expect(within(screen.getByText('Roger').closest('li')!).queryByText(/Wager/)).toBeNull()
+    expect(container.querySelector('input')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
   it('makes named non-submitters and disconnected state clear during a live question', () => {
     renderMonitor()
     expect(screen.getByText('Waiting for: Roger')).toBeVisible()

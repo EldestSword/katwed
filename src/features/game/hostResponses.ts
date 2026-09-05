@@ -9,6 +9,7 @@ import type {
 } from '../../types/domain'
 import { orderedQuestionOptions } from '../questions/optionOrdering'
 import { formatSliderValue } from './revealFormatting'
+import { itemLabel, matchingLabels } from '../questions/arrangementQuestions'
 
 export const HOST_RESPONSE_DETAIL_LIMIT = 15
 
@@ -29,6 +30,7 @@ export function hostResponseRecordForAnswer(answer: PlayerAnswer): HostResponseR
     playerId: answer.playerId,
     resolutionStatus: answer.resolutionStatus,
     submittedAt: answer.submittedAt,
+    ...(answer.wagerPercent !== undefined ? { wagerPercent: answer.wagerPercent } : {}),
   }
 }
 
@@ -81,6 +83,8 @@ export function formatHostAnswer(
   const payload = answer.payload
   if (payload.type !== question.type) return 'Answer submitted'
   switch (payload.type) {
+    case 'ordering': return question.type === 'ordering' ? payload.itemIds.map((id) => itemLabel(question.items, id)).join(' → ') : 'Order submitted'
+    case 'matching': return question.type === 'matching' ? matchingLabels(question, payload.pairs).join(' · ') : 'Pairs submitted'
     case 'single-choice':
       return question.type === 'single-choice'
         ? question.options.find((option) => option.id === payload.optionId)?.label ?? 'Selected option'
@@ -100,6 +104,7 @@ export function formatHostAnswer(
     case 'true-false': return payload.value ? 'True' : 'False'
     case 'slider': return question.type === 'slider' ? formatSliderValue(payload.value, question) : String(payload.value)
     case 'pinpoint': return 'Pin placed'
+    case 'connections':
     case 'typed-answer': return payload.value
     case 'mashup': return payload.memberIds.map(
       (id) => roster.find((member) => member.id === id)?.displayName ?? 'Unknown person',

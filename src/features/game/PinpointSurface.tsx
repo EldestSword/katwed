@@ -1,19 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type HTMLAttributes } from 'react'
+import type { PinpointTarget } from '../../types/domain'
+import { PinpointTargetOverlay } from './PinpointTargetOverlay'
 import { QuestionImage } from '../../components/QuestionImage'
 import { ImageViewer } from '../../components/ImageViewer'
-import { containedImageBounds, type ImageBounds } from './pinpointGeometry'
+import { containedImageBounds, imagePoint, type ImageBounds } from './pinpointGeometry'
 
 export interface PinpointMarker {
   x: number
   y: number
   kind: 'player' | 'response'
   label: string
-}
-
-interface PinpointTarget {
-  x: number
-  y: number
-  radius: number
 }
 
 export function PinpointSurface({
@@ -23,13 +19,15 @@ export function PinpointSurface({
   markers = [],
   target,
   onSelect,
+  drawing,
   allowEnlarge = true,
 }: {
   path: string
   alt: string
-  mode: 'answer' | 'player-reveal' | 'presentation-reveal'
+  mode: 'answer' | 'player-reveal' | 'presentation-reveal' | 'author'
   markers?: PinpointMarker[]
-  target?: PinpointTarget
+  target?: PinpointTarget | null
+  drawing?: Pick<HTMLAttributes<HTMLDivElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown'>
   onSelect?(point: { x: number; y: number }): void
   allowEnlarge?: boolean
 }) {
@@ -40,11 +38,10 @@ export function PinpointSurface({
   const updateBounds = useCallback(() => {
     const container = root.current
     const image = container?.querySelector('img')
-    if (!container || !image) return
-    const containerRect = container.getBoundingClientRect()
+    if (!container || !image || !image.complete || !image.naturalWidth || !image.naturalHeight) { setBounds(null); return }
     setBounds(containedImageBounds(
-      containerRect.width,
-      containerRect.height,
+      container.clientWidth,
+      container.clientHeight,
       image.naturalWidth,
       image.naturalHeight,
     ))
@@ -55,36 +52,37 @@ export function PinpointSurface({
     if (!container) return
     const handleLoad = () => updateBounds()
     container.addEventListener('load', handleLoad, true)
+    container.addEventListener('error', handleLoad, true)
     window.addEventListener('resize', updateBounds)
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateBounds)
     observer?.observe(container)
     updateBounds()
     return () => {
       container.removeEventListener('load', handleLoad, true)
+      container.removeEventListener('error', handleLoad, true)
       window.removeEventListener('resize', updateBounds)
       observer?.disconnect()
     }
-  }, [updateBounds])
+  }, [updateBounds, path])
 
   const surface = (
     <div className={`pinpoint-coordinate-surface pinpoint-coordinate-surface--${mode}`} ref={root}>
-      <QuestionImage path={path} alt={alt} />
+      <QuestionImage key={path} path={path} alt={alt} />
       {bounds && (
         <div
-          className={`pinpoint-coordinate-layer ${onSelect ? 'is-interactive' : ''}`}
+          className={`pinpoint-coordinate-layer ${onSelect ? 'is-interactive' : ''} ${drawing ? 'is-drawing' : ''}`}
           data-testid="pinpoint-coordinate-layer"
-          role={onSelect ? 'button' : 'img'}
-          tabIndex={onSelect ? 0 : undefined}
-          aria-label={onSelect ? 'Select a location on the image' : 'Pinpoint answer overlay'}
+          role={drawing ? 'group' : onSelect ? 'button' : 'img'}
+          tabIndex={drawing || onSelect ? 0 : undefined}
+          aria-label={drawing ? 'Draw the correct answer area; Advanced settings offers keyboard editing' : onSelect ? 'Select a location on the image' : 'Pinpoint answer overlay'}
           style={bounds}
+          {...drawing}
           onClick={onSelect ? (event) => {
             const imageRect = event.currentTarget.getBoundingClientRect()
-            onSelect({
-              x: Math.max(0, Math.min(1, (event.clientX - imageRect.left) / imageRect.width)),
-              y: Math.max(0, Math.min(1, (event.clientY - imageRect.top) / imageRect.height)),
-            })
+            onSelect(imagePoint(event.clientX, event.clientY, imageRect))
           } : undefined}
         >
+          {target && <PinpointTargetOverlay target={target} />}
           {markers.map((marker, index) => (
             <span
               key={`${marker.kind}-${index}`}
@@ -95,21 +93,6 @@ export function PinpointSurface({
               <span className="sr-only">{marker.label}</span>
             </span>
           ))}
-          {target && (
-            <span
-              className="pinpoint-target"
-              data-testid="pinpoint-correct-target"
-              style={{
-                left: `${target.x * 100}%`,
-                top: `${target.y * 100}%`,
-                width: `${target.radius * 200}%`,
-                height: `${target.radius * 200}%`,
-              }}
-            >
-              <span className="pinpoint-target__centre" aria-hidden="true" />
-              <span className="sr-only">Correct target area</span>
-            </span>
-          )}
         </div>
       )}
       {allowEnlarge && (

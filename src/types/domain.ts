@@ -11,7 +11,7 @@ import {
   VISUAL_THEME_BATCH_3_THEME_IDS,
 } from '../generated/visualThemeBatch3'
 
-export type GamePhase = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'finished'
+export type GamePhase = 'lobby' | 'round-intro' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'tiebreaker' | 'tiebreaker-result' | 'finished'
 export type SessionStatus = 'active' | 'closed'
 export type QuestionType =
   | 'single-choice'
@@ -20,6 +20,9 @@ export type QuestionType =
   | 'slider'
   | 'pinpoint'
   | 'typed-answer'
+  | 'ordering'
+  | 'matching'
+  | 'connections'
   | 'mashup'
 
 export type ImageRevealEffect = 'immediate' | 'blur' | 'pixelate' | 'tiles' | 'zoom-out'
@@ -40,8 +43,18 @@ export const QUIZ_THEME_IDS = [
 export type QuizThemeId = typeof QUIZ_THEME_IDS[number]
 export type SoundPackId = string
 export type QuestionPreludeKind = 'double-score' | 'question-type' | null
+export type CompetitionMode = 'points' | 'survivor'
+export type SurvivorStartingLives = 1 | 3
 
 export interface LaunchGameSettings {
+  powerUpsEnabled?: boolean
+  automaticTieBreakersEnabled?: boolean
+  competitionMode?: CompetitionMode
+  survivorStartingLives?: SurvivorStartingLives
+  playMode?: SessionPlayMode
+  teamAssignmentMode?: TeamAssignmentMode
+  /** Launch-only names; GameTeam records are canonical after launch. */
+  teamNames?: string[]
   soundPackId: SoundPackId
   doubleScoreVariantDurationsMs?: number[]
   shuffleQuestionOrder: boolean
@@ -50,7 +63,12 @@ export interface LaunchGameSettings {
   showPlayerAnswersToHost: boolean
 }
 
-export interface GameSessionSettings extends LaunchGameSettings {
+export interface GameSessionSettings extends Omit<LaunchGameSettings, 'teamNames' | 'competitionMode' | 'survivorStartingLives'> {
+  /** Changes only on restart; public run identity contains no inventory. */
+  powerUpRunId?: string
+  automaticTieBreakersEnabled?: boolean
+  competitionMode: CompetitionMode
+  survivorStartingLives: SurvivorStartingLives | null
   doubleScoreIntroMs: number
   doubleScoreVariantDurationsMs?: number[]
   questionTypeIntrosEnabled: boolean
@@ -130,6 +148,13 @@ export interface ChoiceOption {
 }
 
 interface QuestionBase {
+  /** Missing on legacy questions means false. */
+  buzzInEnabled?: boolean
+  /** Missing on legacy questions means false. */
+  wagerEnabled?: boolean
+  /** Missing on legacy client data means false. Saved/portable v10 data is explicit. */
+  progressiveRevealEnabled?: boolean
+  roundId: string
   id: string
   quizId: string
   assignedCompetitorId: string | null
@@ -180,18 +205,48 @@ export interface SliderQuestion extends QuestionBase {
   unitLabel: string
 }
 
+export interface PinpointPoint { x: number; y: number }
+
+/** Coordinates use the image's unit square; rectangles start at their top-left. */
+export type PinpointTarget =
+  | { kind: 'circle'; x: number; y: number; radius: number }
+  | { kind: 'rectangle'; x: number; y: number; width: number; height: number }
+  | { kind: 'polygon'; points: PinpointPoint[] }
+
 export interface PinpointQuestion extends QuestionBase {
   type: 'pinpoint'
   media: Extract<QuestionMedia, { type: 'image' }>
-  targetX: number
-  targetY: number
-  targetRadius: number
+  /** Null is an unfinished editor draft and cannot be saved. */
+  target: PinpointTarget | null
 }
 
 export interface TypedAnswerQuestion extends QuestionBase {
   type: 'typed-answer'
   correctAnswer: string
   acceptedAnswers: string[]
+}
+
+export interface TextItem { id: string; label: string }
+export interface MatchingPair { leftId: string; rightId: string }
+export interface OrderingQuestion extends QuestionBase {
+  type: 'ordering'
+  items: TextItem[]
+  correctItemIds: string[]
+}
+
+export interface ConnectionClue { id: string; text: string }
+export interface ConnectionsQuestion extends QuestionBase {
+  type: 'connections'
+  clues: ConnectionClue[]
+  correctAnswer: string
+  acceptedAnswers: string[]
+}
+export interface MatchingQuestion extends QuestionBase {
+  type: 'matching'
+  leftItems: TextItem[]
+  rightItems: TextItem[]
+  correctPairs: MatchingPair[]
+  scoringMode: 'exact' | 'partial'
 }
 
 export interface MashupQuestion extends QuestionBase {
@@ -207,28 +262,56 @@ export type Question =
   | SliderQuestion
   | PinpointQuestion
   | TypedAnswerQuestion
+  | ConnectionsQuestion
+  | OrderingQuestion
+  | MatchingQuestion
   | MashupQuestion
 
-export type PlayerAnswerPayload =
+export type WagerPercent = 0 | 25 | 50 | 100
+
+export const POWER_UP_IDS = ['double-up', 'fifty-fifty', 'fast-five'] as const
+export type PowerUpId = typeof POWER_UP_IDS[number]
+export type AnswerPowerUpId = Exclude<PowerUpId, 'fifty-fifty'>
+export interface PowerUpUse {
+  questionId: string
+  powerUp: PowerUpId
+  optionIds?: string[]
+}
+export interface PersonalPowerUpState {
+  runId: string
+  uses: PowerUpUse[]
+}
+
+export type PlayerAnswerPayload = PlayerAnswerCore & { wagerPercent?: WagerPercent; powerUp?: AnswerPowerUpId }
+
+export type PlayerAnswerCore =
   | { type: 'single-choice'; optionId: string }
   | { type: 'multiple-select'; optionIds: string[] }
   | { type: 'true-false'; value: boolean }
   | { type: 'slider'; value: number }
   | { type: 'pinpoint'; x: number; y: number }
   | { type: 'typed-answer'; value: string }
+  | { type: 'connections'; value: string }
+  | { type: 'ordering'; itemIds: string[] }
+  | { type: 'matching'; pairs: MatchingPair[] }
   | { type: 'mashup'; memberIds: readonly [string, string] }
 
 export type HeadToHeadResolutionStatus = 'answered' | 'skipped'
 export type HeadToHeadResultStatus = 'correct' | 'incorrect' | 'skipped'
 
 export type SafeQuestion =
-  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<PinpointQuestion, 'targetX' | 'targetY' | 'targetRadius' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
-  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<ConnectionsQuestion, 'clues' | 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment & {
+      visibleClues: ConnectionClue[]; revealedClueCount: number; totalClues: number; availablePoints: number
+    })
+  | (Omit<OrderingQuestion, 'correctItemIds' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MatchingQuestion, 'correctPairs' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<SingleChoiceQuestion, 'correctOptionId' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MultipleSelectQuestion, 'correctOptionIds' | 'scoringMode' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TrueFalseQuestion, 'correctValue' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<SliderQuestion, 'correctValue' | 'tolerance' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<PinpointQuestion, 'target' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<TypedAnswerQuestion, 'correctAnswer' | 'acceptedAnswers' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
+  | (Omit<MashupQuestion, 'correctMemberIds' | 'quizId' | 'roundId' | 'assignedCompetitorId' | 'revealCaption'> & QuestionProgress & SafeAssignment)
 
 interface SafeAssignment {
   assignedCompetitorId?: string | null
@@ -242,6 +325,9 @@ interface QuestionProgress {
 }
 
 export type RevealPayload =
+  | { type: 'connections'; correctAnswer: string; correctPlayerIds: string[]; caption: string }
+  | { type: 'ordering'; correctItemIds: string[]; caption: string }
+  | { type: 'matching'; correctPairs: MatchingPair[]; scoringMode: 'exact' | 'partial'; caption: string }
   | {
       type: 'single-choice'
       correctOptionId: string
@@ -270,9 +356,7 @@ export type RevealPayload =
     }
   | {
       type: 'pinpoint'
-      targetX: number
-      targetY: number
-      targetRadius: number
+      target: PinpointTarget
       caption: string
       points: Array<{ x: number; y: number }>
     }
@@ -305,7 +389,23 @@ export interface HeadToHeadCompetitor {
   displayOrder: 0 | 1
 }
 
+export interface QuizRound {
+  id: string
+  quizId: string
+  title: string
+  subtitle: string
+  displayOrder: number
+  introEnabled: boolean
+}
+
+export interface SafeRound extends Omit<QuizRound, 'quizId' | 'displayOrder'> {
+  roundNumber: number
+  totalRounds: number
+  questionCount: number
+}
+
 export interface Quiz {
+  rounds: QuizRound[]
   id: string
   title: string
   quizType: QuizType
@@ -324,6 +424,14 @@ export interface Quiz {
 }
 
 export interface Player {
+  /** Session-only Survivor state. Missing legacy values mean Points mode defaults. */
+  survivorLivesRemaining?: number
+  survivorEliminatedAtQuestion?: number | null
+  /** Missing in legacy clients; repository boundaries normalise both statistics to zero. */
+  currentCorrectStreak?: number
+  longestCorrectStreak?: number
+  /** Missing only in legacy payloads; treated as unassigned. */
+  teamId?: string | null
   id: string
   sessionId: string
   nickname: string
@@ -336,6 +444,7 @@ export interface Player {
 }
 
 export interface PlayerAnswer {
+  wagerPercent?: WagerPercent
   id: string
   sessionId: string
   questionId: string
@@ -351,6 +460,7 @@ export interface PlayerAnswer {
 }
 
 export interface HostResponseRecord {
+  wagerPercent?: WagerPercent
   id: string
   sessionId: string
   questionId: string
@@ -360,6 +470,14 @@ export interface HostResponseRecord {
 }
 
 export interface GameSession {
+  /** App-owned endgame state; null until a supported first-place tie begins. */
+  tieBreaker?: HostTieBreakerState | null
+  /** One authoritative per-question Buzz claim; null before a claim or after reset. */
+  buzz?: BuzzState | null
+  /** Missing only in pre-Connections clients/local fixtures; equivalent to zero. */
+  connectionClueCount?: number
+  teams?: GameTeam[]
+  currentRoundId: string | null
   id: string
   quizId: string
   roomCode: string
@@ -381,6 +499,12 @@ export interface GameSession {
 }
 
 export interface LeaderboardEntry {
+  /** Present on Survivor display rows only. */
+  survivorLivesRemaining?: number
+  survivorEliminatedAtQuestion?: number | null
+  /** Individual statistics only; Team adapters deliberately omit them. */
+  currentCorrectStreak?: number
+  longestCorrectStreak?: number
   playerId: string
   nickname: string
   totalScore: number
@@ -390,6 +514,12 @@ export interface LeaderboardEntry {
 }
 
 export interface SafeGameState {
+  /** Dedicated endgame state. Answer/source data is absent until the result. */
+  tieBreaker?: SafeTieBreakerState | null
+  /** Public live Buzz status. Missing legacy state is equivalent to null. */
+  buzz?: BuzzState | null
+  teams?: GameTeam[]
+  currentRound?: SafeRound | null
   sessionId: string
   quizTitle: string
   quizType?: QuizType
@@ -411,6 +541,8 @@ export interface SafeGameState {
   headToHeadResolutions?: HeadToHeadResolution[]
   headToHeadResults?: HeadToHeadResult[]
   submittedCount: number
+  eligibleResponderCount?: number
+  survivorAliveCount?: number
   leaderboard: LeaderboardEntry[]
   reveal: RevealPayload | null
   questionOpenedAt: string | null
@@ -426,8 +558,57 @@ export interface PlayerSession {
 }
 
 export interface JoinResult {
+  powerUps?: PersonalPowerUpState | null
   player: Player
   reconnectToken: string
+  tieBreakerSubmission?: TieBreakerSubmissionStatus | null
+}
+
+export interface TieBreakerSubmissionStatus {
+  round: number
+  questionId: string
+}
+
+export interface TieBreakerResultEntry {
+  playerId: string
+  nickname: string
+  value: string | null
+  absoluteError: string | null
+  responseTimeMs: number | null
+}
+
+export interface SafeTieBreakerState {
+  round: number
+  status: 'question' | 'result'
+  questionId: string
+  prompt: string
+  category?: string
+  unit: string
+  openedAt: string
+  closesAt: string
+  contenderPlayerIds: string[]
+  submittedCount: number
+  correctAnswer?: string
+  results?: TieBreakerResultEntry[]
+  winnerPlayerId?: string | null
+  unresolvedPlayerIds?: string[]
+}
+
+export interface HostTieBreakerState extends SafeTieBreakerState {
+  submittedPlayerIds?: string[]
+  sourceTitle?: string
+  sourceUrl?: string
+  sourceNote?: string | null
+}
+
+export interface BuzzState {
+  winnerPlayerId: string
+  claimedAt: string
+  answerDeadlineAt: string
+}
+
+export interface BuzzClaimResult extends BuzzState {
+  won: boolean
 }
 
 export interface HeadToHeadJoinSlot {
@@ -439,6 +620,12 @@ export interface HeadToHeadJoinSlot {
 }
 
 export interface RoomJoinInfo {
+  automaticTieBreakersEnabled?: boolean
+  competitionMode?: CompetitionMode
+  survivorStartingLives?: SurvivorStartingLives | null
+  playMode?: SessionPlayMode
+  teamAssignmentMode?: TeamAssignmentMode
+  teams?: Array<GameTeam & { memberCount: number }>
   roomCode: string
   quizTitle: string
   quizType: QuizType
@@ -467,3 +654,21 @@ export interface HeadToHeadResult {
 }
 
 export type Unsubscribe = () => void
+
+export type SessionPlayMode = 'individual' | 'teams'
+export type TeamAssignmentMode = 'player-choice' | 'balanced-random' | 'host'
+export interface GameTeam {
+  id: string
+  sessionId: string
+  name: string
+  displayOrder: number
+}
+export interface TeamLeaderboardEntry {
+  teamId: string
+  name: string
+  memberCount: number
+  totalScore: number
+  correctAnswerCount: number
+  totalCorrectResponseMs: number
+  rank: number
+}

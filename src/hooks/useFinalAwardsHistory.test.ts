@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { currentBoard, previousBoard, standingsState } from '../test/leaderboardFixtures'
+import { currentBoard, previousBoard, roundIntroState, standingsState } from '../test/leaderboardFixtures'
 import type { SafeGameState } from '../types/domain'
 import { useFinalAwardsHistory } from './useFinalAwardsHistory'
 
@@ -10,6 +10,24 @@ const state = (phase: SafeGameState['phase'], number = 1, entries = previousBoar
 const original = previousBoard.map(({ playerId, rank }) => [playerId, rank])
 
 describe('final award history', () => {
+  it('preserves the original ranks through round intros and later leaderboards until finished', () => {
+    const { result, rerender } = renderHook(useFinalAwardsHistory, { initialProps: state('leaderboard') })
+    for (const number of [2, 3, 4]) {
+      rerender(roundIntroState()); expect(result.current).toBeNull()
+      rerender(state('question', number)); expect(result.current).toBeNull()
+      rerender(state('leaderboard', number, currentBoard)); expect(result.current).toBeNull()
+    }
+    rerender(state('finished', 5, currentBoard))
+    expect([...result.current!]).toEqual(original)
+  })
+
+  it('omits the climber baseline after a refresh at a later round intro', () => {
+    const { result, rerender } = renderHook(useFinalAwardsHistory, { initialProps: roundIntroState() })
+    rerender(state('leaderboard', 2, currentBoard))
+    rerender(state('finished', 5, currentBoard))
+    expect(result.current).toBeNull()
+  })
+
   it('records only Question 1 standings, retains them through play and exposes them only at finished', () => {
     const { result, rerender } = renderHook(useFinalAwardsHistory, { initialProps: state('leaderboard') })
     expect(result.current).toBeNull()

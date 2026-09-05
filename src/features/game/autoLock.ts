@@ -7,6 +7,7 @@ export function shouldAutoLockStandardQuestion({
   joinedPlayerCount,
   deadlineReached,
   autoLockWhenAllAnswered = true,
+  eligibleResponderCount,
 }: {
   quizType: QuizType | undefined
   phase: GamePhase | undefined
@@ -14,8 +15,10 @@ export function shouldAutoLockStandardQuestion({
   joinedPlayerCount: number
   deadlineReached: boolean
   autoLockWhenAllAnswered?: boolean
+  eligibleResponderCount?: number
 }): boolean {
   if (quizType === 'head-to-head' || phase !== 'question') return false
-  const everyoneSubmitted = joinedPlayerCount > 0 && submittedCount >= joinedPlayerCount
+  const eligible = eligibleResponderCount ?? joinedPlayerCount
+  const everyoneSubmitted = eligible > 0 && submittedCount >= eligible
   return deadlineReached || (autoLockWhenAllAnswered && everyoneSubmitted)
 }

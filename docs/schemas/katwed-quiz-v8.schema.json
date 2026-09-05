@@ -1,0 +1,1245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katwed.co.uk/schemas/katwed-quiz-v8.schema.json",
+  "title": "Katwed quiz portable format v8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "formatVersion",
+    "quiz"
+  ],
+  "properties": {
+    "format": {
+      "const": "katwed-quiz"
+    },
+    "formatVersion": {
+      "const": 8
+    },
+    "quiz": {
+      "$ref": "#/$defs/quiz"
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+    },
+    "safeImageReference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A safe HTTPS URL, root-relative Katwed path, or same-browser demo-image reference. Runtime validation is authoritative."
+    },
+    "competitor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "displayName"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        }
+      }
+    },
+    "rosterMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "displayName",
+        "shortName",
+        "active"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "shortName": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "label": {
+          "type": "string"
+        },
+        "imagePath": {
+          "$ref": "#/$defs/safeImageReference"
+        },
+        "imageAlt": {
+          "type": "string"
+        }
+      }
+    },
+    "noMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "none"
+        }
+      }
+    },
+    "imageMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path",
+        "altText",
+        "revealEffect",
+        "revealDurationSeconds"
+      ],
+      "properties": {
+        "type": {
+          "const": "image"
+        },
+        "path": {
+          "$ref": "#/$defs/safeImageReference"
+        },
+        "altText": {
+          "type": "string"
+        },
+        "revealEffect": {
+          "enum": [
+            "immediate",
+            "blur",
+            "pixelate",
+            "tiles",
+            "zoom-out"
+          ]
+        },
+        "revealDurationSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 180
+        },
+        "tileGridSize": {
+          "enum": [
+            6,
+            8,
+            12,
+            16
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "tileGridSize"
+            ]
+          },
+          "then": {
+            "properties": {
+              "revealEffect": {
+                "const": "tiles"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "youtubeMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "videoId"
+      ],
+      "properties": {
+        "type": {
+          "const": "youtube"
+        },
+        "videoId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{11}$"
+        },
+        "startSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "endSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "media": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/noMedia"
+        },
+        {
+          "$ref": "#/$defs/imageMedia"
+        },
+        {
+          "$ref": "#/$defs/youtubeMedia"
+        }
+      ]
+    },
+    "questionBase": {
+      "type": "object",
+      "required": [
+        "key",
+        "type",
+        "prompt",
+        "roundKey"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "type": {
+          "enum": [
+            "single-choice",
+            "multiple-select",
+            "true-false",
+            "slider",
+            "pinpoint",
+            "typed-answer",
+            "mashup",
+            "ordering",
+            "matching"
+          ]
+        },
+        "assignedTo": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/key"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "supportingText": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "timeLimitSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "speedScoringEnabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "doubleScore": {
+          "type": "boolean",
+          "default": false
+        },
+        "revealCaption": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "media": {
+          "$ref": "#/$defs/media"
+        },
+        "mediaVisibility": {
+          "enum": [
+            "presentation",
+            "players",
+            "both"
+          ]
+        },
+        "presentationChoiceVisibility": {
+          "enum": [
+            "show",
+            "hide",
+            "after-lock"
+          ]
+        },
+        "roundKey": {
+          "$ref": "#/$defs/key"
+        }
+      }
+    },
+    "choiceFields": {
+      "type": "object",
+      "required": [
+        "options"
+      ],
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "randomiseOptions": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "singleChoice": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "$ref": "#/$defs/choiceFields"
+        },
+        {
+          "type": "object",
+          "required": [
+            "correctOptionKey"
+          ],
+          "properties": {
+            "type": {
+              "const": "single-choice"
+            },
+            "correctOptionKey": {
+              "$ref": "#/$defs/key"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "multipleSelect": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "$ref": "#/$defs/choiceFields"
+        },
+        {
+          "type": "object",
+          "required": [
+            "correctOptionKeys",
+            "minimumSelections",
+            "maximumSelections",
+            "scoringMode"
+          ],
+          "properties": {
+            "type": {
+              "const": "multiple-select"
+            },
+            "correctOptionKeys": {
+              "type": "array",
+              "minItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/key"
+              }
+            },
+            "minimumSelections": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximumSelections": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scoringMode": {
+              "enum": [
+                "exact",
+                "partial-wipeout"
+              ]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "trueFalse": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "correctValue"
+          ],
+          "properties": {
+            "type": {
+              "const": "true-false"
+            },
+            "correctValue": {
+              "type": "boolean"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "slider": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "minimum",
+            "maximum",
+            "step",
+            "correctValue",
+            "tolerance"
+          ],
+          "properties": {
+            "type": {
+              "const": "slider"
+            },
+            "minimum": {
+              "type": "number"
+            },
+            "maximum": {
+              "type": "number"
+            },
+            "step": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "correctValue": {
+              "type": "number"
+            },
+            "tolerance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "suffix": {
+              "type": "string"
+            },
+            "unitLabel": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "pinpoint": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "target",
+            "media"
+          ],
+          "properties": {
+            "type": {
+              "const": "pinpoint"
+            },
+            "target": {
+              "$ref": "#/$defs/pinpointTarget"
+            },
+            "media": {
+              "properties": {
+                "type": {
+                  "const": "image"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "typedAnswer": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "correctAnswer",
+            "acceptedAnswers"
+          ],
+          "properties": {
+            "type": {
+              "const": "typed-answer"
+            },
+            "correctAnswer": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "acceptedAnswers": {
+              "type": "array",
+              "maxItems": 19,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "mashup": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "correctPersonKeys"
+          ],
+          "properties": {
+            "type": {
+              "const": "mashup"
+            },
+            "correctPersonKeys": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/key"
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "question": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/singleChoice"
+        },
+        {
+          "$ref": "#/$defs/multipleSelect"
+        },
+        {
+          "$ref": "#/$defs/trueFalse"
+        },
+        {
+          "$ref": "#/$defs/slider"
+        },
+        {
+          "$ref": "#/$defs/pinpoint"
+        },
+        {
+          "$ref": "#/$defs/typedAnswer"
+        },
+        {
+          "$ref": "#/$defs/mashup"
+        },
+        {
+          "$ref": "#/$defs/ordering"
+        },
+        {
+          "$ref": "#/$defs/matching"
+        }
+      ]
+    },
+    "quiz": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "quizType",
+        "themeId",
+        "backgroundId",
+        "coverImagePath",
+        "answerPaletteId",
+        "customAnswerColours",
+        "soundPackId",
+        "competitors",
+        "roster",
+        "questions",
+        "rounds"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "quizType": {
+          "enum": [
+            "standard",
+            "head-to-head"
+          ]
+        },
+        "themeId": {
+          "enum": [
+            "katwed",
+            "midnight",
+            "sunset",
+            "arcade",
+            "mint",
+            "paper",
+            "hard-rock",
+            "jazz",
+            "disco",
+            "1980s",
+            "1990s",
+            "chiptune",
+            "synthwave",
+            "spy-noir",
+            "sci-fi",
+            "medieval",
+            "western",
+            "pirate",
+            "halloween",
+            "christmas",
+            "retro-game-show",
+            "blues",
+            "pop",
+            "ska",
+            "rocksteady",
+            "soul",
+            "punk",
+            "1940s",
+            "1950s",
+            "1960s",
+            "1970s",
+            "90s-rave",
+            "hip-hop",
+            "greek",
+            "french",
+            "italian",
+            "holographic",
+            "glass",
+            "comic-book",
+            "vhs",
+            "newspaper",
+            "laboratory",
+            "jungle",
+            "deep-ocean",
+            "circus",
+            "sports-broadcast",
+            "awards-show",
+            "new-year",
+            "autumn",
+            "winter",
+            "summer"
+          ]
+        },
+        "backgroundId": {
+          "oneOf": [
+            {
+              "enum": [
+                "katwed-bubbles",
+                "katwed-confetti",
+                "katwed-ribbons",
+                "midnight-aurora",
+                "midnight-glow",
+                "midnight-stars",
+                "sunset-horizon",
+                "sunset-lights",
+                "sunset-ribbons",
+                "arcade-circuit",
+                "arcade-grid",
+                "arcade-neon",
+                "mint-depth",
+                "mint-shapes",
+                "mint-waves",
+                "paper-collage",
+                "paper-geometry",
+                "paper-notebook",
+                "hard-rock-stage-lights",
+                "hard-rock-amps",
+                "hard-rock-electric-storm",
+                "jazz-blue-note",
+                "jazz-after-hours",
+                "jazz-brass",
+                "disco-mirror",
+                "disco-lightfloor",
+                "disco-starburst",
+                "1980s-broadcast",
+                "1980s-chrome",
+                "1980s-motion",
+                "1990s-shapes",
+                "1990s-airwave",
+                "1990s-studio",
+                "chiptune-pixels",
+                "chiptune-blockworld",
+                "chiptune-bitstream",
+                "synthwave-horizon",
+                "synthwave-laser",
+                "synthwave-chrome",
+                "spy-noir-shadows",
+                "spy-noir-venetian",
+                "spy-noir-smoke",
+                "sci-fi-orbit",
+                "sci-fi-nebula",
+                "sci-fi-interface",
+                "medieval-illuminated",
+                "medieval-tapestry",
+                "medieval-candlelight",
+                "western-sundown",
+                "western-weathered",
+                "western-turquoise",
+                "pirate-chart",
+                "pirate-deepwater",
+                "pirate-compass",
+                "halloween-moonlight",
+                "halloween-pumpkin-glow",
+                "halloween-haunted",
+                "christmas-lights",
+                "christmas-snow",
+                "christmas-ribbons",
+                "retro-game-show-panels",
+                "retro-game-show-rings",
+                "retro-game-show-studio",
+                "blues-smoke",
+                "blues-electric",
+                "blues-stage",
+                "pop-gradient",
+                "pop-bubbles",
+                "pop-spotlight",
+                "ska-check",
+                "ska-brass",
+                "ska-sunburst",
+                "rocksteady-sundown",
+                "rocksteady-vinyl",
+                "rocksteady-groove",
+                "soul-velvet",
+                "soul-brass",
+                "soul-studio",
+                "punk-xerox",
+                "punk-torn",
+                "punk-stage",
+                "1940s-deco",
+                "1940s-radio",
+                "1940s-ballroom",
+                "1950s-boomerang",
+                "1950s-chrome",
+                "1950s-jukebox",
+                "1960s-mod",
+                "1960s-op-art",
+                "1960s-pop",
+                "1970s-groove",
+                "1970s-sunburst",
+                "1970s-lounge",
+                "90s-rave-lasers",
+                "90s-rave-strobe",
+                "90s-rave-acid",
+                "hip-hop-vinyl",
+                "hip-hop-blocks",
+                "hip-hop-paint",
+                "greek-aegean",
+                "greek-mosaic",
+                "greek-sun",
+                "french-boulevard",
+                "french-cinema",
+                "french-editorial",
+                "italian-cinema",
+                "italian-marble",
+                "italian-riviera",
+                "holographic-prism",
+                "holographic-foil",
+                "holographic-orbit",
+                "glass-frost",
+                "glass-refraction",
+                "glass-panels",
+                "comic-book-halftone",
+                "comic-book-panels",
+                "comic-book-impact",
+                "vhs-tracking",
+                "vhs-chroma",
+                "vhs-static",
+                "newspaper-columns",
+                "newspaper-print",
+                "newspaper-edition",
+                "laboratory-molecules",
+                "laboratory-liquid",
+                "laboratory-spectrum",
+                "jungle-canopy",
+                "jungle-depth",
+                "jungle-tropical",
+                "deep-ocean-abyss",
+                "deep-ocean-current",
+                "deep-ocean-biolume",
+                "circus-big-top",
+                "circus-lights",
+                "circus-marquee",
+                "sports-broadcast-motion",
+                "sports-broadcast-studio",
+                "sports-broadcast-arena",
+                "awards-show-spotlight",
+                "awards-show-curtain",
+                "awards-show-sparkle",
+                "new-year-midnight",
+                "new-year-firework",
+                "new-year-confetti",
+                "autumn-embers",
+                "autumn-leaves",
+                "autumn-harvest",
+                "winter-frost",
+                "winter-snowlight",
+                "winter-ice",
+                "summer-sunlight",
+                "summer-pool",
+                "summer-breeze"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverImagePath": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/safeImageReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answerPaletteId": {
+          "enum": [
+            "classic",
+            "katwed",
+            "festive",
+            "tropical",
+            "summer",
+            "sports",
+            "arcade",
+            "neon",
+            "pastel",
+            "retro",
+            "ocean",
+            "forest",
+            "galaxy",
+            "sunset",
+            "autumn",
+            "winter",
+            "halloween",
+            "custom"
+          ]
+        },
+        "customAnswerColours": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "pattern": "^#[0-9A-F]{6}$"
+          }
+        },
+        "competitors": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/competitor"
+          }
+        },
+        "roster": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rosterMember"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/question"
+          }
+        },
+        "soundPackId": {
+          "enum": [
+            "katwed",
+            "1940s",
+            "1950s",
+            "1960s",
+            "1970s",
+            "1980s",
+            "1990s",
+            "arcade",
+            "blues",
+            "hard-rock",
+            "jazz",
+            "midnight",
+            "mint",
+            "paper",
+            "pop",
+            "sunset",
+            "none"
+          ]
+        },
+        "rounds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/round"
+          },
+          "description": "Array order is round order. Keys must be unique; question roundKey references are validated by the importer."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "quizType": {
+                "const": "standard"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "competitors": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "quizType": {
+                "const": "head-to-head"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "competitors": {
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "rounds": {
+                "maxItems": 1
+              },
+              "questions": {
+                "items": {
+                  "properties": {
+                    "assignedTo": {
+                      "$ref": "#/$defs/key"
+                    },
+                    "speedScoringEnabled": {
+                      "const": false
+                    },
+                    "doubleScore": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "assignedTo"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "pinpointPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "pinpointTarget": {
+      "description": "Normalised image coordinates. Rectangles start at the top-left and must stay in bounds. Polygons must be simple with distinct vertices and area at least 0.0001. Runtime and database validation enforce these geometric rules.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "radius"
+          ],
+          "properties": {
+            "kind": {
+              "const": "circle"
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0.000001,
+              "maximum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rectangle"
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "exclusiveMinimum": 0
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "points"
+          ],
+          "properties": {
+            "kind": {
+              "const": "polygon"
+            },
+            "points": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/pinpointPoint"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "round": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "title",
+        "subtitle",
+        "introEnabled"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "\\S"
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "introEnabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "textItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "ordering": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "items",
+            "correctItemKeys"
+          ],
+          "properties": {
+            "type": {
+              "const": "ordering"
+            },
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/textItem"
+              }
+            },
+            "correctItemKeys": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/key"
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "matching": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "leftItems",
+            "rightItems",
+            "correctPairs",
+            "scoringMode"
+          ],
+          "properties": {
+            "type": {
+              "const": "matching"
+            },
+            "leftItems": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/textItem"
+              }
+            },
+            "rightItems": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/textItem"
+              }
+            },
+            "correctPairs": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "leftKey",
+                  "rightKey"
+                ],
+                "properties": {
+                  "leftKey": {
+                    "$ref": "#/$defs/key"
+                  },
+                  "rightKey": {
+                    "$ref": "#/$defs/key"
+                  }
+                }
+              }
+            },
+            "scoringMode": {
+              "enum": [
+                "exact",
+                "partial"
+              ]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

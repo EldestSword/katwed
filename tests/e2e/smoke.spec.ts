@@ -311,12 +311,12 @@ test('an unbroken answer word fits its touch target at realistic phone widths', 
   }
 })
 
-test('editor has seven formats and persists a changed title', async ({ page }) => {
+test('editor has ten formats and persists a changed title', async ({ page }) => {
   await enterHost(page)
   const card = page.getByRole('article').filter({ hasText: 'The Curious Crew' })
   await card.getByRole('link', { name: 'Edit' }).click()
   const questionPicker = await openAddQuestion(page)
-  for (const name of ['Single choice', 'Multiple select', 'True or false', 'Slider', 'Pinpoint', 'Typed answer', 'Mash-up']) {
+  for (const name of ['Single choice', 'Multiple select', 'True or false', 'Slider', 'Pinpoint', 'Typed answer', 'Ordering', 'Matching', 'Connections', 'Mash-up']) {
     await expect(questionPicker.getByRole('button', { name: new RegExp(name) })).toBeVisible()
   }
   await questionPicker.getByRole('button', { name: 'Close add question' }).click()
@@ -570,12 +570,12 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
     }
   })
   expect(sliderStyle).toMatchObject({
-    inputTouchAction: 'pan-y',
-    interactionTouchAction: 'pan-y',
-    overscrollBehaviorX: 'contain',
+    inputTouchAction: 'none',
+    interactionTouchAction: 'auto',
+    overscrollBehaviorX: 'auto',
   })
-  expect(sliderStyle.paddingLeft).toBeGreaterThanOrEqual(24)
-  expect(sliderStyle.paddingRight).toBeGreaterThanOrEqual(24)
+  expect(sliderStyle.paddingLeft).toBe(0)
+  expect(sliderStyle.paddingRight).toBe(0)
   await expect(sliderInteraction).toBeVisible()
   const sliderBox = await slider.boundingBox()
   if (!sliderBox) throw new Error('Slider was not visible')
@@ -585,6 +585,7 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   expect(sliderBox.x).toBeGreaterThanOrEqual(24)
   expect(viewport.width - sliderBox.x - sliderBox.width).toBeGreaterThanOrEqual(24)
   await slider.focus()
+  await slider.press('Home')
   await slider.press('ArrowRight')
   await expect(slider).toHaveValue('1')
   await slider.fill('0')
@@ -600,7 +601,11 @@ test('Head-to-Head authoring and a true two-player untimed game work end to end'
   expect(horizontalOverflow).toBe(false)
 
   await slider.fill('50')
-  await jess.getByRole('slider').fill('50')
+  // Explicitly choose the initial midpoint using the native keyboard interaction.
+  // Filling an unchanged range value does not dispatch a React change event.
+  await jess.getByRole('slider').press('ArrowRight')
+  await jess.getByRole('slider').press('ArrowLeft')
+  await expect(jess.getByRole('slider')).toHaveValue('50')
   await ross.getByRole('button', { name: 'Lock in' }).click()
   await jess.getByRole('button', { name: 'Lock in' }).click()
   await expectHeadToHeadResult(ross, 'Ross', 'Official question', '✓ Correct', '+1 point')
@@ -743,7 +748,7 @@ test('a blind Head-to-Head file imports, plays with remapped answers and exports
   if (!exportedPath) throw new Error('Exported quiz file was unavailable')
   const { readFile } = await import('node:fs/promises')
   const exported = JSON.parse(await readFile(exportedPath, 'utf8')) as { formatVersion: number }
-  expect(exported.formatVersion).toBe(5)
+  expect(exported.formatVersion).toBe(12)
 })
 
 test('the imported theme catalogue persists a Batch 3 theme through duplication and audience game phases', async ({ context, page }) => {
@@ -1321,7 +1326,11 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
     await presentation.setViewportSize(viewport)
     expect(await presentation.evaluate<boolean>('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
   }
-  await playerOne.setViewportSize({ width: 390, height: 844 })
+  await playerOne.setViewportSize({ width: 320, height: 740 })
+  async function lockAt320() {
+    expect(await playerOne.evaluate<boolean>('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
+    await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  }
   await page.getByRole('button', { name: 'Start game' }).click()
   await expect(playerOne.getByRole('heading', { name: 'SELECT AN ANSWER' })).toBeVisible()
   await expect(presentation.getByRole('heading', { name: 'SELECT AN ANSWER' })).toBeVisible()
@@ -1360,7 +1369,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   }
 
   await playerOne.getByRole('button', { name: 'Mars' }).click()
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await playerTwo.getByRole('button', { name: 'Venus' }).click()
   await playerTwo.getByRole('button', { name: 'Lock in' }).click()
   await revealRound(/Mars/)
@@ -1374,7 +1383,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
     await expect(playerOne.getByRole('group', { name: 'Correct answer' })).toBeVisible()
     expect(await playerOne.evaluate<boolean>('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
   }
-  await playerOne.setViewportSize({ width: 390, height: 844 })
+  await playerOne.setViewportSize({ width: 320, height: 740 })
   await Promise.all([page.reload(), presentation.reload(), zeroScorePlayer.reload()])
   await expect(page.getByRole('button', { name: 'Show leaderboard' })).toBeVisible()
   await expect(presentation.locator('.presentation-reveal')).toContainText('Mars')
@@ -1392,7 +1401,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await expect(page.getByRole('region', { name: 'Current correct answer' })).toContainText('Red, Green, Blue')
 
   for (const option of ['Red', 'Green', 'Blue']) await playerOne.getByRole('button', { name: option }).click()
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/Red|Green|Blue/)
   const correctSet = playerOne.getByRole('group', { name: 'Correct answer' })
   await expect(correctSet.getByText('Red', { exact: true })).toBeVisible()
@@ -1402,14 +1411,14 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   await page.getByRole('button', { name: 'Next question' }).click()
 
   await playerOne.getByRole('button', { name: 'True' }).click()
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/True/)
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await page.getByRole('button', { name: 'Next question' }).click()
 
   const slider = playerOne.getByRole('slider')
   await slider.fill('1440')
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/1,?440/)
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await page.getByRole('button', { name: 'Next question' }).click()
@@ -1419,7 +1428,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   const box = await target.boundingBox()
   if (!box) throw new Error('Pinpoint image was not visible')
   await playerOne.mouse.click(box.x + box.width * .5, box.y + box.height * .43)
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/target area|Correct answer/i)
   await expect(playerOne.getByTestId('pinpoint-player-marker')).toBeVisible()
   await expect(playerOne.getByTestId('pinpoint-correct-target')).toBeVisible()
@@ -1429,7 +1438,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
 
   await playerOne.getByRole('button', { name: 'Alex' }).click()
   await playerOne.getByRole('button', { name: 'Bailey' }).click()
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/Alex.*Bailey/)
   await page.getByRole('button', { name: 'Show leaderboard' }).click()
   await page.getByRole('button', { name: 'Next question' }).click()
@@ -1445,6 +1454,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   const typedAnswer = playerOne.getByRole('textbox', { name: 'Type your answer' })
   await expect(typedAnswer).toBeVisible({ timeout: 10_000 })
   await typedAnswer.fill('red-dwarf')
+  expect(await playerOne.evaluate<boolean>('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
   await typedAnswer.press('Enter')
   await playerTwo.getByRole('textbox', { name: 'Type your answer' }).fill('Star Trek')
   await playerTwo.getByRole('button', { name: 'Lock in' }).click()
@@ -1484,7 +1494,7 @@ test('a three-player mixed-format quiz night survives refresh, intros and a Type
   expect(new Set(presentationRanks).size).toBe(24)
 
   await playerOne.getByRole('button', { name: 'A portrait' }).click()
-  await playerOne.getByRole('button', { name: 'Lock in' }).click()
+  await lockAt320()
   await revealRound(/portrait/i)
   await expect(playerOne.getByRole('heading', { name: 'A portrait' })).toBeVisible()
   await expect(playerOne.getByText(/Your score:/)).toHaveCount(0)

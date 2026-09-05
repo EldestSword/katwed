@@ -142,9 +142,7 @@ describe('createDuplicateQuizInput', () => {
       throw new Error('Pinpoint fixture missing')
     }
     expect(copiedPinpoint).toMatchObject({
-      targetX: sourcePinpoint.targetX,
-      targetY: sourcePinpoint.targetY,
-      targetRadius: sourcePinpoint.targetRadius,
+      target: sourcePinpoint.target,
     })
     expect(copiedPinpoint.media.path).toBe(sourcePinpoint.media.path)
 

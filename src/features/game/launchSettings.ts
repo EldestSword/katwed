@@ -1,9 +1,13 @@
+import { orderedRounds } from '../quiz-editor/rounds'
+import { normalisePlayMode, normaliseTeamAssignment } from '../teams/teams'
+import { normaliseCompetitionMode, normaliseSurvivorStartingLives } from './survivor'
 import type {
   GameSessionSettings,
   LaunchGameSettings,
   Question,
   QuestionPreludeKind,
   Quiz,
+  QuizRound,
 } from '../../types/domain'
 import {
   getSoundPack,
@@ -25,8 +29,13 @@ export function quizUsesMixedQuestionTypes(questions: readonly Pick<Question, 't
   return new Set(questions.map((question) => question.type)).size > 1
 }
 
-export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): LaunchGameSettings {
+export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'> & Partial<Pick<Quiz, 'quizType'>>): LaunchGameSettings {
   return {
+    automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head',
+    powerUpsEnabled: false,
+    competitionMode: 'points',
+    survivorStartingLives: 3,
+    playMode: 'individual',
     soundPackId: normaliseSoundPackId(quiz.soundPackId),
     shuffleQuestionOrder: false,
     shuffleAnswerOptions: false,
@@ -37,10 +46,18 @@ export function defaultLaunchGameSettings(quiz: Pick<Quiz, 'soundPackId'>): Laun
 
 export function normaliseLaunchGameSettings(
   value: Partial<LaunchGameSettings> | null | undefined,
-  quiz: Pick<Quiz, 'soundPackId'>,
+  quiz: Pick<Quiz, 'soundPackId'> & Partial<Pick<Quiz, 'quizType'>>,
 ): LaunchGameSettings {
   const defaults = defaultLaunchGameSettings(quiz)
+  const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    powerUpsEnabled: quiz.quizType !== 'head-to-head' && value?.powerUpsEnabled === true,
+    automaticTieBreakersEnabled: quiz.quizType !== 'head-to-head' && value?.playMode !== 'teams' &&
+      (value?.automaticTieBreakersEnabled ?? defaults.automaticTieBreakersEnabled) === true,
+    competitionMode,
+    survivorStartingLives: normaliseSurvivorStartingLives(value?.survivorStartingLives),
+    playMode: normalisePlayMode(value?.playMode),
+    ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode), teamNames: (value.teamNames ?? ['Team 1', 'Team 2']).map((name) => name.trim()) } : {}),
     soundPackId: normaliseSoundPackId(value?.soundPackId ?? defaults.soundPackId),
     shuffleQuestionOrder: value?.shuffleQuestionOrder === true,
     shuffleAnswerOptions: value?.shuffleAnswerOptions === true,
@@ -51,14 +68,15 @@ export function normaliseLaunchGameSettings(
 
 export function createGameSessionSettings(
   value: Partial<LaunchGameSettings> | null | undefined,
-  quiz: Pick<Quiz, 'soundPackId' | 'questions'>,
+  quiz: Pick<Quiz, 'soundPackId' | 'questions'> & Partial<Pick<Quiz, 'quizType'>>,
   answerOptionSeed: string,
 ): GameSessionSettings {
   const launch = normaliseLaunchGameSettings(value, quiz)
+  const persisted = normaliseGameSessionSettings(launch, quiz.soundPackId, answerOptionSeed)
   const pack = getSoundPack(launch.soundPackId)
   const variantDurations = doubleScoreVariantDurations(pack)
   return {
-    ...launch,
+    ...persisted,
     doubleScoreIntroMs: variantDurations[0],
     doubleScoreVariantDurationsMs: variantDurations,
     questionTypeIntrosEnabled: quizUsesMixedQuestionTypes(quiz.questions),
@@ -73,7 +91,15 @@ export function normaliseGameSessionSettings(
 ): GameSessionSettings {
   const soundPackId = normaliseSoundPackId(value?.soundPackId ?? fallbackSoundPackId)
   const fallbackDuration = normaliseDoubleScoreDurationMs(value?.doubleScoreIntroMs)
+  const competitionMode = normaliseCompetitionMode(value?.competitionMode)
   return {
+    powerUpsEnabled: value?.powerUpsEnabled === true,
+    ...(typeof value?.powerUpRunId === 'string' ? { powerUpRunId: value.powerUpRunId } : {}),
+    automaticTieBreakersEnabled: value?.automaticTieBreakersEnabled === true,
+    competitionMode,
+    survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(value?.survivorStartingLives) : null,
+    playMode: normalisePlayMode(value?.playMode),
+    ...(value?.playMode === 'teams' ? { teamAssignmentMode: normaliseTeamAssignment(value.teamAssignmentMode) } : {}),
     soundPackId,
     doubleScoreIntroMs: fallbackDuration,
     doubleScoreVariantDurationsMs: normaliseDoubleScoreVariantDurations(
@@ -117,10 +143,12 @@ function stableScore(seed: string, value: string): number {
 }
 
 export function createSessionQuestionOrder(
-  questions: readonly Pick<Question, 'id' | 'displayOrder'>[],
+  questions: readonly (Pick<Question, 'id' | 'displayOrder'> & Partial<Pick<Question, 'roundId'>>)[],
   shuffle: boolean,
   seed: string,
+  rounds?: readonly QuizRound[],
 ): string[] {
+  if (rounds) return orderedRounds(rounds).flatMap((round) => createSessionQuestionOrder(questions.filter((question) => question.roundId === round.id), shuffle, `${seed}:${round.id}`))
   const authored = [...questions].sort((left, right) => left.displayOrder - right.displayOrder)
   if (!shuffle) return authored.map((question) => question.id)
   return authored.sort((left, right) => (

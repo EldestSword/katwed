@@ -1,3 +1,5 @@
+import { normaliseQuizRounds } from '../../features/quiz-editor/rounds'
+import { normalisePinpointQuestion } from '../../features/game/pinpointTargets'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   GameSession,
@@ -5,6 +7,7 @@ import type {
   LaunchGameSettings,
   PlayerAnswerPayload,
   PlayerSession,
+  PersonalPowerUpState,
   Quiz,
   RoomJoinInfo,
   SafeGameState,
@@ -25,6 +28,11 @@ import { normaliseAnswerPalette } from '../../features/answer-palettes/answerPal
 import { doubleScoreVariantDurations, getSoundPack, normaliseSoundPackId } from '../../features/audio/soundPacks'
 import { normaliseGameSessionSettings } from '../../features/game/launchSettings'
 import { hostResponseRecordForAnswer } from '../../features/game/hostResponses'
+import { normaliseStreaks } from '../../features/game/streaks'
+import { normaliseBuzzState } from '../../features/game/buzz'
+import type { BuzzClaimResult } from '../../types/domain'
+import { normaliseCompetitionMode, normaliseSurvivorPlayer, normaliseSurvivorStartingLives } from '../../features/game/survivor'
+import { parsePersonalPowerUps } from '../../features/game/powerUps'
 
 type JsonObject = Record<string, unknown>
 
@@ -44,13 +52,14 @@ function normaliseQuiz(quiz: Quiz): Quiz {
     (quiz as { answerPaletteId?: unknown }).answerPaletteId,
     (quiz as { customAnswerColours?: unknown }).customAnswerColours,
   )
-  return normaliseQuizHeadToHead({
+  return normaliseQuizRounds(normaliseQuizHeadToHead({
     ...quiz,
+    questions: quiz.questions.map(question => ({ ...normalisePinpointQuestion(question), buzzInEnabled: question.buzzInEnabled ?? false })),
     ...answerPalette,
     soundPackId: normaliseSoundPackId((quiz as { soundPackId?: unknown }).soundPackId),
     themeId,
     backgroundId: normaliseQuizBackgroundId((quiz as { backgroundId?: unknown }).backgroundId, themeId),
-  })
+    }))
 }
 
 function normaliseGameSession(
@@ -78,13 +87,17 @@ function normaliseGameSession(
       typeof (response as { submittedAt?: unknown }).submittedAt === 'string'
     ))
     : answers.map(hostResponseRecordForAnswer)
+  const settings = normaliseGameSessionSettings(
+    raw.settings ?? fallbackSettings,
+    fallbackSettings?.soundPackId ?? fallbackSoundPackId,
+    session.id,
+  )
   return {
     ...session,
-    settings: normaliseGameSessionSettings(
-      raw.settings ?? fallbackSettings,
-      fallbackSettings?.soundPackId ?? fallbackSoundPackId,
-      session.id,
-    ),
+    buzz: normaliseBuzzState(session.buzz),
+    players: session.players.map(player => normaliseSurvivorPlayer({ ...player, ...normaliseStreaks(player) }, settings)),
+    currentRoundId: session.currentRoundId ?? null,
+    settings,
     questionOrder: Array.isArray(raw.questionOrder)
       ? raw.questionOrder.filter((id): id is string => typeof id === 'string')
       : [],
@@ -111,6 +124,10 @@ export class SupabaseGameRepository implements GameRepository {
   private async rpc<T>(name: string, args: JsonObject = {}): Promise<T> {
     const result = await this.client.rpc(name, args)
     if (result.error) throw normaliseError(result.error)
+    if (['join_room', 'join_team_room', 'join_head_to_head_room', 'reconnect_player'].includes(name) && result.data) {
+      const joined = result.data as JoinResult
+      return { ...joined, powerUps: parsePersonalPowerUps(joined.powerUps), player: { ...joined.player, ...normaliseStreaks(joined.player) } } as T
+    }
     return result.data as unknown as T
   }
 
@@ -195,11 +212,24 @@ export class SupabaseGameRepository implements GameRepository {
   }
 
   async getRoomJoinInfo(roomCode: string): Promise<RoomJoinInfo | null> {
-    return this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
+    const result = await this.rpc<RoomJoinInfo | null>('get_room_join_info', { p_room_code: roomCode })
+    if (!result) return null
+    const competitionMode = normaliseCompetitionMode(result.competitionMode)
+    return { ...result, competitionMode,
+      survivorStartingLives: competitionMode === 'survivor' ? normaliseSurvivorStartingLives(result.survivorStartingLives) : null }
   }
 
-  async joinRoom(roomCode: string, nickname: string): Promise<JoinResult> {
+  async joinRoom(roomCode: string, nickname: string, teamId?: string): Promise<JoinResult> {
+    if (teamId) return this.rpc<JoinResult>('join_team_room', { p_room_code: roomCode, p_nickname: nickname, p_team_id: teamId })
     return this.rpc<JoinResult>('join_room', { p_room_code: roomCode, p_nickname: nickname })
+  }
+
+  async assignPlayerTeam(sessionId: string, playerId: string, teamId: string): Promise<void> {
+    await this.rpc('host_assign_player_team', { p_session_id: sessionId, p_player_id: playerId, p_team_id: teamId })
+  }
+
+  async balanceTeams(sessionId: string): Promise<void> {
+    await this.rpc('host_balance_teams', { p_session_id: sessionId })
   }
 
   async joinHeadToHeadRoom(roomCode: string, competitorId: string): Promise<JoinResult> {
@@ -231,6 +261,25 @@ export class SupabaseGameRepository implements GameRepository {
     return state === null ? null : parseSafeGameState(state)
   }
 
+  async claimBuzz(roomCode: string, playerId: string, reconnectToken: string): Promise<BuzzClaimResult> {
+    const result = await this.rpc<unknown>('claim_buzz', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+    })
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw new Error('Buzz claim returned an invalid state.')
+    }
+    const { won, ...buzz } = result as Record<string, unknown>
+    const normalisedBuzz = normaliseBuzzState(buzz)
+
+    if (typeof won !== 'boolean' || !normalisedBuzz) {
+      throw new Error('Buzz claim returned an invalid state.')
+    }
+
+    return { won, ...normalisedBuzz }
+  }
+
   async submitAnswer(
     roomCode: string,
     playerId: string,
@@ -243,6 +292,35 @@ export class SupabaseGameRepository implements GameRepository {
       p_reconnect_token: reconnectToken,
       p_answer: payload,
     })
+  }
+
+  async submitTieBreakerAnswer(roomCode: string, playerId: string, reconnectToken: string, value: string): Promise<void> {
+    await this.rpc('submit_tiebreaker_answer', {
+      p_room_code: roomCode,
+      p_player_id: playerId,
+      p_reconnect_token: reconnectToken,
+      p_value: value,
+    })
+  }
+
+  async activateFiftyFifty(roomCode: string, playerId: string, reconnectToken: string, questionId: string): Promise<PersonalPowerUpState> {
+    const state = parsePersonalPowerUps(await this.rpc('activate_fifty_fifty', {
+      p_room_code: roomCode, p_player_id: playerId, p_reconnect_token: reconnectToken, p_question_id: questionId,
+    }))
+    if (!state) throw new Error('Power-Ups are not available.')
+    return state
+  }
+
+  async resolveTieBreaker(sessionId: string): Promise<void> {
+    await this.rpc('host_resolve_tiebreaker', { p_session_id: sessionId })
+  }
+
+  async nextTieBreaker(sessionId: string): Promise<void> {
+    await this.rpc('host_next_tiebreaker', { p_session_id: sessionId })
+  }
+
+  async revealTieBreakerFinal(sessionId: string): Promise<void> {
+    await this.rpc('host_reveal_tiebreaker_final', { p_session_id: sessionId })
   }
 
   async startHeadToHead(roomCode: string, playerId: string, reconnectToken: string): Promise<void> {
@@ -291,9 +369,17 @@ export class SupabaseGameRepository implements GameRepository {
 
   async changePhase(
     sessionId: string,
-    action: 'start' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
+    action: 'start' | 'start-round' | 'lock' | 'reveal' | 'leaderboard' | 'next' | 'finish' | 'restart' | 'close',
   ): Promise<void> {
-    await this.rpc(`host_${action}_game`, { p_session_id: sessionId })
+    await this.rpc(`host_${action.replace('-', '_')}_game`, { p_session_id: sessionId })
+  }
+
+  async resetBuzz(sessionId: string): Promise<void> {
+    await this.rpc('host_reset_buzz', { p_session_id: sessionId })
+  }
+
+  async revealConnectionClue(sessionId: string): Promise<void> {
+    await this.rpc('host_reveal_connection_clue', { p_session_id: sessionId })
   }
 
   subscribe(subject: string, callback: () => void, onStatus?: RealtimeStatusCallback): Unsubscribe {

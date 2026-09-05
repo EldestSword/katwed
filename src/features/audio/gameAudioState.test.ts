@@ -25,6 +25,8 @@ describe('authoritative game state to audio mapping', () => {
     expect(deriveGameAudioIntent(state({ phase: 'reveal' }), 0, null).displayCue).toBe('reveal')
     expect(deriveGameAudioIntent(state({ phase: 'leaderboard' }), 0, null).displayCue).toBe('leaderboard')
     expect(deriveGameAudioIntent(state({ phase: 'finished' }), 0, null).displayCue).toBe('final')
+    expect(deriveGameAudioIntent(state({ phase: 'tiebreaker' }), 12, null).displayCue).toBe('question')
+    expect(deriveGameAudioIntent(state({ phase: 'tiebreaker-result' }), 0, null).displayCue).toBe('reveal')
   })
 
   it('uses proportionate urgency and leaves very short questions on the normal bed', () => {

@@ -8,6 +8,17 @@ const userId = '123e4567-e89b-42d3-a456-426614174000'
 const imageId = '223e4567-e89b-42d3-a456-426614174000'
 
 describe('SupabaseGameRepository duplication', () => {
+  it('normalises legacy Pinpoint keys from owner reads without retaining obsolete fields', async () => {
+    const legacy = structuredClone(mixedDemoQuiz)
+    const question = legacy.questions.find((q) => q.type === 'pinpoint')!
+    Reflect.deleteProperty(question, 'target')
+    Object.assign(question, { targetX: .2, targetY: .3, targetRadius: .04 })
+    const rpc = vi.fn().mockResolvedValue({ data: legacy, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+    const loaded = (await repository.getQuiz(legacy.id))!.questions.find((q) => q.type === 'pinpoint')
+    expect(loaded).toMatchObject({ target: { kind: 'circle', x: .2, y: .3, radius: .04 } })
+    expect(loaded).not.toHaveProperty('targetX')
+  })
   it('defensively normalises absent, unknown and wrong-theme background values from quiz reads', async () => {
     const absent = structuredClone(mixedDemoQuiz) as unknown as Record<string, unknown>
     Reflect.deleteProperty(absent, 'backgroundId')
@@ -124,7 +135,10 @@ describe('SupabaseGameRepository duplication', () => {
       roster: mixedDemoQuiz.roster,
       questions: mixedDemoQuiz.questions,
     }
-    const saved = { ...structuredClone(mixedDemoQuiz), coverImagePath }
+    const saved = {
+      ...structuredClone(mixedDemoQuiz), coverImagePath,
+      questions: mixedDemoQuiz.questions.map(question => ({ ...structuredClone(question), buzzInEnabled: false })),
+    }
     const rpc = vi.fn().mockResolvedValue({ data: saved, error: null })
     const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
 
@@ -246,6 +260,47 @@ describe('SupabaseGameRepository game launch', () => {
       ['host_set_typed_answer_override', { p_session_id: 'session', p_answer_id: 'answer', p_correct_override: true }],
       ['host_set_typed_answer_override', { p_session_id: 'session', p_answer_id: 'answer', p_correct_override: null }],
     ])
+  })
+})
+
+describe('SupabaseGameRepository Buzz-In', () => {
+  it('claims through one RPC and strictly normalises its public result', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        won: true,
+        winnerPlayerId: 'player-id',
+        claimedAt: '2026-09-04T12:00:00Z',
+        answerDeadlineAt: '2026-09-04T12:00:10Z',
+      },
+      error: null,
+    })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    await expect(repository.claimBuzz('123456', 'player-id', 'secret-token')).resolves.toEqual({
+      won: true,
+      winnerPlayerId: 'player-id',
+      claimedAt: '2026-09-04T12:00:00Z',
+      answerDeadlineAt: '2026-09-04T12:00:10Z',
+    })
+    expect(rpc).toHaveBeenCalledOnce()
+    expect(rpc).toHaveBeenCalledWith('claim_buzz', {
+      p_room_code: '123456', p_player_id: 'player-id', p_reconnect_token: 'secret-token',
+    })
+  })
+
+  it('rejects malformed claim state and resets through the host RPC', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: { won: 'false', winnerPlayerId: 'player-id', claimedAt: '2026-09-04T12:00:00Z', answerDeadlineAt: '2026-09-04T12:00:10Z' }, error: null })
+      .mockResolvedValueOnce({ data: { won: false, winnerPlayerId: 'player-id', claimedAt: 'bad', answerDeadlineAt: 'bad' }, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    const repository = new SupabaseGameRepository({ rpc } as unknown as SupabaseClient)
+
+    await expect(repository.claimBuzz('123456', 'player-id', 'secret-token')).rejects.toThrow('invalid state')
+    await expect(repository.claimBuzz('123456', 'player-id', 'secret-token')).rejects.toThrow('Invalid Buzz state.')
+    await expect(repository.claimBuzz('123456', 'player-id', 'secret-token')).rejects.toThrow('invalid state')
+    await repository.resetBuzz('session-id')
+    expect(rpc.mock.calls[3]).toEqual(['host_reset_buzz', { p_session_id: 'session-id' }])
   })
 })
 

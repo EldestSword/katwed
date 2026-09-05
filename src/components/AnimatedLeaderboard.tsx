@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { compareLeaderboards, selectLeaderboardCommentary } from '../features/game/leaderboardMovement'
+import { compareLeaderboards } from '../features/game/leaderboardMovement'
+import { selectLiveCommentary, type StreakCommentary } from '../features/game/streakCommentary'
+import type { Player } from '../types/domain'
+import type { SurvivorCommentary } from '../features/game/survivorCommentary'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import type { LeaderboardReveal } from '../hooks/useRevealedLeaderboard'
 import { LeaderboardRow } from './Leaderboard'
@@ -11,25 +14,27 @@ const MOVE_DURATION_MS = 900
 const CLEAR_MARKERS_MS = 2600
 type RevealStage = 'holding' | 'counting' | 'moving' | 'settled'
 
-export function AnimatedLeaderboard({ reveal, limit, onSettled }: {
+interface AnimatedLeaderboardProps {
   reveal: LeaderboardReveal
   limit?: number
   onSettled(id: number): void
-}) {
-  // Each revealed snapshot owns one sequence. Polling copies do not remount it.
-  return <LeaderboardAnimation key={reveal.id} reveal={reveal} limit={limit} onSettled={onSettled} />
+  streakEvent?: StreakCommentary | null
+  players?: readonly Player[]
+  survivorEvent?: SurvivorCommentary | null
+  survivorMode?: boolean
 }
 
-function LeaderboardAnimation({ reveal, limit, onSettled }: {
-  reveal: LeaderboardReveal
-  limit?: number
-  onSettled(id: number): void
-}) {
+export function AnimatedLeaderboard({ reveal, limit, onSettled, streakEvent, players, survivorEvent, survivorMode }: AnimatedLeaderboardProps) {
+  // Each revealed snapshot owns one sequence. Polling copies do not remount it.
+  return <LeaderboardAnimation key={reveal.id} reveal={reveal} limit={limit} onSettled={onSettled} streakEvent={streakEvent} players={players} survivorEvent={survivorEvent} survivorMode={survivorMode} />
+}
+
+function LeaderboardAnimation({ reveal, limit, onSettled, streakEvent = null, players, survivorEvent = null, survivorMode = false }: AnimatedLeaderboardProps) {
   const reduced = useReducedMotion()
   const entries = useMemo(() => limit ? reveal.entries.slice(0, limit) : reveal.entries, [reveal.entries, limit])
   const previous = useMemo(() => new Map((limit ? reveal.previous?.slice(0, limit) : reveal.previous)?.map((entry) => [entry.playerId, entry])), [reveal.previous, limit])
   const movements = useMemo(() => new Map(compareLeaderboards(reveal.previous, reveal.entries).map((movement) => [movement.playerId, movement])), [reveal])
-  const commentary = useMemo(() => selectLeaderboardCommentary(reveal.previous, reveal.entries), [reveal])
+  const commentary = useMemo(() => selectLiveCommentary(reveal.previous, reveal.entries, streakEvent, survivorEvent, survivorMode), [reveal, streakEvent, survivorEvent, survivorMode])
   const startingOrder = useMemo(() => {
     const current = new Map(entries.map((entry) => [entry.playerId, entry]))
     return [...previous.keys()].flatMap((id) => current.has(id) ? [current.get(id)!] : [])
@@ -113,7 +118,7 @@ function LeaderboardAnimation({ reveal, limit, onSettled }: {
         {orderedEntries.map((entry) => {
           const old = previous.get(entry.playerId)
           const movement = movements.get(entry.playerId)
-          return <LeaderboardRow key={entry.playerId} entry={entry}
+          return <LeaderboardRow key={entry.playerId} showStreak entry={{ ...entry, currentCorrectStreak: players?.find(player => player.id === entry.playerId)?.currentCorrectStreak ?? entry.currentCorrectStreak }}
             rowRef={(row) => { if (row) rows.current.set(entry.playerId, row); else rows.current.delete(entry.playerId) }}
             visual={!settled ? {
               score: old ? Math.round(old.totalScore + (entry.totalScore - old.totalScore) * progress) : entry.totalScore,
@@ -121,6 +126,7 @@ function LeaderboardAnimation({ reveal, limit, onSettled }: {
               layoutRank: reordered ? entry.rank : old?.rank ?? entry.rank,
             } : undefined}
             movement={markers || reduced ? movement?.places : undefined}
+            newlyEliminated={survivorEvent?.eliminatedPlayerIds.includes(entry.playerId)}
             emphasised={!settled && commentary?.playerId === entry.playerId} />
         })}
       </ol> : <p className="empty-note">No scores yet. A beautifully blank slate.</p>}

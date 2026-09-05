@@ -7,6 +7,8 @@ import type * as QuestionImagesModule from '../services/questionImages'
 import type { QuizSaveInput } from '../services/gameRepository'
 import type { Quiz } from '../types/domain'
 import { QuizEditorPage } from './QuizEditorPage'
+import { connectionsFixture } from '../test/connectionsFixtures'
+import { progressiveQuestion } from '../test/progressiveFixtures'
 
 const repositoryMocks = vi.hoisted(() => ({
   getQuiz: vi.fn(),
@@ -24,12 +26,17 @@ vi.mock('../services/questionImages', async (importOriginal) => ({
 }))
 
 function quiz(overrides: Partial<Quiz> = {}): Quiz {
-  return {
+  const source = {
     ...structuredClone(sampleQuiz),
     id: 'quiz-cover-test',
     title: 'Cover test quiz',
     coverImagePath: null,
     ...overrides,
+  }
+  return {
+    ...source,
+    rounds: source.rounds.map((round) => ({ ...round, quizId: source.id })),
+    questions: source.questions.map((question) => ({ ...question, quizId: source.id })),
   }
 }
 
@@ -77,6 +84,109 @@ describe('QuizEditorPage quiz appearance', () => {
       archivedAt: null,
     }))
     imageMocks.uploadQuizCover.mockResolvedValue('https://media.example/new-cover.webp')
+  })
+
+  it('blocks switching Connections to Head to Head with guidance inside quiz settings', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [connectionsFixture()] }))
+    renderEditor()
+    const dialog = await openQuizSettings(userEvent.setup(), 'Game')
+    const button = within(dialog).getByRole('button', { name: /Head to Head/ })
+    expect(button).toBeDisabled()
+    expect(button).toHaveTextContent('Remove Connections questions to use Head to Head.')
+    expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
+  })
+
+  it('authors fixed wagers, updates the base preview, saves and prevents H2H conversion', async () => {
+    const user = userEvent.setup()
+    const q = { ...mixedDemoQuiz.questions[0], roundId: sampleQuiz.rounds[0].id }
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [q] }))
+    const view = renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    await user.click(screen.getByRole('checkbox', { name: 'Let players risk extra points' }))
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('50% · 500 pts')
+    await user.clear(screen.getByLabelText('Maximum points')); await user.type(screen.getByLabelText('Maximum points'), '999')
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('25% · 249 pts')
+    expect(screen.getByLabelText('Wager preview')).toHaveTextContent('50% · 499 pts')
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz.mock.calls.at(-1)![0].questions[0]).toMatchObject({ wagerEnabled: true, points: 999 })
+    const saved = await repositoryMocks.saveQuiz.mock.results.at(-1)!.value
+    const dialog = await openQuizSettings(user, 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    view.unmount(); repositoryMocks.getQuiz.mockResolvedValue(saved); renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    expect(screen.getByRole('checkbox', { name: 'Let players risk extra points' })).toBeChecked()
+  })
+
+  it('authors, duplicates, saves and reloads the fixed Buzz-In modifier', async () => {
+    const user = userEvent.setup()
+    const q = { ...mixedDemoQuiz.questions[0], roundId: sampleQuiz.rounds[0].id, buzzInEnabled: false }
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [q] }))
+    const view = renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    await user.click(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' }))
+    expect(screen.getByText('First buzz wins', { exact: true })).toBeVisible()
+    expect(screen.getByText('10 second answer window', { exact: true })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }))
+    expect(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' })).toBeChecked()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    const savedInput = repositoryMocks.saveQuiz.mock.calls.at(-1)![0] as QuizSaveInput
+    expect(savedInput.questions).toHaveLength(2)
+    expect(savedInput.questions[0].buzzInEnabled).toBe(true)
+    expect(savedInput.questions[1].buzzInEnabled).toBe(true)
+    const saved = await repositoryMocks.saveQuiz.mock.results.at(-1)!.value
+    const dialog = await openQuizSettings(user, 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    view.unmount(); repositoryMocks.getQuiz.mockResolvedValue(saved); renderEditor()
+    await user.click(await screen.findByText('Scoring', { exact: true }))
+    expect(screen.getByRole('checkbox', { name: 'First player to buzz gets the answer' })).toBeChecked()
+  })
+
+  it('does not offer wagers in the Head-to-Head editor', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
+    renderEditor(); await screen.findByText('Scoring', { exact: true })
+    expect(screen.queryByRole('checkbox', { name: 'Let players risk extra points', hidden: true })).toBeNull()
+  })
+
+  it('edits the Progressive modifier, previews decay and Double Score, and clears it when media is removed', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [{ ...progressiveQuestion(), roundId: sampleQuiz.rounds[0].id, progressiveRevealEnabled: false }] }))
+    const user = userEvent.setup(); renderEditor()
+    await screen.findByRole('heading', { name: 'Question settings' })
+    await user.click(screen.getByText('Media & presentation', { exact: true }))
+    const toggle = screen.getByLabelText('Score falls as the image becomes clearer')
+    await user.click(toggle)
+    expect(screen.getByRole('list', { name: 'Progressive score preview' })).toHaveTextContent('625 pts')
+    await user.click(screen.getByText('Scoring', { exact: true }))
+    expect(screen.queryByLabelText('Faster answers score more')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Double score', { exact: true }))
+    expect(screen.getByRole('list', { name: 'Progressive score preview' })).toHaveTextContent('1,250 pts')
+    await user.selectOptions(screen.getByLabelText('Reveal effect'), 'immediate')
+    expect(screen.getAllByText(/Progressive Reveal needs a timed image effect/)[0]).toBeVisible()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).not.toHaveBeenCalled()
+    await user.selectOptions(within(screen.getByRole('group', { name: 'Media' })).getByLabelText('Type'), 'none')
+    expect(screen.queryByLabelText('Score falls as the image becomes clearer')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Faster answers score more')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Save quiz' })[0])
+    expect(repositoryMocks.saveQuiz).toHaveBeenCalledWith(expect.objectContaining({ questions: [expect.objectContaining({ progressiveRevealEnabled: false, media: { type: 'none' } })] }))
+  })
+
+  it('blocks a Progressive quiz from switching to Head to Head', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ questions: [progressiveQuestion()] }))
+    renderEditor()
+    const dialog = await openQuizSettings(userEvent.setup(), 'Game')
+    expect(within(dialog).getByRole('button', { name: /Head to Head/ })).toBeDisabled()
+    expect(within(dialog).getByText(/Disable Progressive Reveal/)).toBeVisible()
+  })
+
+  it('omits Connections from both Head-to-Head question pickers', async () => {
+    repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz())
+    const user = userEvent.setup()
+    renderEditor()
+    await screen.findByRole('heading', { name: 'Question settings' })
+    expect(within(screen.getAllByRole('combobox', { name: 'Type' })[0]).queryByRole('option', { name: 'Connections' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: '+ Add' }))
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Connections/ })).toBeNull()
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: /Ordering/ })).toBeVisible()
   })
 
   it('opens accessible quiz-wide settings while keeping the question sidebar focused', async () => {
@@ -194,7 +304,7 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('marks a four-choice Player preview for the narrow two-by-two layout', async () => {
     const user = userEvent.setup()
-    repositoryMocks.getQuiz.mockResolvedValue({ ...structuredClone(mixedDemoQuiz), id: 'quiz-cover-test' })
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({ ...structuredClone(mixedDemoQuiz), id: 'quiz-cover-test' }))
     renderEditor()
     await screen.findByLabelText('Katwed! theme preview')
     await user.click(screen.getByRole('tab', { name: 'Player' }))
@@ -446,11 +556,11 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('supports assignments for all seven question formats and hides ordinary point editing', async () => {
     const user = userEvent.setup()
-    const source = {
+    const source = quiz({
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
       title: 'All formats Head to Head',
-    }
+    })
     repositoryMocks.getQuiz.mockResolvedValue(headToHeadQuiz(source))
     renderEditor()
 
@@ -472,10 +582,10 @@ describe('QuizEditorPage quiz appearance', () => {
 
   it('edits and saves a primary Typed Answer with newline-separated alternatives', async () => {
     const user = userEvent.setup()
-    repositoryMocks.getQuiz.mockResolvedValue({
+    repositoryMocks.getQuiz.mockResolvedValue(quiz({
       ...structuredClone(mixedDemoQuiz),
       id: 'quiz-cover-test',
-    })
+    }))
     renderEditor()
 
     await user.click(await screen.findByRole('button', { name: /Name the science-fiction programme featuring the spaceship Red Dwarf/ }))

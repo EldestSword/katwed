@@ -10,7 +10,14 @@ import { LobbyPlayerTile, QuestionProgressBadge, RevealAnswerTile, SubmissionSta
 import { useCountdown } from '../../hooks/useCountdown'
 import { useQuestionPrelude } from '../../hooks/useQuestionPrelude'
 import { useRevealedLeaderboard } from '../../hooks/useRevealedLeaderboard'
+import { useStreakCommentary } from '../../hooks/useStreakCommentary'
 import { useFinalAwardsHistory } from '../../hooks/useFinalAwardsHistory'
+import { competitionState, isTeamGame } from '../teams/teams'
+import { TeamLobby } from '../teams/TeamLobby'
+import { TeamFinalResults } from '../teams/TeamFinalResults'
+import { isSurvivorGame, survivorAliveCount } from './survivor'
+import { useSurvivorHistory } from '../../hooks/useSurvivorHistory'
+import { SurvivorFinalResults } from './SurvivorFinalResults'
 import type { RevealPayload, SafeGameState, SafeQuestion } from '../../types/domain'
 import { answerColourStyle, resolveAnswerColours } from '../answer-palettes/answerPalettes'
 import { HeadToHeadResults } from '../head-to-head/HeadToHeadResults'
@@ -23,9 +30,16 @@ import { RevealAnswerCard } from './RevealAnswerCard'
 import { formatSliderValue } from './revealFormatting'
 import { QuestionTypeIntro } from './QuestionTypeIntro'
 import { questionTypeRegistry } from '../questions/registry'
+import { ArrangementPrompt, ArrangementResult } from './ArrangementResult'
+import { ConnectionClues } from './ConnectionClues'
+import { WagerIndicator } from './WagerControl'
+import { ProgressiveRevealPoints } from './ProgressiveRevealPoints'
 import { answerTextDensity, hasExtraLongAnswer, questionTextDensity } from './liveQuestionTypography'
+import { TieBreakerPresentation } from './TieBreakerScreens'
+import { leaderboardBeforeTieBreaker } from './tieBreakers'
 
 function choicesVisible(question: SafeQuestion, phase: SafeGameState['phase']): boolean {
+  if (question.type === 'connections') return true
   return question.presentationChoiceVisibility === 'show' ||
     (question.presentationChoiceVisibility === 'after-lock' && phase !== 'question')
 }
@@ -39,7 +53,9 @@ function questionComposition(question: SafeQuestion, showMedia: boolean, showCho
 }
 
 function PresentationChoices({ question, phase, colours }: { question: SafeQuestion; phase: SafeGameState['phase']; colours: readonly string[] }) {
+  if (question.type === 'connections') return <ConnectionClues question={question} />
   if (!choicesVisible(question, phase)) return null
+  if (question.type === 'ordering' || question.type === 'matching') return <ArrangementPrompt question={question} />
   if (question.type === 'single-choice' || question.type === 'multiple-select') {
     const options = orderedQuestionOptions(question)
     return (
@@ -69,6 +85,9 @@ function SliderContext({ question }: { question: Extract<SafeQuestion, { type: '
 
 function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPayload; question: SafeQuestion; compact: boolean; colours: readonly string[] }) {
   switch (reveal.type) {
+    case 'connections': return <div className="connection-reveal">{question.type === 'connections' && <ConnectionClues question={question} reveal />}<RevealAnswerCard><p>What connects them?</p><h2>{reveal.correctAnswer}</h2></RevealAnswerCard></div>
+    case 'ordering': return <ArrangementResult question={question} answer={{ type: 'ordering', itemIds: reveal.correctItemIds }} label="Correct order" />
+    case 'matching': return <ArrangementResult question={question} answer={{ type: 'matching', pairs: reveal.correctPairs }} label="Correct pairs" />
     case 'single-choice': {
       const options = question.type === 'single-choice' ? orderedQuestionOptions(question) : []
       return <div className="presentation-reveal-grid" data-option-count={options.length}>{options.map((option, position) => <RevealAnswerTile label={option.label} position={position} optionId={option.id} style={answerColourStyle(colours, position)} correct={option.id === reveal.correctOptionId} responseCount={reveal.optionCounts[option.id] ?? 0} key={option.id} />)}</div>
@@ -95,7 +114,7 @@ function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPa
     case 'pinpoint':
       return question.type === 'pinpoint' ? (
         <div className="presentation-pinpoint-reveal">
-          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={{ x: reveal.targetX, y: reveal.targetY, radius: reveal.targetRadius }} allowEnlarge={!compact} />
+          <PinpointSurface path={question.media.path} alt={question.media.altText} mode="presentation-reveal" markers={reveal.points.map((point) => ({ ...point, kind: 'response' as const, label: 'Player answer' }))} target={reveal.target} allowEnlarge={!compact} />
           <div className="pinpoint-legend" aria-label="Pinpoint answer legend"><span><i className="pinpoint-key pinpoint-key--response" />Player answers</span><span><i className="pinpoint-key pinpoint-key--target" />Correct area</span></div>
           <p className="sr-only">The correct target location has been displayed.</p>
         </div>
@@ -110,7 +129,7 @@ function RevealResult({ reveal, question, compact, colours }: { reveal: RevealPa
 function StageHeader({ question, compact, remaining, headToHead, showTimer = true }: { question: SafeQuestion; compact: boolean; remaining: number; headToHead: boolean; showTimer?: boolean }) {
   return (
     <header className="presentation-question__header">
-      <div><QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />{!headToHead && question.doubleScore && <DoubleScoreBadge />}</div>
+      <div><QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />{!headToHead && question.doubleScore && <DoubleScoreBadge />}{!headToHead && question.wagerEnabled && <WagerIndicator points={question.points} />}</div>
       {headToHead ? (
         <GameBadge tone="neutral" large={!compact}>Untimed</GameBadge>
       ) : showTimer ? (
@@ -123,9 +142,14 @@ function StageHeader({ question, compact, remaining, headToHead, showTimer = tru
 }
 
 export function PresentationStage({ state, compact = false }: { state: SafeGameState; compact?: boolean }) {
-  const leaderboard = useRevealedLeaderboard(state)
-  const awardsBaseline = useFinalAwardsHistory(state)
+  const teamMode = isTeamGame(state)
+  const survivorMode = isSurvivorGame(state)
+  const leaderboard = useRevealedLeaderboard(competitionState(state))
+  const streakEvent = useStreakCommentary(state)
+  const survivorEvent = useSurvivorHistory(state)
+  const awardsBaseline = useFinalAwardsHistory(teamMode || survivorMode ? null : state)
   const remaining = useCountdown(state.questionClosesAt)
+  const buzzRemaining = useCountdown(state.buzz?.answerDeadlineAt ?? null)
   const question = state.currentQuestion
   const headToHead = state.quizType === 'head-to-head'
   const configuredPrelude = state.questionPreludeKind ?? (question?.doubleScore ? 'double-score' : null)
@@ -137,14 +161,18 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
   const showChoices = Boolean(question && choicesVisible(question, state.phase))
   const composition = question ? questionComposition(question, showMedia, showChoices) : undefined
   const promptDensity = question ? questionTextDensity(question.prompt, showMedia) : undefined
+  const buzzWinner = state.buzz ? state.players.find(player => player.id === state.buzz?.winnerPlayerId) : undefined
+  const buzzTeam = buzzWinner?.teamId ? state.teams?.find(team => team.id === buzzWinner.teamId) : undefined
+  const buzzWinnerLabel = buzzWinner ? `${buzzWinner.nickname}${buzzTeam ? ` · ${buzzTeam.name}` : ''}` : 'A player'
+  const aliveCount = survivorMode ? survivorAliveCount(state.players) : state.players.length
 
   return (
     <section className={`presentation-stage quiz-themed-surface ${compact ? 'presentation-stage--compact' : ''}`} data-phase={state.phase} data-question-type={question?.type} data-composition={composition} {...quizThemeSurfaceProps(state.themeId, state.backgroundId)} aria-live={state.phase === 'leaderboard' ? 'off' : 'polite'}>
       {state.phase === 'lobby' && (
         <div className={`presentation-lobby ${headToHead ? 'presentation-lobby--head-to-head' : ''}`}>
-          <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">Lobby</GameBadge></header>
+          <header className="presentation-lobby__brand"><Logo /><GameBadge tone="accent">{survivorMode ? 'Survivor' : 'Lobby'}</GameBadge></header>
           <div className="presentation-lobby__join">
-            <p className="eyebrow">The show is about to start</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
+            <p className="eyebrow">{survivorMode ? `${state.sessionSettings?.survivorStartingLives ?? 3} lives each` : 'The show is about to start'}</p><h1>{state.quizTitle}</h1><p className="presentation-lobby__instruction">Join the game</p>
             <strong className="presentation-room-code" aria-label={`Room code ${state.roomCode}`}>{state.roomCode}</strong>
             <div className="presentation-lobby__join-tools"><div className="presentation-qr-panel"><QRCodeSVG value={joinUrl} size={compact ? 92 : 300} level="M" bgColor="#ffffff" fgColor="#111827" title="QR code for joining this Katwed room" /></div><p>Scan or visit<br /><strong>{window.location.host}</strong></p></div>
           </div>
@@ -153,7 +181,7 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
               <p className="eyebrow">Two competitors</p>
               <div className="head-to-head-lobby-stage__slots">{competitors.map((competitor, index) => <article className={competitor.claimed ? 'is-joined' : 'is-waiting'} aria-label={`Competitor ${index + 1}: ${competitor.displayName}`} key={competitor.competitorId}><span>Competitor {index + 1}</span><strong>{competitor.displayName}</strong><GameBadge tone={competitor.connected ? 'success' : competitor.claimed ? 'warning' : 'neutral'}>{competitor.claimed ? (competitor.connected ? 'Ready' : 'Joined') : 'Waiting'}</GameBadge></article>)}</div>
             </div>
-          ) : (
+          ) : teamMode ? <div className="presentation-lobby__players"><TeamLobby teams={state.teams ?? []} players={state.players} /></div> : (
             <div className="presentation-lobby__players">
               <div className="presentation-lobby__player-heading"><div><p className="eyebrow">Contestants</p><h2>Players joined</h2></div><strong aria-label={`${state.players.length} players joined`}>{state.players.length}</strong></div>
               {state.players.length > 0 ? <ul className="lobby-player-grid">{state.players.slice(0, compact ? 6 : 24).map((player) => <LobbyPlayerTile connected={player.connected} key={player.id}>{player.nickname}</LobbyPlayerTile>)}</ul> : <p className="presentation-lobby__empty">Waiting for the first player…</p>}
@@ -162,36 +190,42 @@ export function PresentationStage({ state, compact = false }: { state: SafeGameS
         </div>
       )}
 
+      {state.phase === 'round-intro' && state.currentRound && <div className="presentation-round-intro"><p className="eyebrow">Round {state.currentRound.roundNumber} of {state.currentRound.totalRounds}</p><h1>{state.currentRound.title}</h1>{state.currentRound.subtitle && <p className="presentation-round-intro__subtitle">{state.currentRound.subtitle}</p>}<span>{state.currentRound.questionCount} {state.currentRound.questionCount === 1 ? 'question' : 'questions'}</span>{survivorMode && <strong>{aliveCount} {aliveCount === 1 ? 'player' : 'players'} remaining</strong>}</div>}
       {state.phase === 'question' && question && activePrelude === 'double-score' && <DoubleScoreIntro compact={compact} questionTypeLabel={state.sessionSettings?.questionTypeIntrosEnabled ? questionTypeRegistry[question.type].introLabel : undefined} />}
       {state.phase === 'question' && question && activePrelude === 'question-type' && <QuestionTypeIntro type={question.type} compact={compact} />}
       {state.phase === 'question' && question && !activePrelude && (
         <div className="presentation-question">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} />
+          {survivorMode && <p className="presentation-survivor-count">{aliveCount} {aliveCount === 1 ? 'PLAYER' : 'PLAYERS'} REMAINING</p>}
+          {question.buzzInEnabled && <div className={`presentation-buzz ${state.buzz ? 'is-won' : 'is-open'}`}>{state.buzz ? <><strong>{buzzWinnerLabel} buzzed first!</strong><span aria-hidden="true">{buzzRemaining > 0 ? `${buzzRemaining} seconds to answer` : 'Answer window closed'}</span><span className="sr-only" role="status">{buzzWinnerLabel} buzzed first. {buzzRemaining > 0 ? 'Answer window open.' : 'Answer window closed.'}</span></> : <strong>Buzzers open</strong>}</div>}
           <div className="presentation-question__body">
+            {question.type === 'connections' && <p className="eyebrow connection-intro-label">Find the connection</p>}
             <div className="presentation-question__copy" data-question-density={promptDensity}>{headToHead && <p className="head-to-head-presentation-assignment">For <strong>{competitors.find((competitor) => competitor.competitorId === question.assignedCompetitorId)?.displayName}</strong> · 1 point</p>}<h1>{question.prompt}</h1>{question.supportingText && <p>{question.supportingText}</p>}</div>
-            {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
+            {showMedia && <div className="presentation-question__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} progressiveRevealEnabled={question.progressiveRevealEnabled} /></div>}
             {question.type === 'slider' && <SliderContext question={question} />}
             <PresentationChoices question={question} phase={state.phase} colours={answerColours} />
           </div>
-          <footer className="presentation-question__footer"><SubmissionStatus submitted={state.submittedCount} total={state.players.length} label={headToHead ? 'responses resolved' : 'answered'} /></footer>
+          <footer className="presentation-question__footer"><ProgressiveRevealPoints question={question} openedAt={state.questionOpenedAt} />{question.buzzInEnabled ? state.buzz && <SubmissionStatus submitted={state.submittedCount} total={1} label="eligible answer" /> : <SubmissionStatus submitted={state.submittedCount} total={state.eligibleResponderCount ?? state.players.length} label={headToHead ? 'responses resolved' : 'answered'} />}</footer>
         </div>
       )}
 
-      {state.phase === 'locked' && <div className="presentation-locked">{question && <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />}<div className="presentation-locked__mark" aria-hidden="true"><span>!</span></div><p className="eyebrow">Submissions closed</p><h1>Answers locked</h1><p>Ready for the reveal</p></div>}
+      {state.phase === 'locked' && <div className="presentation-locked">{question && <QuestionProgressBadge questionNumber={question.questionNumber} totalQuestions={question.totalQuestions} compact={compact} />}<div className="presentation-locked__mark" aria-hidden="true"><span>!</span></div><p className="eyebrow">Submissions closed</p><h1>Answers locked</h1><p>Ready for the reveal</p>{question?.progressiveRevealEnabled && showMedia && <QuestionMedia media={question.media} openedAt={state.questionOpenedAt} progressiveRevealEnabled compact={compact} allowEnlarge={false} />}</div>}
 
       {state.phase === 'reveal' && state.reveal && question && (
         <div className="presentation-reveal">
           <StageHeader question={question} compact={compact} remaining={remaining} headToHead={headToHead} showTimer={false} />
           <div className="presentation-reveal__copy" data-question-density={questionTextDensity(question.prompt, showMedia)}><p className="eyebrow">Answer reveal</p><h1>{question.prompt}</h1></div>
-          {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} /></div>}
+          {question.type !== 'pinpoint' && showMedia && <div className="presentation-reveal__media"><QuestionMedia media={question.media} openedAt={state.questionOpenedAt} compact={compact} allowEnlarge={false} progressiveRevealEnabled={question.progressiveRevealEnabled} revealed /></div>}
           <RevealResult reveal={state.reveal} question={question} compact={compact} colours={answerColours} />
+          {question.buzzInEnabled && buzzWinner && <p className="presentation-buzz-reveal">Buzz won by {buzzWinnerLabel}</p>}
           {state.reveal.caption && <aside className="reveal-caption"><span>More to know</span><p>{state.reveal.caption}</p></aside>}
           {headToHead && <div className="presentation-reveal__head-to-head"><HeadToHeadResults competitors={competitors} results={state.headToHeadResults ?? []} /><div className="head-to-head-scoreboard">{competitors.map((competitor) => <div key={competitor.competitorId}><strong>{competitor.displayName}</strong><span>{competitor.totalScore}</span></div>)}</div></div>}
         </div>
       )}
 
-      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">Current standings</p><h1>Leaderboard</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} /></div>}
-      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardsBaseline={awardsBaseline} variant="presentation" />)}
+      {state.phase === 'leaderboard' && leaderboard.reveal && <div className="presentation-leaderboard"><p className="eyebrow">{survivorMode ? 'Survival standings' : 'Current standings'}</p><h1>{survivorMode && aliveCount === 0 ? 'TOTAL WIPEOUT' : survivorMode && aliveCount === 1 ? 'LAST PLAYER STANDING' : 'Leaderboard'}</h1><AnimatedLeaderboard reveal={leaderboard.reveal} limit={compact ? 6 : undefined} onSettled={leaderboard.settle} streakEvent={streakEvent} survivorEvent={survivorEvent} survivorMode={survivorMode} players={teamMode ? undefined : state.players} /></div>}
+      {(state.phase === 'tiebreaker' || state.phase === 'tiebreaker-result') && state.tieBreaker && <TieBreakerPresentation state={state.tieBreaker} players={state.players} compact={compact} />}
+      {state.phase === 'finished' && (headToHead ? <HeadToHeadFinal competitors={competitors} variant="presentation" /> : teamMode ? <TeamFinalResults state={state} variant="presentation" /> : survivorMode ? <SurvivorFinalResults players={state.players} tieBreakerWinnerPlayerId={state.tieBreaker?.winnerPlayerId} variant="presentation" /> : <FinalResults entries={state.leaderboard} awardEntries={state.tieBreaker?.winnerPlayerId ? leaderboardBeforeTieBreaker(state.leaderboard) : undefined} awardsBaseline={awardsBaseline} variant="presentation" />)}
     </section>
   )
 }
