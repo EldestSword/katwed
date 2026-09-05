@@ -306,7 +306,7 @@ export function QuizEditorPage() {
                 setSelectedId(quiz.questions[index + 1]?.id ?? quiz.questions[index - 1]?.id ?? '')
               }}>Delete</button>
             </div>
-          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from nine question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
+          </> : <div className="empty-card"><span className="empty-card__motif" aria-hidden="true">+</span><h2>Add your first question</h2><p>Choose from {quiz.quizType === 'standard' ? 'ten' : 'nine'} question formats.</p><button className="button button--primary" type="button" onClick={() => setAddQuestionOpen(true)}>Add question</button></div>}
         </section>
 
         <aside className="question-settings">
