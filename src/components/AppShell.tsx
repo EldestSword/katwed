@@ -4,7 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { config } from '../lib/config'
 
 export function Logo() {
-  return <span className="brand-mark" aria-label="Katwed!"><span className="brand-mark__kat">Kat</span><span className="brand-mark__wed">wed</span><span className="brand-bang" aria-hidden="true">!</span></span>
+  return <span className="brand-mark" aria-label="Katwed!"><span className="brand-mark__kat">Ka</span><span className="brand-mark__wed">twed</span><span className="brand-bang" aria-hidden="true">!</span></span>
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
