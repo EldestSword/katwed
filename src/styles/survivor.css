@@ -23,6 +23,9 @@
 .player-survivor-result.is-out { background: color-mix(in srgb, var(--quiz-danger, #b42318) 12%, transparent); }
 .survivor-final__winner { margin: .1rem 0 .65rem; font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 3rem); font-weight: 900; }
 .survivor-final .final-podium li > span:last-child { display: block; }
+/* Survivor adds a result subtitle and life/elimination detail to the podium. */
+.presentation-stage:not(.presentation-stage--compact) .survivor-final .final-podium li { padding: clamp(.65rem, 1.5vw, 1.1rem); gap: .35rem; }
+.presentation-stage:not(.presentation-stage--compact) .survivor-final .final-podium li[data-rank="1"] { min-height: clamp(10rem, 27vh, 14rem); }
 .presentation-stage--compact .presentation-survivor-count { margin: .1rem auto; padding: .1rem .4rem; font-size: .48rem; }
 .presentation-stage--compact .leaderboard__survival { font-size: .62rem; }
 .presentation-stage--compact .survivor-final__winner { font-size: 1rem; }
@@ -32,6 +35,10 @@
   .survivor-life-chip { max-width: 100%; }
   .leaderboard__points:has(.leaderboard__survival) { white-space: normal; }
   .leaderboard__survival { font-size: .72rem; }
+  .survivor-final.final-results--player .final-podium li[data-rank] { grid-template-columns: auto minmax(0, 1fr); min-height: 5.5rem; column-gap: .65rem; }
+  .survivor-final.final-results--player .final-podium__rank { grid-row: 1 / span 2; }
+  .survivor-final.final-results--player .final-podium strong { grid-column: 2; text-align: left; }
+  .survivor-final.final-results--player .final-podium li > span:last-child { grid-column: 2; justify-self: start; text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {
