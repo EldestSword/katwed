@@ -32,6 +32,35 @@ begin
     where exists(select 1 from public.tiebreaker_questions q where q.id='TB'||lpad(n::text,3,'0'))),'TB001–TB200 are incomplete';
   assert not has_table_privilege('anon','public.tiebreaker_questions','select'),'Anon can select the answer bank';
   assert not has_table_privilege('authenticated','public.tiebreaker_questions','select'),'Players can select the answer bank';
+  assert (select count(*)=8 and bool_and(q.answer=e.answer and q.unit='km'
+    and q.source_title='JPL Planetary Physical Parameters'
+    and q.source_url='https://ssd.jpl.nasa.gov/planets/phys_par.html'
+    and q.source_note=$note$JPL equatorial-radius value; distinguished from the planet's mean radius.$note$)
+    from (values ('TB009',2440.53),('TB010',6051.8),('TB011',6378.1366),('TB012',3396.19),
+      ('TB013',71492),('TB014',60268),('TB015',25559),('TB016',24764)) e(id,answer)
+    join public.tiebreaker_questions q using(id)), 'Audited equatorial radii or JPL provenance differ';
+  assert (select count(*)=5 and bool_and(q.answer=e.answer and q.prompt=e.prompt and q.source_url=e.url and q.source_note=e.note)
+    from (values
+      ('TB036',720000,$q$According to NASA's Sun Facts page, about how fast does our solar system move through the Milky Way, in kilometres per hour?$q$,
+        'https://science.nasa.gov/sun/facts/', $n$NASA Sun Facts gives an average velocity of 720,000 km/h; another current NASA educational page uses a different rounded orbital-speed figure.$n$),
+      ('TB098',7650,'How long is each Golden Gate Bridge main cable, in feet?',
+        'https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/', 'Official bridge statistics give 7,650 ft for one main cable.'),
+      ('TB198',174,$q$According to Spotify's American Idiot album listing, how long is Green Day's 'American Idiot', in seconds?$q$,
+        'https://open.spotify.com/track/45zvStEMsXp8z45OQRhWFJ', $n$Spotify's album listing gives 2:54 for the track.$n$),
+      ('TB199',355,$q$According to Spotify's A Night at the Opera album listing, how long is Queen's 'Bohemian Rhapsody', in seconds?$q$,
+        'https://open.spotify.com/track/1yslmgUcM2AOkOPS4sl3QV', $n$Spotify's A Night at the Opera album listing gives 5:55.$n$),
+      ('TB200',390,$q$According to Spotify's original Hotel California album listing, how long is the Eagles' 'Hotel California', in seconds?$q$,
+        'https://open.spotify.com/track/4GkOfUKUqDDgoeiov8Uqyi', $n$Spotify's original Hotel California album listing gives 6:30.$n$)
+    ) e(id,answer,prompt,url,note) join public.tiebreaker_questions q using(id)), 'Audited source-specific prompts or answers differ';
+  assert (select source_title='NASA Sun Facts' and unit='km/h' from public.tiebreaker_questions where id='TB036');
+  assert (select source_title='Golden Gate Bridge official design & construction statistics' and unit='ft' from public.tiebreaker_questions where id='TB098');
+  assert (select bool_and(not has_table_privilege(role_name,table_name,'select'))
+    from unnest(array['anon','authenticated']) role_name
+    cross join unnest(array['public.tiebreaker_questions','public.game_tiebreaker_contenders','public.game_tiebreaker_answers']) table_name),
+    'Private tie-breaker tables became directly readable';
+  assert (select count(*)=3 and bool_and(relrowsecurity and relforcerowsecurity) from pg_class
+    where oid in ('public.tiebreaker_questions'::regclass,'public.game_tiebreaker_contenders'::regclass,'public.game_tiebreaker_answers'::regclass)),
+    'Private tie-breaker table RLS changed';
   assert has_function_privilege('anon','public.submit_tiebreaker_answer(text,uuid,text,text)','execute');
   assert not has_function_privilege('anon','public.host_resolve_tiebreaker(uuid)','execute');
   assert not has_function_privilege('anon','public.host_next_tiebreaker(uuid)','execute');
