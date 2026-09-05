@@ -16,6 +16,10 @@ The mash-up rule remains strict: players select exactly two different people and
 
 Katwed! version 2 is deployed on Netlify from the `EldestSword/katwed` GitHub repository and uses a live Supabase project. The production setup has been exercised with real host authentication, stored quizzes, uploaded media and multiple player tabs.
 
+### Phase 2 release candidate
+
+`phase2/release-candidate` contains the complete Phase 2 tree and its integration checks. The pending database stack is the twelve ordered Phase 2 migrations followed by `20260904232901_rc_tiebreaker_rpc_privileges.sql`, which removes inherited anonymous execution privileges from three owner-only tie-break controls. Earlier migrations remain unchanged. See the [release-candidate evidence, database-first release order and manual UAT checklist](docs/phase2-release-candidate.md). Production migration, frontend deployment and PR creation remain separate deliberate actions.
+
 ### Implemented and production-tested
 
 The hosted application has verified support for:
