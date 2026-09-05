@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { expectWideFontRevealToFit } from './presentationGeometry'
 import { arrangementQuiz } from '../../src/test/arrangementFixtures'
 
 async function noOverflow(page: Page) {
@@ -164,6 +165,7 @@ test('eight long items fit presentation, compact preview and 320px player screen
     await expect(present.getByRole('region', { name: label }).getByRole('listitem')).toHaveCount(8)
     const final = (await present.getByRole('region', { name: label }).getByRole('listitem').last().boundingBox())!
     expect(final.y + final.height).toBeLessThanOrEqual(720)
+    await expectWideFontRevealToFit(present, present.getByRole('region', { name: label }).getByRole('listitem').last())
     const preview = page.getByRole('region', { name: 'Presentation preview', exact: true })
     const area = (await preview.boundingBox())!, lastPreview = (await preview.getByRole('region', { name: label }).getByRole('listitem').last().boundingBox())!
     expect(lastPreview.y + lastPreview.height).toBeLessThanOrEqual(area.y + area.height)

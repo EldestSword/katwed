@@ -20,10 +20,15 @@
 .presentation-stage:not(.presentation-stage--compact):has(.connection-clues[data-dense="true"]) .presentation-question__copy h1,
 .presentation-stage:not(.presentation-stage--compact):has(.connection-clues[data-dense="true"]) .presentation-reveal__copy h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); }
 .presentation-stage .connection-clues[data-dense="true"] { font-size: clamp(1rem, 1.3vw, 1.3rem); line-height: 1.2; }
-.presentation-stage .connection-clues[data-dense="true"] li { padding: .45rem .65rem; }
+.presentation-stage .connection-clues[data-dense="true"] li { padding: .45rem .65rem; line-height: 1.2; }
 .presentation-stage .connection-reveal { display: grid; gap: .5rem; min-width: 0; }
 .presentation-stage .connection-reveal .connection-clues { font-size: clamp(.95rem, 1.3vw, 1.2rem); }
 .presentation-stage .connection-reveal .reveal-answer-card { padding: .5rem 1rem; }
+/* Dense clues share the reveal with the answer: keep that result's margins
+   bounded instead of inheriting the ordinary large single-answer treatment. */
+.presentation-stage:not(.presentation-stage--compact) .connection-reveal:has(.connection-clues[data-dense="true"]) .reveal-answer-card { margin-block: .25rem; gap: .25rem; }
+.presentation-stage:not(.presentation-stage--compact) .connection-reveal:has(.connection-clues[data-dense="true"]) .reveal-answer-card p { margin: 0; }
+.presentation-stage:not(.presentation-stage--compact) .connection-reveal:has(.connection-clues[data-dense="true"]) .reveal-answer-card h2 { font-size: clamp(2rem, 4vw, 3.5rem); }
 .presentation-stage--compact .connection-clues, .presentation-stage--compact .connection-reveal .connection-clues { font-size: .55rem; }
 .presentation-stage--compact .connection-clues[data-dense="true"] { font-size: .55rem; }
 .presentation-stage--compact .connection-clues ol { gap: .2rem; margin: .2rem 0; }

@@ -26,6 +26,11 @@
 .presentation-stage .arrangement-prompt[data-dense="true"] h2 { margin: 0 0 .4rem; }
 .presentation-stage .arrangement-prompt[data-dense="true"] ul { gap: .2rem; margin: 0; }
 .presentation-stage .arrangement-prompt[data-dense="true"] li, .presentation-stage .arrangement-result[data-dense="true"] li { padding: .4rem .6rem; }
+/* The global li leading overrides inherited density. Set it on each row so
+   eight full pairs still fit when a platform's UI font wraps more widely. */
+.presentation-stage .arrangement-result[data-dense="true"] li { line-height: 1.2; }
+.presentation-stage:not(.presentation-stage--compact):has(.arrangement-result[data-dense="true"]) { padding: 1rem 2rem; }
+.presentation-stage:not(.presentation-stage--compact) .arrangement-result[data-dense="true"] ol { gap: clamp(.25rem, .6vh, .5rem); margin-block: .4rem; }
 .presentation-stage .arrangement-prompt[data-dense="true"] li { padding: .15rem .4rem; line-height: 1.1; }
 .presentation-stage .arrangement-prompt--ordering[data-dense="true"] ul, .presentation-stage .arrangement-result[data-dense="true"] ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .presentation-stage[data-composition="media-and-answers"] .arrangement-prompt { grid-column: 2; grid-row: 2; }

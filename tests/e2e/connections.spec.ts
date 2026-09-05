@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { expectWideFontRevealToFit } from './presentationGeometry'
 import { connectionsQuiz } from '../../src/test/connectionsFixtures'
 
 async function noOverflow(page: Page) {
@@ -128,6 +129,7 @@ test('six 200-character clues fit 16:9, compact preview and a 320px player', asy
   await page.getByRole('button', { name: 'Reveal answer', exact: true }).click()
   const result = (await present.getByRole('heading', { name: 'Planets' }).boundingBox())!
   expect(result.y + result.height).toBeLessThanOrEqual(720)
+  await expectWideFontRevealToFit(present, present.getByRole('heading', { name: 'Planets' }))
   const preview = page.getByRole('region', { name: 'Presentation preview', exact: true })
   const area = (await preview.boundingBox())!, last = (await preview.getByRole('heading', { name: 'Planets' }).boundingBox())!
   expect(last.y + last.height).toBeLessThanOrEqual(area.y + area.height)
