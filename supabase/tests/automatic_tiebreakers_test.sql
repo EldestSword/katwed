@@ -34,6 +34,11 @@ begin
   assert not has_table_privilege('authenticated','public.tiebreaker_questions','select'),'Players can select the answer bank';
   assert has_function_privilege('anon','public.submit_tiebreaker_answer(text,uuid,text,text)','execute');
   assert not has_function_privilege('anon','public.host_resolve_tiebreaker(uuid)','execute');
+  assert not has_function_privilege('anon','public.host_next_tiebreaker(uuid)','execute');
+  assert not has_function_privilege('anon','public.host_reveal_tiebreaker_final(uuid)','execute');
+  assert has_function_privilege('authenticated','public.host_resolve_tiebreaker(uuid)','execute');
+  assert has_function_privilege('authenticated','public.host_next_tiebreaker(uuid)','execute');
+  assert has_function_privilege('authenticated','public.host_reveal_tiebreaker_final(uuid)','execute');
   assert not has_function_privilege('authenticated','public.tiebreaker_round_outcome(uuid,integer)','execute');
 
   quiz:=public.host_save_quiz(pg_temp.tiebreaker_quiz());
