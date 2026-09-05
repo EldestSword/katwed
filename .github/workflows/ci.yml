@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  validate:
+  checks:
+    name: Lint, types, unit tests and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -21,15 +26,50 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      - run: npm run test -- --maxWorkers=2
       - run: npm run build
+
+  browser:
+    name: Browser tests (${{ matrix.project }})
+    needs: checks
+    runs-on: ubuntu-latest
+    # The RC report measured 24.2 minutes for both projects serially.
+    # Each isolated project gets its own bounded budget, including installation.
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        project: [chromium, mobile-chromium]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e -- --project=chromium
+      - run: npm run test:e2e -- --project=${{ matrix.project }} --workers=1 --retries=0
       - name: Upload Playwright diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-diagnostics
+          name: playwright-diagnostics-${{ matrix.project }}
           path: test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  # Preserve the original required check name, but require every suite to pass.
+  validate:
+    needs: [checks, browser]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all validation jobs to succeed
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          test "$CHECKS_RESULT" = "success"
+          test "$BROWSER_RESULT" = "success"
