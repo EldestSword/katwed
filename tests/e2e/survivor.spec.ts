@@ -1,3 +1,4 @@
+import { waitForDemoLobby } from './demoState'
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { progressiveQuestion } from '../../src/test/progressiveFixtures'
 import { wagerQuiz } from '../../src/test/wagerFixtures'
@@ -31,7 +32,7 @@ async function setup(page: Page, title: string, startingLives: 1 | 3) {
   await page.getByRole('button', { name: `${startingLives} ${startingLives === 1 ? 'life' : 'lives'}` }).click()
   await page.getByRole('button', { name: /None/ }).click()
   await page.getByRole('button', { name: 'Start lobby', exact: true }).click()
-  return { quiz, code: (await currentSession(page)).roomCode }
+  return { quiz, code: (await waitForDemoLobby(page)).roomCode }
 }
 
 async function join(context: BrowserContext, code: string, nickname: string) {

@@ -8,15 +8,20 @@ import type { GameSession, PowerUpUse, Quiz } from '../../src/types/domain'
 interface Session extends GameSession {
   powerUpUses: Array<PowerUpUse & { playerId: string }>
   tieBreakerQuestion: { answer: string }
+  tieBreakerAnswers: Array<{ playerId: string; value: string }>
+  tieBreakerWinnerPlayerId: string | null
 }
 const state = (page: Page): Promise<Session> => page.evaluate(() =>
   (JSON.parse(localStorage.getItem('katwed.demo.state.v2')!) as { sessions: Session[] }).sessions[0])
-const identities = new WeakMap<Page, { key: string; value: string }>()
+const identities = new WeakMap<Page, { key: string; value: string; nickname: string }>()
 async function reloadPlayer(phone: Page) {
   // Demo tabs share localStorage, unlike separate real player devices. Restore
   // this test player's saved token before exercising the real reconnect path.
   await phone.evaluate(({ key, value }) => localStorage.setItem(key, value), identities.get(phone)!)
   await phone.reload()
+  // Navigation can finish before React has read this shared-storage identity.
+  // Let this phone restore itself before another phone replaces the same key.
+  await expect(phone.locator('.game-bar').getByText(identities.get(phone)!.nickname, { exact: true })).toBeVisible()
 }
 async function setup(page: Page, quiz: Quiz, survivor = false) {
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -49,7 +54,7 @@ async function join(context: BrowserContext, room: string, name: string) {
   await phone.getByLabel('Nickname').fill(name)
   await phone.getByRole('button', { name: 'Join game', exact: true }).click()
   await expect(phone.getByRole('heading', { name: `You’re in, ${name}!` })).toBeVisible()
-  identities.set(phone, { key: `katwed.player.${room}`, value: (await phone.evaluate(room => localStorage.getItem(`katwed.player.${room}`), room))! })
+  identities.set(phone, { key: `katwed.player.${room}`, value: (await phone.evaluate(room => localStorage.getItem(`katwed.player.${room}`), room))!, nickname: name })
   return phone
 }
 async function fit(page: Page) {
@@ -178,10 +183,17 @@ test('RC G/J: Survivor Typed correction restores a player, then a wipeout tie ha
   const target = (await state(page)).tieBreakerQuestion.answer
   await carol.getByLabel(/Your estimate/).fill(target)
   await carol.getByRole('button', { name: 'Lock in', exact: true }).click()
+  const carolId = (await state(page)).players.find(player => player.nickname === 'Carol')!.id
+  // Reloading can cancel a queued Web Lock before the Demo submission commits.
+  await expect.poll(async () => (await state(page)).tieBreakerAnswers.find(answer => answer.playerId === carolId)?.value).toBe(target)
   await reloadPlayer(carol); await reloadPlayer(jaki)
-  await expect(carol.getByLabel(/Your estimate/)).toHaveCount(0)
+  await expect(carol.getByRole('heading', { name: 'Answer locked', exact: true })).toBeVisible()
   await roger.getByLabel(/Your estimate/).fill(String(Number(target) + 10))
   await roger.getByRole('button', { name: 'Lock in', exact: true }).click()
+  await expect.poll(async () => {
+    const session = await state(page)
+    return { phase: session.phase, answers: session.tieBreakerAnswers.length, winner: session.tieBreakerWinnerPlayerId }
+  }).toEqual({ phase: 'tiebreaker-result', answers: 2, winner: carolId })
   await expect(present.getByRole('heading', { name: 'Carol wins the tie-breaker' })).toBeVisible()
   expect((await state(page)).players.map(p => [p.survivorLivesRemaining, p.totalScore, p.correctAnswerCount, p.totalCorrectResponseMs])).toEqual(finalMetrics)
   await page.getByRole('button', { name: 'Reveal final results', exact: true }).click()

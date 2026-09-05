@@ -58,13 +58,15 @@ for(const teams of [false,true])test(`${teams?'Team':'Individual'} streaks, miss
     }
     if(n===4){
       await page.getByRole('button',{name:'Mark correct',exact:true}).click()
+      await expect.poll(async () => (await session(page)).players[0].currentCorrectStreak).toBe(4)
       // Existing safe-state refresh after a late correction, no new refresh mechanism.
       await phone.reload();await expect(phone.locator('.player-streak')).toContainText('4 correct in a row')
       expect((await session(page)).players[0].currentCorrectStreak).toBe(4)
       await page.getByRole('button',{name:'Undo override',exact:true}).click()
+      await expect.poll(async () => (await session(page)).players[0].currentCorrectStreak).toBe(0)
       await phone.reload();await expect(phone.locator('.player-streak')).toHaveCount(0)
       await page.getByRole('button',{name:'Mark correct',exact:true}).click()
-      expect((await session(page)).players[0].currentCorrectStreak).toBe(4)
+      await expect.poll(async () => (await session(page)).players[0].currentCorrectStreak).toBe(4)
     }
     if(n===2){
       await page.getByRole('button',{name:/Next round/}).click();await expect(phone.getByRole('heading',{name:'Round Two',exact:true})).toBeVisible()

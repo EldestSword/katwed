@@ -1,3 +1,4 @@
+import { waitForDemoLobby } from './demoState'
 import { expect, test, type Page } from '@playwright/test'
 import { wagerQuiz, allWagerQuestions } from '../../src/test/wagerFixtures'
 import { progressiveQuestion } from '../../src/test/progressiveFixtures'
@@ -25,7 +26,7 @@ async function launch(page: Page, teams=false) {
   }
   await page.getByRole('button',{name:/None/}).click()
   await page.getByRole('button',{name:'Start lobby',exact:true}).click()
-  return (await currentSession(page)).roomCode
+  return (await waitForDemoLobby(page)).roomCode
 }
 async function join(page: Page, code: string, name: string) {
   await page.goto('/'); await page.evaluate(code=>localStorage.removeItem(`katwed.player.${code}`),code)
