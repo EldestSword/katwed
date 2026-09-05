@@ -16,6 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const authPending = protectedHostRoute && (loading || !user)
   const shellClasses = [
     'app-shell',
+    location.pathname === '/' && 'app-shell--landing',
     hostArea && 'app-shell--host',
     activeGame && 'app-shell--game',
     authPending && 'app-shell--auth-pending',
