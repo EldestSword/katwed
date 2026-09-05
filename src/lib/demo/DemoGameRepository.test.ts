@@ -377,14 +377,15 @@ describe('DemoGameRepository multi-format game state', () => {
     await repository.changePhase(session.id, 'restart')
     const restarted = (await repository.getHostSession(session.id))!.session
     expect(restarted.questionOrder).toEqual(session.questionOrder)
-    expect(restarted.settings).toEqual(session.settings)
+    expect(restarted.settings.powerUpRunId).not.toBe(session.settings.powerUpRunId)
+    expect(restarted.settings).toEqual({ ...session.settings, powerUpRunId: restarted.settings.powerUpRunId })
 
     const resumed = await repository.launchGame(quizBefore.id, {
       soundPackId: 'katwed', shuffleQuestionOrder: false,
       shuffleAnswerOptions: false, autoLockWhenAllAnswered: true, showPlayerAnswersToHost: true,
     })
     expect(resumed.id).toBe(session.id)
-    expect(resumed.settings).toEqual(session.settings)
+    expect(resumed.settings).toEqual(restarted.settings)
   })
 
   it('returns named current-question response status without raw payloads when host detail is disabled', async () => {

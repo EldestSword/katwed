@@ -276,7 +276,7 @@ function uid(prefix: string): string {
 }
 
 function freshState(): DemoState {
-  return { quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {}, headToHeadSkips: [] }
+  return normaliseState({ quizzes: clone(sampleQuizzes), sessions: [], reconnectTokens: {}, headToHeadSkips: [] })
 }
 
 function normaliseState(state: DemoState): DemoState {
