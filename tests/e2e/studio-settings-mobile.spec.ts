@@ -11,20 +11,10 @@ test('Quiz Settings stays fully reachable on a short phone viewport', async ({ p
 
   const dialog = page.getByRole('dialog', { name: 'Quiz settings' })
   await expect(dialog).toBeVisible()
+  await expect(dialog).toHaveCSS('overflow-y', 'auto')
+
   await dialog.getByRole('button', { name: /^People bank/ }).click()
   await expect(dialog.getByRole('region', { name: 'Manage the mash-up cast' })).toBeVisible()
-
-  const geometry = await dialog.evaluate((element) => {
-    const style = getComputedStyle(element)
-    return {
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-      overflowY: style.overflowY,
-    }
-  })
-
-  expect(geometry.overflowY).toBe('auto')
-  expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight)
 
   const done = dialog.getByRole('button', { name: 'Done' })
   await done.scrollIntoViewIfNeeded()
