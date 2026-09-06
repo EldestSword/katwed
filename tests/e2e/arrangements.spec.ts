@@ -5,6 +5,10 @@ import { arrangementQuiz } from '../../src/test/arrangementFixtures'
 async function noOverflow(page: Page) {
   expect(await page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
 }
+async function editorSection(page: Page, name: string) {
+  const group = page.locator('.question-settings-group').filter({ has: page.locator('summary', { hasText: name }) }).first()
+  if (await group.getAttribute('open') === null) await group.locator('summary').click()
+}
 async function author(page: Page) {
   await page.goto('/')
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
@@ -16,28 +20,32 @@ async function author(page: Page) {
   await page.getByRole('dialog').getByRole('button', { name: /Ordering/ }).click()
   await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Put the words in alphabetical order')
   await page.getByLabel('Timer', { exact: true }).fill('120')
+  await editorSection(page, 'Answers')
   for (const [index, label] of ['Alpha', 'Bravo', 'Charlie'].entries()) await page.getByLabel(`Item ${index + 1}`, { exact: true }).fill(label)
-  await page.getByText('Scoring', { exact: true }).click()
+  await editorSection(page, 'Scoring')
   await page.getByLabel('Faster answers score more').uncheck()
   await page.getByRole('button', { name: 'Add round', exact: true }).click()
   await page.getByRole('button', { name: 'Add question to Round 2', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: /Matching/ }).click()
   await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Match each film to its director')
   await page.getByLabel('Timer', { exact: true }).fill('120')
+  await editorSection(page, 'Answers')
   for (const [index, [left, right]] of [['Jaws', 'Spielberg'], ['Alien', 'Scott'], ['Barbie', 'Gerwig']].entries()) {
     await page.getByLabel(`Left ${index + 1}`, { exact: true }).fill(left)
     await page.getByLabel(`Right ${index + 1}`, { exact: true }).fill(right)
   }
   await expect(page.getByLabel('Matching scoring')).toHaveValue('partial')
-  if (!await page.getByLabel('Faster answers score more').isVisible()) await page.getByText('Scoring', { exact: true }).click()
+  await editorSection(page, 'Scoring')
   await page.getByLabel('Faster answers score more').uncheck()
   await page.getByRole('button', { name: 'Save quiz', exact: true }).first().click()
   await expect(page.getByText('Quiz saved.', { exact: true })).toBeVisible()
   await page.reload()
   await page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Match each film' }).click()
+  await editorSection(page, 'Answers')
   await expect(page.getByLabel('Left 1', { exact: true })).toHaveValue('Jaws')
   await expect(page.getByLabel('Matching scoring')).toHaveValue('partial')
   await page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Put the words' }).click()
+  await editorSection(page, 'Answers')
   await expect(page.getByLabel('Item 1', { exact: true })).toHaveValue('Alpha')
   await page.getByRole('link', { name: '← Quizzes', exact: true }).click()
 }
