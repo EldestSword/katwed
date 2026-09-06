@@ -343,7 +343,6 @@ export function QuizEditorPage() {
             </div></details>
             {validation && !validation.valid && <ul className="validation-list">{validation.messages.map((item) => <li key={item}>{item}</li>)}</ul>}
           </>}
-          <PeopleBank quiz={quiz} update={update} />
         </aside>
       </div>
       {quizSettingsOpen && <QuizSettingsDialog quiz={quiz} update={update} close={closeQuizSettings} changeQuizType={changeQuizType} coverUploading={coverUploading} uploadCover={uploadCover} />}
@@ -386,7 +385,7 @@ function QuizSettingsDialog({
   uploadCover(file: File | undefined): Promise<void>
 }) {
   const dialog = useRef<HTMLDivElement>(null)
-  const [section, setSection] = useState<'game' | 'appearance' | 'colours'>('game')
+  const [section, setSection] = useState<'themes' | 'backgrounds' | 'colours' | 'cover' | 'game' | 'people'>('themes')
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -430,32 +429,43 @@ function QuizSettingsDialog({
         <p className="quiz-settings-dialog__intro">Configure the whole quiz. Changes remain in this draft until you save.</p>
         <div className="quiz-settings-layout">
           <nav className="quiz-settings-nav" aria-label="Quiz settings sections">
-            <button type="button" aria-current={section === 'game' ? 'page' : undefined} onClick={() => setSection('game')}><strong>Game</strong><span>Mode and competitors</span></button>
-            <button type="button" aria-current={section === 'appearance' ? 'page' : undefined} onClick={() => setSection('appearance')}><strong>Appearance</strong><span>Theme, background and cover</span></button>
+            <button type="button" aria-current={section === 'themes' ? 'page' : undefined} onClick={() => setSection('themes')}><strong>Themes</strong><span>Browse the full visual catalogue</span></button>
+            <button type="button" aria-current={section === 'backgrounds' ? 'page' : undefined} onClick={() => setSection('backgrounds')}><strong>Backgrounds</strong><span>Stage image for the chosen theme</span></button>
             <button type="button" aria-current={section === 'colours' ? 'page' : undefined} onClick={() => setSection('colours')}><strong>Answer colours</strong><span>Palette and custom colours</span></button>
+            <button type="button" aria-current={section === 'cover' ? 'page' : undefined} onClick={() => setSection('cover')}><strong>Cover</strong><span>Library artwork</span></button>
+            <button type="button" aria-current={section === 'game' ? 'page' : undefined} onClick={() => setSection('game')}><strong>Game</strong><span>Mode and competitors</span></button>
+            <button type="button" aria-current={section === 'people' ? 'page' : undefined} onClick={() => setSection('people')}><strong>People bank</strong><span>Mash-up roster</span></button>
           </nav>
           <div className="quiz-settings-content">
+        {section === 'themes' && <section className="quiz-settings-section quiz-settings-section--themes" aria-labelledby="settings-themes-heading">
+          <header><p className="eyebrow">Themes</p><h2 id="settings-themes-heading">Choose the room's visual identity</h2><p>Search all Katwed themes by mood, colour or style. Your current background is kept when it belongs to the new theme; otherwise it safely resets to Theme default.</p></header>
+          <div><QuizThemePicker themeId={quiz.themeId} select={(themeId) => update((current) => ({
+            ...current,
+            themeId,
+            backgroundId: normaliseQuizBackgroundId(current.backgroundId, themeId),
+          }))} /></div>
+        </section>}
+        {section === 'backgrounds' && <section className="quiz-settings-section" aria-labelledby="settings-backgrounds-heading">
+          <header><p className="eyebrow">Backgrounds</p><h2 id="settings-backgrounds-heading">Set the stage</h2><p>These backgrounds belong to {quizThemes.find((theme) => theme.id === quiz.themeId)?.name ?? 'the selected theme'}.</p></header>
+          <div><QuizBackgroundPicker themeId={quiz.themeId} backgroundId={quiz.backgroundId} select={(backgroundId) => update((current) => ({ ...current, backgroundId }))} /></div>
+        </section>}
+        {section === 'colours' && <section className="quiz-settings-section" aria-labelledby="settings-colours-heading">
+          <header><p className="eyebrow">Answer colours</p><h2 id="settings-colours-heading">Choose the contestant palette</h2></header>
+          <div><AnswerPalettePicker quiz={quiz} update={update} /></div>
+        </section>}
+        {section === 'cover' && <section className="quiz-settings-section" aria-labelledby="settings-cover-heading">
+          <header><p className="eyebrow">Cover</p><h2 id="settings-cover-heading">Dress the library card</h2><p>The cover is backstage artwork for your quiz library. It does not replace question media.</p></header>
+          <div><QuizCover coverImagePath={quiz.coverImagePath} uploading={coverUploading} upload={uploadCover} remove={() => update((current) => ({ ...current, coverImagePath: null }))} /></div>
+        </section>}
         {section === 'game' && <section className="quiz-settings-section" aria-labelledby="settings-game-heading">
           <header><p className="eyebrow">Game</p><h2 id="settings-game-heading">Choose how this quiz plays</h2></header>
           <div><QuizTypePicker quizType={quiz.quizType} select={changeQuizType} hasConnections={quiz.questions.some(question => question.type === 'connections')} hasProgressive={quiz.questions.some(question => question.progressiveRevealEnabled)} hasWager={quiz.questions.some(question => question.wagerEnabled)} hasBuzz={quiz.questions.some(question => question.buzzInEnabled)} />
             {quiz.quizType === 'head-to-head' && <HeadToHeadSetup quiz={quiz} update={update} />}
           </div>
         </section>}
-        {section === 'appearance' && <section className="quiz-settings-section" aria-labelledby="settings-appearance-heading">
-          <header><p className="eyebrow">Appearance</p><h2 id="settings-appearance-heading">Define the quiz identity</h2></header>
-          <div>
-            <QuizThemePicker themeId={quiz.themeId} select={(themeId) => update((current) => ({
-              ...current,
-              themeId,
-              backgroundId: normaliseQuizBackgroundId(current.backgroundId, themeId),
-            }))} />
-            <QuizBackgroundPicker themeId={quiz.themeId} backgroundId={quiz.backgroundId} select={(backgroundId) => update((current) => ({ ...current, backgroundId }))} />
-            <QuizCover coverImagePath={quiz.coverImagePath} uploading={coverUploading} upload={uploadCover} remove={() => update((current) => ({ ...current, coverImagePath: null }))} />
-          </div>
-        </section>}
-        {section === 'colours' && <section className="quiz-settings-section" aria-labelledby="settings-colours-heading">
-          <header><p className="eyebrow">Answer colours</p><h2 id="settings-colours-heading">Choose the contestant palette</h2></header>
-          <div><AnswerPalettePicker quiz={quiz} update={update} /></div>
+        {section === 'people' && <section className="quiz-settings-section" aria-labelledby="settings-people-heading">
+          <header><p className="eyebrow">People bank</p><h2 id="settings-people-heading">Manage the mash-up cast</h2><p>Keep the reusable people roster here instead of burying it underneath individual question controls.</p></header>
+          <div><PeopleBank quiz={quiz} update={update} /></div>
         </section>}
           </div>
         </div>
@@ -815,8 +825,12 @@ function TypeSettings({ question, roster, update }: { question: Question; roster
 }
 
 function PeopleBank({ quiz, update }: { quiz: Quiz; update(updater: (quiz: Quiz) => Quiz): void }) {
-  return <details className="people-bank"><summary>People bank ({quiz.roster.length})</summary>{quiz.roster.map((member) => <div className="option-editor" key={member.id}><input value={member.displayName} aria-label="Person name" onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, displayName: event.target.value } : candidate) }))} /><label><input type="checkbox" checked={member.active} onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, active: event.target.checked } : candidate) }))} /> Active</label></div>)}<button type="button" className="button button--secondary" onClick={() => {
-    const member: RosterMember = { id: crypto.randomUUID(), quizId: quiz.id, displayName: `Person ${quiz.roster.length + 1}`, shortName: '', active: true, displayOrder: quiz.roster.length }
-    update((current) => ({ ...current, roster: [...current.roster, member] }))
-  }}>Add person</button></details>
+  return <section className="people-bank people-bank--settings" aria-labelledby="people-bank-list-heading">
+    <div className="people-bank__heading"><div><h3 id="people-bank-list-heading">People bank</h3><p>{quiz.roster.length ? `${quiz.roster.length} ${quiz.roster.length === 1 ? 'person' : 'people'} available to Mash-up questions.` : 'Add people once and reuse them across Mash-up questions.'}</p></div><span>{quiz.roster.filter((member) => member.active).length} active</span></div>
+    <div className="people-bank__list">{quiz.roster.map((member, index) => <div className="option-editor people-bank__row" key={member.id}><span className="people-bank__index">{index + 1}</span><input value={member.displayName} aria-label="Person name" onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, displayName: event.target.value } : candidate) }))} /><label><input type="checkbox" checked={member.active} onChange={(event) => update((current) => ({ ...current, roster: current.roster.map((candidate) => candidate.id === member.id ? { ...candidate, active: event.target.checked } : candidate) }))} /> Active</label></div>)}</div>
+    <button type="button" className="button button--secondary" onClick={() => {
+      const member: RosterMember = { id: crypto.randomUUID(), quizId: quiz.id, displayName: `Person ${quiz.roster.length + 1}`, shortName: '', active: true, displayOrder: quiz.roster.length }
+      update((current) => ({ ...current, roster: [...current.roster, member] }))
+    }}>Add person</button>
+  </section>
 }

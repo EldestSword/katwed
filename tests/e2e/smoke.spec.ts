@@ -58,21 +58,25 @@ async function enterHost(page: Page) {
   await expect(page.getByRole('heading', { name: 'Quizzes', exact: true })).toBeVisible()
 }
 
-type QuizSettingsSection = 'Game' | 'Appearance' | 'Answer colours' | 'Audio'
+type QuizSettingsSection = 'Themes' | 'Backgrounds' | 'Answer colours' | 'Cover' | 'Game' | 'People bank'
 
-async function openQuizSettings(page: Page, section: QuizSettingsSection = 'Game') {
+async function openQuizSettings(page: Page, section: QuizSettingsSection = 'Themes') {
   await page.getByRole('button', { name: 'Quiz settings' }).click()
   const dialog = page.getByRole('dialog', { name: 'Quiz settings' })
   await expect(dialog).toBeVisible()
-  if (section !== 'Game') {
-    await dialog.getByRole('button', { name: new RegExp(`^${section}`) }).click()
-    const regionName = section === 'Appearance'
-      ? 'Define the quiz identity'
+  if (section !== 'Themes') await dialog.getByRole('button', { name: new RegExp(`^${section}`) }).click()
+  const regionName = section === 'Themes'
+    ? "Choose the room's visual identity"
+    : section === 'Backgrounds'
+      ? 'Set the stage'
       : section === 'Answer colours'
         ? 'Choose the contestant palette'
-        : 'Choose the game-show sound'
-    await expect(dialog.getByRole('region', { name: regionName })).toBeVisible()
-  }
+        : section === 'Cover'
+          ? 'Dress the library card'
+          : section === 'Game'
+            ? 'Choose how this quiz plays'
+            : 'Manage the mash-up cast'
+  await expect(dialog.getByRole('region', { name: regionName })).toBeVisible()
   return dialog
 }
 
@@ -770,7 +774,7 @@ test('the imported theme catalogue persists a Batch 3 theme through duplication 
   expect(mobileQuestionListGeometry.scrollWidth).toBeLessThanOrEqual(mobileQuestionListGeometry.clientWidth)
   await promptInput.fill(originalPrompt)
   if (desktopEditorViewport) await page.setViewportSize(desktopEditorViewport)
-  let settings = await openQuizSettings(page, 'Appearance')
+  let settings = await openQuizSettings(page, 'Themes')
   const themePicker = settings.getByRole('group', { name: 'Quiz theme' })
   let backgroundPicker = settings.getByRole('group', { name: 'Quiz background' })
   await expect(themePicker.locator('.quiz-theme-option')).toHaveCount(51)
@@ -849,7 +853,7 @@ test('the imported theme catalogue persists a Batch 3 theme through duplication 
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
   await page.reload()
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   await expect(settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Glass/ }))
     .toHaveAttribute('aria-pressed', 'true')
   await expect(settings.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Frost/ }))
@@ -859,7 +863,7 @@ test('the imported theme catalogue persists a Batch 3 theme through duplication 
   await page.goto('/host')
   await clickQuizCardAction(page.getByRole('article', { name: 'The Curious Crew' }), 'Duplicate')
   await expect(page.getByLabel('Quiz title')).toHaveValue('The Curious Crew (Copy)')
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   await expect(settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Glass/ }))
     .toHaveAttribute('aria-pressed', 'true')
   await expect(settings.getByRole('group', { name: 'Quiz background' }).getByRole('button', { name: /Frost/ }))
@@ -905,7 +909,7 @@ test('the imported theme catalogue persists a Batch 3 theme through duplication 
 
   await page.goto('/host')
   await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('link', { name: 'Edit' }).click()
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   await settings.getByRole('group', { name: 'Quiz theme' }).getByRole('button', { name: /Paper/ }).click()
   const paperBackgrounds = settings.getByRole('group', { name: 'Quiz background' })
   await paperBackgrounds.getByRole('button', { name: /Collage/ }).click()
@@ -932,7 +936,7 @@ test('quiz covers persist across the library lifecycle and remain independent af
   await page.getByRole('button', { name: '+ Create quiz' }).click()
   await page.getByLabel('Quiz title').fill('Cover lifecycle quiz')
 
-  let settings = await openQuizSettings(page, 'Appearance')
+  let settings = await openQuizSettings(page, 'Themes')
   let coverSection = settings.getByRole('region', { name: 'Quiz cover' })
   await expect(coverSection.getByText('No cover selected')).toBeVisible()
   await coverSection.getByLabel('Choose cover').setInputFiles({
@@ -957,14 +961,14 @@ test('quiz covers persist across the library lifecycle and remain independent af
   await expect(card('Cover lifecycle quiz').locator('.quiz-card__cover')).toBeVisible()
 
   await card('Cover lifecycle quiz').getByRole('link', { name: 'Edit' }).click()
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   await expect(settings.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
   await settings.getByRole('button', { name: 'Done' }).click()
   await page.goto('/host')
   await clickQuizCardAction(card('Cover lifecycle quiz'), 'Duplicate')
 
   await expect(page.getByLabel('Quiz title')).toHaveValue('Cover lifecycle quiz (Copy)')
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   coverSection = settings.getByRole('region', { name: 'Quiz cover' })
   await expect(coverSection.locator('img')).toBeVisible()
   await coverSection.getByRole('button', { name: 'Remove cover' }).click()
@@ -998,7 +1002,7 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await enterHost(page)
   await page.getByRole('button', { name: '+ Create quiz' }).click()
   await page.getByLabel('Quiz title').fill('Storage lifecycle quiz')
-  let settings = await openQuizSettings(page, 'Appearance')
+  let settings = await openQuizSettings(page, 'Themes')
   let cover = settings.getByRole('region', { name: 'Quiz cover' })
   await cover.getByLabel('Choose cover').setInputFiles({ ...image, name: 'cover-a.png' })
   await expect(cover.locator('img')).toBeVisible()
@@ -1006,7 +1010,7 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await page.getByRole('button', { name: 'Save quiz' }).first().click()
   await expect(page.getByText('Quiz saved.')).toBeVisible()
 
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   cover = settings.getByRole('region', { name: 'Quiz cover' })
   await cover.getByLabel('Replace cover').setInputFiles({ ...image, name: 'cover-b.png' })
   await settings.getByRole('button', { name: 'Done' }).click()
@@ -1044,7 +1048,7 @@ test('Storage Manager reviews and cleans a replaced Demo cover without removing 
   await page.getByRole('link', { name: 'Back to quizzes' }).click()
   await expect(quizCard.locator('.quiz-card__cover')).toBeVisible()
   await quizCard.getByRole('link', { name: 'Edit' }).click()
-  settings = await openQuizSettings(page, 'Appearance')
+  settings = await openQuizSettings(page, 'Themes')
   await expect(settings.getByRole('region', { name: 'Quiz cover' }).locator('img')).toBeVisible()
   await settings.getByRole('button', { name: 'Done' }).click()
 })
