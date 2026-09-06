@@ -164,8 +164,8 @@ export function HostResponseMonitor({
         })}
       </ul>
       {reviewOpen && createPortal(
-        <div className="typed-review-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReview() }}>
-          <section className="typed-review-dialog" role="dialog" aria-modal="true" aria-labelledby="typed-review-title">
+        <div className="typed-review-overlay" role="presentation">
+          <section className="typed-review-dialog" role="dialog" aria-modal="false" aria-labelledby="typed-review-title">
             <header>
               <div>
                 <p className="eyebrow">Typed Answer review</p>
