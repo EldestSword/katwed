@@ -22,6 +22,7 @@ import './styles/progressive-reveal.css'
 import './styles/buzz.css'
 import './styles/survivor.css'
 import './styles/tiebreakers.css'
+import './styles/premium-studio.css'
 
 const router = createBrowserRouter([
   {
