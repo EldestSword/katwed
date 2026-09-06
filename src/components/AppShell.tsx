@@ -28,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!activeGame && !authPending && (
         <header className={hostArea ? 'host-shell-header' : 'site-header'}>
           <Link to={hostArea ? '/host' : '/'} className="brand-link"><Logo /></Link>
+          {!hostArea && location.pathname === '/' && <h2 className="site-header__descriptor">Live team quiz &amp; games platform</h2>}
           <nav aria-label={hostArea ? 'Host navigation' : 'Main navigation'}>
             {hostArea ? <>
               <Link to="/host" aria-current={location.pathname === '/host' ? 'page' : undefined}>Quizzes</Link>
