@@ -1,5 +1,7 @@
 # Core Power-Ups
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904223001_core_power_ups.sql` is applied to production and Power-Ups are part of the merged Phase 2 frontend. Portable v12 remains current. The remainder of this file preserves the original Power-Ups engineering/verification record; its local-only verification wording describes the development pass before release. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Power-Ups are an optional Standard session feature, defaulting to **off**. Each player receives one Double Up, one 50/50 and one Fast Five for the entire run, with at most one use per question. There is no sabotage, gifting, refund or replenishment between rounds. Restart clears uses and changes the session's public run identity. Quizzes and portable v1–v12 schemas are unchanged; export remains v12.
 
 ## Rules and scoring
