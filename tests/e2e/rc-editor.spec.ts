@@ -4,7 +4,7 @@ import type { Quiz } from '../../src/types/domain'
 
 async function section(page: Page, name: string) {
   const panel = page.locator('.question-settings-group').filter({ has: page.locator('summary', { hasText: name }) })
-  if (await panel.getAttribute('open') === null) await panel.locator('summary').click()
+  if (await panel.getAttribute('open') === null) await panel.locator(':scope > summary').click()
 }
 
 test('RC editor creates and edits all ten formats, preserves shaped image previews and saves round moves', async ({ page, isMobile }, info) => {
