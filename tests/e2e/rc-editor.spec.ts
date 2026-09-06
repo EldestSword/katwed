@@ -29,6 +29,7 @@ test('RC editor creates and edits all ten formats, preserves shaped image previe
     await page.getByRole('dialog', { name: 'Add question' }).getByRole('button', { name: new RegExp(name) }).click()
     await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill(`RC ${name}`)
     await page.getByLabel('Supporting text', { exact: true }).fill(`Edited ${name}`)
+    await section(page, 'Answers')
     if (name === 'Single choice' || name === 'Multiple select') {
       await page.getByLabel('Mark Option 1 correct', { exact: true }).check()
       if (name === 'Multiple select') await page.getByLabel('Mark Option 2 correct', { exact: true }).check()
@@ -62,6 +63,7 @@ test('RC editor creates and edits all ten formats, preserves shaped image previe
         expect(image.y + image.height).toBeLessThanOrEqual(frame.y + frame.height)
       }
       if (name === 'Pinpoint') {
+        await section(page, 'Answers')
         const target = page.locator('.pinpoint-editor')
         await target.getByRole('button', { name: 'Freehand', exact: true }).click()
         await target.getByText(/Advanced settings/).click()
@@ -69,16 +71,21 @@ test('RC editor creates and edits all ten formats, preserves shaped image previe
         await expect(target.getByTestId('pinpoint-correct-target')).toHaveAttribute('data-shape', 'polygon')
       }
       if (name === 'Mash-up') {
+        await section(page, 'Answers')
         await page.getByRole('combobox', { name: 'Person 1', exact: true }).selectOption({ label: 'Alex' })
         await page.getByRole('combobox', { name: 'Person 2', exact: true }).selectOption({ label: 'Bailey' })
       }
       if (name === 'Single choice') {
+        await section(page, 'Media & presentation')
         await page.getByRole('combobox', { name: 'Reveal effect', exact: true }).selectOption('blur')
         await page.getByLabel('Reveal duration', { exact: true }).fill('20')
         await section(page, 'Scoring')
         await page.getByLabel('First player to buzz gets the answer').check()
+        await section(page, 'Media & presentation')
         await page.getByLabel('Score falls as the image becomes clearer').check()
+        await section(page, 'Scoring')
         await expect(page.getByLabel('First player to buzz gets the answer')).toHaveCount(0)
+        await section(page, 'Media & presentation')
         await expect(page.getByLabel('Score falls as the image becomes clearer')).toBeChecked()
       }
     }
@@ -88,6 +95,7 @@ test('RC editor creates and edits all ten formats, preserves shaped image previe
   await page.getByRole('button', { name: 'Move question 9 up', exact: true }).click()
   await page.getByRole('button', { name: 'Move question 8 down', exact: true }).click()
   await page.getByRole('button', { name: 'Add round', exact: true }).click()
+  await section(page, 'Question')
   await page.getByRole('combobox', { name: 'Round', exact: true }).selectOption({ label: 'Round 2' })
   await page.getByRole('button', { name: 'Duplicate', exact: true }).click()
   await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill('RC duplicate to delete')
@@ -103,6 +111,7 @@ test('RC editor creates and edits all ten formats, preserves shaped image previe
   expect(saved.questions.find(q => q.type === 'mashup')?.roundId).toBe(saved.rounds[1].id)
   for (const name of types) {
     await page.locator('.question-navigator').getByRole('button').filter({ hasText: `RC ${name}` }).click()
+    await section(page, 'Question')
     await expect(page.getByRole('textbox', { name: 'Supporting text', exact: true })).toHaveValue(`Edited ${name}`)
   }
   expect(saved.questions[0].progressiveRevealEnabled).toBe(true)
