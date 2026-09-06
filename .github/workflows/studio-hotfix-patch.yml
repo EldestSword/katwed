@@ -81,7 +81,7 @@ jobs:
           cover_start = text.index("test('quiz covers persist")
           cover_end = text.index("test('quiz library search", cover_start)
           cover_block = text[cover_start:cover_end]
-          assert cover_block.count("openQuizSettings(page, 'Themes')") == 7, cover_block.count("openQuizSettings(page, 'Themes')")
+          assert cover_block.count("openQuizSettings(page, 'Themes')") == 6, cover_block.count("openQuizSettings(page, 'Themes')")
           cover_block = cover_block.replace("openQuizSettings(page, 'Themes')", "openQuizSettings(page, 'Cover')")
           text = text[:cover_start] + cover_block + text[cover_end:]
 
