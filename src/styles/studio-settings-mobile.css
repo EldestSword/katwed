@@ -1,8 +1,9 @@
 /* Mobile safety net for the six-section Quiz Settings dialog.
-   On short phone viewports the entire dialog scrolls as one surface so the
-   final settings controls and Done action can always be reached. */
+   QuizSettingsDialog is portalled into document.body, so these selectors
+   deliberately target the dialog classes directly rather than relying on
+   the host shell being an ancestor. */
 @media (max-width: 760px) {
-  .app-shell--host .quiz-settings-dialog {
+  .quiz-settings-dialog {
     max-height: 94dvh;
     overflow-x: hidden;
     overflow-y: auto;
@@ -10,18 +11,18 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  .app-shell--host .quiz-settings-layout {
+  .quiz-settings-layout {
     min-height: 0;
     overflow: visible;
   }
 
-  .app-shell--host .quiz-settings-content {
+  .quiz-settings-content {
     min-height: 0;
     max-height: none;
     overflow: visible;
   }
 
-  .app-shell--host .quiz-settings-dialog > footer {
+  .quiz-settings-dialog > footer {
     position: sticky;
     bottom: 0;
     z-index: 2;
