@@ -31,7 +31,13 @@
 }
 
 @media (max-width: 760px) {
-  .site-header__descriptor { display: none; }
+  .site-header__descriptor {
+    margin-left: .45rem;
+    max-width: 7rem;
+    font-size: .55rem;
+    letter-spacing: .045em;
+    line-height: 1.2;
+  }
   .app-shell--host .editor-preview {
     display: block;
     padding: 1rem;
