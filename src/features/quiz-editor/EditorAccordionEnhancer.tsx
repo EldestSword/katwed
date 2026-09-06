@@ -14,15 +14,19 @@ export function EditorAccordionEnhancer() {
     if (!editorRoute) return
 
     let initialised = false
+    let activeQuestionLabel = ''
     const initialise = () => {
       const groups = [...document.querySelectorAll<HTMLDetailsElement>('.question-settings-group')]
-      if (!groups.length || initialised) return
+      if (!groups.length) return
+      const nextQuestionLabel = document.querySelector('.question-settings__heading h2')?.textContent?.trim() ?? ''
+      if (initialised && nextQuestionLabel === activeQuestionLabel) return
       initialised = true
+      activeQuestionLabel = nextQuestionLabel
       groups.forEach((group, index) => { group.open = index === 0 })
     }
     const frame = window.requestAnimationFrame(initialise)
     const observer = new MutationObserver(initialise)
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
 
     const onToggle = (event: Event) => {
       const current = event.target
