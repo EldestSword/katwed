@@ -1,5 +1,7 @@
 # Buzz-In — Phase 2 Pass 8
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904181607_core_buzz_in.sql` is applied to production and Buzz-In is part of the merged Phase 2 frontend. Portable v12 remains current. The remainder of this file preserves the original Pass 8 engineering/verification record. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 `buzzInEnabled` is an optional browser-domain boolean with a false default and an explicit value in saved and portable v12 questions. It applies only to Standard Single Choice, Multiple Select, True/False, Slider, Pinpoint, Mash-up, Typed Answer, Ordering and Matching. Connections, Progressive Reveal and Head-to-Head are rejected in editor choices, validation, portable import, database save and launch. Teams, Rounds, Wager, Speed Scoring and Double Score remain valid.
 
 ## One atomic winner
