@@ -1,5 +1,7 @@
 # Core Rounds
 
+> **Current production status (6 September 2026): shipped.** Migration `20260903221013_core_rounds.sql` is applied to production and the matching frontend was merged as part of the Phase 2 release. The implementation/verification narrative below is retained as the original engineering record; any wording that says the migration or frontend was still pending describes the pre-release state at the time this document was written. See [`current-production-state.md`](current-production-state.md) for authoritative release status.
+
 `Quiz.rounds` owns ordered `QuizRound` records and every `Question.roundId` references one of them. The editor keeps its existing three panels, grouping its navigator by round. Round controls edit title, subtitle and intro behaviour, reorder rounds and add questions directly into a chosen group. The selected question's Round field moves it to another round; its duplicate stays in its original round. Global numbering follows round order and then within-round question order.
 
 The last round cannot be deleted. A non-empty round cannot be deleted until its questions have been moved elsewhere. Empty rounds can be saved during authoring, but launching requires at least one question per round. Head-to-Head exposes one structural round and retains competitor-driven progression; switching a multi-round Standard draft to Head-to-Head is blocked with instructions to consolidate it first.
