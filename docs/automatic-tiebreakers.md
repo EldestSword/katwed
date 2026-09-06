@@ -1,5 +1,7 @@
 # Automatic Tie-Breakers
 
+> **Current production status (6 September 2026): shipped.** The complete production chain is applied: `20260904223000_automatic_tiebreakers.sql`, `20260904232901_rc_tiebreaker_rpc_privileges.sql` and `20260905081403_rc_tiebreaker_content_audit.sql`. The audited current bank copy is `docs/data/tiebreaker-bank-v1.3.json`; the original v1 file remains historical evidence. Automatic Tie-Breakers are part of the merged Phase 2 frontend and portable v12 remains current. The remainder of this file preserves the original core implementation record. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Automatic Tie-Breakers are session endgame gameplay for Standard Individual Points and Survivor games. They are not quiz questions, modifiers, rounds or portable quiz content. Katwed portable files remain version 12.
 
 ## Endgame rules
