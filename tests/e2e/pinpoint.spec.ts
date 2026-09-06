@@ -21,7 +21,7 @@ async function draw(page: Page, layer: Locator, points: Array<[number, number]>,
 
 async function openAnswers(page: Page) {
   const group = page.locator('.question-settings-group').filter({ has: page.locator('summary', { hasText: 'Answers' }) }).first()
-  if (await group.getAttribute('open') === null) await group.locator('summary').click()
+  if (await group.getAttribute('open') === null) await group.locator(':scope > summary').click()
 }
 
 test('Pinpoint authoring draws every shape and preserves saved coordinates across reload and resize', async ({ page, isMobile }, testInfo) => {
