@@ -3,12 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mixedDemoQuiz } from '../../lib/demo/sampleData'
 import type { GameSessionSettings, Player, PlayerAnswer } from '../../types/domain'
+import type { TypedAnswerReviewItem } from '../../services/typedAnswerReview'
 import { HostResponseMonitor } from './HostResponseMonitor'
 import { hostResponseRecordForAnswer } from './hostResponses'
 
-const loadReview = vi.fn()
+const loadReview = vi.fn<() => Promise<TypedAnswerReviewItem[]>>()
 vi.mock('../../services/typedAnswerReview', () => ({
-  loadTypedAnswerReview: (...args: unknown[]) => loadReview(...args),
+  loadTypedAnswerReview: () => loadReview(),
 }))
 
 const question = mixedDemoQuiz.questions.find((candidate) => candidate.type === 'typed-answer')!
