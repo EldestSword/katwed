@@ -1,5 +1,7 @@
 # Core Team Mode
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904100005_core_team_mode.sql` is applied to production and the matching frontend was merged as part of the Phase 2 release. The implementation/verification narrative below is retained as the original engineering record; any wording that says the migration/frontend was still pending describes the pre-release state at the time this document was written. See [`current-production-state.md`](current-production-state.md) for authoritative release status.
+
 Team Mode is a Standard game-session setting, not a quiz type. The launch form defaults to Individuals and offers Teams only for Standard quizzes. Saved quiz definitions and `.katwed.json` format v7 remain unchanged. Launch-only `teamNames` become canonical `game_teams` records; persisted settings contain `playMode` and `teamAssignmentMode`, without another copy of the names.
 
 ## Membership and integrity
