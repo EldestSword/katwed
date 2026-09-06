@@ -23,6 +23,7 @@ import './styles/buzz.css'
 import './styles/survivor.css'
 import './styles/tiebreakers.css'
 import './styles/premium-studio.css'
+import './styles/landing-synthwave.css'
 
 const router = createBrowserRouter([
   {
