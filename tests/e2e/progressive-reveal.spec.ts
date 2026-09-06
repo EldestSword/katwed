@@ -39,6 +39,7 @@ test('author an image modifier, preview points and retain it after save/reload',
   await page.getByText('Scoring', { exact: true }).click()
   await expect(page.getByLabel('Faster answers score more')).toHaveCount(0)
   await page.getByLabel('Double score', { exact: true }).check()
+  await page.getByText('Media & presentation', { exact: true }).click()
   await expect(page.getByRole('list', { name: 'Progressive score preview' })).toContainText('1,250 pts')
   await page.getByLabel('Reveal effect').selectOption('tiles')
   await page.getByLabel('Tile grid', { exact: true }).selectOption('8')

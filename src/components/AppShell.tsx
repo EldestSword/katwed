@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { EditorAccordionEnhancer } from '../features/quiz-editor/EditorAccordionEnhancer'
 import { config } from '../lib/config'
 
 export function Logo() {
-  return <span className="brand-mark" aria-label="Katwed!"><span className="brand-mark__kat">Kat</span><span className="brand-mark__wed">wed</span><span className="brand-bang" aria-hidden="true">!</span></span>
+  return <span className="brand-mark" aria-label="Katwed!"><span className="brand-mark__kat">Ka</span><span className="brand-mark__wed">twed</span><span className="brand-bang" aria-hidden="true">!</span></span>
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -16,15 +17,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const authPending = protectedHostRoute && (loading || !user)
   const shellClasses = [
     'app-shell',
+    location.pathname === '/' && 'app-shell--landing',
     hostArea && 'app-shell--host',
     activeGame && 'app-shell--game',
     authPending && 'app-shell--auth-pending',
   ].filter(Boolean).join(' ')
   return (
     <div className={shellClasses}>
+      <EditorAccordionEnhancer />
       {!activeGame && !authPending && (
         <header className={hostArea ? 'host-shell-header' : 'site-header'}>
           <Link to={hostArea ? '/host' : '/'} className="brand-link"><Logo /></Link>
+          {!hostArea && location.pathname === '/' && <h2 className="site-header__descriptor">Live team quiz &amp; games platform</h2>}
           <nav aria-label={hostArea ? 'Host navigation' : 'Main navigation'}>
             {hostArea ? <>
               <Link to="/host" aria-current={location.pathname === '/host' ? 'page' : undefined}>Quizzes</Link>

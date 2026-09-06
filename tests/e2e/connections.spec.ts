@@ -5,6 +5,10 @@ import { connectionsQuiz } from '../../src/test/connectionsFixtures'
 async function noOverflow(page: Page) {
   expect(await page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')).toBe(true)
 }
+async function editorSection(page: Page, name: string) {
+  const group = page.locator('.question-settings-group').filter({ has: page.locator('summary', { hasText: name }) }).first()
+  if (await group.getAttribute('open') === null) await group.locator('summary').click()
+}
 async function login(page: Page) {
   await page.goto('/')
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
@@ -43,16 +47,19 @@ for (const teams of [false, true]) test(`author Connections and score early, lat
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: /Connections/ }).click()
   await page.getByLabel('Timer', { exact: true }).fill('120')
+  await editorSection(page, 'Answers')
   for (const [index, clue] of ['Mercury', 'Venus', 'Earth', 'Mars'].entries()) await page.getByRole('textbox', { name: `Clue ${index + 1}`, exact: true }).fill(clue)
   await page.getByLabel('Correct connection').fill('Planets')
   await page.getByLabel('Also accept').fill('Solar worlds')
-  await page.getByText('Scoring', { exact: true }).click()
+  await editorSection(page, 'Scoring')
   await expect(page.getByText('Connections score by clue stage.', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Faster answers score more')).toHaveCount(0)
+  await editorSection(page, 'Answers')
   await expect(page.getByRole('list', { name: 'Points by clue stage' })).toContainText('750 pts')
   await page.getByRole('button', { name: 'Save quiz', exact: true }).first().click()
   await expect(page.getByText('Quiz saved.', { exact: true })).toBeVisible()
   await page.reload()
+  await editorSection(page, 'Answers')
   await expect(page.getByRole('textbox', { name: 'Clue 3', exact: true })).toHaveValue('Earth')
   await expect(page.getByLabel('Also accept')).toHaveValue('Solar worlds')
   await page.getByRole('link', { name: '← Quizzes', exact: true }).click()

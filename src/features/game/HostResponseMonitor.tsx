@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { WagerSummary } from './WagerControl'
 import type {
   GamePhase,
@@ -16,6 +18,7 @@ import {
   responseSummary,
   type HostResponseStatus,
 } from './hostResponses'
+import { loadTypedAnswerReview, type TypedAnswerReviewItem } from '../../services/typedAnswerReview'
 
 const STATUS_COPY: Record<HostResponseStatus, string> = {
   ready: 'Ready',
@@ -50,11 +53,65 @@ export function HostResponseMonitor({
   phase: GamePhase
   preludeActive: boolean
   reviewingAnswerId: string | null
-  onOverride(answerId: string, correctOverride: true | null): void
+  onOverride(answerId: string, correctOverride: true | null): Promise<void> | void
 }) {
   const showDetails = settings.showPlayerAnswersToHost && players.length <= HOST_RESPONSE_DETAIL_LIMIT
   const rows = buildHostResponseRows(players, responses, showDetails ? answers : [], question.id, phase, preludeActive)
-  const mayReview = question.type === 'typed-answer' && ['locked', 'reveal', 'leaderboard'].includes(phase)
+  const mayReview = question.type === 'typed-answer' && ['locked', 'reveal', 'leaderboard', 'finished'].includes(phase)
+  const sessionId = responses[0]?.sessionId ?? answers[0]?.sessionId ?? null
+  const [reviewItems, setReviewItems] = useState<TypedAnswerReviewItem[]>([])
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const lastAutomaticLoad = useRef<string | null>(null)
+  const dismissedQuestion = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!mayReview || !sessionId || question.type !== 'typed-answer') return
+    const loadKey = `${question.id}:${phase}`
+    if (lastAutomaticLoad.current === loadKey) return
+    lastAutomaticLoad.current = loadKey
+    let cancelled = false
+    void loadTypedAnswerReview(sessionId, question.id, players, answers)
+      .then((items) => {
+        if (cancelled) return
+        setReviewItems(items)
+        setReviewError('')
+        if (items.length > 0 && dismissedQuestion.current !== question.id) setReviewOpen(true)
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) setReviewError(reason instanceof Error ? reason.message : 'Incorrect answers could not be loaded.')
+      })
+    return () => { cancelled = true }
+  }, [answers, mayReview, phase, players, question.id, question.type, sessionId])
+
+  async function refreshReview(open: boolean) {
+    if (!mayReview || !sessionId || question.type !== 'typed-answer') return
+    setReviewLoading(true)
+    setReviewError('')
+    try {
+      const items = await loadTypedAnswerReview(sessionId, question.id, players, answers)
+      setReviewItems(items)
+      if (open) {
+        dismissedQuestion.current = null
+        setReviewOpen(true)
+      }
+    } catch (reason) {
+      setReviewError(reason instanceof Error ? reason.message : 'Incorrect answers could not be loaded.')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
+  function closeReview() {
+    dismissedQuestion.current = question.id
+    setReviewOpen(false)
+  }
+
+  async function accept(item: TypedAnswerReviewItem) {
+    await onOverride(item.answerId, true)
+    await refreshReview(false)
+  }
 
   return (
     <section className="controller-responses" aria-labelledby="live-responses-heading">
@@ -65,9 +122,15 @@ export function HostResponseMonitor({
       <p className={`controller-response-summary${preludeActive ? ' controller-response-summary--neutral' : ''}`} role="status">
         {responseSummary(rows, phase, preludeActive)}
       </p>
-      {!settings.showPlayerAnswersToHost && <p className="controller-response-note">Individual answers are hidden for this session.</p>}
+      {mayReview && sessionId && (
+        <button className="button button--secondary typed-review-launch" type="button" onClick={() => { void refreshReview(true) }}>
+          <strong>Review incorrect answers</strong>
+          <span aria-label={`${reviewItems.length} to review`}>{reviewItems.length}</span>
+        </button>
+      )}
+      {!settings.showPlayerAnswersToHost && <p className="controller-response-note">Live individual answers are hidden for this session. Incorrect Typed Answers can still be reviewed after answers close.</p>}
       {settings.showPlayerAnswersToHost && players.length > HOST_RESPONSE_DETAIL_LIMIT && (
-        <p className="controller-response-note">Individual answers are hidden for rooms over {HOST_RESPONSE_DETAIL_LIMIT} players.</p>
+        <p className="controller-response-note">Live individual answers are hidden for rooms over {HOST_RESPONSE_DETAIL_LIMIT} players. Incorrect Typed Answers remain available in the review window after answers close.</p>
       )}
       <ul className="controller-response-list">
         {rows.map(({ player, answer, response, status }) => {
@@ -89,7 +152,7 @@ export function HostResponseMonitor({
                       className="button button--ghost"
                       type="button"
                       disabled={reviewingAnswerId === answer.id}
-                      onClick={() => onOverride(answer.id, hostAccepted ? null : true)}
+                      onClick={() => { void onOverride(answer.id, hostAccepted ? null : true) }}
                     >
                       {reviewingAnswerId === answer.id ? 'Updating…' : hostAccepted ? 'Undo override' : 'Mark correct'}
                     </button>
@@ -100,6 +163,35 @@ export function HostResponseMonitor({
           )
         })}
       </ul>
+      {reviewOpen && createPortal(
+        <div className="typed-review-overlay" role="presentation">
+          <section className="typed-review-dialog" role="dialog" aria-modal="false" aria-labelledby="typed-review-title">
+            <header>
+              <div>
+                <p className="eyebrow">Typed Answer review</p>
+                <h2 id="typed-review-title">Check the answers Katwed marked incorrect</h2>
+                <p>Only incorrect answers are shown. Accept obvious spelling mistakes or equivalent wording with one click.</p>
+              </div>
+              <button className="typed-review-dialog__close" type="button" aria-label="Close answer review" onClick={closeReview}>×</button>
+            </header>
+            {reviewLoading && reviewItems.length === 0 ? <p className="typed-review-empty" role="status">Loading incorrect answers…</p>
+              : reviewError ? <p className="typed-review-empty" role="alert">{reviewError}</p>
+                : reviewItems.length === 0 ? <div className="typed-review-empty"><strong>Nothing needs reviewing.</strong><p>Every submitted answer is already correct or has been accepted.</p></div>
+                  : <ul className="typed-review-list">{reviewItems.map((item) => {
+                    const team = teams?.find((candidate) => candidate.id === players.find((player) => player.id === item.playerId)?.teamId)
+                    return <li className="typed-review-row" key={item.answerId}>
+                      <div className="typed-review-row__player"><strong>{item.nickname}</strong>{team && <small>{team.name}</small>}</div>
+                      <p className="typed-review-row__answer">“{item.value}”</p>
+                      <button className="button button--primary" type="button" disabled={reviewingAnswerId === item.answerId} onClick={() => { void accept(item) }}>
+                        {reviewingAnswerId === item.answerId ? 'Accepting…' : 'Accept answer'}
+                      </button>
+                    </li>
+                  })}</ul>}
+            <footer><button className="button button--secondary" type="button" onClick={closeReview}>Done</button></footer>
+          </section>
+        </div>,
+        document.body,
+      )}
     </section>
   )
 }

@@ -19,6 +19,11 @@ async function draw(page: Page, layer: Locator, points: Array<[number, number]>,
   }
 }
 
+async function openAnswers(page: Page) {
+  const group = page.locator('.question-settings-group').filter({ has: page.locator('summary', { hasText: 'Answers' }) }).first()
+  if (await group.getAttribute('open') === null) await group.locator(':scope > summary').click()
+}
+
 test('Pinpoint authoring draws every shape and preserves saved coordinates across reload and resize', async ({ page, isMobile }, testInfo) => {
   test.setTimeout(60_000)
   await page.goto('/')
@@ -26,7 +31,10 @@ test('Pinpoint authoring draws every shape and preserves saved coordinates acros
   await page.goto('/host/login')
   await page.getByRole('button', { name: 'Enter demo host area' }).click()
   await page.getByRole('article', { name: 'Katwed! Mixed Quiz' }).getByRole('link', { name: 'Edit' }).click()
-  const selectPinpoint = () => page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Pinpoint the centre' }).click()
+  const selectPinpoint = async () => {
+    await page.locator('.question-navigator').getByRole('button').filter({ hasText: 'Pinpoint the centre' }).click()
+    await openAnswers(page)
+  }
   await selectPinpoint()
   const editor = page.locator('.pinpoint-editor')
   const layer = editor.getByTestId('pinpoint-coordinate-layer')
