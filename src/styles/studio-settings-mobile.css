@@ -1,0 +1,30 @@
+/* Mobile safety net for the six-section Quiz Settings dialog.
+   QuizSettingsDialog is portalled into document.body, so these selectors
+   deliberately target the dialog classes directly rather than relying on
+   the host shell being an ancestor. */
+@media (max-width: 760px) {
+  .quiz-settings-dialog {
+    max-height: 94dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quiz-settings-layout {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .quiz-settings-content {
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .quiz-settings-dialog > footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+  }
+}
