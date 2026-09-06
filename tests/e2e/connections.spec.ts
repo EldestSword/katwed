@@ -54,6 +54,7 @@ for (const teams of [false, true]) test(`author Connections and score early, lat
   await editorSection(page, 'Scoring')
   await expect(page.getByText('Connections score by clue stage.', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Faster answers score more')).toHaveCount(0)
+  await editorSection(page, 'Answers')
   await expect(page.getByRole('list', { name: 'Points by clue stage' })).toContainText('750 pts')
   await page.getByRole('button', { name: 'Save quiz', exact: true }).first().click()
   await expect(page.getByText('Quiz saved.', { exact: true })).toBeVisible()
