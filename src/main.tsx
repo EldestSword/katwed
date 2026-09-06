@@ -25,6 +25,7 @@ import './styles/tiebreakers.css'
 import './styles/premium-studio.css'
 import './styles/landing-synthwave.css'
 import './styles/brand-polish.css'
+import './styles/premium-compat.css'
 
 const router = createBrowserRouter([
   {
