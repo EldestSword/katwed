@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
+import { EditorAccordionEnhancer } from '../features/quiz-editor/EditorAccordionEnhancer'
 import { config } from '../lib/config'
 
 export function Logo() {
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ].filter(Boolean).join(' ')
   return (
     <div className={shellClasses}>
+      <EditorAccordionEnhancer />
       {!activeGame && !authPending && (
         <header className={hostArea ? 'host-shell-header' : 'site-header'}>
           <Link to={hostArea ? '/host' : '/'} className="brand-link"><Logo /></Link>
