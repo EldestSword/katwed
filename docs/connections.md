@@ -1,5 +1,7 @@
 # Connections — Phase 2 Pass 5B
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904122702_connections_questions.sql` is applied to production and Connections is part of the merged Phase 2 frontend. Portable export has since advanced from v9 to v12. The remainder of this file preserves the original Pass 5B engineering/verification record; pre-release deployment wording and the v9 export statement describe that pass at the time it was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Connections is a first-class Standard question type, including Team sessions. It contains 2–6 ordered `{ id, text }` clues, one primary connection and up to 19 accepted alternatives. Clue text is trimmed, 1–200 characters and unique ignoring case; IDs are stable and unique. Answers reuse Typed Answer's exact Unicode normalisation, meaningful-text validation and 120-character limit. There is no fuzzy judging or automatic clue timer.
 
 ## Authoritative progression and scoring

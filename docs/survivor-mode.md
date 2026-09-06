@@ -1,5 +1,7 @@
 # Core Survivor Mode
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904203000_core_survivor_mode.sql` is applied to production and Survivor is part of the merged Phase 2 frontend. Portable v12 remains current. The remainder of this file preserves the original Survivor engineering record; its final pre-release sentence describes the state at the time the pass was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Survivor is a launch-time Game Mode for a normal Standard quiz. It does not alter the saved quiz definition, question types or portable schema. Hosts choose Points or Survivor before opening a lobby. Points remains the default; Survivor V1 is individual-only and starts every Player with either one or three lives, with three as the default. Team and Head-to-Head launches are rejected when Survivor is requested.
 
 ## Authoritative life history

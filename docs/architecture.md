@@ -1,168 +1,355 @@
 # Katwed! architecture
 
+This document describes the **current architecture on `main`**. For current release/migration status, read [`current-production-state.md`](current-production-state.md) first.
+
+Historical feature documents remain useful for detailed design, security and verification evidence, but their pre-release status wording is not authoritative after a feature ships.
+
 ## Production topology
 
-Katwed! is a React and Vite client deployed on Netlify with Supabase providing Auth, PostgreSQL, Storage and Realtime. The live backend has been proven with authenticated quiz management, persistent images, anonymous players, reconnect, answer submission, scoring, reveal and final-results withholding.
+Katwed! is a React/Vite client deployed through Netlify. Supabase provides Auth, PostgreSQL, Storage and Realtime.
 
 ```text
 Authenticated host
+  ├─ Library / Studio
+  │    ├─ quiz CRUD, archive/restore/delete
+  │    ├─ import/export and duplication
+  │    ├─ Storage Manager
+  │    └─ quiz authoring / preview
+  ├─ Game setup: /host/quizzes/:quizId/setup
   ├─ Controller: /host/game/:sessionId/control
-  │    ├─ phase-changing GameRepository calls
+  │    ├─ private host controls
+  │    ├─ owner-only live response detail
   │    └─ compact PresentationStage preview
   └─ Presentation: /host/game/:sessionId/present
-       └─ read-only 16:9 PresentationStage
+       ├─ read-only audience surface
+       └─ only surface that owns shared-game audio playback
 
-Anonymous player
+Anonymous/player-authenticated contestant
   └─ Player: /play/:roomCode
-       └─ typed answer submission and reconnect token
+       ├─ join/reconnect
+       ├─ player-scoped answer/session actions
+       └─ responsive phone/tablet/desktop UI
 
 GameRepository
-  ├─ SupabaseGameRepository → RPCs, Realtime and Supabase Storage
-  └─ DemoGameRepository → local storage and browser events
+  ├─ SupabaseGameRepository → RPCs + Realtime + Storage
+  └─ DemoGameRepository → local browser persistence/events
 ```
 
-The controller is private and intended for the host's second monitor. Only it can change phases. The presentation uses the same authenticated session, contains no host controls and is intended to be shared as a browser window through Teams or another meeting tool. The player surface is responsive across phones, tablets and desktop browsers. There is no Teams API integration.
+The Controller is private and intended for the host's own monitor. The Presentation is read-only and intended to be shared as a browser window through Teams or another meeting product. There is no Teams API integration.
 
-`PresentationStage` renders both the full presentation and the controller preview, keeping their visual interpretation of safe state aligned without using an iframe or starting duplicate audible media.
+`PresentationStage` is shared by the real Presentation and the Controller preview so both interpret safe game state consistently without an iframe or a second audible media engine.
 
 ## Repository boundary
 
-Screens depend on the `GameRepository` contract rather than a storage implementation. `SupabaseGameRepository` calls narrow PostgreSQL RPCs and subscribes to live refresh broadcasts. `DemoGameRepository` uses the same domain models, serialises writes with a browser lock, persists to local storage and synchronises tabs through `BroadcastChannel` and storage events.
+Screens depend on the `GameRepository` contract rather than directly on a storage implementation.
 
-Quiz duplication also stays behind this boundary. Both implementations use the same pure clone/remapping helper, reject archived sources, and persist the resulting definition through the existing `saveQuiz` path. Supabase reads through `host_get_quiz` and writes through `host_save_quiz`; no duplication RPC or schema migration is required. Because game sessions are stored separately and are not part of the save input, a duplicate starts without players, answers, scores or an active room, while any source room remains untouched.
+### Supabase implementation
 
-Quiz-library title search and sorting are intentionally client-side over the complete Active or Archived arrays already returned by the repository. The dashboard filters the selected library, then applies an explicit deterministic sort using existing `createdAt` and `updatedAt` values. Sort choice is browser-session state; search terms are not sent to Supabase. The frontend is deployed to Netlify; release verification confirmed the public routes, SPA fallback, immutable deploy URL and hosted dashboard bundle. Authenticated production dashboard UAT was not performed because no secure host session was available; helper, component and desktop/mobile browser coverage passed locally before deployment.
+`SupabaseGameRepository` uses:
 
-Head to Head is a quiz-level authored mode layered over the shared question variants. `Quiz` owns the typed quiz discriminator and two dedicated competitor definitions; `assignedCompetitorId` is common question metadata rather than a second question hierarchy. Standard read boundaries normalise competitors away and assignments to null. Head-to-Head reads retain only structurally recognisable data and rely on strict save validation rather than fabricating a valid configuration. Demo and Supabase repositories share these domain rules, while the duplication helper creates fresh competitor identities and remaps assignments with the rest of the independent quiz definition.
+- authenticated owner RPCs for quiz/session administration;
+- anonymous/player-authenticated RPCs for join, reconnect and player actions;
+- Realtime broadcast refresh signals for shared game-state transitions;
+- Supabase Storage for uploaded quiz images;
+- database-authoritative validation/scoring/phase transitions.
 
-The editor creates the two stable UUIDs once when Head to Head is selected, requires distinct trimmed names, exposes one common assignment control for every question type and alternates newly added questions from the latest valid assignment. Returning to Standard is an explicit confirmed clear operation when configuration exists. Standard point values remain stored but are hidden in Head-to-Head authoring. In live play, each named competitor claims one database-unique slot, reconnects to that same identity and participates in an untimed player-controlled loop. Both competitors resolve every question; only a correct answer from the assigned competitor adds one point, while the play-along answer or skip always adds zero.
+### Demo implementation
 
-Head-to-Head uses `lobby → question → reveal → question … → finished`; it does not enter Standard `locked` or `leaderboard` phases. The session row is locked while answer/skip/continue mutations validate the expected question, and the existing unique player/question answer constraint makes resolution single-write under concurrency. Safe state publishes assignment, slot status, non-correctness resolution progress and the two-person score, but publishes per-player correctness only from reveal onwards. Standard host phase RPCs reject Head-to-Head progression except room close. Typed Answer follows the same loop and preserves the assigned-competitor one-point rule.
+`DemoGameRepository` mirrors the same domain contracts using browser persistence, locking and browser events so application behaviour can be exercised without credentials.
 
-Portable quiz import/export is an application-layer adapter around the same repository boundary. Export reads the complete owner quiz and maps internal IDs to deterministic file-local competitor, roster, question and option keys. Import parses untrusted versioned JSON, rejects unknown fields and unsafe media references, checks every local-key relationship, generates fresh UUIDs, runs the normal `validateQuizSave` rules and calls the existing create-only `saveQuiz` path without a top-level quiz ID. The persistence layer therefore supplies the final quiz identity and lifecycle timestamps, while game sessions remain separate and are never imported.
+Demo mode is a development/test convenience, not the production data source.
 
-The dashboard retains the parsed definition only for an explicit confirmation step and renders a separate spoiler-safe metadata summary; answer-bearing question data is never placed in the preview DOM. Export is read-only and available for Active and Archived quizzes. Version 1 preserves cover, question and option media references without uploading or embedding binary data, version 2 adds Typed Answer, version 3 adds Standard scoring flags and tile-grid metadata, and version 4 adds the quiz-wide answer palette ID and exact eight-colour custom tuple. Version 5 adds the shared Presentation sound-pack ID. Exports target v5; imports retain v1-v4 compatibility, default old scoring flags as documented, normalise a missing palette to Classic and default missing audio configuration to Katwed. The transfer adapter changes no repository contract.
+## Domain model
 
-Per-quiz themes use a central six-entry Visual Theme v2 registry (`katwed`, `midnight`, `sunset`, `arcade`, `mint`, `paper`). Each typed definition owns browsing metadata, approved display/UI font IDs, preview metadata and the semantic tokens actually consumed by the live UI. One registry-backed surface helper normalises untrusted IDs and supplies scoped CSS custom properties, retaining `data-quiz-theme` without requiring one large CSS selector block per theme. A small approved self-hosted font registry separates expressive display typography from readable utility text. See `docs/visual-theme-language-v2.md`.
+### Question types
 
-A second typed registry owns the exact 18 built-in backgrounds: three static repository assets per theme. `backgroundId = null` is Theme default and adds no image. Read boundaries defensively discard unknown or wrong-theme IDs, save validation rejects them, and the database has the same explicit theme/background compatibility rule. Changing theme clears an incompatible background without choosing or remembering a replacement.
+`Question` is a strict discriminated union. The current registry contains ten knowledge-scored variants:
 
-`themeId` and nullable `backgroundId` are production fields in `Quiz`, `QuizSaveInput` and safe game state. A shared registry-backed surface helper supplies only trusted static URLs to the full presentation, compact controller preview, editor audience preview and joined-player game root. Controller/editor chrome and other host/admin routes remain unthemed. Covers remain independent library metadata, and duplication copies both appearance selections while continuing to remap quiz identities. The background assets live under `public/backgrounds/` and never enter Supabase Storage or Storage Manager reference collection.
+- `single-choice`
+- `multiple-select`
+- `true-false`
+- `slider`
+- `pinpoint`
+- `typed-answer`
+- `mashup`
+- `ordering`
+- `matching`
+- `connections`
 
-Quiz-wide editor configuration is isolated in a portal-rendered, focus-trapped modal that edits the same in-memory quiz draft as the rest of the editor. Closing the modal neither saves nor discards changes; the existing dirty-state and `saveQuiz` path remain the only persistence workflow. The permanent sidebar contains only question-specific groups, so adding future quiz metadata does not further crowd per-question authoring.
+The registry in `src/features/questions/registry.ts`, domain types, factories, authoring, safe/reveal serializers, Player renderers, Presentation renderers, TypeScript scoring and PostgreSQL validation/scoring are coordinated extension points. Adding a new type requires extending those boundaries together.
 
-Answer palettes use a central typed registry containing 17 preset eight-colour tuples plus Custom. `answerPaletteId` and `customAnswerColours` travel through `Quiz`, optional stale-client-compatible save input, duplication, Demo/Supabase persistence and player-safe state. A shared colour helper assigns backgrounds by final displayed position and cycles defensively beyond eight. It calculates WCAG 2.x relative luminance and contrast against controlled `#111827`/`#FFFFFF` candidates, using the higher-contrast text colour; text colour is never persisted. A separate shared deterministic option-ordering helper is the single source for player, presentation, compact controller, reveal and result order, so randomisation is stable across refresh/reconnect and colour mapping cannot diverge between screens.
+`PlayerAnswerPayload` is also discriminated. TypeScript and PostgreSQL both reject a payload whose discriminator/shape does not match the active question.
 
-Shared game audio follows a separate presentation-only boundary. A pure mapper converts authoritative safe game state, the current prelude and countdown into event-keyed music/effect intent. One central `GameAudioEngine` owns two crossfading music elements and one sting element only inside `/present`; the Controller preview and every Player route create none. The session Sound Pack selects a generated multi-variant registry entry. Per-session, per-role shuffle bags persist event selections on the host device, so rerenders and Presentation refreshes retain the same track. Double Score selection is server-authoritative because its prepared variant duration determines `questionOpenedAt`; safe state exposes only the chosen index. Mute and category volumes stay in local host-device preferences, one-shot replay has a separate ledger, and Presentation-visible YouTube questions silence the background bed. See `docs/audio-language.md`.
+### Quiz-level modes and metadata
 
-Migrations `202608070004_quiz_themes.sql` and `202608070005_quiz_backgrounds.sql` and the matching frontend are deployed. Authenticated production UAT confirmed the six-theme editor, three compatible backgrounds per theme plus Theme default, immediate preview and incompatible-theme reset, Arcade + Grid persistence, matching presentation/player appearance through final results, the compact controller preview, the `katwed.co.uk` join origin and restoring Theme default. Automated tests retain broader coverage of validation, normalisation and database compatibility behaviour.
+A saved quiz contains the authored definition, including Standard vs Head-to-Head configuration, rounds, theme/background/palette/media configuration, people-bank data and saved question modifiers that belong in the portable format.
 
-Storage Manager also stays behind the repository boundary. The Supabase implementation lists the authenticated host's Storage folder with pagination, sends only strict Katwed-generated candidate paths to a bounded classification RPC, and uses the authenticated Storage API for batched removal. The Demo implementation enumerates and removes blobs in the existing `katwed-demo-images` IndexedDB store. Both return the same Total, In use, Unused and protected report model, and both reclassify immediately before deletion. The migration and matching frontend are deployed; release verification confirmed public route health, SPA fallback, the hosted assets and the `/host/storage` authentication boundary. A later manual authenticated run reported 2 images (1 in use, 1 unused), removed the one explicitly confirmed unused image, then reported 1 total/in-use image and 0 unused while the referenced image remained intact. Concurrent-reference/reclassification protection was not deliberately manufactured in production and remains automated-test coverage.
+Head-to-Head is a **quiz-level mode**, not a separate question hierarchy. It has exactly two stable competitors and each question is assigned to one competitor. The shared question definitions remain reusable.
 
-The Duplicate Quiz frontend is deployed to Netlify. Release verification confirmed the public and host-login routes, SPA routing, immutable deploy URL and production dashboard bundle. Authenticated production duplication UAT was not performed during the release because no secure host browser session was available; repository, component and browser coverage passed locally before deployment.
+Quiz Settings is a portal-rendered, focus-trapped authoring modal operating on the same in-memory draft as the editor. It currently has six quiz-wide sections:
 
-The Supabase implementation is the proven production backend. Demo mode remains a development and browser-test convenience, not the production data source.
+1. Themes
+2. Backgrounds
+3. Answer colours
+4. Cover
+5. Game
+6. People bank
 
-## Generic question engine
+Closing Quiz Settings neither saves nor discards. The normal `saveQuiz` boundary remains the persistence action.
 
-`Question` is a strict discriminated union with seven current variants: single choice, multiple select, true or false, slider, pinpoint, typed answer and mash-up. Every variant contains the common prompt, supporting text, timer, points, Standard speed/Double Score flags, order, caption, media and visibility settings. Type-specific answer keys exist only on authoring and trusted host/server models. These discriminated question, answer, safe-state and reveal contracts are the main shared extension boundary.
+### Session-level modes
 
-`PlayerAnswerPayload` is a second discriminated union. `scoreQuestion` rejects a payload whose discriminator does not match the active question before applying type-specific validation. PostgreSQL repeats authoritative payload validation and scoring rather than trusting the browser.
+Standard sessions can layer runtime/session configuration such as:
 
-The registry provides shared question-type metadata—name, description, icon and classification—and delegates its scoring entry point to the common `scoreQuestion` function. Factories, quiz-editor validation and controls, player rendering, reveal rendering, presentation rendering, TypeScript scoring, and PostgreSQL validation and scoring remain separate but coordinated extension points. A new type should extend those existing boundaries rather than replace the question engine.
+- Individuals or Teams;
+- Points or Survivor;
+- team assignment strategy;
+- Power-Ups enabled/disabled;
+- shuffle / answer order seed;
+- auto-close behaviour;
+- sound/prelude settings;
+- tie-break runtime state.
 
-Typed Answer keeps one primary answer plus up to 19 alternatives in the trusted definition. Browser and PostgreSQL scoring apply the same Unicode NFKC, lower-case, letters-and-numbers-only normalisation and require an exact match; the database remains authoritative. The mash-up variant always requires exactly two different active people, both correct, in either order, with no partial credit.
+Session-only state is not automatically portable quiz data.
 
-Standard scoring first obtains the existing exact or partial-wipeout base, doubles a positive base when configured, then applies the linear 100%-to-50% speed multiplier and floors the result. PostgreSQL derives elapsed and available time from authoritative session timestamps. Double Score question opening is offset by 1,500 ms, with closing time calculated from that future opening; client screens derive the intro entirely from the shared timestamp, and server answer/host transitions reject the pre-open interval. Head-to-Head bypasses these modifiers and remains untimed at one or zero.
+## Standard game flow
 
-Standard host auto-lock is a pure eligibility decision feeding the controller's existing in-flight phase action: phase must be `question`, at least one player must have joined, and submitted count must cover every joined player, or the authoritative deadline must have elapsed. Joined count includes disconnected players. A per-question attempt key suppresses duplicate effects while Realtime refreshes settle. Timer, all-submitted and **Close answers now** therefore share the same repository `lock` transition; Head-to-Head never enters this path.
+Ordinary Standard play uses host-controlled phases around the active question, with round-intro and tie-break phases where applicable.
+
+The normal shape is:
+
+```text
+lobby
+  → optional round-intro
+  → question
+  → locked
+  → reveal
+  → leaderboard
+  → next question / next round
+  → finished (after explicit final-results reveal)
+```
+
+The exact final-question transition preserves Katwed's deliberate final-results withholding; final totals are not exposed merely because the last answer was revealed.
+
+Standard auto-lock feeds the same authoritative lock transition used by the timer and **Close answers now**. It may close when every joined player has submitted, or when the authoritative deadline expires. Empty rooms do not auto-lock. Session configuration may disable the all-submitted behaviour.
+
+## Head-to-Head flow
+
+Head-to-Head uses an untimed two-player loop:
+
+```text
+lobby → question → reveal → question … → finished
+```
+
+Each named competitor claims one slot and reconnects to that identity. Both resolve each question, but only a correct answer by the competitor assigned to that question earns one point. The other competitor may play along or skip for zero.
+
+Head-to-Head bypasses Standard timed score modifiers and Standard leaderboard/locked flow. Safe state publishes only the information required for the two-player progression and withholds correctness until reveal.
+
+## Rounds and Teams
+
+### Rounds
+
+Standard quizzes contain ordered rounds. A round may have an audience intro. Session shuffle stays within round boundaries. Round intros contain no stale answer/leaderboard information and do not alter the next question's full authored timer.
+
+### Teams
+
+Teams are session state. Players still receive authoritative individual answer/scoring rows; team standings are derived from those scores rather than from a second independent scoring system. Team assignment can be player choice, balanced random or host assignment.
+
+Final team standings use the established authoritative individual totals. Team mode does not weaken player-safe answer boundaries.
+
+## Scoring pipeline
+
+The database is authoritative. TypeScript mirrors expected behaviour for local/test/UI purposes.
+
+For Standard questions, the broad scoring pipeline is:
+
+1. Validate the submitted payload for the active question.
+2. Calculate the question-type base result, including explicit partial-credit rules where supported.
+3. Apply the question's timing model:
+   - Connections uses its clue-based points ladder;
+   - Progressive Reveal replaces ordinary Speed Scoring;
+   - otherwise Speed Scoring may scale a positive result using authoritative timestamps;
+   - fixed-score questions retain their authored base result.
+4. Apply authored Double Score where eligible.
+5. Apply the Wager adjustment.
+6. Apply an eligible armed Power-Up effect such as Double Up; Fast Five modifies only the Speed Scoring time input and 50/50 changes private answer-option availability rather than correctness.
+7. Persist authoritative points/correctness/response-time statistics atomically with the accepted answer.
+
+Wager losses can produce negative awarded/cumulative scores. Double Score does not double the Wager stake. Double Up doubles only a positive final result after ordinary scoring and Wager adjustment.
+
+### Multiple Select
+
+Multiple Select supports its explicit exact-set or partial-with-wrong-answer-wipeout behaviour. Mash-up never inherits that partial mode.
+
+### Typed Answer
+
+Typed Answer stores one primary answer plus optional alternatives. Matching uses Unicode NFKC normalisation, lower-casing and removal of non-letter/non-number characters, then exact equality. It is not fuzzy matching.
+
+The owner may accept/undo an incorrect current-question Typed Answer after answers close. The authoritative correction path recalculates the affected scoring/statistics from the original response data rather than trusting UI-computed deltas.
+
+### Connections
+
+Connections reveals an ordered clue list without changing the active question phase/deadline. The score decreases according to how many clues have been revealed. Alternatives remain private answer-key data.
+
+### Pinpoint
+
+Pinpoint submissions are normalised image coordinates. The authored target is a discriminated circle, rectangle or polygon/freehand representation. Correct geometry remains withheld from Players until reveal. Database geometry is authoritative.
+
+## Progressive Reveal
+
+Progressive Reveal is a saved modifier for eligible Standard image questions. Reveal progress derives from the authoritative question-open timestamp rather than per-client local start time.
+
+It replaces ordinary Speed Scoring for that question and uses its own decaying points model. Reduced-motion rendering may use discrete visual steps without exposing the complete image early.
+
+## Wagers
+
+A Player can choose no wager or an allowed percentage before Lock in. The stake is stored with the authoritative answer transaction. Fully correct answers add the stake after ordinary scoring; incorrect/partial answers lose it. Typed Answer corrections reuse the original wager.
+
+Only the private Controller may expose submitted wager detail before results.
+
+## Correct Answer Streaks
+
+Streaks are session statistics derived from authoritative full-correct outcomes. They do not directly change scoring/ranking. Wrong, partial and missing eligible answers break the streak; Buzz-In-neutral positions are excluded according to the implemented rules.
+
+## Buzz-In
+
+Buzz-In uses an atomic server claim. The first valid claimant owns the answer window; there is no rebound. Losing claims do not create answer rows or noisy room broadcasts. Only the winner may submit while the claim is active.
+
+The claim does not replace the ordinary question-open response timestamp used by existing metrics/scoring.
+
+## Survivor
+
+Survivor adds authoritative Player life state to Standard Individual sessions. Full-correct ordinary answers are safe; wrong/partial/missing eligible answers cost a life. Eliminated Players remain connected as spectators but server-side guards reject future competitive actions.
+
+Lives and points are separate systems: ordinary score calculations remain intact while Survivor standings prioritise survival state according to the implemented ranking rules.
+
+Typed Answer corrections can require life-state recomputation.
+
+## Power-Ups
+
+Power-Ups are optional session state with one Double Up, one 50/50 and one Fast Five per Player/run.
+
+- **Double Up** doubles a positive final result after ordinary scoring and Wager.
+- **50/50** privately retains the correct Single Choice option plus one deterministic wrong option without identifying which is correct.
+- **Fast Five** reduces only the Speed Scoring elapsed-time input by five seconds; real response time remains authoritative for other metrics.
+
+Inventory is private player state. Power-Up use must never leak an answer key through shared safe state.
+
+## Automatic tie-breakers
+
+Supported genuine first-place ties divert into a closest-number tie-break flow using the private audited question bank. Tie-break answers are separate from ordinary quiz answers and use PostgreSQL `NUMERIC` distance calculations.
+
+Tie-break resolution does not mutate ordinary quiz question scoring, streak or life history. Teams, Head-to-Head and unsupported terminal conditions retain their documented non-tie-break behaviour.
+
+The original seeded bank migration is immutable; later RC migrations restrict host control privileges and apply audited content corrections.
 
 ## Player-safe state boundary
 
-`SafeQuestion` removes answer-bearing fields for every variant while retaining the non-secret speed and Double Score flags. The demo repository constructs safe objects explicitly rather than deleting keys from an unsafe object. The PostgreSQL safe-state function calls `question_to_json(..., false)` and removes captions and hidden type-specific scoring configuration.
+The player-safe contract is one of Katwed's primary security boundaries.
 
-Reveal payloads are discriminated and contain only the answer plus anonymous aggregates appropriate to the active type. Typed Answer reveal contains the primary answer but never its accepted alternatives. Reveal payloads are created only in permitted reveal phases. Leaderboard rows and cumulative player totals remain unavailable during `question`, `locked` and `reveal`; the final totals appear only after the host explicitly reveals final results.
+Before reveal, safe state must remove/withhold answer-bearing data such as:
 
-This boundary has been production-tested through a complete hosted answer and final-results flow. Anonymous users cannot select protected game tables directly, and the browser never receives a service-role credential.
+- correct choice IDs/sets;
+- hidden Multiple Select scoring keys;
+- the correct Boolean;
+- Slider answer/tolerance;
+- Pinpoint target geometry;
+- Typed Answer primary/alternatives where not yet revealable;
+- Mash-up answer member IDs;
+- Matching/Ordering answer keys;
+- Connections unrevealed clues/accepted alternatives;
+- reveal-only captions/metadata.
 
-## Production persistence and media
+The demo implementation constructs safe objects deliberately; the Supabase implementation uses server-side serializers. New features must extend both without introducing a "serialize everything then delete a few keys" regression.
 
-The PostgreSQL schema uses:
+Leaderboard rows and cumulative totals are available only in established permitted phases. Final results remain host-gated.
 
-- common relational columns for lifecycle and indexing;
-- constrained `media`, `type_config`, `answer_key` and `answer_payload` JSONB;
-- relational question option rows;
-- check constraints and type-specific validation;
-- owner-scoped RLS;
-- security-definer RPCs with restricted search paths and explicit grants.
+Host-only response detail and Typed Answer review are separate authenticated owner data and never belong in Player-safe state.
 
-Quiz definitions and live game state remain in Supabase PostgreSQL. Uploaded quiz images are stored in the Supabase Storage `question-images` bucket. Production upload, persistence after refresh and display on controller, presentation and player surfaces have been verified. The client already resizes accepted source images to a maximum 1,600-pixel edge and converts them to WebP before upload. GitHub stores code, migrations, demo data and documentation; it is not the live quiz database.
+## Realtime and polling model
 
-Quiz covers are deployed as nullable quiz-definition metadata. The editor uses the same authenticated JPEG/PNG/WebP validation, resize, WebP conversion, owner-prefixed object path and `question-images` bucket as question images. Covers are intentionally library-only: Active and Archived cards resolve either normal public references or demo IndexedDB references and fall back to the question-count artwork if absent or unavailable. Choosing, replacing or removing a cover updates local editor state and requires the ordinary quiz save; it does not mutate a live game or trigger immediate Storage deletion. Manual authenticated production UAT confirmed upload, preview, Save persistence, dashboard display, editor reload, and Remove plus Save returning to the fallback; archive, duplicate and shared-delete cover behaviour were not part of that manual check.
+The production realtime-scaling migration is applied.
 
-The production schema has every migration through `202608260001_quiz_answer_palettes.sql` applied. `202608270001_quiz_sound_pack.sql` is committed but pending explicit release approval; no Audio Pass 1 frontend is deployed. Active and archived libraries are separate repository queries. Archive and permanent deletion reject quizzes with active rooms, archived quizzes cannot launch, and permanent deletion requires an archived quiz. A database trigger preserves those rules even if an authenticated client attempts a direct row operation.
+The model deliberately avoids broadcasting every Standard answer/presence write to every Player:
 
-Permanent deletion is deliberately database-first. The deployed security-definer RPC gathers image references from quiz covers, question media, the retained question image path and choice-option image paths, excludes any exact reference still used by another quiz, then deletes the quiz. Cover sharing uses the same exact-reference comparison without weakening owner, archive or active-room guards. Existing cascades remove its questions, options, game sessions, players and answers. The authenticated browser subsequently accepts only Katwed-generated paths from the configured project's public `question-images` bucket and signed-in host folder for best-effort Storage removal. A Storage failure is reported as cleanup debt rather than misreporting the completed database deletion; Storage Manager provides explicit discovery and cleanup for safe unreferenced objects left by replacement, removal, abandoned uploads or earlier failures.
+- shared room broadcasts represent meaningful GameSession transitions;
+- Standard joins/answers/routine presence do not fan out as room-wide answer events;
+- Head-to-Head retains a narrow Player-change path required for its two-person readiness loop;
+- Controller/Presentation use bounded polling plus immediate refresh on relevant session broadcasts;
+- Players use Realtime plus a low-frequency sanity refresh and temporary recovery polling after channel failure/timeout;
+- shared single-flight scheduling prevents overlapping refresh storms;
+- Standard answer transactions use locking compatible with concurrent answer bursts while remaining ordered against conflicting host phase transitions.
 
-Duplicated quizzes intentionally retain the same cover, uploaded-image URLs and option-image paths, and preserve YouTube media settings. No Storage upload or file-copy operation occurs during duplication. The exact cross-quiz reference check therefore prevents one duplicate's permanent deletion from removing media still used by the other.
+Do not reintroduce answer-per-player room fan-out without measuring and justifying the load impact.
 
-The deployed Storage Manager migration adds an authenticated SELECT policy on `storage.objects` limited to the caller's first folder in `question-images`. Its security-definer classifier accepts at most 200 paths per call, rejects non-owner or non-generated paths, and checks candidate object paths against cover, question JSON media, retained legacy question-image and option-image references across all quizzes without exposing another host's inventory. The browser never deletes `storage.objects` rows directly. After explicit confirmation it repeats classification and sends only the still-unused subset to the authenticated Storage API in bounded batches. Unmanaged objects remain protected, classification uncertainty prevents deletion, and there is no automatic cleanup process.
+## Game audio
 
-Questions may also reference normalised YouTube video IDs. Autoplay remains browser-dependent, and cross-device playback synchronisation is a future extension rather than part of the current architecture.
+Shared game audio is Presentation-owned. Controller preview and Player routes must not create duplicate audible game-audio engines.
 
-The tile image effect derives a seeded Fisher–Yates order from the media path and authoritative question-open timestamp. Pending authoring supports 6-by-6, 8-by-8, 12-by-12 and 16-by-16 square grids; missing size metadata retains the legacy 6-by-4, 24-tile layout. The pure helper yields the same reveal rank for controller, presentation and player DOMs across rerenders and reconnects, while a different opening yields a different order. Rendering uses dynamic CSS grid variables, no `Math.random()`, and reduced-motion continues to show the complete image immediately.
+A pure mapping layer converts safe game state/prelude/countdown information into event intent. `GameAudioEngine` owns music/sting playback on `/present`, including shuffled multi-variant pack selection and the authoritative Double Score prepared variant/timing relationship.
 
-## Realtime model
+Sound-pack IDs are registry-backed safe slugs. Asset URLs are not accepted from untrusted quiz/session input.
 
-Database changes to sessions, players and answers trigger refresh broadcasts. Host, presentation and player clients then fetch fresh safe state through the repository boundary. Production tests confirmed that player counts and answer counts update across multiple tabs without manual refresh.
+See [`audio-language.md`](audio-language.md).
 
-Realtime is a state-refresh signal, not an alternative scoring path: PostgreSQL remains authoritative for typed payloads, reconnect tokens, deadlines, phases and scores.
+## Themes, backgrounds and answer palettes
 
-## Migration discipline
+The current visual catalogue contains 51 themes and 153 theme-compatible backgrounds.
 
-The live Supabase project has applied every migration through `202608260001_quiz_answer_palettes.sql`. Applied files are immutable history; production changes require a new chronological forward migration. `202608270001_quiz_sound_pack.sql` remains deliberately unapplied, and no Audio Pass 1 Netlify deployment was performed.
+Theme/background IDs are registry-backed trusted values. Unknown or incompatible IDs are normalised/rejected according to the read/save boundary; arbitrary CSS or asset URLs are never persisted as theme definitions.
 
-`202608060001_fix_pgcrypto_schema.sql` explicitly resolves pgcrypto through Supabase's `extensions` schema in `join_room`, `reconnect_player`, `set_player_presence` and `submit_answer`, while retaining `search_path = public`, reconnect-token hashing, grants, RLS, scoring and phase validation.
+Built-in backgrounds are static repository assets. Covers and uploaded question images are separate Supabase Storage references.
 
-`202608070001_quiz_archive_lifecycle.sql` is applied to production. The matching archive-lifecycle frontend is deployed on Netlify; release verification confirmed the live routes and deployed bundle, while complete authenticated lifecycle UAT was not automated during the release because no secure host session was available.
+Answer palettes contain 17 preset eight-colour tuples plus Custom. Option colours are assigned after deterministic display ordering. Foreground text colour is derived from contrast calculations and is not persisted.
 
-`202608070002_quiz_covers.sql` is applied production history. It adds nullable `quizzes.cover_image_path` metadata and replaces `quiz_to_json`, `host_save_quiz` and `host_permanently_delete_quiz` with cover-aware definitions while preserving their existing validation, ownership, lifecycle and grant boundaries. The matching frontend is deployed to Netlify; public routes, deep-link fallback, immutable deploy URL and hosted cover bundles were verified. Subsequent manual authenticated production UAT confirmed upload, preview, Save persistence, dashboard display, editor reload persistence, and Remove plus Save returning to the fallback; archive, duplicate and shared-delete cover behaviour were not part of that check.
+See [`visual-theme-language-v2.md`](visual-theme-language-v2.md).
 
-`202608070003_storage_manager.sql` is applied production history and is immutable. It adds owner-scoped authenticated listing for the existing `question-images` bucket and the bounded `host_classify_media_paths` RPC. The matching frontend is deployed to Netlify; release verification confirmed public route health, SPA fallback, the immutable deploy URL, hosted Storage Manager assets and the `/host/storage` authentication boundary. Later manual authenticated cleanup removed one confirmed unused image while preserving the sole referenced image; concurrent-reference reclassification was not deliberately exercised in production.
+## Import/export
 
-`202608070004_quiz_themes.sql` is applied immutable production history. It adds the constrained, non-null `quizzes.theme_id` column with the backward-compatible `katwed` default and recreates `quiz_to_json`, `host_save_quiz` and `get_player_game_state` only as needed to carry the curated ID. A missing theme on an old-client insert defaults to Katwed; a completely absent theme key on an old-client update preserves the stored theme.
+Portable quiz import/export is an application-layer adapter around the normal repository save/read boundaries.
 
-`202608070005_quiz_backgrounds.sql` is applied immutable production history. It adds nullable `quizzes.background_id`, an explicit 18-ID theme-compatibility constraint, and recreates the same three functions to carry background metadata without changing scoring, phases or answer filtering. Old-client inserts use Theme default. An absent update key preserves a compatible stored background, while an old-client theme change clears a now-incompatible one; explicit null clears.
+- Export target: **v12**.
+- Imports: **v1-v12**.
+- Current schema: `schemas/katwed-quiz-v12.schema.json`.
 
-`202608070006_head_to_head_foundation.sql` is applied immutable production history. It adds a backward-compatible `standard` quiz-type default, the owner-scoped two-row competitor model and same-quiz nullable question assignment. Owner serialisation and save gain the authored fields, while missing update keys preserve existing Head-to-Head configuration for stale clients.
+Export maps internal identities to deterministic file-local references. Import treats JSON as untrusted, validates the declared version/schema and relationships, generates fresh internal IDs and then uses the normal create/save boundary.
 
-`202608070007_head_to_head_live_play.sql` is applied immutable production history. It adds nullable competitor identity to players with a per-session unique claim, explicit answered/skipped resolution status, safe room discovery and dedicated player-token-authenticated join/start/skip/continue RPCs. It replaces the foundation launch guard with full definition validation, extends the generic answer RPC with untimed binary assigned scoring, auto-reveals under a session row lock, extends reconnect and player-safe state, and keeps Standard phase/scoring behaviour intact. Quiz import v1 is also deployed; export was not manually exercised during authenticated production UAT.
+Portable files do not contain runtime sessions, players, submitted answers or scores. Image references are referenced rather than embedding/copying binary data.
 
-`202608080001_typed_answer.sql` and `202608090001_fix_typed_answer_validation_trigger.sql` are applied immutable production history. They add Typed Answer and its repaired seven-type validation trigger while preserving the `007` live-play and security boundaries. Focused authenticated production UAT confirmed save, a positive normalised match and a deliberately wrong spelling.
+Older version schemas are compatibility contracts and should not be retrofitted with newer-version fields.
 
-`202608090002_standard_scoring_and_tile_options.sql` is applied immutable production history. It adds false-defaulted question columns, extends owner/safe serialisation and save, updates authoritative Standard answer scoring and question opening, and validates optional tile-grid metadata without invalidating legacy media.
+## Persistence and media
 
-`202608260001_quiz_answer_palettes.sql` is applied immutable production history. It adds Classic-defaulted constrained quiz columns, validates exactly eight uppercase six-digit hexadecimal custom colours, wraps the existing authenticated owner serialisation/save chain, and appends only palette display metadata to the established player-safe state. It neither serialises answer keys nor redefines scoring or phase functions.
+Production PostgreSQL uses relational columns plus constrained JSONB where appropriate, owner-scoped RLS and narrow functions/RPCs. Security-definer functions must retain explicit authentication/ownership checks, restricted search paths and deliberate grants.
 
-`202608270001_quiz_sound_pack.sql` is a pending forward migration. It adds a constrained `katwed`/`none` quiz field with a backward-compatible Katwed default, wraps the current owner read/save chain without weakening grants, and appends only harmless pack metadata to player-safe state. It has not been applied to production.
+Uploaded images live in the Supabase Storage `question-images` bucket. Browser upload processing validates supported input, bounds size, resizes without upscaling and encodes WebP before upload.
 
-## Future extension points
+Archive/permanent-delete and Storage Manager operations preserve shared media references. Database deletion and Storage cleanup are intentionally separate so a failed Storage cleanup cannot pretend the relational deletion failed.
 
-The existing boundaries allow future work without replacing the core model:
+Built-in backgrounds never enter Storage Manager.
 
-- new question discriminators, payloads and reveal types;
-- further quiz-library metadata and tags building on the archive lifecycle;
-- further image optimisation and optional media reuse;
-- broader visual-identity work beyond the six curated themes and 18 built-in backgrounds;
-- old game-session retention and cleanup;
-- capacity work informed by formal multi-player load testing.
+## Production migrations
 
-## Adding a future type
+Production has 48 applied migrations through:
 
-1. Add the discriminator and typed question, safe-question, answer and reveal variants.
-2. Add a factory and registry entry.
-3. Add editor and runtime validation.
-4. Add player and reveal renderers.
-5. Add TypeScript scoring and PostgreSQL scoring.
-6. Extend database validation and safe-state construction in a new forward migration.
-7. Add leakage, unit, component and browser tests.
+```text
+20260906084106_host_typed_answer_review.sql
+```
+
+The exact ledger is maintained in [`current-production-state.md`](current-production-state.md).
+
+Applied migrations are immutable. Schema evolution is forward-only.
+
+## Validation and extension discipline
+
+Architecture-sensitive work should preserve these rules:
+
+- inspect existing boundaries before adding a parallel abstraction;
+- extend repository contracts instead of bypassing them from screens;
+- keep the database authoritative for competitive rules;
+- keep safe state spoiler-free;
+- keep Controller/Presentation/Player responsibilities distinct;
+- keep Realtime fan-out bounded;
+- preserve mobile input/accessibility behaviour;
+- add focused unit/component/database/browser coverage at the affected boundary;
+- update `README.md`, `current-production-state.md`, this document and any specialist design document when the architecture or production state changes.

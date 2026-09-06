@@ -1,5 +1,7 @@
 # Progressive Reveal — Phase 2 Pass 6
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904131727_progressive_reveal.sql` is applied to production and Progressive Reveal is part of the merged Phase 2 frontend. Portable export has since advanced from v10 to v12. The remainder of this file preserves the original Pass 6 engineering/verification record; pre-release deployment wording and the v10 export statement describe that pass at the time it was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Progressive Reveal is the saved boolean question modifier `progressiveRevealEnabled`, default false. Legacy browser definitions may omit it; factory, save and v10 export paths supply the default. It applies to Standard image questions, including Team games and Rounds. Single Choice, Multiple Select, True/False, Slider, Mash-up, Typed Answer, Ordering and Matching retain their own answer validation and correctness rules. Head-to-Head, Pinpoint and Connections reject it in editor/validation, portable import and database save/launch.
 
 ## Scoring and timing

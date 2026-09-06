@@ -1,5 +1,7 @@
 # Correct Answer Streaks — Phase 2 Pass 7B
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904151357_correct_answer_streaks.sql` is applied to production and Correct Answer Streaks are part of the merged Phase 2 frontend. Portable v12 remains current. The remainder of this file preserves the original Pass 7B engineering/verification record; pre-release deployment wording describes that pass at the time it was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Streaks are Standard runtime statistics for Individual games, Teams and Rounds. They are not a question modifier, saved quiz setting or score bonus. Buzz-In questions are streak-neutral: they neither advance nor break a run, and the remaining eligible history is compacted before streaks are calculated. Portable v12 contains only the authored Buzz flag and still excludes runtime streak values. Head-to-Head and the existing three Final Awards remain unchanged.
 
 ## Authoritative history

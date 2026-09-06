@@ -1,5 +1,7 @@
 # Wagers — Phase 2 Pass 7A
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904141715_wagers.sql` is applied to production and Wagers are part of the merged Phase 2 frontend. Portable export has since advanced from v11 to v12. The remainder of this file preserves the original Pass 7A engineering/verification record; pre-release deployment wording and the v11 export statement describe that pass at the time it was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 `wagerEnabled` is an optional boolean on the browser's QuestionBase (missing means false), explicitly false in factories and explicit in saved/v11 portable data. It is a question modifier for all ten Standard types, including Teams and Rounds. Duplication and moves preserve it. Head-to-Head offers no editor control and rejects enabled flags on conversion, import, save and launch.
 
 ## Scoring

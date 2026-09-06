@@ -1,5 +1,7 @@
 # Ordering and Matching
 
+> **Current production status (6 September 2026): shipped.** Migration `20260904110937_ordering_matching_questions.sql` is applied to production and Ordering/Matching are part of the merged Phase 2 frontend. Portable export has since advanced from v8 to v12. The remainder of this file preserves the original Pass 5A engineering/verification record; pre-release deployment wording and the v8 export statement describe that pass at the time it was written. See [`current-production-state.md`](current-production-state.md) for authoritative current status.
+
 Phase 2 Pass 5A adds two text interaction types without changing existing question scoring or session progression. Migration `20260904110937_ordering_matching_questions.sql` follows Visual Pinpoint, Core Rounds and Core Team Mode. It is pending deliberate release; this pass does not apply it to production.
 
 ## Definitions and storage
