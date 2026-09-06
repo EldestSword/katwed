@@ -17,7 +17,7 @@ This branch combines the public homepage redesign, the corrected Ka/twed wordmar
 
 Forward migration:
 
-`20260906070000_host_typed_answer_review.sql`
+`20260906084106_host_typed_answer_review.sql`
 
 The RPC is authenticated-only, checks quiz ownership and only returns the current Typed Answer question during `locked`, `reveal`, `leaderboard` or `finished`. It returns incorrect, not-yet-host-accepted responses only.
 
