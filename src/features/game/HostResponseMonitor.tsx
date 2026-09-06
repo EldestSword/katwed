@@ -59,6 +59,10 @@ export function HostResponseMonitor({
   const rows = buildHostResponseRows(players, responses, showDetails ? answers : [], question.id, phase, preludeActive)
   const mayReview = question.type === 'typed-answer' && ['locked', 'reveal', 'leaderboard', 'finished'].includes(phase)
   const sessionId = responses[0]?.sessionId ?? answers[0]?.sessionId ?? null
+  const playersRef = useRef(players)
+  const answersRef = useRef(answers)
+  playersRef.current = players
+  answersRef.current = answers
   const [reviewItems, setReviewItems] = useState<TypedAnswerReviewItem[]>([])
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -73,7 +77,7 @@ export function HostResponseMonitor({
     setReviewLoading(true)
     setReviewError('')
     try {
-      const items = await loadTypedAnswerReview(sessionId, question.id, players, answers)
+      const items = await loadTypedAnswerReview(sessionId, question.id, playersRef.current, answersRef.current)
       setReviewItems(items)
       if (openAutomatically && items.length > 0 && autoOpenedQuestion.current !== question.id) {
         autoOpenedQuestion.current = question.id
@@ -84,7 +88,7 @@ export function HostResponseMonitor({
     } finally {
       setReviewLoading(false)
     }
-  }, [answers, mayReview, players, question, sessionId])
+  }, [mayReview, question.id, question.type, sessionId])
 
   useEffect(() => {
     if (!mayReview) {
