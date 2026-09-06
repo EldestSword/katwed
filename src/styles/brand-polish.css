@@ -1,0 +1,10 @@
+.app-shell--landing .kw-stage__wordmark {
+  color: transparent;
+  background: linear-gradient(90deg, #a06cff 0 31%, #ff68b5 31% 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.app-shell--landing .kw-stage__wordmark > span {
+  color: #ffd166;
+  -webkit-text-fill-color: #ffd166;
+}
