@@ -1,0 +1,148 @@
+{
+  "generationMode": "Built-in image_gen",
+  "images": [
+    {
+      "number": 1,
+      "filename": "01-die-hard.png",
+      "answer": "Die Hard",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Die Hard'. Show one single six-sided die made from extremely tough hardened steel or diamond-like material, surviving a hydraulic press, sparks and heavy impact without cracking. The joke must be immediately readable as a die that is extremely hard."
+    },
+    {
+      "number": 2,
+      "filename": "02-home-alone.png",
+      "answer": "Home Alone",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Home Alone'. Show one lonely detached house sitting completely by itself in a huge empty landscape, with every other house or neighbourhood far away in the distance. Make the house feel visibly isolated rather than frightening."
+    },
+    {
+      "number": 3,
+      "filename": "03-a-clockwork-orange.png",
+      "answer": "A Clockwork Orange",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'A Clockwork Orange'. Show a fresh orange fruit rebuilt as an intricate clockwork machine, with brass gears, springs, cogs and tiny mechanical components visibly integrated into the peel and segments. Keep it playful, tactile and unmistakably an orange."
+    },
+    {
+      "number": 4,
+      "filename": "04-no-country-for-old-men.png",
+      "answer": "No Country for Old Men",
+      "doubleScore": true,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'No Country for Old Men'. Show a clearly country-shaped territory or miniature nation with its border gate firmly closed, while a small group of elderly men with walking sticks and grey hair stand outside unable to enter. Make visual storytelling clear without written signs. Keep it absurd rather than cruel."
+    },
+    {
+      "number": 5,
+      "filename": "05-school-of-rock.png",
+      "answer": "School of Rock",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'School of Rock'. Show a complete school building and classroom environment constructed from rough rocks, boulders and stone, including stone desks, a rocky doorway and geological textures. It must still instantly read as a school.",
+      "editPrompt": "Remove ALL readable text, words, letters and slogans from every surface. Replace the SCHOOL inscription above the door with a simple carved open-book pictogram. Make the chalkboard contain only a simple geometry drawing without letters, and make the other stone sign slabs blank natural rock. Preserve the rocky school, stone desks, cutaway classroom, lighting, 16:9 composition and all other details."
+    },
+    {
+      "number": 6,
+      "filename": "06-face-off.png",
+      "answer": "Face/Off",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Face/Off'. Show a surreal but completely non-gory person calmly lifting their own face away like a detachable theatrical mask, revealing a smooth neutral mannequin-like surface underneath. Make the concept strange and funny, not horrific."
+    },
+    {
+      "number": 7,
+      "filename": "07-the-big-short.png",
+      "answer": "The Big Short",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'The Big Short'. Show one absurdly enormous pair of shorts towering over normal-sized clothing and everyday objects, making the shorts comically huge. Keep the visual clean and instantly readable. No finance imagery.",
+      "editPrompt": "Remove the entire tall banner on the right and the small advertising sign at the lower left. Fill their areas naturally with the existing sky and pavement. Remove any tiny watermark-like decorative marks in the image corners. Preserve the enormous shorts, normal clothes rack, scale-reference person, bench, lighting and 16:9 composition. No words, letters, signs, logos or text anywhere."
+    },
+    {
+      "number": 8,
+      "filename": "08-the-fast-and-the-furious.png",
+      "answer": "The Fast and the Furious",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'The Fast and the Furious'. Split the visual idea naturally between two subjects: one is moving absurdly fast with dramatic motion blur, while the other is visibly furious, red-faced and enraged. Make both concepts equally clear. No cars from the franchise."
+    },
+    {
+      "number": 9,
+      "filename": "09-reservoir-dogs.png",
+      "answer": "Reservoir Dogs",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Reservoir Dogs'. Show several ordinary dogs gathered beside a large water reservoir or dam, calmly looking over the water. The reservoir must be visually unmistakable, and the dogs should be the main subjects. No costumes. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 10,
+      "filename": "10-lock-stock-and-two-smoking-barrels.png",
+      "answer": "Lock, Stock and Two Smoking Barrels",
+      "doubleScore": true,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Lock, Stock and Two Smoking Barrels'. Create a still-life with four clear clue elements: one large padlock, visual stock-market material such as generic share certificates and an upward/downward market graph with no readable wording, and exactly two wooden barrels visibly releasing curls of smoke. Do not show guns. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 11,
+      "filename": "11-the-green-mile.png",
+      "answer": "The Green Mile",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'The Green Mile'. Show a very long one-mile route, athletics lane or pathway coloured vivid green from end to end, with a subtle single-mile distance marker at the finish. The colour and distance should be the whole joke. No prisons. Avoid readable wording apart from a simple '1 mile' distance marker."
+    },
+    {
+      "number": 12,
+      "filename": "12-million-dollar-baby.png",
+      "answer": "Million Dollar Baby",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Million Dollar Baby'. Show a cheerful baby sitting safely amid an absurd mountain of US-dollar-style banknotes, luxury money cases and glittering coins, visually suggesting an enormous million-dollar value. Keep it whimsical and non-commercial. No boxing. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 13,
+      "filename": "13-hot-fuzz.png",
+      "answer": "Hot Fuzz",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Hot Fuzz'. Show a huge fluffy fuzzy pom-pom or ball of soft fibres glowing with intense heat, giving off heat shimmer and a little harmless steam, while remaining visibly soft and fuzzy. Make the contrast funny. No police. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 14,
+      "filename": "14-one-flew-over-the-cuckoos-nest.png",
+      "answer": "One Flew Over the Cuckoo's Nest",
+      "doubleScore": true,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'One Flew Over the Cuckoo's Nest'. Show exactly one bird flying directly over a clearly visible nest occupied by a recognisable cuckoo bird. Simple composition making the action 'one flew over the cuckoo’s nest' readable visually. The perched cuckoo has a grey head, slender bill, yellow eye ring, and white breast with dark horizontal bars. Exactly two birds total: one in flight, one cuckoo sitting inside the nest. No hospital imagery. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 15,
+      "filename": "15-mean-girls.png",
+      "answer": "Mean Girls",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Mean Girls'. Show a small group of stylish young adult women at a classroom board seriously calculating the arithmetic mean of several numbers with calculators, charts and equations. Humour comes from mean meaning average, not unkind. Board equation should accurately show '(2 + 4 + 6) ÷ 3 = 4', numbers and mathematical symbols only, no words. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 16,
+      "filename": "16-trainspotting.png",
+      "answer": "Trainspotting",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'Trainspotting'. Show an enthusiastic hobbyist using binoculars and a notebook to spot and observe passing trains from a safe viewing point, posed exactly like a birdwatcher. Make the train and the act of spotting it unmistakable. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 17,
+      "filename": "17-the-silence-of-the-lambs.png",
+      "answer": "The Silence of the Lambs",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'The Silence of the Lambs'. Show a group of lambs in an extremely quiet soundproof room, all perfectly still with closed mouths, alongside a physical sound meter sitting at zero and soft acoustic panels. Mood gently absurd rather than sinister. No masks. The sound meter may show a single numeral 0, no wording. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 18,
+      "filename": "18-the-shape-of-water.png",
+      "answer": "The Shape of Water",
+      "doubleScore": true,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'The Shape of Water'. Show crystal-clear water impossibly holding a perfect geometric shape in mid-air, as though liquid has been moulded into a precise sculptural form, with droplets still visibly behaving like water. Make the contrast between fluid water and a fixed shape visually striking. No creature designs. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 19,
+      "filename": "19-12-angry-men.png",
+      "answer": "12 Angry Men",
+      "doubleScore": false,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret '12 Angry Men'. Show exactly twelve clearly countable angry adult men, arranged as a clean 4-column by 3-row group so every face is visible, all with distinct annoyed or furious expressions. Four separate men in each of three rows, twelve people total. No other people should appear. No jury room. No readable words, captions, signs or letters anywhere in the image."
+    },
+    {
+      "number": 20,
+      "filename": "20-there-will-be-blood.png",
+      "answer": "There Will Be Blood",
+      "doubleScore": true,
+      "prompt": "Use case: stylized-concept. Asset type: Katwed shared-screen literal movie-title visual riddle. Create one standalone 16:9 landscape image, ideally 1536x864. Consistent premium colourful 3D editorial illustration, playful surrealism, tactile realistic materials, cinematic teal/violet/coral/warm-gold lighting, polished but not photorealistic, strong central composition, clean readable silhouettes. Do not copy film posters or scenes; no actor or character likenesses, franchise imagery, title text, logos, watermarks or interface elements. Primary request: Literally interpret 'There Will Be Blood'. Without gore or injury, show a fortune-teller-style crystal ball or futuristic prediction device revealing a clearly future scene in which dramatic deep-red liquid is about to spill or rain into an otherwise clean white environment. Important idea is a prediction that blood-red liquid WILL appear, not that violence has already happened. No oil imagery. No readable words, captions, signs or letters anywhere in the image.",
+      "editPrompt": "Remove the red puddle on the white floor inside the crystal ball completely. The entire floor must be pristine clean white. Keep the suspended deep-red cloud and a few suspended falling droplets in the top half of the vision, all still far above the untouched floor, creating the moment BEFORE any liquid arrives. Preserve the fortune-teller hands, crystal ball, lighting, 16:9 framing and all outside-ball objects. No injury, gore, words or logos."
+    }
+  ]
+}
